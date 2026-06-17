@@ -1,0 +1,5 @@
+.env
+youtube/token.json
+youtube/client_secret.json
+whisper/models/
+n8n/data/
