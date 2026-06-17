@@ -10,6 +10,7 @@ import time
 print("clip-processor iniciado — aguardando implementação do pipeline")
 print(f"MYSQL_HOST: {os.environ.get('MYSQL_HOST', 'não configurado')}")
 print(f"ANTHROPIC_API_KEY: {'configurado' if os.environ.get('ANTHROPIC_API_KEY') else 'NÃO configurado'}")
+print(f"GROQ_API_KEY: {'configurado' if os.environ.get('GROQ_API_KEY') else 'NÃO configurado'}")
 
 # Loop infinito para manter o container em execução durante desenvolvimento
 while True:
