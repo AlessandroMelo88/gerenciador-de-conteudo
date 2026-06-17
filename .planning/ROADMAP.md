@@ -29,7 +29,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Banco `clips_automation` existe no MySQL com tabelas `source_channels`, `source_videos` e `generated_clips` verificáveis via SQL
   3. Canal do YouTube existe com conta verificada, banner e bio preenchidos — pronto para receber o primeiro vídeo
   4. Variáveis `.env` (Claude API key, YouTube OAuth credentials) estão carregadas e os serviços sobem sem erro de configuração faltando
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Estrutura de diretórios, docker-compose extension (n8n + clip-processor + whisper) e clip-processor Dockerfile
+- [ ] 01-02-PLAN.md — Schema SQL clips_automation (3 tabelas) e script validate-infra.sh
+- [ ] 01-03-PLAN.md — Gerar .env com secrets reais, subir serviços Docker e aplicar schema MySQL
+- [ ] 01-04-PLAN.md — Script OAuth YouTube, geração de token.json e verificação do canal
 
 ### Phase 2: Aquisição de Vídeos
 **Goal**: O sistema detecta novos vídeos nos canais configurados, baixa automaticamente e registra cada job — sem reprocessar o que já foi processado
@@ -82,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infraestrutura Base | 0/TBD | Not started | - |
+| 1. Infraestrutura Base | 1/4 | In Progress|  |
 | 2. Aquisição de Vídeos | 0/TBD | Not started | - |
 | 3. IA — Transcrição e Seleção | 0/TBD | Not started | - |
 | 4. Processamento de Vídeo | 0/TBD | Not started | - |

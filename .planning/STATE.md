@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: planning
+stopped_at: Completed 01-infraestrutura-base-01-01-PLAN.md
+last_updated: "2026-06-17T16:34:55.616Z"
+last_activity: 2026-06-17 — Roadmap criado; requirements mapeados (20/20); pronto para planejar Phase 1
+progress:
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 1
+  percent: 25
+---
+
 # Project State
 
 ## Project Reference
@@ -14,7 +30,7 @@ Plan: 0 of TBD in current phase
 Status: Ready to plan
 Last activity: 2026-06-17 — Roadmap criado; requirements mapeados (20/20); pronto para planejar Phase 1
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -34,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01-infraestrutura-base P01 | 2 | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -46,6 +63,9 @@ Recent decisions affecting current work:
 - Project init: faster-whisper modelo `small` PT-BR para transcrição gratuita local
 - Project init: Claude Haiku (não Sonnet) para seleção de momentos — custo ~$0.001/vídeo
 - Project init: Máximo 1-2 uploads/dia inicialmente (não 6) para evitar spam detection pelo YouTube
+- [Phase 01-infraestrutura-base]: n8n usa SQLite default — DB_TYPE=mysqldb removido no n8n 2.0 causaria falha silenciosa
+- [Phase 01-infraestrutura-base]: Imagem n8n pinada em 2.27.0 (não :latest) para estabilidade de produção
+- [Phase 01-infraestrutura-base]: token.json placeholder {} criado (gitignored) para volume mount antes do OAuth ser configurado no Plan 03
 
 ### Pending Todos
 
@@ -58,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-17
-Stopped at: Roadmap criado, STATE.md inicializado, REQUIREMENTS.md traceability atualizado
+Last session: 2026-06-17T16:34:55.613Z
+Stopped at: Completed 01-infraestrutura-base-01-01-PLAN.md
 Resume file: None
