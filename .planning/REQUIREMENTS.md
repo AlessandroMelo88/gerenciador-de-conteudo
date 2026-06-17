@@ -86,6 +86,7 @@
 | ACQU-01 | Phase 2 | Pending |
 | ACQU-02 | Phase 2 | Pending |
 | ACQU-03 | Phase 2 | Pending |
+| ORC-02 | Phase 2 | Pending |
 | AI-01 | Phase 3 | Pending |
 | AI-02 | Phase 3 | Pending |
 | AI-03 | Phase 3 | Pending |
@@ -98,7 +99,6 @@
 | PUB-03 | Phase 5 | Pending |
 | PUB-04 | Phase 5 | Pending |
 | ORC-01 | Phase 5 | Pending |
-| ORC-02 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 20 total
@@ -107,4 +107,4 @@
 
 ---
 *Requirements defined: 2026-06-17*
-*Last updated: 2026-06-17 after initial definition*
+*Last updated: 2026-06-17 — traceability finalized after roadmap creation*
