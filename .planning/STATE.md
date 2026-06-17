@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-infraestrutura-base-01-02-PLAN.md
-last_updated: "2026-06-17T16:37:49.700Z"
-last_activity: 2026-06-17 — Roadmap criado; requirements mapeados (20/20); pronto para planejar Phase 1
+stopped_at: Completed 01-infraestrutura-base-01-03-PLAN.md
+last_updated: "2026-06-17T00:00:00Z"
+last_activity: 2026-06-17 — Plan 01-03 completo; n8n rodando :5678, clips_automation 3 tabelas, secrets configurados
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 25
+  completed_plans: 3
+  percent: 38
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 ## Current Position
 
 Phase: 1 of 5 (Infraestrutura Base)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-06-17 — Roadmap criado; requirements mapeados (20/20); pronto para planejar Phase 1
+Plan: 3 of 4 in current phase
+Status: In progress
+Last activity: 2026-06-17 — Plan 01-03 completo; n8n rodando :5678, clips_automation 3 tabelas, secrets configurados
 
-Progress: [███░░░░░░░] 25%
+Progress: [████░░░░░░] 38%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [███░░░░░░░] 25%
 *Updated after each plan completion*
 | Phase 01-infraestrutura-base P01 | 2 | 3 tasks | 8 files |
 | Phase 01-infraestrutura-base P02 | 1 | 2 tasks | 2 files |
+| Phase 01-infraestrutura-base P03 | ~30min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ Recent decisions affecting current work:
 - [Phase 01-infraestrutura-base]: ENUM source_videos com 9 estados do pipeline: pending → downloading → downloaded → transcribing → selecting → cutting → publishing → published → failed
 - [Phase 01-infraestrutura-base]: validate-infra.sh usa check() isolado para exibir todos PASS/FAIL mesmo quando algum falha
 - [Phase 01-infraestrutura-base]: Whisper local removido — substituído por Groq Whisper API (gratuito, online) para economizar ~2.5GB de disco no Mac. Container whisper removido do docker-compose.yml. GROQ_API_KEY adicionado ao .env e clip-processor.
+- [Phase 01-infraestrutura-base P03]: N8N_ENCRYPTION_KEY e CLIPS_DB_PASSWORD gerados via openssl rand automaticamente — nunca hardcoded. ANTHROPIC_API_KEY intencionalmente vazia até Phase 3.
+- [Phase 01-infraestrutura-base P03]: token.json placeholder {} criado para volume mount — evita erro de boot do clip-processor antes do OAuth real (Plan 04).
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-17T16:37:49.697Z
-Stopped at: Completed 01-infraestrutura-base-01-02-PLAN.md
+Last session: 2026-06-17T00:00:00Z
+Stopped at: Completed 01-infraestrutura-base-01-03-PLAN.md
 Resume file: None

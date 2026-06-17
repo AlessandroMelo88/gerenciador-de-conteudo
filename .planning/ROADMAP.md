@@ -32,9 +32,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 4 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Estrutura de diretórios, docker-compose extension (n8n + clip-processor + whisper) e clip-processor Dockerfile
-- [ ] 01-02-PLAN.md — Schema SQL clips_automation (3 tabelas) e script validate-infra.sh
-- [ ] 01-03-PLAN.md — Gerar .env com secrets reais, subir serviços Docker e aplicar schema MySQL
+- [x] 01-01-PLAN.md — Estrutura de diretórios, docker-compose extension (n8n + clip-processor + whisper) e clip-processor Dockerfile
+- [x] 01-02-PLAN.md — Schema SQL clips_automation (3 tabelas) e script validate-infra.sh
+- [x] 01-03-PLAN.md — Gerar .env com secrets reais, subir serviços Docker e aplicar schema MySQL
 - [ ] 01-04-PLAN.md — Script OAuth YouTube, geração de token.json e verificação do canal
 
 ### Phase 2: Aquisição de Vídeos
@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infraestrutura Base | 2/4 | In Progress|  |
+| 1. Infraestrutura Base | 3/4 | In Progress|  |
 | 2. Aquisição de Vídeos | 0/TBD | Not started | - |
 | 3. IA — Transcrição e Seleção | 0/TBD | Not started | - |
 | 4. Processamento de Vídeo | 0/TBD | Not started | - |
