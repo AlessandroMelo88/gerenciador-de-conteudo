@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infraestrutura Base | 1/4 | In Progress|  |
+| 1. Infraestrutura Base | 2/4 | In Progress|  |
 | 2. Aquisição de Vídeos | 0/TBD | Not started | - |
 | 3. IA — Transcrição e Seleção | 0/TBD | Not started | - |
 | 4. Processamento de Vídeo | 0/TBD | Not started | - |

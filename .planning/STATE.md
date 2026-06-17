@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-infraestrutura-base-01-01-PLAN.md
-last_updated: "2026-06-17T16:34:55.616Z"
+stopped_at: Completed 01-infraestrutura-base-01-02-PLAN.md
+last_updated: "2026-06-17T16:37:49.700Z"
 last_activity: 2026-06-17 — Roadmap criado; requirements mapeados (20/20); pronto para planejar Phase 1
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
   percent: 25
 ---
 
@@ -51,6 +51,7 @@ Progress: [███░░░░░░░] 25%
 
 *Updated after each plan completion*
 | Phase 01-infraestrutura-base P01 | 2 | 3 tasks | 8 files |
+| Phase 01-infraestrutura-base P02 | 1 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,9 @@ Recent decisions affecting current work:
 - [Phase 01-infraestrutura-base]: n8n usa SQLite default — DB_TYPE=mysqldb removido no n8n 2.0 causaria falha silenciosa
 - [Phase 01-infraestrutura-base]: Imagem n8n pinada em 2.27.0 (não :latest) para estabilidade de produção
 - [Phase 01-infraestrutura-base]: token.json placeholder {} criado (gitignored) para volume mount antes do OAuth ser configurado no Plan 03
+- [Phase 01-infraestrutura-base]: CLIPS_DB_PASSWORD como placeholder no SQL — substituição via envsubst no Plan 03
+- [Phase 01-infraestrutura-base]: ENUM source_videos com 9 estados do pipeline: pending → downloading → downloaded → transcribing → selecting → cutting → publishing → published → failed
+- [Phase 01-infraestrutura-base]: validate-infra.sh usa check() isolado para exibir todos PASS/FAIL mesmo quando algum falha
 
 ### Pending Todos
 
@@ -78,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-17T16:34:55.613Z
-Stopped at: Completed 01-infraestrutura-base-01-01-PLAN.md
+Last session: 2026-06-17T16:37:49.697Z
+Stopped at: Completed 01-infraestrutura-base-01-02-PLAN.md
 Resume file: None

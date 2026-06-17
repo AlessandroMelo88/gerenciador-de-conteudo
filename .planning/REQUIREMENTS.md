@@ -8,7 +8,7 @@
 ### Infraestrutura
 
 - [x] **INFRA-01**: Sistema roda inteiramente em Docker no docker-compose existente (novos serviços: n8n, clip-processor, whisper)
-- [ ] **INFRA-02**: Banco de dados `clips_automation` criado no MySQL existente com tabelas source_channels, source_videos e generated_clips
+- [x] **INFRA-02**: Banco de dados `clips_automation` criado no MySQL existente com tabelas source_channels, source_videos e generated_clips
 - [ ] **INFRA-03**: Canal do YouTube criado, conta verificada, banner e bio preenchidos antes do primeiro upload
 - [x] **INFRA-04**: Variáveis de ambiente e secrets configurados (.env com Claude API key, YouTube OAuth credentials)
 
@@ -80,7 +80,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | Phase 1 | Complete |
-| INFRA-02 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Pending |
 | INFRA-04 | Phase 1 | Complete |
 | ACQU-01 | Phase 2 | Pending |
