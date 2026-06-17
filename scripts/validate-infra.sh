@@ -16,10 +16,10 @@ check() {
   shift
   if "$@" &>/dev/null; then
     echo "  PASS: $label"
-    ((PASS++))
+    PASS=$((PASS + 1))
   else
     echo "  FAIL: $label"
-    ((FAIL++))
+    FAIL=$((FAIL + 1))
   fi
 }
 
