@@ -70,6 +70,7 @@ Recent decisions affecting current work:
 - [Phase 01-infraestrutura-base]: CLIPS_DB_PASSWORD como placeholder no SQL — substituição via envsubst no Plan 03
 - [Phase 01-infraestrutura-base]: ENUM source_videos com 9 estados do pipeline: pending → downloading → downloaded → transcribing → selecting → cutting → publishing → published → failed
 - [Phase 01-infraestrutura-base]: validate-infra.sh usa check() isolado para exibir todos PASS/FAIL mesmo quando algum falha
+- [Phase 01-infraestrutura-base]: Whisper local removido — substituído por Groq Whisper API (gratuito, online) para economizar ~2.5GB de disco no Mac. Container whisper removido do docker-compose.yml. GROQ_API_KEY adicionado ao .env e clip-processor.
 
 ### Pending Todos
 
