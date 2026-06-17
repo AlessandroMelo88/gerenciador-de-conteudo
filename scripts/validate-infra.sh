@@ -29,10 +29,9 @@ echo ""
 
 echo "[INFRA-01] Docker services"
 check "n8n responde em :5678" curl -sf --max-time 5 http://localhost:5678/healthz
-check "whisper responde em :8000" curl -sf --max-time 5 http://localhost:8000/health
 check "clip-processor Up" bash -c "cd '$COMPOSE_DIR' && docker compose ps clip-processor | grep -i 'up\|running'"
 check "n8n Up" bash -c "cd '$COMPOSE_DIR' && docker compose ps n8n | grep -i 'up\|running'"
-check "whisper Up" bash -c "cd '$COMPOSE_DIR' && docker compose ps whisper | grep -i 'up\|running'"
+# NOTE: whisper service removed — substituído por Groq Whisper API (gratuito, online)
 
 echo ""
 echo "[INFRA-02] MySQL schema"
