@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 3 COMPLETA — Plan 04 integrou pipeline IA no rss_poller; pronto para planejar Phase 4
-stopped_at: Completed 03-ia-transcri-o-e-sele-o Plan 04
+status: Phase 4 PLANEJADA — 4 planos criados para processamento de vídeo; pronta para executar Plan 04-01
+stopped_at: Planned 04-processamento-de-video
 last_updated: "2026-06-18T18:08:44.564Z"
-last_activity: 2026-06-18 — Plan 03-04 completo; _process_ai_pipeline no rss_poller, fluxo downloaded→transcribing→selecting→generated_clips(pending_cut)
+last_activity: 2026-06-18 — Phase 4 planejada: Wave 0 testes/skeletons, FFmpeg+legendas+thumbnail, metadata Haiku, integração no rss_poller
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 12
+  total_plans: 16
   completed_plans: 12
-  percent: 100
+  percent: 75
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 3 of 5 (IA Transcrição e Seleção) — COMPLETE
-Plan: 4 of 4 in current phase — COMPLETE
-Status: Phase 3 COMPLETA — Plan 04 integrou pipeline IA no rss_poller; pronto para planejar Phase 4
-Last activity: 2026-06-18 — Plan 03-04 completo; _process_ai_pipeline no rss_poller, fluxo downloaded→transcribing→selecting→generated_clips(pending_cut)
+Phase: 4 of 5 (Processamento de Vídeo) — PLANNED
+Plan: 0 of 4 in current phase — READY TO EXECUTE
+Status: Phase 4 PLANEJADA — 4 planos criados para processamento de vídeo; pronta para executar Plan 04-01
+Last activity: 2026-06-18 — Phase 4 planejada: Wave 0 testes/skeletons, FFmpeg+legendas+thumbnail, metadata Haiku, integração no rss_poller
 
-Progress: [██████████] 100% (Phases 1-3 completas — 12/12 planos)
+Progress: [███████░░░] 75% (Phases 1-3 completas — 12/16 planos; Phase 4 planejada)
 
 ## Performance Metrics
 
@@ -107,6 +107,9 @@ Recent decisions affecting current work:
 - [Phase 03-ia-transcri-o-e-sele-o]: groq_client e anthropic_client NÃO injetados em poll_all_channels — módulos criam clientes em produção; injeção apenas nos testes via _process_ai_pipeline
 - [Phase 03-ia-transcri-o-e-sele-o]: source_video_id lookup via SELECT id FROM source_videos WHERE youtube_video_id = %s dentro de _process_ai_pipeline — FK INT necessária para generated_clips
 - [Phase 03-ia-transcri-o-e-sele-o]: Phase 4 (cutting) responsável pela transição de status após pending_cut — _process_ai_pipeline não define status final do clip
+- [Phase 04-processamento-de-video]: Nenhuma migration necessária — generated_clips já possui clip_path, thumbnail_path, title, description e tags
+- [Phase 04-processamento-de-video]: Status flow definido como pending_cut → cutting → pending; Phase 5 publicará clips pending
+- [Phase 04-processamento-de-video]: FFmpeg unit tests devem mockar subprocess.run; verificação visual real fica no checkpoint do Plan 04-04
 
 ### Pending Todos
 
@@ -114,10 +117,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None — Phase 3 completa. Pronto para planejar Phase 4 (processamento de vídeo).
+None — Phase 4 planejada. Pronto para executar Plan 04-01 (Wave 0).
 
 ## Session Continuity
 
 Last session: 2026-06-18T17:39:18.305Z
-Stopped at: Completed 03-ia-transcri-o-e-sele-o Plan 04
+Stopped at: Planned 04-processamento-de-video
 Resume file: None
