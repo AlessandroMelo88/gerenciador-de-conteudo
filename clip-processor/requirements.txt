@@ -4,3 +4,8 @@ google-auth-oauthlib
 anthropic
 groq
 pymysql
+apscheduler
+feedparser
+redis
+pytest
+pytest-mock
