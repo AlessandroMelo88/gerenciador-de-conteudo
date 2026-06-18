@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Infraestrutura Base** - Docker services, MySQL schema, canal do YouTube e secrets prontos
 - [x] **Phase 2: Aquisição de Vídeos** - Monitor RSS, download yt-dlp, deduplicação e rastreamento de jobs (completed 2026-06-18)
 - [x] **Phase 3: IA — Transcrição e Seleção** - Groq Whisper transcreve, Claude Haiku seleciona melhores momentos (completed 2026-06-18)
-- [ ] **Phase 4: Processamento de Vídeo** - FFmpeg corta, redimensiona 9:16, queima legendas e gera thumbnail + metadados
+- [x] **Phase 4: Processamento de Vídeo** - FFmpeg corta, redimensiona 9:16, queima legendas e gera thumbnail + metadados (completed 2026-06-18)
 - [ ] **Phase 5: Publicação e Automação Total** - Upload YouTube API, quota management, agendamento e workflow n8n end-to-end
 
 ## Phase Details
@@ -85,7 +85,7 @@ Plans:
 - [x] 04-01-PLAN.md — Wave 0: skeletons video_processor.py/metadata_generator.py + testes RED para video, metadata e integração
 - [x] 04-02-PLAN.md — video_processor.py: FFmpeg corta 1080x1920, queima legendas e extrai thumbnail (VID-01/02/03 GREEN)
 - [x] 04-03-PLAN.md — metadata_generator.py: Claude Haiku gera título, descrição e tags SEO (VID-04 GREEN)
-- [ ] 04-04-PLAN.md — Integração em rss_poller.py + checkpoint end-to-end do clip renderizado
+- [x] 04-04-PLAN.md — Integração em rss_poller.py + checkpoint end-to-end do clip renderizado
 
 ### Phase 5: Publicação e Automação Total
 **Goal**: Clips processados são publicados automaticamente no YouTube respeitando cota e horários, o pipeline completo roda do RSS ao upload sem intervenção manual, e vídeos brutos são limpos após sucesso
@@ -109,5 +109,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Infraestrutura Base | 4/4 | Complete | 2026-06-18 |
 | 2. Aquisição de Vídeos | 4/4 | Complete | 2026-06-18 |
 | 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
-| 4. Processamento de Vídeo | 0/4 | Planned | - |
+| 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
 | 5. Publicação e Automação Total | 0/TBD | Not started | - |

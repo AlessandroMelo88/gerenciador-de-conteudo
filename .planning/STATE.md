@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 em progresso — Plans 04-01, 04-02 e 04-03 completos; pronto para 04-04 integração no rss_poller
-stopped_at: Completed 04-processamento-de-video Plan 03
+status: Phase 4 COMPLETA — processamento de vídeo integrado e checkpoint aprovado; pronto para planejar Phase 5
+stopped_at: Completed 04-processamento-de-video Plan 04
 last_updated: "2026-06-18T18:08:44.564Z"
-last_activity: 2026-06-18 — Phase 4 Plans 04-01/02/03 completos: testes RED, video_processor FFmpeg e metadata_generator Haiku
+last_activity: 2026-06-18 — Phase 4 completa; pending_cut → cutting → pending com MP4 1080x1920, legenda, thumbnail e metadata
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 16
-  completed_plans: 15
-  percent: 94
+  completed_plans: 16
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 4 of 5 (Processamento de Vídeo) — IN PROGRESS
-Plan: 3 of 4 in current phase — COMPLETE
-Status: Phase 4 em progresso — Plans 04-01, 04-02 e 04-03 completos; pronto para 04-04 integração no rss_poller
-Last activity: 2026-06-18 — Phase 4 Plans 04-01/02/03 completos: testes RED, video_processor FFmpeg e metadata_generator Haiku
+Phase: 4 of 5 (Processamento de Vídeo) — COMPLETE
+Plan: 4 of 4 in current phase — COMPLETE
+Status: Phase 4 COMPLETA — processamento de vídeo integrado e checkpoint aprovado; pronto para planejar Phase 5
+Last activity: 2026-06-18 — Phase 4 completa; pending_cut → cutting → pending com MP4 1080x1920, legenda, thumbnail e metadata
 
-Progress: [█████████░] 94% (Phases 1-3 completas + Phase 4 Plans 1-3/4)
+Progress: [██████████] 100% (Phases 1-4 completas — 16/16 planos)
 
 ## Performance Metrics
 
@@ -110,6 +110,8 @@ Recent decisions affecting current work:
 - [Phase 04-processamento-de-video]: Nenhuma migration necessária — generated_clips já possui clip_path, thumbnail_path, title, description e tags
 - [Phase 04-processamento-de-video]: Status flow definido como pending_cut → cutting → pending; Phase 5 publicará clips pending
 - [Phase 04-processamento-de-video]: FFmpeg unit tests devem mockar subprocess.run; verificação visual real fica no checkpoint do Plan 04-04
+- [Phase 04-processamento-de-video]: Clips e thumbnails ficam em /app/videos/clips e /app/videos/thumbnails para persistir no volume Docker existente
+- [Phase 04-processamento-de-video]: MySQL 8.4 não aceitou ADD COLUMN IF NOT EXISTS; migrations idempotentes usam INFORMATION_SCHEMA + prepared statements
 
 ### Pending Todos
 
@@ -117,10 +119,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None — Phase 4 Plan 04-04 pendente (integração no rss_poller + checkpoint humano).
+None — Phase 4 completa. Pronto para planejar Phase 5 (publicação e automação total).
 
 ## Session Continuity
 
 Last session: 2026-06-18T17:39:18.305Z
-Stopped at: Completed 04-processamento-de-video Plan 03
+Stopped at: Completed 04-processamento-de-video Plan 04
 Resume file: None
