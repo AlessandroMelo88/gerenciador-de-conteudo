@@ -13,7 +13,7 @@ O pipeline é construído de baixo para cima: a infraestrutura Docker e o canal 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Infraestrutura Base** - Docker services, MySQL schema, canal do YouTube e secrets prontos
-- [ ] **Phase 2: Aquisição de Vídeos** - Monitor RSS, download yt-dlp, deduplicação e rastreamento de jobs
+- [x] **Phase 2: Aquisição de Vídeos** - Monitor RSS, download yt-dlp, deduplicação e rastreamento de jobs (completed 2026-06-18)
 - [ ] **Phase 3: IA — Transcrição e Seleção** - faster-whisper transcreve, Claude Haiku seleciona melhores momentos
 - [ ] **Phase 4: Processamento de Vídeo** - FFmpeg corta, redimensiona 9:16, queima legendas e gera thumbnail + metadados
 - [ ] **Phase 5: Publicação e Automação Total** - Upload YouTube API, quota management, agendamento e workflow n8n end-to-end
@@ -95,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infraestrutura Base | 4/4 | Complete | 2026-06-18 |
-| 2. Aquisição de Vídeos | 3/4 | In Progress|  |
+| 2. Aquisição de Vídeos | 4/4 | Complete   | 2026-06-18 |
 | 3. IA — Transcrição e Seleção | 0/TBD | Not started | - |
 | 4. Processamento de Vídeo | 0/TBD | Not started | - |
 | 5. Publicação e Automação Total | 0/TBD | Not started | - |
