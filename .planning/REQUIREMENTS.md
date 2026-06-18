@@ -26,10 +26,10 @@
 
 ### Processamento de Vídeo
 
-- [ ] **VID-01**: FFmpeg corta o clip nos timestamps selecionados pela IA e faz resize para formato 9:16 (1080x1920) compatível com YouTube Shorts
-- [ ] **VID-02**: Legendas geradas pelo Whisper são queimadas no clip final (burn subtitles) com fonte legível e bordas
-- [ ] **VID-03**: Thumbnail automática é extraída do frame mais impactante do clip
-- [ ] **VID-04**: Claude Haiku gera título (máx 100 chars), descrição e tags otimizados para YouTube SEO do nicho de futebol
+- [x] **VID-01**: FFmpeg corta o clip nos timestamps selecionados pela IA e faz resize para formato 9:16 (1080x1920) compatível com YouTube Shorts
+- [x] **VID-02**: Legendas geradas pelo Whisper são queimadas no clip final (burn subtitles) com fonte legível e bordas
+- [x] **VID-03**: Thumbnail automática é extraída do frame mais impactante do clip
+- [x] **VID-04**: Claude Haiku gera título (máx 100 chars), descrição e tags otimizados para YouTube SEO do nicho de futebol
 
 ### Publicação
 
@@ -90,10 +90,10 @@
 | AI-01 | Phase 3 | Complete |
 | AI-02 | Phase 3 | Complete |
 | AI-03 | Phase 3 | Complete |
-| VID-01 | Phase 4 | Pending |
-| VID-02 | Phase 4 | Pending |
-| VID-03 | Phase 4 | Pending |
-| VID-04 | Phase 4 | Pending |
+| VID-01 | Phase 4 | Complete |
+| VID-02 | Phase 4 | Complete |
+| VID-03 | Phase 4 | Complete |
+| VID-04 | Phase 4 | Complete |
 | PUB-01 | Phase 5 | Pending |
 | PUB-02 | Phase 5 | Pending |
 | PUB-03 | Phase 5 | Pending |
