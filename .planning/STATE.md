@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Phase 3 em progresso — Plan 03 (selector.py GREEN) completo"
-stopped_at: Completed 03-ia-transcri-o-e-sele-o Plan 03
-last_updated: "2026-06-18T17:39:18.307Z"
-last_activity: 2026-06-18 — Plan 03-01 completo; schema migration + 11 testes RED state (TDD Wave 0)
+status: Phase 3 COMPLETA — Plan 04 integrou pipeline IA no rss_poller; pronto para planejar Phase 4
+stopped_at: Completed 03-ia-transcri-o-e-sele-o Plan 04
+last_updated: "2026-06-18T18:08:44.564Z"
+last_activity: 2026-06-18 — Plan 03-04 completo; _process_ai_pipeline no rss_poller, fluxo downloaded→transcribing→selecting→generated_clips(pending_cut)
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 12
-  completed_plans: 11
-  percent: 92
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** Pipeline extrai e publica cortes virais de futebol automaticamente — do monitoramento à publicação — sem intervenção humana para cada vídeo.
-**Current focus:** Phase 3 — Transcrição (próxima fase)
+**Current focus:** Phase 4 — Processamento de Vídeo (próxima fase)
 
 ## Current Position
 
-Phase: 3 of 5 (IA Transcrição e Seleção) — IN PROGRESS
-Plan: 3 of 3 in current phase — COMPLETE
-Status: Phase 3 em progresso — Plan 03 (selector.py GREEN: 6/6 testes, 28/28 suite completa) completo
-Last activity: 2026-06-18 — Plan 03-03 completo; selector.py implementado com AI-02 + AI-03 passando
+Phase: 3 of 5 (IA Transcrição e Seleção) — COMPLETE
+Plan: 4 of 4 in current phase — COMPLETE
+Status: Phase 3 COMPLETA — Plan 04 integrou pipeline IA no rss_poller; pronto para planejar Phase 4
+Last activity: 2026-06-18 — Plan 03-04 completo; _process_ai_pipeline no rss_poller, fluxo downloaded→transcribing→selecting→generated_clips(pending_cut)
 
-Progress: [█████████░] 92% (Phase 2 completa + Phase 3 Plans 1-3/3)
+Progress: [██████████] 100% (Phases 1-3 completas — 12/12 planos)
 
 ## Performance Metrics
 
@@ -104,6 +104,9 @@ Recent decisions affecting current work:
 - [Phase 03-ia-transcricao]: _prepare_audio() retorna tuple (path, bool) para sinalizar ao chamador se deve deletar arquivo temporário de áudio
 - [Phase 03-ia-transcricao]: _remove_overlaps aplicado em insert_selected_moments além de select_moments — contrato de deduplicação robusto independente da origem dos momentos
 - [Phase 03-ia-transcricao]: output_config com json_schema para Claude Haiku — prefill retorna HTTP 400 em modelos claude-haiku-4-5
+- [Phase 03-ia-transcri-o-e-sele-o]: groq_client e anthropic_client NÃO injetados em poll_all_channels — módulos criam clientes em produção; injeção apenas nos testes via _process_ai_pipeline
+- [Phase 03-ia-transcri-o-e-sele-o]: source_video_id lookup via SELECT id FROM source_videos WHERE youtube_video_id = %s dentro de _process_ai_pipeline — FK INT necessária para generated_clips
+- [Phase 03-ia-transcri-o-e-sele-o]: Phase 4 (cutting) responsável pela transição de status após pending_cut — _process_ai_pipeline não define status final do clip
 
 ### Pending Todos
 
@@ -111,10 +114,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None — Phase 3 Plan 01 completo. Pronto para Plan 02 (implementação de transcriber.py).
+None — Phase 3 completa. Pronto para planejar Phase 4 (processamento de vídeo).
 
 ## Session Continuity
 
 Last session: 2026-06-18T17:39:18.305Z
-Stopped at: Completed 03-ia-transcri-o-e-sele-o Plan 03
+Stopped at: Completed 03-ia-transcri-o-e-sele-o Plan 04
 Resume file: None
