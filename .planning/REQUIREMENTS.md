@@ -14,9 +14,9 @@
 
 ### Aquisição de Conteúdo
 
-- [ ] **ACQU-01**: Sistema monitora canais de YouTube pré-configurados via RSS (sem consumir cota de API) a cada 6 horas
-- [ ] **ACQU-02**: Novos vídeos detectados são baixados automaticamente em 720p via yt-dlp
-- [ ] **ACQU-03**: Sistema não reprocessa vídeos já processados (deduplicação via Redis SET + MySQL UNIQUE em youtube_video_id)
+- [x] **ACQU-01**: Sistema monitora canais de YouTube pré-configurados via RSS (sem consumir cota de API) a cada 6 horas
+- [x] **ACQU-02**: Novos vídeos detectados são baixados automaticamente em 720p via yt-dlp
+- [x] **ACQU-03**: Sistema não reprocessa vídeos já processados (deduplicação via Redis SET + MySQL UNIQUE em youtube_video_id)
 
 ### Processamento com IA
 
@@ -41,7 +41,7 @@
 ### Orquestração
 
 - [ ] **ORC-01**: n8n orquestra todo o pipeline end-to-end como workflow automatizado com tratamento de erros e retry
-- [ ] **ORC-02**: Status de cada job é registrado no MySQL (pending/downloading/transcribing/selecting/cutting/publishing/published/failed)
+- [x] **ORC-02**: Status de cada job é registrado no MySQL (pending/downloading/transcribing/selecting/cutting/publishing/published/failed)
 
 ## v2 Requirements
 
@@ -83,10 +83,10 @@
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
 | INFRA-04 | Phase 1 | Complete |
-| ACQU-01 | Phase 2 | Pending |
-| ACQU-02 | Phase 2 | Pending |
-| ACQU-03 | Phase 2 | Pending |
-| ORC-02 | Phase 2 | Pending |
+| ACQU-01 | Phase 2 | Complete |
+| ACQU-02 | Phase 2 | Complete |
+| ACQU-03 | Phase 2 | Complete |
+| ORC-02 | Phase 2 | Complete |
 | AI-01 | Phase 3 | Pending |
 | AI-02 | Phase 3 | Pending |
 | AI-03 | Phase 3 | Pending |

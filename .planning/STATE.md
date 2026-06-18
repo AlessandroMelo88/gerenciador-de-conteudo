@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 2 context gathered
-last_updated: "2026-06-18T13:46:05.780Z"
-last_activity: 2026-06-18 — Plan 01-04 completo; token.json OAuth gerado, canal "Futebol em Cortes" verificado via SMS, Phase 1 completa
+status: Phase 2 em progresso — Plan 02-01 (pytest scaffold) concluído
+stopped_at: Completed 02-aquisicao-de-videos/02-01-PLAN.md
+last_updated: "2026-06-18T14:22:58.194Z"
+last_activity: 2026-06-18 — Plan 02-01 completo; pytest scaffold com 17 testes RED state para ACQU-01/02/03 e ORC-02
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_plans: 8
+  completed_plans: 5
+  percent: 25
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** Pipeline extrai e publica cortes virais de futebol automaticamente — do monitoramento à publicação — sem intervenção humana para cada vídeo.
-**Current focus:** Phase 1 — Infraestrutura Base
+**Current focus:** Phase 2 — Aquisição de Vídeos
 
 ## Current Position
 
-Phase: 1 of 5 (Infraestrutura Base) — COMPLETE
-Plan: 4 of 4 in current phase — COMPLETE
-Status: Phase 1 complete — ready for Phase 2
-Last activity: 2026-06-18 — Plan 01-04 completo; token.json OAuth gerado, canal "Futebol em Cortes" verificado via SMS, Phase 1 completa
+Phase: 2 of 5 (Aquisição de Vídeos) — IN PROGRESS
+Plan: 1 of 4 in current phase — COMPLETE
+Status: Phase 2 em progresso — Plan 02-01 (pytest scaffold) concluído
+Last activity: 2026-06-18 — Plan 02-01 completo; pytest scaffold com 17 testes RED state para ACQU-01/02/03 e ORC-02
 
-Progress: [██████████] 100% (Phase 1)
+Progress: [████░░░░░░] 25% (Phase 2, Plan 1/4)
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [██████████] 100% (Phase 1)
 | Phase 01-infraestrutura-base P02 | 1 | 2 tasks | 2 files |
 | Phase 01-infraestrutura-base P03 | ~30min | 3 tasks | 2 files |
 | Phase 01-infraestrutura-base P04 | ~2h | 3 tasks | 3 files |
+| Phase 02-aquisicao-de-videos P01 | 3min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 01-infraestrutura-base P04]: OAuth app type deve ser "installed" (Desktop App), não "web" — web type causa erro no InstalledAppFlow do Python.
 - [Phase 01-infraestrutura-base P04]: OAuth app publicado em Production para evitar expiração do refresh_token em 7 dias (limite do modo Testing).
 - [Phase 01-infraestrutura-base P04]: Canal "Futebol em Cortes" verificado via SMS — desbloqueia uploads longos e thumbnails customizadas.
+- [Phase 02-aquisicao-de-videos P01]: Imports de src.* no topo dos arquivos de teste (não dentro das funções) — coleta falha com ModuleNotFoundError = RED state correto e mais simples
+- [Phase 02-aquisicao-de-videos P01]: requirements.txt atualizado com redis, feedparser, apscheduler antecipando necessidades dos Planos 02-04
 
 ### Pending Todos
 
@@ -89,6 +92,6 @@ None — Phase 1 completa. Docker Desktop precisa ser iniciado para que validate
 
 ## Session Continuity
 
-Last session: 2026-06-18T13:46:05.770Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-aquisicao-de-videos/02-CONTEXT.md
+Last session: 2026-06-18T14:21:00Z
+Stopped at: Completed 02-aquisicao-de-videos/02-01-PLAN.md
+Resume file: .planning/phases/02-aquisicao-de-videos/02-02-PLAN.md
