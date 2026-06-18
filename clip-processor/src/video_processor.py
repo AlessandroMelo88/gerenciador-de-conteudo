@@ -22,8 +22,8 @@ from src.metadata_generator import generate_metadata, update_clip_metadata
 
 
 VIDEOS_DIR = '/app/videos'
-CLIPS_DIR = '/app/clips'
-THUMBNAILS_DIR = '/app/thumbnails'
+CLIPS_DIR = '/app/videos/clips'
+THUMBNAILS_DIR = '/app/videos/thumbnails'
 
 
 def _log(msg: str) -> None:
