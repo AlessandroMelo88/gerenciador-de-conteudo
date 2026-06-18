@@ -1,5 +1,6 @@
 """
 Testes ACQU-01: detecção de vídeos novos via RSS.
+Testes AI-04: integração do pipeline de IA (transcriber + selector) no rss_poller.
 
 Módulo alvo: src.rss_poller
 Exports esperados: poll_all_channels(db_conn, redis_client)
@@ -96,3 +97,148 @@ class TestPollAllChannels:
         poll_all_channels(mock_db_conn, mock_redis)
 
         mock_insert.assert_not_called()
+
+
+class TestAIPipelineIntegration:
+    """AI-04: Testes de integração do pipeline de IA no rss_poller."""
+
+    def _make_downloaded_cursor(self, mock_db_conn, video_rows, channel_rows=None):
+        """Configura mock_db_conn para retornar canais e vídeos downloaded em fetchall().
+
+        O rss_poller faz duas queries fetchall:
+          1. SELECT canais ativos (retorna lista vazia aqui para não poluir)
+          2. SELECT vídeos downloaded (retorna video_rows)
+        """
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        if channel_rows is None:
+            channel_rows = []
+        mock_cursor.fetchall.side_effect = [channel_rows, video_rows]
+        return mock_cursor
+
+    def test_downloaded_videos_trigger_ai_pipeline(self, mock_db_conn, mock_redis, mocker):
+        """AI-04: poll_all_channels chama _process_ai_pipeline para cada vídeo com status downloaded."""
+        video_rows = [
+            {'youtube_video_id': 'vid001aaaaaa', 'local_path': '/app/videos/vid001aaaaaa.mp4'},
+        ]
+        self._make_downloaded_cursor(mock_db_conn, video_rows)
+
+        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
+            status_code=200, text='<feed/>'
+        ))
+
+        mock_pipeline = mocker.patch('src.rss_poller._process_ai_pipeline')
+
+        poll_all_channels(mock_db_conn, mock_redis)
+
+        # Pipeline deve ter sido chamado para o vídeo downloaded
+        mock_pipeline.assert_called_once_with(mock_db_conn, 'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4')
+
+    def test_ai_pipeline_failure_does_not_abort_poll(self, mock_db_conn, mock_redis, mocker):
+        """AI-04: Falha no pipeline de IA de um vídeo não aborta os demais."""
+        video_rows = [
+            {'youtube_video_id': 'vid001aaaaaa', 'local_path': '/app/videos/vid001aaaaaa.mp4'},
+            {'youtube_video_id': 'vid002bbbbbb', 'local_path': '/app/videos/vid002bbbbbb.mp4'},
+        ]
+        self._make_downloaded_cursor(mock_db_conn, video_rows)
+
+        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
+            status_code=200, text='<feed/>'
+        ))
+
+        # Primeiro vídeo levanta exceção, segundo deve ser processado mesmo assim
+        call_count = []
+
+        def pipeline_side_effect(conn, vid_id, vid_path):
+            call_count.append(vid_id)
+            if vid_id == 'vid001aaaaaa':
+                raise Exception('Falha simulada na transcrição')
+
+        mocker.patch('src.rss_poller._process_ai_pipeline', side_effect=pipeline_side_effect)
+
+        # Act — não deve levantar exceção
+        poll_all_channels(mock_db_conn, mock_redis)
+
+        # Ambos os vídeos devem ter sido tentados
+        assert 'vid001aaaaaa' in call_count
+        assert 'vid002bbbbbb' in call_count
+
+    def test_process_ai_pipeline_calls_transcribe_and_select(self, mock_db_conn, mocker):
+        """AI-04: _process_ai_pipeline chama transcribe_video e select_moments em sequência."""
+        from src.rss_poller import _process_ai_pipeline
+
+        mock_transcript = {
+            'video_id': 'vid001aaaaaa',
+            'text': 'Texto',
+            'segments': [{'start': 0.0, 'end': 60.0, 'text': 'Análise'}],
+        }
+
+        mocker.patch('src.rss_poller.transcribe_video', return_value=mock_transcript)
+        mock_save = mocker.patch('src.rss_poller.save_transcript')
+        mock_select = mocker.patch('src.rss_poller.select_moments', return_value=[])
+        mock_insert = mocker.patch('src.rss_poller.insert_selected_moments', return_value=0)
+
+        # Configurar cursor para retornar source_video_id
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.fetchone.return_value = {'id': 42}
+
+        _process_ai_pipeline(mock_db_conn, 'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4')
+
+        # Verificar que transcribe foi chamado
+        import src.rss_poller as rss_mod
+        rss_mod.transcribe_video.assert_called_once_with(
+            'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4', groq_client=None
+        )
+        # Verificar que save_transcript foi chamado após transcrição bem-sucedida
+        mock_save.assert_called_once_with(mock_db_conn, 'vid001aaaaaa', mock_transcript)
+        # Verificar que select_moments foi chamado
+        mock_select.assert_called_once_with(mock_transcript, anthropic_client=None)
+
+    def test_process_ai_pipeline_transcription_failure_marks_failed(self, mock_db_conn, mocker):
+        """AI-04: Falha na transcrição (None) marca vídeo como failed e não chama select_moments."""
+        from src.rss_poller import _process_ai_pipeline
+
+        mocker.patch('src.rss_poller.transcribe_video', return_value=None)
+        mock_update = mocker.patch('src.rss_poller.update_status')
+        mock_select = mocker.patch('src.rss_poller.select_moments')
+
+        _process_ai_pipeline(mock_db_conn, 'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4')
+
+        # update_status deve ter sido chamado com 'failed'
+        calls = [str(c) for c in mock_update.call_args_list]
+        assert any('failed' in c for c in calls)
+
+        # select_moments NÃO deve ter sido chamado
+        mock_select.assert_not_called()
+
+    def test_process_ai_pipeline_status_transitions(self, mock_db_conn, mocker):
+        """AI-04: Pipeline atualiza status: transcribing → (save) → selecting."""
+        from src.rss_poller import _process_ai_pipeline
+
+        mock_transcript = {
+            'video_id': 'vid001aaaaaa',
+            'text': 'Texto',
+            'segments': [],
+        }
+
+        mocker.patch('src.rss_poller.transcribe_video', return_value=mock_transcript)
+        mocker.patch('src.rss_poller.save_transcript')
+        mocker.patch('src.rss_poller.select_moments', return_value=[])
+        mocker.patch('src.rss_poller.insert_selected_moments', return_value=0)
+
+        status_calls = []
+
+        def capture_update(conn, vid_id, status):
+            status_calls.append(status)
+
+        mocker.patch('src.rss_poller.update_status', side_effect=capture_update)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.fetchone.return_value = {'id': 99}
+
+        _process_ai_pipeline(mock_db_conn, 'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4')
+
+        # Status deve ter transitado: transcribing → selecting
+        assert 'transcribing' in status_calls
+        assert 'selecting' in status_calls
+        # A ordem importa: transcribing deve vir antes de selecting
+        assert status_calls.index('transcribing') < status_calls.index('selecting')
