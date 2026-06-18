@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Infraestrutura Base** - Docker services, MySQL schema, canal do YouTube e secrets prontos
 - [x] **Phase 2: Aquisição de Vídeos** - Monitor RSS, download yt-dlp, deduplicação e rastreamento de jobs (completed 2026-06-18)
-- [ ] **Phase 3: IA — Transcrição e Seleção** - Groq Whisper transcreve, Claude Haiku seleciona melhores momentos
+- [x] **Phase 3: IA — Transcrição e Seleção** - Groq Whisper transcreve, Claude Haiku seleciona melhores momentos (completed 2026-06-18)
 - [ ] **Phase 4: Processamento de Vídeo** - FFmpeg corta, redimensiona 9:16, queima legendas e gera thumbnail + metadados
 - [ ] **Phase 5: Publicação e Automação Total** - Upload YouTube API, quota management, agendamento e workflow n8n end-to-end
 
@@ -49,10 +49,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Infraestrutura de testes pytest: pytest.ini, conftest.py com fixtures, 4 test_*.py em RED state (Wave 0)
-- [ ] 02-02-PLAN.md — docker-compose (volume + Redis env), requirements.txt, seed SQL de canais e db.py
-- [ ] 02-03-PLAN.md — Módulos principais: dedup.py, downloader.py e rss_poller.py (testes GREEN)
-- [ ] 02-04-PLAN.md — main.py daemon BlockingScheduler + checkpoint de verificação end-to-end
+- [x] 02-01-PLAN.md — Infraestrutura de testes pytest: pytest.ini, conftest.py com fixtures, 4 test_*.py em RED state (Wave 0)
+- [x] 02-02-PLAN.md — docker-compose (volume + Redis env), requirements.txt, seed SQL de canais e db.py
+- [x] 02-03-PLAN.md — Módulos principais: dedup.py, downloader.py e rss_poller.py (testes GREEN)
+- [x] 02-04-PLAN.md — main.py daemon BlockingScheduler + checkpoint de verificação end-to-end
 
 ### Phase 3: IA — Transcrição e Seleção
 **Goal**: Áudio de qualquer vídeo baixado é transcrito via Groq Whisper API e os melhores momentos são identificados pelo Claude Haiku antes de qualquer processamento de vídeo acontecer
@@ -65,10 +65,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Wave 0: schema migration SQL (pending_cut, reason, transcript_path) + skeletons transcriber.py/selector.py + 11 testes em RED
-- [ ] 03-02-PLAN.md — transcriber.py: Groq Whisper API com timestamps, ffmpeg fallback para >25MB (AI-01 GREEN)
-- [ ] 03-03-PLAN.md — selector.py: Claude Haiku structured outputs, filtro score>=7, remoção de overlaps (AI-02+AI-03 GREEN)
-- [ ] 03-04-PLAN.md — Integração em rss_poller.py + checkpoint end-to-end
+- [x] 03-01-PLAN.md — Wave 0: schema migration SQL (pending_cut, reason, transcript_path) + skeletons transcriber.py/selector.py + 11 testes em RED
+- [x] 03-02-PLAN.md — transcriber.py: Groq Whisper API com timestamps, ffmpeg fallback para >25MB (AI-01 GREEN)
+- [x] 03-03-PLAN.md — selector.py: Claude Haiku structured outputs, filtro score>=7, remoção de overlaps (AI-02+AI-03 GREEN)
+- [x] 03-04-PLAN.md — Integração em rss_poller.py + checkpoint end-to-end
 
 ### Phase 4: Processamento de Vídeo
 **Goal**: Cada momento selecionado pela IA vira um clip completo: cortado, no formato correto para Shorts, com legendas visíveis, thumbnail extraída e metadados prontos para publicação
@@ -101,7 +101,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infraestrutura Base | 4/4 | Complete | 2026-06-18 |
-| 2. Aquisição de Vídeos | 4/4 | Complete   | 2026-06-18 |
-| 3. IA — Transcrição e Seleção | 3/4 | In Progress|  |
+| 2. Aquisição de Vídeos | 4/4 | Complete | 2026-06-18 |
+| 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
 | 4. Processamento de Vídeo | 0/TBD | Not started | - |
 | 5. Publicação e Automação Total | 0/TBD | Not started | - |
