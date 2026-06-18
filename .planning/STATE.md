@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 COMPLETA — processamento de vídeo integrado e checkpoint aprovado; pronto para planejar Phase 5
-stopped_at: Completed 04-processamento-de-video Plan 04
-last_updated: "2026-06-18T19:15:00.000Z"
-last_activity: 2026-06-18 — Phase 4 completa; pending_cut → cutting → pending com MP4 1080x1920, legenda, thumbnail e metadata
+status: Phase 5 PLANEJADA — 6 planos prontos para publicacao, quota, YouTube upload, runner e n8n
+stopped_at: Planned 05-publicacao-e-automacao-total
+last_updated: "2026-06-18T19:45:00.000Z"
+last_activity: 2026-06-18 — Phase 5 planejada com migration, QuotaManager, YouTubeUploader, Publisher, runner e workflow n8n
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 16
+  total_plans: 22
   completed_plans: 16
-  percent: 100
+  percent: 73
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** Pipeline extrai e publica cortes virais de futebol automaticamente — do monitoramento à publicação — sem intervenção humana para cada vídeo.
-**Current focus:** Phase 5 — Publicação e Automação Total (próxima fase)
+**Current focus:** Phase 5 — Publicação e Automação Total (planejada; próxima ação é executar 05-01)
 
 ## Current Position
 
-Phase: 4 of 5 (Processamento de Vídeo) — COMPLETE
-Plan: 4 of 4 in current phase — COMPLETE
-Status: Phase 4 COMPLETA — processamento de vídeo integrado e checkpoint aprovado; pronto para planejar Phase 5
-Last activity: 2026-06-18 — Phase 4 completa; pending_cut → cutting → pending com MP4 1080x1920, legenda, thumbnail e metadata
+Phase: 5 of 5 (Publicação e Automação Total) — PLANNED
+Plan: 0 of 6 in current phase — READY
+Status: Phase 5 PLANEJADA — 6 planos prontos para publicacao, quota, YouTube upload, runner e n8n
+Last activity: 2026-06-18 — Phase 5 planejada com migration, QuotaManager, YouTubeUploader, Publisher, runner e workflow n8n
 
-Progress: [██████████] 100% (Phases 1-4 completas — 16/16 planos)
+Progress: [███████░░░] 73% (Phases 1-4 completas — 16/22 planos)
 
 ## Performance Metrics
 
@@ -112,6 +112,10 @@ Recent decisions affecting current work:
 - [Phase 04-processamento-de-video]: FFmpeg unit tests devem mockar subprocess.run; verificação visual real fica no checkpoint do Plan 04-04
 - [Phase 04-processamento-de-video]: Clips e thumbnails ficam em /app/videos/clips e /app/videos/thumbnails para persistir no volume Docker existente
 - [Phase 04-processamento-de-video]: MySQL 8.4 não aceitou ADD COLUMN IF NOT EXISTS; migrations idempotentes usam INFORMATION_SCHEMA + prepared statements
+- [Phase 05-publicacao-e-automacao-total planning]: Upload real deve usar `youtube/token.json` montado como `/app/token.json`; testes mockam YouTube Data API
+- [Phase 05-publicacao-e-automacao-total planning]: Quota diaria usa Redis por data local America/Sao_Paulo e nunca pode exceder 6 uploads/dia; default inicial recomendado e 2
+- [Phase 05-publicacao-e-automacao-total planning]: Raw source video so deve ser removido quando todos os clips do mesmo source estiverem terminais e ao menos um foi publicado
+- [Phase 05-publicacao-e-automacao-total planning]: Primeiro checkpoint de upload deve usar `YOUTUBE_PRIVACY_STATUS=private`
 
 ### Pending Todos
 
@@ -119,7 +123,7 @@ None yet.
 
 ### Blockers/Concerns
 
-None — Phase 4 completa. Pronto para planejar Phase 5 (publicação e automação total).
+None — Phase 5 planejada. Pronto para executar 05-01 (migration, skeletons e testes RED).
 
 ## Session Continuity
 

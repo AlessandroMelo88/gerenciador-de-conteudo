@@ -97,7 +97,15 @@ Plans:
   3. Uploads são agendados automaticamente entre 19h e 22h horário de Brasília
   4. Após um upload bem-sucedido, o vídeo bruto original é deletado do disco e o status do job muda para `published`
   5. O workflow n8n dispara automaticamente a cada ciclo (RSS poll → download → transcrição → seleção → corte → upload) com retry em caso de falha em qualquer etapa
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Wave 0: migration de publicação, skeletons quota/uploader/publisher/runner e testes RED
+- [ ] 05-02-PLAN.md — QuotaManager: limite diário Redis e janela 19h-22h America/Sao_Paulo
+- [ ] 05-03-PLAN.md — YouTubeUploader: upload de MP4 + thumbnail via YouTube Data API v3 usando token OAuth
+- [ ] 05-04-PLAN.md — Publisher: status pending → publishing → published, quota guard e cleanup seguro do raw source
+- [ ] 05-05-PLAN.md — Pipeline runner e integração do publisher ao daemon APScheduler
+- [ ] 05-06-PLAN.md — Workflow n8n com retry e checkpoint de upload privado end-to-end
 
 ## Progress
 
@@ -110,4 +118,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Aquisição de Vídeos | 4/4 | Complete | 2026-06-18 |
 | 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
 | 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
-| 5. Publicação e Automação Total | 0/TBD | Not started | - |
+| 5. Publicação e Automação Total | 0/6 | Planned | - |
