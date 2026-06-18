@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: Phase 4 COMPLETA — processamento de vídeo integrado e checkpoint aprovado; pronto para planejar Phase 5
 stopped_at: Completed 04-processamento-de-video Plan 04
-last_updated: "2026-06-18T18:08:44.564Z"
+last_updated: "2026-06-18T19:15:00.000Z"
 last_activity: 2026-06-18 — Phase 4 completa; pending_cut → cutting → pending com MP4 1080x1920, legenda, thumbnail e metadata
 progress:
   total_phases: 5
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** Pipeline extrai e publica cortes virais de futebol automaticamente — do monitoramento à publicação — sem intervenção humana para cada vídeo.
-**Current focus:** Phase 4 — Processamento de Vídeo (próxima fase)
+**Current focus:** Phase 5 — Publicação e Automação Total (próxima fase)
 
 ## Current Position
 
