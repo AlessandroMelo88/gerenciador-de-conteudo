@@ -79,7 +79,13 @@ Plans:
   2. As legendas geradas pelo Whisper aparecem queimadas no clip com fonte legível e bordas visíveis mesmo em fundo variado
   3. Uma thumbnail válida (frame extraído do clip) existe como arquivo de imagem pronto para upload
   4. Título (máximo 100 caracteres), descrição e tags otimizados para futebol/PT-BR foram gerados pelo Claude Haiku e estão associados ao clip
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Wave 0: skeletons video_processor.py/metadata_generator.py + testes RED para video, metadata e integração
+- [ ] 04-02-PLAN.md — video_processor.py: FFmpeg corta 1080x1920, queima legendas e extrai thumbnail (VID-01/02/03 GREEN)
+- [ ] 04-03-PLAN.md — metadata_generator.py: Claude Haiku gera título, descrição e tags SEO (VID-04 GREEN)
+- [ ] 04-04-PLAN.md — Integração em rss_poller.py + checkpoint end-to-end do clip renderizado
 
 ### Phase 5: Publicação e Automação Total
 **Goal**: Clips processados são publicados automaticamente no YouTube respeitando cota e horários, o pipeline completo roda do RSS ao upload sem intervenção manual, e vídeos brutos são limpos após sucesso
@@ -103,5 +109,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Infraestrutura Base | 4/4 | Complete | 2026-06-18 |
 | 2. Aquisição de Vídeos | 4/4 | Complete | 2026-06-18 |
 | 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
-| 4. Processamento de Vídeo | 0/TBD | Not started | - |
+| 4. Processamento de Vídeo | 0/4 | Planned | - |
 | 5. Publicação e Automação Total | 0/TBD | Not started | - |
