@@ -102,6 +102,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Infraestrutura Base | 4/4 | Complete | 2026-06-18 |
 | 2. Aquisição de Vídeos | 4/4 | Complete   | 2026-06-18 |
-| 3. IA — Transcrição e Seleção | 0/4 | In progress | - |
+| 3. IA — Transcrição e Seleção | 1/4 | In Progress|  |
 | 4. Processamento de Vídeo | 0/TBD | Not started | - |
 | 5. Publicação e Automação Total | 0/TBD | Not started | - |

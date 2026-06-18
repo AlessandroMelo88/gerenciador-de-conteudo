@@ -20,9 +20,9 @@
 
 ### Processamento com IA
 
-- [ ] **AI-01**: Áudio do vídeo é transcrito localmente pelo faster-whisper com modelo `small` e idioma PT-BR, gerando texto com timestamps
-- [ ] **AI-02**: Claude Haiku API analisa a transcrição completa e retorna lista de momentos de alto impacto com score 1-10, start/end e motivo
-- [ ] **AI-03**: Apenas momentos com score ≥ 7 são enviados para corte (filtro de qualidade)
+- [x] **AI-01**: Áudio do vídeo é transcrito localmente pelo faster-whisper com modelo `small` e idioma PT-BR, gerando texto com timestamps
+- [x] **AI-02**: Claude Haiku API analisa a transcrição completa e retorna lista de momentos de alto impacto com score 1-10, start/end e motivo
+- [x] **AI-03**: Apenas momentos com score ≥ 7 são enviados para corte (filtro de qualidade)
 
 ### Processamento de Vídeo
 
@@ -87,9 +87,9 @@
 | ACQU-02 | Phase 2 | Complete |
 | ACQU-03 | Phase 2 | Complete |
 | ORC-02 | Phase 2 | Complete |
-| AI-01 | Phase 3 | Pending |
-| AI-02 | Phase 3 | Pending |
-| AI-03 | Phase 3 | Pending |
+| AI-01 | Phase 3 | Complete |
+| AI-02 | Phase 3 | Complete |
+| AI-03 | Phase 3 | Complete |
 | VID-01 | Phase 4 | Pending |
 | VID-02 | Phase 4 | Pending |
 | VID-03 | Phase 4 | Pending |
