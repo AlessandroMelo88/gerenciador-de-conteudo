@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Phase 2 em progresso — Plan 02-01 (pytest scaffold) concluído
-stopped_at: Completed 02-aquisicao-de-videos/02-01-PLAN.md
-last_updated: "2026-06-18T14:22:58.194Z"
+stopped_at: Completed 02-aquisicao-de-videos-02-PLAN.md
+last_updated: "2026-06-18T14:24:04.390Z"
 last_activity: 2026-06-18 — Plan 02-01 completo; pytest scaffold com 17 testes RED state para ACQU-01/02/03 e ORC-02
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 25
 ---
 
@@ -55,6 +55,7 @@ Progress: [████░░░░░░] 25% (Phase 2, Plan 1/4)
 | Phase 01-infraestrutura-base P03 | ~30min | 3 tasks | 2 files |
 | Phase 01-infraestrutura-base P04 | ~2h | 3 tasks | 3 files |
 | Phase 02-aquisicao-de-videos P01 | 3min | 3 tasks | 8 files |
+| Phase 02-aquisicao-de-videos P02 | 15min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,9 @@ Recent decisions affecting current work:
 - [Phase 01-infraestrutura-base P04]: Canal "Futebol em Cortes" verificado via SMS — desbloqueia uploads longos e thumbnails customizadas.
 - [Phase 02-aquisicao-de-videos P01]: Imports de src.* no topo dos arquivos de teste (não dentro das funções) — coleta falha com ModuleNotFoundError = RED state correto e mais simples
 - [Phase 02-aquisicao-de-videos P01]: requirements.txt atualizado com redis, feedparser, apscheduler antecipando necessidades dos Planos 02-04
+- [Phase 02-aquisicao-de-videos]: db.py: quem chama é responsável por fechar a conexão — padrão de uso do daemon
+- [Phase 02-aquisicao-de-videos]: INSERT IGNORE em insert_video para idempotência — RSS pode re-publicar o mesmo item entre polls
+- [Phase 02-aquisicao-de-videos]: Seed SQL com 5 canais PT-BR reais: SporTV, ge.globo, ESPN Brasil, Canal do Nicola, TNT Sports Brasil
 
 ### Pending Todos
 
@@ -92,6 +96,6 @@ None — Phase 1 completa. Docker Desktop precisa ser iniciado para que validate
 
 ## Session Continuity
 
-Last session: 2026-06-18T14:21:00Z
-Stopped at: Completed 02-aquisicao-de-videos/02-01-PLAN.md
-Resume file: .planning/phases/02-aquisicao-de-videos/02-02-PLAN.md
+Last session: 2026-06-18T14:24:04.386Z
+Stopped at: Completed 02-aquisicao-de-videos-02-PLAN.md
+Resume file: None
