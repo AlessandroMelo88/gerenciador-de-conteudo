@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Infraestrutura Base** - Docker services, MySQL schema, canal do YouTube e secrets prontos
 - [x] **Phase 2: Aquisição de Vídeos** - Monitor RSS, download yt-dlp, deduplicação e rastreamento de jobs (completed 2026-06-18)
-- [ ] **Phase 3: IA — Transcrição e Seleção** - faster-whisper transcreve, Claude Haiku seleciona melhores momentos
+- [ ] **Phase 3: IA — Transcrição e Seleção** - Groq Whisper transcreve, Claude Haiku seleciona melhores momentos
 - [ ] **Phase 4: Processamento de Vídeo** - FFmpeg corta, redimensiona 9:16, queima legendas e gera thumbnail + metadados
 - [ ] **Phase 5: Publicação e Automação Total** - Upload YouTube API, quota management, agendamento e workflow n8n end-to-end
 
@@ -55,14 +55,20 @@ Plans:
 - [ ] 02-04-PLAN.md — main.py daemon BlockingScheduler + checkpoint de verificação end-to-end
 
 ### Phase 3: IA — Transcrição e Seleção
-**Goal**: Áudio de qualquer vídeo baixado é transcrito localmente e os melhores momentos são identificados e filtrados pela IA antes de qualquer processamento de vídeo acontecer
+**Goal**: Áudio de qualquer vídeo baixado é transcrito via Groq Whisper API e os melhores momentos são identificados pelo Claude Haiku antes de qualquer processamento de vídeo acontecer
 **Depends on**: Phase 2
 **Requirements**: AI-01, AI-02, AI-03
 **Success Criteria** (what must be TRUE):
-  1. Um vídeo em PT-BR processado pelo faster-whisper produz um arquivo de transcrição com texto e timestamps por segmento
+  1. Um vídeo em PT-BR processado pelo Groq Whisper API produz um arquivo JSON de transcrição com texto e timestamps por segmento
   2. A transcrição enviada ao Claude Haiku retorna uma lista estruturada de momentos com score 1-10, timestamps de início/fim e motivo para cada momento
   3. Apenas momentos com score maior ou igual a 7 avançam para a fila de corte — momentos com score inferior são descartados e registrados
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Wave 0: schema migration SQL (pending_cut, reason, transcript_path) + skeletons transcriber.py/selector.py + 11 testes em RED
+- [ ] 03-02-PLAN.md — transcriber.py: Groq Whisper API com timestamps, ffmpeg fallback para >25MB (AI-01 GREEN)
+- [ ] 03-03-PLAN.md — selector.py: Claude Haiku structured outputs, filtro score>=7, remoção de overlaps (AI-02+AI-03 GREEN)
+- [ ] 03-04-PLAN.md — Integração em rss_poller.py + checkpoint end-to-end
 
 ### Phase 4: Processamento de Vídeo
 **Goal**: Cada momento selecionado pela IA vira um clip completo: cortado, no formato correto para Shorts, com legendas visíveis, thumbnail extraída e metadados prontos para publicação
@@ -96,6 +102,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Infraestrutura Base | 4/4 | Complete | 2026-06-18 |
 | 2. Aquisição de Vídeos | 4/4 | Complete   | 2026-06-18 |
-| 3. IA — Transcrição e Seleção | 0/TBD | Not started | - |
+| 3. IA — Transcrição e Seleção | 0/4 | In progress | - |
 | 4. Processamento de Vídeo | 0/TBD | Not started | - |
 | 5. Publicação e Automação Total | 0/TBD | Not started | - |
