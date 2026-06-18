@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Phase 2 em progresso — Plan 02-01 (pytest scaffold) concluído
-stopped_at: Completed 02-aquisicao-de-videos-02-PLAN.md
-last_updated: "2026-06-18T14:24:04.390Z"
+stopped_at: Completed 02-aquisicao-de-videos-03-PLAN.md
+last_updated: "2026-06-18T14:36:49.204Z"
 last_activity: 2026-06-18 — Plan 02-01 completo; pytest scaffold com 17 testes RED state para ACQU-01/02/03 e ORC-02
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
   percent: 25
 ---
 
@@ -56,6 +56,7 @@ Progress: [████░░░░░░] 25% (Phase 2, Plan 1/4)
 | Phase 01-infraestrutura-base P04 | ~2h | 3 tasks | 3 files |
 | Phase 02-aquisicao-de-videos P01 | 3min | 3 tasks | 8 files |
 | Phase 02-aquisicao-de-videos P02 | 15min | 3 tasks | 4 files |
+| Phase 02-aquisicao-de-videos P03 | 10min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Recent decisions affecting current work:
 - [Phase 02-aquisicao-de-videos]: db.py: quem chama é responsável por fechar a conexão — padrão de uso do daemon
 - [Phase 02-aquisicao-de-videos]: INSERT IGNORE em insert_video para idempotência — RSS pode re-publicar o mesmo item entre polls
 - [Phase 02-aquisicao-de-videos]: Seed SQL com 5 canais PT-BR reais: SporTV, ge.globo, ESPN Brasil, Canal do Nicola, TNT Sports Brasil
+- [Phase 02-aquisicao-de-videos]: _cleanup_partial() chamado fora do loop de retry: cleanup uma única vez após todas as tentativas, não por iteração
+- [Phase 02-aquisicao-de-videos]: rss_poller.py usa requests.get + feedparser.parse(response.text) para permitir mock de HTTP nos testes
+- [Phase 02-aquisicao-de-videos]: poll_all_channels aceita db_conn/redis_client opcionais: None cria conexão de produção, injetados nos testes
 
 ### Pending Todos
 
@@ -96,6 +100,6 @@ None — Phase 1 completa. Docker Desktop precisa ser iniciado para que validate
 
 ## Session Continuity
 
-Last session: 2026-06-18T14:24:04.386Z
-Stopped at: Completed 02-aquisicao-de-videos-02-PLAN.md
+Last session: 2026-06-18T14:36:49.201Z
+Stopped at: Completed 02-aquisicao-de-videos-03-PLAN.md
 Resume file: None
