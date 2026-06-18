@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-infraestrutura-base-01-03-PLAN.md
-last_updated: "2026-06-17T00:00:00Z"
-last_activity: 2026-06-17 — Plan 01-03 completo; n8n rodando :5678, clips_automation 3 tabelas, secrets configurados
+stopped_at: Completed 01-infraestrutura-base-01-04-PLAN.md
+last_updated: "2026-06-18T12:23:35Z"
+last_activity: 2026-06-18 — Plan 01-04 completo; token.json OAuth gerado, canal "Futebol em Cortes" criado e verificado, Phase 1 completa
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 38
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 1 of 5 (Infraestrutura Base)
-Plan: 3 of 4 in current phase
-Status: In progress
-Last activity: 2026-06-17 — Plan 01-03 completo; n8n rodando :5678, clips_automation 3 tabelas, secrets configurados
+Phase: 1 of 5 (Infraestrutura Base) — COMPLETE
+Plan: 4 of 4 in current phase — COMPLETE
+Status: Phase 1 complete — ready for Phase 2
+Last activity: 2026-06-18 — Plan 01-04 completo; token.json OAuth gerado, canal "Futebol em Cortes" verificado via SMS, Phase 1 completa
 
-Progress: [████░░░░░░] 38%
+Progress: [██████████] 100% (Phase 1)
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [████░░░░░░] 38%
 | Phase 01-infraestrutura-base P01 | 2 | 3 tasks | 8 files |
 | Phase 01-infraestrutura-base P02 | 1 | 2 tasks | 2 files |
 | Phase 01-infraestrutura-base P03 | ~30min | 3 tasks | 2 files |
+| Phase 01-infraestrutura-base P04 | ~2h | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Recent decisions affecting current work:
 - [Phase 01-infraestrutura-base]: Whisper local removido — substituído por Groq Whisper API (gratuito, online) para economizar ~2.5GB de disco no Mac. Container whisper removido do docker-compose.yml. GROQ_API_KEY adicionado ao .env e clip-processor.
 - [Phase 01-infraestrutura-base P03]: N8N_ENCRYPTION_KEY e CLIPS_DB_PASSWORD gerados via openssl rand automaticamente — nunca hardcoded. ANTHROPIC_API_KEY intencionalmente vazia até Phase 3.
 - [Phase 01-infraestrutura-base P03]: token.json placeholder {} criado para volume mount — evita erro de boot do clip-processor antes do OAuth real (Plan 04).
+- [Phase 01-infraestrutura-base P04]: OAuth app type deve ser "installed" (Desktop App), não "web" — web type causa erro no InstalledAppFlow do Python.
+- [Phase 01-infraestrutura-base P04]: OAuth app publicado em Production para evitar expiração do refresh_token em 7 dias (limite do modo Testing).
+- [Phase 01-infraestrutura-base P04]: Canal "Futebol em Cortes" verificado via SMS — desbloqueia uploads longos e thumbnails customizadas.
 
 ### Pending Todos
 
@@ -81,11 +85,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Canal do YouTube precisa ser criado e verificado manualmente antes do Phase 1 estar completo (INFRA-03)
-- YouTube OAuth credentials exigem autorização manual via browser — planejar esse passo em Phase 1
+None — Phase 1 completa. Docker Desktop precisa ser iniciado para que validate-infra.sh mostre 100% PASS nos checks de serviços.
 
 ## Session Continuity
 
-Last session: 2026-06-17T00:00:00Z
-Stopped at: Completed 01-infraestrutura-base-01-03-PLAN.md
+Last session: 2026-06-18T12:23:35Z
+Stopped at: Completed 01-infraestrutura-base-01-04-PLAN.md — Phase 1 complete
 Resume file: None

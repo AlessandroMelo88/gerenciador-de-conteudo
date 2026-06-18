@@ -12,7 +12,7 @@ O pipeline é construído de baixo para cima: a infraestrutura Docker e o canal 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Infraestrutura Base** - Docker services, MySQL schema, canal do YouTube e secrets prontos
+- [x] **Phase 1: Infraestrutura Base** - Docker services, MySQL schema, canal do YouTube e secrets prontos
 - [ ] **Phase 2: Aquisição de Vídeos** - Monitor RSS, download yt-dlp, deduplicação e rastreamento de jobs
 - [ ] **Phase 3: IA — Transcrição e Seleção** - faster-whisper transcreve, Claude Haiku seleciona melhores momentos
 - [ ] **Phase 4: Processamento de Vídeo** - FFmpeg corta, redimensiona 9:16, queima legendas e gera thumbnail + metadados
@@ -35,7 +35,7 @@ Plans:
 - [x] 01-01-PLAN.md — Estrutura de diretórios, docker-compose extension (n8n + clip-processor + whisper) e clip-processor Dockerfile
 - [x] 01-02-PLAN.md — Schema SQL clips_automation (3 tabelas) e script validate-infra.sh
 - [x] 01-03-PLAN.md — Gerar .env com secrets reais, subir serviços Docker e aplicar schema MySQL
-- [ ] 01-04-PLAN.md — Script OAuth YouTube, geração de token.json e verificação do canal
+- [x] 01-04-PLAN.md — Script OAuth YouTube, geração de token.json e verificação do canal
 
 ### Phase 2: Aquisição de Vídeos
 **Goal**: O sistema detecta novos vídeos nos canais configurados, baixa automaticamente e registra cada job — sem reprocessar o que já foi processado
@@ -88,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Infraestrutura Base | 3/4 | In Progress|  |
+| 1. Infraestrutura Base | 4/4 | Complete | 2026-06-18 |
 | 2. Aquisição de Vídeos | 0/TBD | Not started | - |
 | 3. IA — Transcrição e Seleção | 0/TBD | Not started | - |
 | 4. Processamento de Vídeo | 0/TBD | Not started | - |
