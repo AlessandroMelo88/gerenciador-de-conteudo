@@ -46,7 +46,13 @@ Plans:
   2. Um vídeo detectado aparece baixado em 720p no diretório de trabalho dentro de minutos após a detecção
   3. Rodar o pipeline duas vezes no mesmo vídeo não resulta em download ou reprocessamento duplicado
   4. Cada vídeo tem um registro em `source_videos` com status `pending/downloading/downloaded/failed` atualizado em tempo real
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Infraestrutura de testes pytest: pytest.ini, conftest.py com fixtures, 4 test_*.py em RED state (Wave 0)
+- [ ] 02-02-PLAN.md — docker-compose (volume + Redis env), requirements.txt, seed SQL de canais e db.py
+- [ ] 02-03-PLAN.md — Módulos principais: dedup.py, downloader.py e rss_poller.py (testes GREEN)
+- [ ] 02-04-PLAN.md — main.py daemon BlockingScheduler + checkpoint de verificação end-to-end
 
 ### Phase 3: IA — Transcrição e Seleção
 **Goal**: Áudio de qualquer vídeo baixado é transcrito localmente e os melhores momentos são identificados e filtrados pela IA antes de qualquer processamento de vídeo acontecer
@@ -89,7 +95,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Infraestrutura Base | 4/4 | Complete | 2026-06-18 |
-| 2. Aquisição de Vídeos | 0/TBD | Not started | - |
+| 2. Aquisição de Vídeos | 0/4 | Not started | - |
 | 3. IA — Transcrição e Seleção | 0/TBD | Not started | - |
 | 4. Processamento de Vídeo | 0/TBD | Not started | - |
 | 5. Publicação e Automação Total | 0/TBD | Not started | - |
