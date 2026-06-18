@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 3 em progresso — Plan 01 (Wave 0) completo
-stopped_at: Completed 03-ia-transcri-o-e-sele-o Plan 01
-last_updated: "2026-06-18T17:30:05Z"
+status: "Phase 3 em progresso — Plan 01 (Wave 0: schema + skeletons + testes RED) completo"
+stopped_at: Completed 03-ia-transcri-o-e-sele-o Plan 03
+last_updated: "2026-06-18T17:39:18.307Z"
 last_activity: 2026-06-18 — Plan 03-01 completo; schema migration + 11 testes RED state (TDD Wave 0)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 12
+  completed_plans: 11
   percent: 55
 ---
 
@@ -59,6 +59,8 @@ Progress: [██████░░░░] 55% (Phase 2 completa + Phase 3 Plan 
 | Phase 02-aquisicao-de-videos P03 | 10min | 3 tasks | 3 files |
 | Phase 02-aquisicao-de-videos P04 | ~10min | 2 tasks | 1 file |
 | Phase 03-ia-transcricao P01 | 2min | 2 tasks | 5 files |
+| Phase 03-ia-transcri-o-e-sele-o P02 | 6min | 1 tasks | 1 files |
+| Phase 03-ia-transcricao P03 | 5min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -98,6 +100,10 @@ Recent decisions affecting current work:
 - [Phase 03-ia-transcricao P01]: transcribe_video/select_moments usam injeção de dependência (groq_client=None, anthropic_client=None) — consistente com downloader.py
 - [Phase 03-ia-transcricao P01]: ENUM generated_clips.status: pending_cut como primeiro valor e novo default — todo clip Phase 3 começa em pending_cut
 - [Phase 03-ia-transcricao P01]: insert_selected_moments: score >= 7 insere; score < 7 descarta sem INSERT — threshold definido na interface
+- [Phase 03-ia-transcricao]: try/except amplo em transcribe_video captura qualquer falha Groq e retorna None — chamador responsável por marcar vídeo como failed
+- [Phase 03-ia-transcricao]: _prepare_audio() retorna tuple (path, bool) para sinalizar ao chamador se deve deletar arquivo temporário de áudio
+- [Phase 03-ia-transcricao]: _remove_overlaps aplicado em insert_selected_moments além de select_moments — contrato de deduplicação robusto independente da origem dos momentos
+- [Phase 03-ia-transcricao]: output_config com json_schema para Claude Haiku — prefill retorna HTTP 400 em modelos claude-haiku-4-5
 
 ### Pending Todos
 
@@ -109,6 +115,6 @@ None — Phase 3 Plan 01 completo. Pronto para Plan 02 (implementação de trans
 
 ## Session Continuity
 
-Last session: 2026-06-18T17:30:05Z
-Stopped at: Completed 03-ia-transcri-o-e-sele-o Plan 01
-Resume file: .planning/phases/03-ia-transcri-o-e-sele-o/03-01-SUMMARY.md
+Last session: 2026-06-18T17:39:18.305Z
+Stopped at: Completed 03-ia-transcri-o-e-sele-o Plan 03
+Resume file: None
