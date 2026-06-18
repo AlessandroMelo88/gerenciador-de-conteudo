@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 4 PLANEJADA — 4 planos criados para processamento de vídeo; pronta para executar Plan 04-01
-stopped_at: Planned 04-processamento-de-video
+status: Phase 4 em progresso — Plans 04-01, 04-02 e 04-03 completos; pronto para 04-04 integração no rss_poller
+stopped_at: Completed 04-processamento-de-video Plan 03
 last_updated: "2026-06-18T18:08:44.564Z"
-last_activity: 2026-06-18 — Phase 4 planejada: Wave 0 testes/skeletons, FFmpeg+legendas+thumbnail, metadata Haiku, integração no rss_poller
+last_activity: 2026-06-18 — Phase 4 Plans 04-01/02/03 completos: testes RED, video_processor FFmpeg e metadata_generator Haiku
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 16
-  completed_plans: 12
-  percent: 75
+  completed_plans: 15
+  percent: 94
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 4 of 5 (Processamento de Vídeo) — PLANNED
-Plan: 0 of 4 in current phase — READY TO EXECUTE
-Status: Phase 4 PLANEJADA — 4 planos criados para processamento de vídeo; pronta para executar Plan 04-01
-Last activity: 2026-06-18 — Phase 4 planejada: Wave 0 testes/skeletons, FFmpeg+legendas+thumbnail, metadata Haiku, integração no rss_poller
+Phase: 4 of 5 (Processamento de Vídeo) — IN PROGRESS
+Plan: 3 of 4 in current phase — COMPLETE
+Status: Phase 4 em progresso — Plans 04-01, 04-02 e 04-03 completos; pronto para 04-04 integração no rss_poller
+Last activity: 2026-06-18 — Phase 4 Plans 04-01/02/03 completos: testes RED, video_processor FFmpeg e metadata_generator Haiku
 
-Progress: [███████░░░] 75% (Phases 1-3 completas — 12/16 planos; Phase 4 planejada)
+Progress: [█████████░] 94% (Phases 1-3 completas + Phase 4 Plans 1-3/4)
 
 ## Performance Metrics
 
@@ -117,10 +117,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None — Phase 4 planejada. Pronto para executar Plan 04-01 (Wave 0).
+None — Phase 4 Plan 04-04 pendente (integração no rss_poller + checkpoint humano).
 
 ## Session Continuity
 
 Last session: 2026-06-18T17:39:18.305Z
-Stopped at: Planned 04-processamento-de-video
+Stopped at: Completed 04-processamento-de-video Plan 03
 Resume file: None
