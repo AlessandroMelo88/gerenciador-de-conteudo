@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: Phase 2 COMPLETA — todos os 4 planos de aquisição de vídeos concluídos
 stopped_at: Completed 02-aquisicao-de-videos-04-PLAN.md
-last_updated: "2026-06-18T16:33:30Z"
+last_updated: "2026-06-18T16:43:22.435Z"
 last_activity: 2026-06-18 — Plan 02-04 completo; daemon main.py BlockingScheduler com recovery on startup aprovado no checkpoint humano
 progress:
   total_phases: 5
