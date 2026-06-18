@@ -82,9 +82,9 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Wave 0: skeletons video_processor.py/metadata_generator.py + testes RED para video, metadata e integração
-- [ ] 04-02-PLAN.md — video_processor.py: FFmpeg corta 1080x1920, queima legendas e extrai thumbnail (VID-01/02/03 GREEN)
-- [ ] 04-03-PLAN.md — metadata_generator.py: Claude Haiku gera título, descrição e tags SEO (VID-04 GREEN)
+- [x] 04-01-PLAN.md — Wave 0: skeletons video_processor.py/metadata_generator.py + testes RED para video, metadata e integração
+- [x] 04-02-PLAN.md — video_processor.py: FFmpeg corta 1080x1920, queima legendas e extrai thumbnail (VID-01/02/03 GREEN)
+- [x] 04-03-PLAN.md — metadata_generator.py: Claude Haiku gera título, descrição e tags SEO (VID-04 GREEN)
 - [ ] 04-04-PLAN.md — Integração em rss_poller.py + checkpoint end-to-end do clip renderizado
 
 ### Phase 5: Publicação e Automação Total
