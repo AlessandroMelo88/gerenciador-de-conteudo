@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 2 COMPLETA — todos os 4 planos de aquisição de vídeos concluídos
-stopped_at: Phase 3 context gathered
-last_updated: "2026-06-18T16:59:39.815Z"
-last_activity: 2026-06-18 — Plan 02-04 completo; daemon main.py BlockingScheduler com recovery on startup aprovado no checkpoint humano
+status: Phase 3 em progresso — Plan 01 (Wave 0) completo
+stopped_at: Completed 03-ia-transcri-o-e-sele-o Plan 01
+last_updated: "2026-06-18T17:30:05Z"
+last_activity: 2026-06-18 — Plan 03-01 completo; schema migration + 11 testes RED state (TDD Wave 0)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
-  percent: 50
+  total_plans: 9
+  completed_plans: 9
+  percent: 55
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 2 of 5 (Aquisição de Vídeos) — COMPLETE
-Plan: 4 of 4 in current phase — COMPLETE
-Status: Phase 2 COMPLETA — todos os 4 planos de aquisição de vídeos concluídos
-Last activity: 2026-06-18 — Plan 02-04 completo; daemon main.py BlockingScheduler com recovery on startup aprovado no checkpoint humano
+Phase: 3 of 5 (IA Transcrição e Seleção) — IN PROGRESS
+Plan: 1 of 3 in current phase — COMPLETE
+Status: Phase 3 em progresso — Plan 01 (Wave 0: schema + skeletons + testes RED) completo
+Last activity: 2026-06-18 — Plan 03-01 completo; schema migration + 11 testes RED state (TDD Wave 0)
 
-Progress: [█████░░░░░] 50% (Phase 2 completa — 4/4 planos)
+Progress: [██████░░░░] 55% (Phase 2 completa + Phase 3 Plan 1/3)
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [█████░░░░░] 50% (Phase 2 completa — 4/4 planos)
 | Phase 02-aquisicao-de-videos P02 | 15min | 3 tasks | 4 files |
 | Phase 02-aquisicao-de-videos P03 | 10min | 3 tasks | 3 files |
 | Phase 02-aquisicao-de-videos P04 | ~10min | 2 tasks | 1 file |
+| Phase 03-ia-transcricao P01 | 2min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,10 @@ Recent decisions affecting current work:
 - [Phase 02-aquisicao-de-videos P04]: Guard if __name__ == '__main__' mantido em main.py para que imports nos testes não disparem o scheduler BlockingScheduler
 - [Phase 02-aquisicao-de-videos P04]: recover_stuck_downloads chamado ANTES de poll_all_channels na boot — evita re-processar jobs já em andamento após restart
 - [Phase 02-aquisicao-de-videos P04]: coalesce=True + max_instances=1 no BlockingScheduler — evita execuções paralelas do poll caso iteração demore mais que 6 horas
+- [Phase 03-ia-transcricao P01]: VIDEOS_DIR = '/app/videos' definido como constante patchável em transcriber.py — sem hardcode nos métodos
+- [Phase 03-ia-transcricao P01]: transcribe_video/select_moments usam injeção de dependência (groq_client=None, anthropic_client=None) — consistente com downloader.py
+- [Phase 03-ia-transcricao P01]: ENUM generated_clips.status: pending_cut como primeiro valor e novo default — todo clip Phase 3 começa em pending_cut
+- [Phase 03-ia-transcricao P01]: insert_selected_moments: score >= 7 insere; score < 7 descarta sem INSERT — threshold definido na interface
 
 ### Pending Todos
 
@@ -100,10 +105,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None — Phase 2 completa. Pronto para iniciar Phase 3 (Transcrição).
+None — Phase 3 Plan 01 completo. Pronto para Plan 02 (implementação de transcriber.py).
 
 ## Session Continuity
 
-Last session: 2026-06-18T16:59:39.804Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-ia-transcri-o-e-sele-o/03-CONTEXT.md
+Last session: 2026-06-18T17:30:05Z
+Stopped at: Completed 03-ia-transcri-o-e-sele-o Plan 01
+Resume file: .planning/phases/03-ia-transcri-o-e-sele-o/03-01-SUMMARY.md
