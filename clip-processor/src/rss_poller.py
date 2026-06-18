@@ -4,6 +4,7 @@ rss_poller.py — Monitor de feeds RSS de canais YouTube e inserção de vídeos
 Exporta:
   - poll_all_channels(db_conn=None, redis_client=None)
   - _process_ai_pipeline(conn, video_id, local_path, groq_client=None, anthropic_client=None)
+  - _process_pending_clips(conn)
 
 Comportamento:
   - Busca canais ativos do MySQL
@@ -12,6 +13,7 @@ Comportamento:
   - Resiliência por canal: falha em um canal não aborta os demais
   - Nova conexão MySQL por chamada (evita timeout de 6h) — exceto quando db_conn passado (testes)
   - Após RSS polling: processa vídeos com status 'downloaded' via pipeline de IA
+  - Após IA: processa clips com status 'pending_cut' via pipeline de vídeo
 """
 import os
 import re
@@ -24,6 +26,7 @@ from src.db import get_db_connection, insert_video, update_status
 from src.dedup import is_seen
 from src.transcriber import transcribe_video, save_transcript
 from src.selector import select_moments, insert_selected_moments
+from src.video_processor import process_clip
 
 
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
@@ -102,6 +105,21 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
             update_status(conn, video_id, 'failed')
         except Exception:
             pass
+
+
+def _process_pending_clips(conn) -> None:
+    """Processa clips com status pending_cut sem abortar o poll por falha isolada."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM generated_clips WHERE status = 'pending_cut'")
+        rows = cur.fetchall()
+
+    for row in rows:
+        clip_id = row['id']
+        _log(f'[VID] Iniciando processamento do clip {clip_id}')
+        try:
+            process_clip(conn, clip_id)
+        except Exception as exc:
+            _log(f'[VID] ERRO no processamento do clip {clip_id}: {exc}')
 
 
 def poll_all_channels(db_conn=None, redis_client=None) -> None:
@@ -194,6 +212,12 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
 
         except Exception as exc:
             _log(f'[AI] ERRO ao buscar vídeos downloaded para processamento: {exc}')
+
+        # Processar clips selecionados pela IA (corte + legenda + thumbnail + metadata)
+        try:
+            _process_pending_clips(db_conn)
+        except Exception as exc:
+            _log(f'[VID] ERRO ao buscar clips pending_cut para processamento: {exc}')
 
     finally:
         if _own_db:
