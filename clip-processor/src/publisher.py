@@ -8,6 +8,7 @@ import os
 from datetime import datetime, timezone
 
 from src.quota_manager import QuotaManager
+from src.telegram_notifier import notify
 from src.uploader import YouTubeUploader
 
 
@@ -52,6 +53,14 @@ def publish_pending_clips(
             _maybe_finalize_source_video(conn, clip['source_video_id'], clip.get('source_local_path'))
             published_count += 1
             _log(f'Clip {clip_id} publicado no YouTube: {youtube_video_id}')
+            # Phase 6 (CTRL-06): notifica Telegram via webhook interno do n8n.
+            # notify() é best-effort — nunca propaga exceções.
+            notify('upload_published', {
+                'clip_id': clip_id,
+                'youtube_video_id': youtube_video_id,
+                'youtube_url': f'https://www.youtube.com/watch?v={youtube_video_id}',
+                'title': clip.get('title'),
+            })
         except Exception as exc:
             _mark_clip_failed(conn, clip_id, str(exc))
             _log(f'Falha ao publicar clip {clip_id}: {exc}')

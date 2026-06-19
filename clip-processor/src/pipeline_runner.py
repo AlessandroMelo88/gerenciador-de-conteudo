@@ -12,6 +12,7 @@ from src.db import get_db_connection, update_status
 from src.downloader import download_video
 from src.publisher import publish_pending_clips
 from src.rss_poller import poll_all_channels
+from src.telegram_notifier import notify
 from src.uploader import YouTubeUploader
 
 
@@ -68,11 +69,20 @@ def run_pipeline_once(db_conn=None, redis_client=None):
             poll_all_channels(db_conn=db_conn, redis_client=redis_client)
         except Exception as exc:
             _log(f'ERRO em poll_all_channels: {exc}')
+            # Phase 6 (CTRL-06): notifica Telegram em falha crítica de estágio.
+            notify('pipeline_failure', {
+                'stage': 'poll_all_channels',
+                'error_msg': str(exc)[:500],
+            })
 
         try:
             _download_pending_videos(db_conn)
         except Exception as exc:
             _log(f'ERRO em _download_pending_videos: {exc}')
+            notify('pipeline_failure', {
+                'stage': 'download_pending_videos',
+                'error_msg': str(exc)[:500],
+            })
 
         try:
             publish_result = publish_pending_clips(
@@ -82,6 +92,10 @@ def run_pipeline_once(db_conn=None, redis_client=None):
             )
         except Exception as exc:
             _log(f'ERRO em publish_pending_clips: {exc}')
+            notify('pipeline_failure', {
+                'stage': 'publish_pending_clips',
+                'error_msg': str(exc)[:500],
+            })
 
         _log(f'Ciclo completo finalizado: {publish_result}')
         return publish_result
