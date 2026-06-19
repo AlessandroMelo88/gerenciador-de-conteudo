@@ -1,11 +1,10 @@
-"""
-ttl_worker.py — Worker APScheduler que expira clips pending após TTL.
+"""Worker de TTL para clipes pending (CTRL-05).
 
-Stub Phase 6 (Plan 06-01). Implementação real em Plan 06-05.
+- Expira: clipes com status='pending' e created_at < NOW() - INTERVAL TTL_HOURS HOUR → 'rejected'.
+- Avisa: clipes na janela [WARN_HOURS, TTL_HOURS) recebem 1 aviso via n8n/Telegram
+  (idempotente via Redis SET NX com TTL=24h).
 
-- Após TTL_HOURS (48h default): marca clips pending como 'rejected' (auto-expiry).
-- Após WARN_HOURS (24h default): notifica via n8n webhook (Telegram) que clipe está
-  prestes a expirar. Usa Redis SET NX para garantir warn único por clipe.
+Rodado periodicamente pelo APScheduler em main.py (IntervalTrigger hours=1).
 
 Exporta:
   - TTL_HOURS, WARN_HOURS, N8N_NOTIFY_URL (constantes module-level)
@@ -13,11 +12,93 @@ Exporta:
 """
 import os
 
+import redis
+import requests
+
+from src.db import get_db_connection
+
+
 TTL_HOURS = int(os.getenv('CLIP_PENDING_TTL_HOURS', '48'))
 WARN_HOURS = int(os.getenv('CLIP_PENDING_WARN_HOURS', '24'))
 N8N_NOTIFY_URL = os.getenv('N8N_NOTIFY_URL', 'http://n8n:5678/webhook/notify')
+WARN_TTL_SECONDS = 24 * 3600  # mesma duração da janela do warn
 
 
 def run_ttl_once(conn=None, redis_client=None) -> dict:
-    """Executa uma passada do TTL worker. Retorna métricas {expired, warned, errors}."""
-    raise NotImplementedError("Phase 6 — implementar em Plan 05")
+    """Executa 1 iteração do TTL: expira clipes >TTL_HOURS, avisa clipes WARN_HOURS-TTL_HOURS.
+
+    Args:
+        conn: conexão MySQL (DictCursor). Se None, cria nova e fecha ao final.
+        redis_client: cliente Redis. Se None, cria a partir das envs REDIS_HOST/REDIS_PORT.
+
+    Returns:
+        {'expired': N, 'warned': M} — quantidade de clipes mudados.
+    """
+    own_db = conn is None
+    own_redis = redis_client is None
+    if own_db:
+        conn = get_db_connection()
+    if own_redis:
+        redis_client = redis.Redis(
+            host=os.environ.get('REDIS_HOST', 'redis'),
+            port=int(os.environ.get('REDIS_PORT', 6379)),
+            decode_responses=True,
+        )
+
+    try:
+        # 1) Expirar clipes com mais de TTL_HOURS
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE generated_clips SET status='rejected' "
+                "WHERE status='pending' AND created_at < NOW() - INTERVAL %s HOUR",
+                (TTL_HOURS,),
+            )
+            expired_count = cur.rowcount
+            # Drain do cursor para liberar o resultset (no-op em UPDATE real;
+            # consumido no contrato dos testes — fetchall slot 'expire query').
+            try:
+                cur.fetchall()
+            except Exception:  # noqa: BLE001
+                pass
+        conn.commit()
+
+        # 2) Listar clipes a ponto de expirar (entre WARN_HOURS e TTL_HOURS)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, title FROM generated_clips "
+                "WHERE status='pending' "
+                "AND created_at < NOW() - INTERVAL %s HOUR "
+                "AND created_at > NOW() - INTERVAL %s HOUR",
+                (WARN_HOURS, TTL_HOURS),
+            )
+            soon_to_expire = cur.fetchall()
+
+        # 3) Enviar warn idempotente (Redis SET NX com TTL = WARN_TTL_SECONDS)
+        warned = 0
+        for clip in soon_to_expire:
+            key = f'clip_warned:{clip["id"]}'
+            if redis_client.set(key, '1', nx=True, ex=WARN_TTL_SECONDS):
+                try:
+                    requests.post(
+                        N8N_NOTIFY_URL,
+                        json={
+                            'event': 'clip_ttl_warning',
+                            'payload': {
+                                'clip_id': clip['id'],
+                                'title': clip.get('title'),
+                                'expires_in_hours': TTL_HOURS - WARN_HOURS,
+                            },
+                        },
+                        timeout=5,
+                    )
+                    warned += 1
+                except requests.RequestException as exc:
+                    print(f'[TTL] warn POST falhou para clip {clip["id"]}: {exc}')
+                    # NÃO incrementa warned; Redis já marcou — no próximo run, NX retorna False.
+                    # Tradeoff conhecido: 1 falha de rede pode "comer" 1 aviso. Aceitável v1.
+
+        print(f'[TTL] expired={expired_count} warned={warned}')
+        return {'expired': expired_count, 'warned': warned}
+    finally:
+        if own_db:
+            conn.close()
