@@ -1,0 +1,165 @@
+{
+  "name": "Canal de Cortes — Pipeline Principal",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-6h",
+      "name": "A cada 6 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Sincronizado com o APScheduler do clip-processor daemon (ambos rodam a cada 6h). Em produção, desative um dos dois para evitar conflito."
+    },
+    {
+      "parameters": {
+        "command": "docker exec clip-processor python -m src.pipeline_runner 2>&1 | tail -50"
+      },
+      "id": "run-pipeline",
+      "name": "Executar Pipeline",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 900000,
+      "notes": "Executa um ciclo completo: RSS poll → AI → render → publish"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.stdout }}",
+              "operation": "contains",
+              "value2": "ERRO"
+            }
+          ]
+        }
+      },
+      "id": "check-errors",
+      "name": "Há erros?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $vars.TELEGRAM_CHAT_ID }}",
+        "text": "⚠️ *Canal de Cortes — Erro no Pipeline*\n\n{{ $('Executar Pipeline').first().json.stdout.split('\\n').filter(l => l.includes('ERRO')).join('\\n') }}\n\nVerifique: `docker logs clip-processor --tail 50`",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "notify-error",
+      "name": "Notificar Erro Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-canal-decortes",
+          "name": "Telegram Canal de Cortes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.stdout || '';\n\n// Extrai métricas do log\nconst published = (output.match(/publicado.*youtu\\.be/gi) || []).length;\nconst newVideos = output.match(/vídeo\\(s\\) novo\\(s\\)/i)?.[0]?.match(/\\d+/)?.[0] || '0';\nconst clips = output.match(/clip\\(s\\) publicado\\(s\\)/i)?.[0]?.match(/\\d+/)?.[0] || '0';\n\nconst now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });\n\nreturn [{\n  json: {\n    summary: `✅ Pipeline executado — ${now}\\n\\nNovos vídeos detectados: ${newVideos}\\nClips publicados neste ciclo: ${clips}`,\n    published: parseInt(clips, 10) || 0\n  }\n}];"
+      },
+      "id": "parse-output",
+      "name": "Parsear Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.published }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check-published",
+      "name": "Houve publicação?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1100, 400]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $vars.TELEGRAM_CHAT_ID }}",
+        "text": "={{ $('Parsear Output').first().json.summary }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "notify-published",
+      "name": "Notificar Publicação",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1300, 360],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-canal-decortes",
+          "name": "Telegram Canal de Cortes"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "A cada 6 horas": {
+      "main": [
+        [{ "node": "Executar Pipeline", "type": "main", "index": 0 }]
+      ]
+    },
+    "Executar Pipeline": {
+      "main": [
+        [{ "node": "Há erros?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Há erros?": {
+      "main": [
+        [{ "node": "Notificar Erro Telegram", "type": "main", "index": 0 }],
+        [{ "node": "Parsear Output", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parsear Output": {
+      "main": [
+        [{ "node": "Houve publicação?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Houve publicação?": {
+      "main": [
+        [{ "node": "Notificar Publicação", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "errorWorkflow": "",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "description": "Workflow principal do Canal de Cortes. Executa o pipeline completo a cada 6 horas e notifica via Telegram."
+  }
+}
