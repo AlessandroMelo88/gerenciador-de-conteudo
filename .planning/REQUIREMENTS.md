@@ -33,14 +33,14 @@
 
 ### Publicação
 
-- [ ] **PUB-01**: Clips prontos são publicados automaticamente no YouTube via Data API v3 com título, descrição, tags e thumbnail
-- [ ] **PUB-02**: Sistema respeita cota diária do YouTube (máx 6 uploads/dia) usando contador Redis com reset à meia-noite
-- [ ] **PUB-03**: Uploads são agendados nos horários de maior audiência (19h-22h horário de Brasília)
-- [ ] **PUB-04**: Vídeos brutos são deletados automaticamente após processamento bem-sucedido; apenas clips finais são mantidos
+- [x] **PUB-01**: Clips prontos são publicados automaticamente no YouTube via Data API v3 com título, descrição, tags e thumbnail
+- [x] **PUB-02**: Sistema respeita cota diária do YouTube (máx 6 uploads/dia) usando contador Redis com reset à meia-noite
+- [x] **PUB-03**: Uploads são agendados nos horários de maior audiência (19h-22h horário de Brasília)
+- [x] **PUB-04**: Vídeos brutos são deletados automaticamente após processamento bem-sucedido; apenas clips finais são mantidos
 
 ### Orquestração
 
-- [ ] **ORC-01**: n8n orquestra todo o pipeline end-to-end como workflow automatizado com tratamento de erros e retry
+- [x] **ORC-01**: n8n orquestra todo o pipeline end-to-end como workflow automatizado com tratamento de erros e retry
 - [x] **ORC-02**: Status de cada job é registrado no MySQL (pending/downloading/transcribing/selecting/cutting/publishing/published/failed)
 
 ## v2 Requirements
@@ -94,11 +94,11 @@
 | VID-02 | Phase 4 | Complete |
 | VID-03 | Phase 4 | Complete |
 | VID-04 | Phase 4 | Complete |
-| PUB-01 | Phase 5 | Pending |
-| PUB-02 | Phase 5 | Pending |
-| PUB-03 | Phase 5 | Pending |
-| PUB-04 | Phase 5 | Pending |
-| ORC-01 | Phase 5 | Pending |
+| PUB-01 | Phase 5 | Complete |
+| PUB-02 | Phase 5 | Complete |
+| PUB-03 | Phase 5 | Complete |
+| PUB-04 | Phase 5 | Complete |
+| ORC-01 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 20 total
@@ -107,4 +107,4 @@
 
 ---
 *Requirements defined: 2026-06-17*
-*Last updated: 2026-06-17 — traceability finalized after roadmap creation*
+*Last updated: 2026-06-18 — Phase 5 publication/orchestration complete*

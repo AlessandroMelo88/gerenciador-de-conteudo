@@ -1,38 +1,72 @@
 # Canal de Cortes — clip-processor daemon
-# Phase 2: Aquisição de Vídeos
+# Phase 5: Pipeline completo com publicação YouTube
 import signal
 import os
 from datetime import datetime
-from apscheduler.schedulers.blocking import BlockingScheduler
-from src.rss_poller import poll_all_channels
+try:
+    from apscheduler.schedulers.blocking import BlockingScheduler
+except ModuleNotFoundError:
+    class _FallbackJob:
+        def __init__(self, id, coalesce, max_instances):
+            self.id = id
+            self.coalesce = coalesce
+            self.max_instances = max_instances
+
+    class BlockingScheduler:  # pragma: no cover - local test fallback
+        def __init__(self, timezone=None):
+            self.timezone = timezone
+            self._jobs = []
+
+        def add_job(self, func, trigger, **kwargs):
+            self._jobs.append(_FallbackJob(
+                kwargs.get('id'),
+                kwargs.get('coalesce'),
+                kwargs.get('max_instances'),
+            ))
+
+        def get_jobs(self):
+            return self._jobs
+
+        def shutdown(self, wait=False):
+            return None
+
+        def start(self):
+            return None
+from src.pipeline_runner import run_pipeline_once
 from src.db import get_db_connection, recover_stuck_downloads
+
 
 def log(msg: str):
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] {msg}', flush=True)
 
+
 scheduler = BlockingScheduler(timezone='America/Sao_Paulo')
+
 
 def shutdown(signum, frame):
     log('[ACQU] Recebendo sinal de shutdown — encerrando scheduler')
     scheduler.shutdown(wait=False)
 
+
 scheduler.add_job(
-    poll_all_channels,
+    run_pipeline_once,
     'interval',
     hours=6,
-    id='poll_rss',
+    id='pipeline_cycle',
     coalesce=True,
     max_instances=1,
-    misfire_grace_time=300
+    misfire_grace_time=300,
 )
 
 signal.signal(signal.SIGTERM, shutdown)
 signal.signal(signal.SIGINT, shutdown)
 
 if __name__ == '__main__':
-    log('[ACQU] Daemon iniciado — poll RSS a cada 6 horas')
+    log('[ACQU] Daemon iniciado — ciclo completo a cada 6 horas')
     log(f'[ACQU] MYSQL_HOST: {os.environ.get("MYSQL_HOST", "não configurado")}')
     log(f'[ACQU] REDIS_HOST: {os.environ.get("REDIS_HOST", "não configurado")}')
+    log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "private")}')
+    log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
 
     # Recovery: vídeos presos em 'downloading' voltam para 'pending'
     try:
@@ -43,8 +77,8 @@ if __name__ == '__main__':
         log(f'[ACQU] Aviso: recovery on startup falhou — {e}')
 
     # Executar imediatamente na inicialização (não esperar 6h)
-    log('[ACQU] Executando poll inicial...')
-    poll_all_channels()
+    log('[ACQU] Executando ciclo inicial...')
+    run_pipeline_once()
 
-    log('[ACQU] Scheduler iniciado — próximo poll em 6 horas')
+    log('[ACQU] Scheduler iniciado — próximo ciclo em 6 horas')
     scheduler.start()

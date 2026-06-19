@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 5 PLANEJADA — 6 planos prontos para publicacao, quota, YouTube upload, runner e n8n
-stopped_at: Planned 05-publicacao-e-automacao-total
-last_updated: "2026-06-18T19:45:00.000Z"
-last_activity: 2026-06-18 — Phase 5 planejada com migration, QuotaManager, YouTubeUploader, Publisher, runner e workflow n8n
+status: Phase 5 COMPLETA — publicação YouTube, quota, runner e workflow n8n implementados e testados
+stopped_at: Completed 05-publicacao-e-automacao-total Plan 06
+last_updated: "2026-06-18T21:05:00.000Z"
+last_activity: 2026-06-18 — Phase 5 executada; 36 testes focados GREEN, 81 testes ampliados GREEN com 1 retry lento excluido
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 22
-  completed_plans: 16
-  percent: 73
+  completed_plans: 22
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** Pipeline extrai e publica cortes virais de futebol automaticamente — do monitoramento à publicação — sem intervenção humana para cada vídeo.
-**Current focus:** Phase 5 — Publicação e Automação Total (planejada; próxima ação é executar 05-01)
+**Current focus:** Milestone v1.0 completo — próxima ação é checkpoint operacional de upload privado
 
 ## Current Position
 
-Phase: 5 of 5 (Publicação e Automação Total) — PLANNED
-Plan: 0 of 6 in current phase — READY
-Status: Phase 5 PLANEJADA — 6 planos prontos para publicacao, quota, YouTube upload, runner e n8n
-Last activity: 2026-06-18 — Phase 5 planejada com migration, QuotaManager, YouTubeUploader, Publisher, runner e workflow n8n
+Phase: 5 of 5 (Publicação e Automação Total) — COMPLETE
+Plan: 6 of 6 in current phase — COMPLETE
+Status: Phase 5 COMPLETA — publicação YouTube, quota, runner e workflow n8n implementados e testados
+Last activity: 2026-06-18 — Phase 5 executada; 36 testes focados GREEN, 81 testes ampliados GREEN com 1 retry lento excluido
 
-Progress: [███████░░░] 73% (Phases 1-4 completas — 16/22 planos)
+Progress: [██████████] 100% (Phases 1-5 completas — 22/22 planos)
 
 ## Performance Metrics
 
@@ -116,6 +116,9 @@ Recent decisions affecting current work:
 - [Phase 05-publicacao-e-automacao-total planning]: Quota diaria usa Redis por data local America/Sao_Paulo e nunca pode exceder 6 uploads/dia; default inicial recomendado e 2
 - [Phase 05-publicacao-e-automacao-total planning]: Raw source video so deve ser removido quando todos os clips do mesmo source estiverem terminais e ao menos um foi publicado
 - [Phase 05-publicacao-e-automacao-total planning]: Primeiro checkpoint de upload deve usar `YOUTUBE_PRIVACY_STATUS=private`
+- [Phase 05-publicacao-e-automacao-total]: YouTubeUploader usa `/app/token.json`, upload resumivel e thumbnail customizada; testes mockam API real
+- [Phase 05-publicacao-e-automacao-total]: Publisher retorna quantidade publicada e nao propaga falhas isoladas; quota incrementa somente em sucesso
+- [Phase 05-publicacao-e-automacao-total]: n8n workflow usa Execute Command com retry 3x/15min; requer Docker socket no container n8n para `docker exec`
 
 ### Pending Todos
 
@@ -123,7 +126,7 @@ None yet.
 
 ### Blockers/Concerns
 
-None — Phase 5 planejada. Pronto para executar 05-01 (migration, skeletons e testes RED).
+Manual checkpoint pendente: executar primeiro upload real como privado (`YOUTUBE_PRIVACY_STATUS=private`, `MAX_UPLOADS_PER_DAY=1`) e validar no YouTube Studio.
 
 ## Session Continuity
 

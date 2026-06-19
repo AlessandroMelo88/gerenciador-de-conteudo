@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Aquisição de Vídeos** - Monitor RSS, download yt-dlp, deduplicação e rastreamento de jobs (completed 2026-06-18)
 - [x] **Phase 3: IA — Transcrição e Seleção** - Groq Whisper transcreve, Claude Haiku seleciona melhores momentos (completed 2026-06-18)
 - [x] **Phase 4: Processamento de Vídeo** - FFmpeg corta, redimensiona 9:16, queima legendas e gera thumbnail + metadados (completed 2026-06-18)
-- [ ] **Phase 5: Publicação e Automação Total** - Upload YouTube API, quota management, agendamento e workflow n8n end-to-end
+- [x] **Phase 5: Publicação e Automação Total** - Upload YouTube API, quota management, agendamento e workflow n8n end-to-end (completed 2026-06-18)
 
 ## Phase Details
 
@@ -100,12 +100,12 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Wave 0: migration de publicação, skeletons quota/uploader/publisher/runner e testes RED
-- [ ] 05-02-PLAN.md — QuotaManager: limite diário Redis e janela 19h-22h America/Sao_Paulo
-- [ ] 05-03-PLAN.md — YouTubeUploader: upload de MP4 + thumbnail via YouTube Data API v3 usando token OAuth
-- [ ] 05-04-PLAN.md — Publisher: status pending → publishing → published, quota guard e cleanup seguro do raw source
-- [ ] 05-05-PLAN.md — Pipeline runner e integração do publisher ao daemon APScheduler
-- [ ] 05-06-PLAN.md — Workflow n8n com retry e checkpoint de upload privado end-to-end
+- [x] 05-01-PLAN.md — Wave 0: migration de publicação, skeletons quota/uploader/publisher/runner e testes RED
+- [x] 05-02-PLAN.md — QuotaManager: limite diário Redis e janela 19h-22h America/Sao_Paulo
+- [x] 05-03-PLAN.md — YouTubeUploader: upload de MP4 + thumbnail via YouTube Data API v3 usando token OAuth
+- [x] 05-04-PLAN.md — Publisher: status pending → publishing → published, quota guard e cleanup seguro do raw source
+- [x] 05-05-PLAN.md — Pipeline runner e integração do publisher ao daemon APScheduler
+- [x] 05-06-PLAN.md — Workflow n8n com retry e checkpoint de upload privado end-to-end
 
 ## Progress
 
@@ -118,4 +118,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Aquisição de Vídeos | 4/4 | Complete | 2026-06-18 |
 | 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
 | 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
-| 5. Publicação e Automação Total | 0/6 | Planned | - |
+| 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
