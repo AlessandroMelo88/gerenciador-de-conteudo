@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 5 COMPLETA — publicação YouTube, quota, runner e workflow n8n implementados e testados
-stopped_at: Phase 6 context gathered
-last_updated: "2026-06-19T18:48:15.048Z"
-last_activity: 2026-06-18 — Phase 5 executada; 36 testes focados GREEN, 81 testes ampliados GREEN com 1 retry lento excluido
+status: "Phase 6 em progresso — Wave 0 (Plan 06-01) concluída: migration SQL + 4 stubs Python + 5 RED test files + 2 esqueletos n8n"
+stopped_at: Plan 06-01 concluído — pronto para Plan 06-02 (publisher swap pending→approved)
+last_updated: "2026-06-19T20:14:25.117Z"
+last_activity: 2026-06-19 — Plan 06-01 executado; 15 RED tests + migration ENUM approved/rejected + skeletons n8n
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 22
-  completed_plans: 22
-  percent: 100
+  total_plans: 29
+  completed_plans: 23
+  percent: 79
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 5 of 5 (Publicação e Automação Total) — COMPLETE
-Plan: 6 of 6 in current phase — COMPLETE
-Status: Phase 5 COMPLETA — publicação YouTube, quota, runner e workflow n8n implementados e testados
-Last activity: 2026-06-18 — Phase 5 executada; 36 testes focados GREEN, 81 testes ampliados GREEN com 1 retry lento excluido
+Phase: 6 of 6 (Controle Manual N8N + Telegram) — IN PROGRESS
+Plan: 2 of 7 in current phase (06-01 concluído, próximo: 06-02)
+Status: Phase 6 em progresso — Wave 0 (Plan 06-01) concluída: migration SQL + 4 stubs Python + 5 RED test files + 2 esqueletos n8n
+Last activity: 2026-06-19 — Plan 06-01 executado; 15 RED tests + migration ENUM approved/rejected + skeletons n8n
 
-Progress: [██████████] 100% (Phases 1-5 completas — 22/22 planos)
+Progress: [████████░░] 79% (23/29 planos — Phases 1-5 completas + Plan 06-01)
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [██████████] 100% (Phases 1-5 completas — 22/22 
 | Phase 03-ia-transcricao P01 | 2min | 2 tasks | 5 files |
 | Phase 03-ia-transcri-o-e-sele-o P02 | 6min | 1 tasks | 1 files |
 | Phase 03-ia-transcricao P03 | 5min | 1 tasks | 1 files |
+| Phase 06-controle-manual-n8n-telegram P01 | 6min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,10 @@ Recent decisions affecting current work:
 - [Phase 05-publicacao-e-automacao-total]: YouTubeUploader usa `/app/token.json`, upload resumivel e thumbnail customizada; testes mockam API real
 - [Phase 05-publicacao-e-automacao-total]: Publisher retorna quantidade publicada e nao propaga falhas isoladas; quota incrementa somente em sucesso
 - [Phase 05-publicacao-e-automacao-total]: n8n workflow usa Execute Command com retry 3x/15min; requer Docker socket no container n8n para `docker exec`
+- [Phase 06-controle-manual-n8n-telegram]: ENUM Phase 6 final: ('pending_cut','pending','cutting','publishing','published','failed','approved','rejected') — append-only mantém metadata-only no MySQL 8.4 e backward-compat com dados legados
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-01 Wave 0 pattern: stubs Python com imports+constants module-level e NotImplementedError no corpo + test_*.py com imports no topo — espelha Phases 2/3/4 RED state
+- [Phase 06-controle-manual-n8n-telegram]: n8n Switch v2 com renameOutput+outputKey por comando (status/clipes/aprovar/rejeitar/processar/ajuda) + fallbackOutput=ajuda — Plan 06-07 conecta sub-fluxos por nome legível
+- [Phase 06-controle-manual-n8n-telegram]: 01-telegram-handler.json NÃO arquivado — fica em workflows/ como referência. Operador decide manualmente no n8n UI quando substituir pelo router Phase 6
 
 ### Pending Todos
 
@@ -134,6 +139,6 @@ Manual checkpoint pendente: executar primeiro upload real como privado (`YOUTUBE
 
 ## Session Continuity
 
-Last session: 2026-06-19T18:48:15.039Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-controle-manual-n8n-telegram/06-CONTEXT.md
+Last session: 2026-06-19T20:14:14.621Z
+Stopped at: Plan 06-01 concluído — pronto para Plan 06-02 (publisher swap pending→approved)
+Resume file: None
