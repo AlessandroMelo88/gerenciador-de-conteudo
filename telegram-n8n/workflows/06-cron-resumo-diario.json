@@ -1,0 +1,48 @@
+{
+  "name": "06 — Resumo Diário 18h BRT",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger 18h BRT",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// TODO Plan 06-07: substituir por:\n//   1) MySQL count: SELECT status, COUNT(*) FROM generated_clips GROUP BY status\n//   2) Formatar mensagem (clips pending, approved, published hoje, rejected)\n//   3) Enviar Telegram para TELEGRAM_CHAT_ID_ALLOWED\nreturn [{ json: { todo: 'Query pending + send resumo' } }];"
+      },
+      "id": "todo-query-send",
+      "name": "TODO: Query pending + send",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger 18h BRT": {
+      "main": [
+        [{ "node": "TODO: Query pending + send", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "America/Sao_Paulo",
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "phase6-skeleton",
+    "description": "Phase 6 Resumo Diário — skeleton (Plan 06-01). Plan 06-07 substitui o nó TODO pela query MySQL + envio Telegram."
+  }
+}
