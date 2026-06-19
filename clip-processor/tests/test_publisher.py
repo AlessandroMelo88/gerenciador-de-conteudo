@@ -196,3 +196,73 @@ class TestPublishPendingClips:
             with patch('src.publisher.os.remove') as mock_remove:
                 publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
                 mock_remove.assert_not_called()
+
+
+class TestPublishApprovedClips:
+    """Phase 6 — publisher.py deve passar a selecionar status='approved' (não 'pending').
+
+    Estado RED até Plan 06-02: o SELECT em publisher._fetch_pending_clips ainda
+    usa WHERE gc.status = 'pending'. Esses testes ficam vermelhos até o swap
+    do literal pending → approved.
+    """
+
+    def test_seleciona_apenas_approved(self):
+        """O SELECT que busca clips para publicar deve filtrar por status='approved'."""
+        conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
+        redis = MagicMock()
+        uploader = make_mock_uploader(video_id='yt_approved_01')
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            MockQuota.return_value.can_upload.return_value = True
+            publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
+
+        # Procura o SELECT que filtra por status — DEVE ser approved
+        select_sqls = [
+            str(c.args[0]) for c in cursor.execute.call_args_list
+            if c.args and 'SELECT' in str(c.args[0]).upper()
+            and 'STATUS' in str(c.args[0]).upper()
+        ]
+        joined = ' '.join(select_sqls)
+        assert "'approved'" in joined, (
+            f"publisher deve selecionar status='approved' (Phase 6). SELECTs vistos: {select_sqls}"
+        )
+        assert "'pending'" not in joined, (
+            "publisher ainda referencia status='pending' — swap Phase 6 não foi aplicado"
+        )
+
+    def test_quota_blocked_leaves_clip_as_approved(self):
+        """Quando QuotaManager bloqueia, publisher NÃO chama YouTubeUploader e clip permanece approved."""
+        conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
+        redis = MagicMock()
+        uploader = make_mock_uploader()
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            MockQuota.return_value.can_upload.return_value = False
+            result = publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(15))
+
+        assert result == 0
+        uploader.upload_clip.assert_not_called()
+        # Nenhum UPDATE para status='publishing' ou 'published'
+        terminal_updates = [
+            c for c in cursor.execute.call_args_list
+            if c.args
+            and 'UPDATE' in str(c.args[0]).upper()
+            and ('publishing' in str(c.args[0]) or 'published' in str(c.args[0]))
+        ]
+        assert len(terminal_updates) == 0, (
+            'Clip não deve transicionar de approved enquanto quota bloqueia'
+        )
+
+    def test_fora_da_janela_horaria(self):
+        """Fora da janela horária (QuotaManager.can_upload=False), publisher pula sem mexer no clip."""
+        conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
+        redis = MagicMock()
+        uploader = make_mock_uploader()
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            # can_upload retorna False (fora da janela)
+            MockQuota.return_value.can_upload.return_value = False
+            result = publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(3))
+
+        assert result == 0
+        uploader.upload_clip.assert_not_called()
