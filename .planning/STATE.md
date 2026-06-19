@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: "Phase 6 em progresso — Wave 1 completa: Plans 06-02, 06-03 e 06-04 concluídos (publisher swap + rejeitar.py + processar.py com regex YouTube + yt-dlp metadata-only + upsert idempotente + pseudo-channel automático)"
-stopped_at: "Plan 06-04 concluído — Wave 1 completa; próximos: Wave 2 (06-05/06-06) depois Wave 3 (06-07)"
-last_updated: "2026-06-19T20:27:30Z"
+stopped_at: "Plan 06-04 concluído — Wave 1 completa (06-02/03/04); próximos: Wave 2 (06-05/06-06) depois Wave 3 (06-07)"
+last_updated: "2026-06-19T20:28:28.847Z"
 last_activity: 2026-06-19 — Plan 06-04 executado; processar.py implementado, 7 testes GREEN (test_processar)
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 29
-  completed_plans: 27
+  completed_plans: 26
   percent: 93
 ---
 
@@ -64,6 +64,7 @@ Progress: [█████████░] 93% (27/29 planos — Phases 1-5 comp
 | Phase 06-controle-manual-n8n-telegram P01 | 6min | 2 tasks | 16 files |
 | Phase 06-controle-manual-n8n-telegram P03 | 5min | 1 tasks | 1 files |
 | Phase 06-controle-manual-n8n-telegram P02 | 8min | 1 tasks | 2 files |
+| Phase 06-controle-manual-n8n-telegram P04 | 7min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,11 @@ Recent decisions affecting current work:
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-03: /aprovar NÃO terá módulo Python — será feito direto pelo n8n MySQL node com UPDATE parametrizado em Plan 06-07; rejeitar requer Python porque há side-effect (delete MP4)
 - [Phase 06-controle-manual-n8n-telegram]: Phase 6 Plan 06-02: publisher.py SELECT muda 'pending'→'approved' + nova função _transition_approved_to_publishing com guard WHERE status='approved' e cursor.rowcount check (skip silencioso em race com /rejeitar)
 - [Phase 06-controle-manual-n8n-telegram]: Phase 6 fixture pattern: make_conn_with_clips precisa de cursor.rowcount=1 para simular MySQL no caminho feliz do guard de status — Plans futuros que usem guards seguirão mesmo padrão
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-04: pseudo-channel manual:UCxxx com active=FALSE preserva FK quando vídeo manual vem de canal fora do pool RSS (RSS poller ignora linha; FK válida)
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-04: SELECT-then-INSERT (não INSERT...ON DUPLICATE KEY) — chamador precisa do status atual para mensagem Telegram ("já existia status=downloaded" vs "inserido status=pending")
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-04: yt-dlp metadata-only com skip_download=True não consome quota YouTube Data API — alavanca segura para n8n executeCommand chamado pelo bot
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-04: novo vídeo manual entra como status='pending' (não bypassa pipeline) — daemon APScheduler cuida do resto (download → transcribe → select → cut → publish)
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-04: exit codes CLI documentados (0=ok, 2=URL inválida, 3=metadata yt-dlp falhou) — Plan 06-07 roteia mensagem de erro amigável no router por código
 
 ### Pending Todos
 
@@ -147,6 +153,6 @@ Manual checkpoint pendente: executar primeiro upload real como privado (`YOUTUBE
 
 ## Session Continuity
 
-Last session: 2026-06-19T20:27:28.835Z
-Stopped at: Plan 06-02 concluído — paralelos restantes da Wave 1: 06-04; Wave 2: 06-05/06-06; Wave 3: 06-07
+Last session: 2026-06-19T20:28:26.043Z
+Stopped at: Plan 06-04 concluído — Wave 1 completa (06-02/03/04); próximos: Wave 2 (06-05/06-06) depois Wave 3 (06-07)
 Resume file: None
