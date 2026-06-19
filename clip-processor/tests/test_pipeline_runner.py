@@ -4,16 +4,19 @@ Testes para pipeline_runner.py — ciclo completo do pipeline.
 import pytest
 from unittest.mock import MagicMock, patch, call
 
-from src.pipeline_runner import run_pipeline_once
+from src.pipeline_runner import run_pipeline_once, _download_pending_videos
 
 
 class TestRunPipelineOnce:
-    def test_calls_poll_then_publish(self):
-        """Deve chamar poll_all_channels antes de publish_pending_clips."""
+    def test_calls_poll_then_download_then_publish(self):
+        """Deve chamar poll → download → publish em ordem."""
         call_order = []
 
         def fake_poll(**kwargs):
             call_order.append('poll')
+
+        def fake_download(conn):
+            call_order.append('download')
 
         def fake_publish(conn, redis, **kwargs):
             call_order.append('publish')
@@ -23,11 +26,12 @@ class TestRunPipelineOnce:
         mock_redis = MagicMock()
 
         with patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll), \
+             patch('src.pipeline_runner._download_pending_videos', side_effect=fake_download), \
              patch('src.pipeline_runner.publish_pending_clips', side_effect=fake_publish), \
              patch('src.pipeline_runner.YouTubeUploader'):
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
 
-        assert call_order == ['poll', 'publish']
+        assert call_order == ['poll', 'download', 'publish']
 
     def test_reuses_injected_db_and_redis(self):
         """Conexões injetadas devem ser passadas para os sub-módulos."""
@@ -35,6 +39,7 @@ class TestRunPipelineOnce:
         mock_redis = MagicMock()
 
         with patch('src.pipeline_runner.poll_all_channels') as mock_poll, \
+             patch('src.pipeline_runner._download_pending_videos'), \
              patch('src.pipeline_runner.publish_pending_clips') as mock_pub, \
              patch('src.pipeline_runner.YouTubeUploader'):
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
@@ -53,6 +58,7 @@ class TestRunPipelineOnce:
         mock_redis = MagicMock()
 
         with patch('src.pipeline_runner.poll_all_channels'), \
+             patch('src.pipeline_runner._download_pending_videos'), \
              patch('src.pipeline_runner.publish_pending_clips'), \
              patch('src.pipeline_runner.YouTubeUploader'):
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
@@ -65,10 +71,10 @@ class TestRunPipelineOnce:
         mock_redis = MagicMock()
 
         with patch('src.pipeline_runner.poll_all_channels'), \
+             patch('src.pipeline_runner._download_pending_videos'), \
              patch('src.pipeline_runner.publish_pending_clips',
                    side_effect=Exception('publish bombed')), \
              patch('src.pipeline_runner.YouTubeUploader'):
-            # Não deve levantar exceção
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
 
     def test_poll_failure_does_not_skip_publish(self):
@@ -87,6 +93,7 @@ class TestRunPipelineOnce:
             return 0
 
         with patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll), \
+             patch('src.pipeline_runner._download_pending_videos'), \
              patch('src.pipeline_runner.publish_pending_clips', side_effect=fake_publish), \
              patch('src.pipeline_runner.YouTubeUploader'):
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
@@ -102,12 +109,71 @@ class TestRunPipelineOnce:
         with patch('src.pipeline_runner.get_db_connection', return_value=mock_conn) as mock_get_db, \
              patch('src.pipeline_runner.redis_lib.Redis', return_value=mock_redis_instance), \
              patch('src.pipeline_runner.poll_all_channels'), \
+             patch('src.pipeline_runner._download_pending_videos'), \
              patch('src.pipeline_runner.publish_pending_clips'), \
              patch('src.pipeline_runner.YouTubeUploader'):
             run_pipeline_once()
 
         mock_get_db.assert_called_once()
         mock_conn.close.assert_called_once()
+
+    def test_download_failure_does_not_propagate(self):
+        """Erro em _download_pending_videos não deve propagar."""
+        mock_conn = MagicMock()
+        mock_redis = MagicMock()
+
+        with patch('src.pipeline_runner.poll_all_channels'), \
+             patch('src.pipeline_runner._download_pending_videos',
+                   side_effect=Exception('disk full')), \
+             patch('src.pipeline_runner.publish_pending_clips', return_value=0), \
+             patch('src.pipeline_runner.YouTubeUploader'):
+            run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
+
+
+class TestDownloadPendingVideos:
+    def _make_cursor(self, rows):
+        cur = MagicMock()
+        cur.fetchall.return_value = rows
+        cur.__enter__ = lambda s: s
+        cur.__exit__ = MagicMock(return_value=False)
+        return cur
+
+    def test_successful_download_updates_status_to_downloaded(self):
+        """Download bem-sucedido deve atualizar status para downloaded com local_path."""
+        mock_conn = MagicMock()
+        cur = self._make_cursor([('abc123',)])
+        mock_conn.cursor.return_value = cur
+
+        with patch('src.pipeline_runner.download_video', return_value=True) as mock_dl, \
+             patch('src.pipeline_runner.update_status') as mock_upd:
+            _download_pending_videos(mock_conn)
+
+        mock_upd.assert_any_call(mock_conn, 'abc123', 'downloading')
+        mock_upd.assert_any_call(mock_conn, 'abc123', 'downloaded',
+                                  local_path='/app/videos/abc123.mp4')
+
+    def test_failed_download_updates_status_to_failed(self):
+        """Download falho deve atualizar status para failed."""
+        mock_conn = MagicMock()
+        cur = self._make_cursor([('xyz999',)])
+        mock_conn.cursor.return_value = cur
+
+        with patch('src.pipeline_runner.download_video', return_value=False), \
+             patch('src.pipeline_runner.update_status') as mock_upd:
+            _download_pending_videos(mock_conn)
+
+        mock_upd.assert_any_call(mock_conn, 'xyz999', 'failed')
+
+    def test_no_pending_videos_does_nothing(self):
+        """Sem vídeos pending, não deve chamar download_video."""
+        mock_conn = MagicMock()
+        cur = self._make_cursor([])
+        mock_conn.cursor.return_value = cur
+
+        with patch('src.pipeline_runner.download_video') as mock_dl:
+            _download_pending_videos(mock_conn)
+
+        mock_dl.assert_not_called()
 
     def test_scheduler_compatible_coalesce(self):
         """Importar main.py não deve iniciar o scheduler (coalesce = True verificado via import)."""
