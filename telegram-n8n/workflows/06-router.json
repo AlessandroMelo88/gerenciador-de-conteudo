@@ -1,0 +1,162 @@
+{
+  "name": "06 — Router Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {
+          "restrictToChatIds": "={{ $env.TELEGRAM_CHAT_ID_ALLOWED }}"
+        }
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-canal-decortes",
+          "name": "Telegram Canal de Cortes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse comando do Telegram: extrai command (primeira palavra lowercase),\n// arg (resto da mensagem) e chatId. Mensagens sem texto caem em /ajuda.\nconst msg = $input.first().json.message;\nif (!msg || !msg.text) {\n  return [{ json: { command: '/ajuda', arg: '', chatId: msg && msg.chat ? msg.chat.id : null } }];\n}\nconst text = msg.text.trim();\nconst parts = text.split(/\\s+/);\nconst command = parts[0].toLowerCase();\nconst arg = parts.slice(1).join(' ');\nreturn [{\n  json: {\n    command,\n    arg,\n    chatId: msg.chat.id,\n    messageId: msg.message_id,\n    username: (msg.from && msg.from.username) || 'usuario'\n  }\n}];"
+      },
+      "id": "parse-comando",
+      "name": "Parse Comando",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/status",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "status"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/clipes",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "clipes"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/aprovar",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "aprovar"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/rejeitar",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "rejeitar"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/processar",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "processar"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.command }}",
+                    "rightValue": "/ajuda",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "ajuda"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "ajuda"
+        }
+      },
+      "id": "switch-comando",
+      "name": "Switch Comando",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [{ "node": "Parse Comando", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Comando": {
+      "main": [
+        [{ "node": "Switch Comando", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "America/Sao_Paulo",
+    "saveDataSuccessExecution": "all",
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "phase6-skeleton",
+    "description": "Phase 6 Router Telegram — skeleton (Plan 06-01). Plan 06-07 conecta sub-fluxos a cada output do Switch."
+  }
+}
