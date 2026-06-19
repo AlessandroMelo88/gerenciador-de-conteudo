@@ -138,7 +138,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 **Plans**: 7 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Wave 0: migration SQL ENUM + 4 skeletons Python + 5 testes RED + 2 esqueletos n8n + .env.example (CTRL-01..06)
+- [x] 06-01-PLAN.md — Wave 0: migration SQL ENUM + 4 skeletons Python + 5 testes RED + 2 esqueletos n8n + .env.example (CTRL-01..06)
 - [ ] 06-02-PLAN.md — publisher.py: swap 'pending' → 'approved' + guard de status no UPDATE (CTRL-02)
 - [ ] 06-03-PLAN.md — rejeitar.py: UPDATE com guard + delete MP4 + preserva raw video (CTRL-03)
 - [ ] 06-04-PLAN.md — processar.py: parse URL + yt-dlp metadata + upsert idempotente (CTRL-04)

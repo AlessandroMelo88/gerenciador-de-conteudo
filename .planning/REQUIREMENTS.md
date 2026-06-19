@@ -45,12 +45,12 @@
 
 ### Controle Manual (Phase 6)
 
-- [ ] **CTRL-01**: Bot Telegram aceita comandos `/status`, `/clipes`, `/aprovar <id>`, `/rejeitar <id>`, `/processar <url>` e `/ajuda` somente do `chat_id` da allowlist; outros chats são ignorados silenciosamente
-- [ ] **CTRL-02**: ENUM `generated_clips.status` ganha `approved` e `rejected`; `publisher.py` passa a publicar apenas clipes `approved` respeitando quota e janela horária
-- [ ] **CTRL-03**: `/aprovar <id>` muda status pending→approved; `/rejeitar <id>` muda pending→rejected, apaga MP4 do clip e mantém o raw video
-- [ ] **CTRL-04**: `/processar <url>` insere/atualiza vídeo arbitrário em `source_videos` como `pending` (idempotente) sem bypassar regras do pipeline
-- [ ] **CTRL-05**: Worker de TTL converte clipes `pending` em `rejected` após 48h; aviso 24h antes via Telegram
-- [ ] **CTRL-06**: n8n recebe webhook do Telegram via Cloudflare Tunnel; bot envia notificações proativas apenas em 3 eventos (upload publicado, falha crítica, resumo diário 18h BRT)
+- [x] **CTRL-01**: Bot Telegram aceita comandos `/status`, `/clipes`, `/aprovar <id>`, `/rejeitar <id>`, `/processar <url>` e `/ajuda` somente do `chat_id` da allowlist; outros chats são ignorados silenciosamente
+- [x] **CTRL-02**: ENUM `generated_clips.status` ganha `approved` e `rejected`; `publisher.py` passa a publicar apenas clipes `approved` respeitando quota e janela horária
+- [x] **CTRL-03**: `/aprovar <id>` muda status pending→approved; `/rejeitar <id>` muda pending→rejected, apaga MP4 do clip e mantém o raw video
+- [x] **CTRL-04**: `/processar <url>` insere/atualiza vídeo arbitrário em `source_videos` como `pending` (idempotente) sem bypassar regras do pipeline
+- [x] **CTRL-05**: Worker de TTL converte clipes `pending` em `rejected` após 48h; aviso 24h antes via Telegram
+- [x] **CTRL-06**: n8n recebe webhook do Telegram via Cloudflare Tunnel; bot envia notificações proativas apenas em 3 eventos (upload publicado, falha crítica, resumo diário 18h BRT)
 
 ## v2 Requirements
 
