@@ -47,6 +47,9 @@ def make_conn_with_clips(clips: list[dict]):
         {'cnt': 1},   # published clips count
         {'local_path': None},  # source_video local_path
     ] * (len(clips) + 5)  # extra para não falhar
+    # Phase 6: guard de status no UPDATE approved→publishing usa cursor.rowcount.
+    # Simula MySQL retornando 1 row afetada no UPDATE (caminho feliz).
+    cursor.rowcount = 1
 
     conn.cursor.return_value.__enter__ = MagicMock(return_value=cursor)
     conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
@@ -56,7 +59,7 @@ def make_conn_with_clips(clips: list[dict]):
         fetchall=cursor.fetchall,
         fetchone=cursor.fetchone,
         execute=cursor.execute,
-        rowcount=0,
+        rowcount=1,
     )
     return conn, cursor
 
@@ -180,6 +183,8 @@ class TestPublishPendingClips:
         cursor.fetchall.return_value = [SAMPLE_CLIP]
         # Retorna 1 clip não-terminal (ainda há pendente)
         cursor.fetchone.return_value = {'cnt': 1}
+        # Phase 6: guard de status precisa de rowcount=1 para o UPDATE approved→publishing
+        cursor.rowcount = 1
 
         conn.cursor.return_value = MagicMock(
             __enter__=MagicMock(return_value=cursor),
