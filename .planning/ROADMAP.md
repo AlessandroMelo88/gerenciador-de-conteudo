@@ -119,3 +119,21 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
 | 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
 | 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
+
+### Phase 6: Controle Manual N8N + Telegram
+
+**Goal**: Operador aprova ou rejeita clipes pré-cortados via comandos no Telegram orquestrados pelo n8n; pipeline continua autônomo até a aprovação, e o publisher passa a publicar apenas clipes com status `approved`, respeitando quota e janela horária existentes.
+**Depends on**: Phase 5
+**Requirements**: CTRL-01, CTRL-02, CTRL-03, CTRL-04, CTRL-05, CTRL-06
+**Success Criteria** (what must be TRUE):
+  1. Bot Telegram responde aos comandos `/status`, `/clipes`, `/aprovar <id>`, `/rejeitar <id>`, `/processar <url>` e `/ajuda` quando enviados pelo `chat_id` da allowlist; mensagens de outros chats são ignoradas silenciosamente.
+  2. Migration adiciona `approved` e `rejected` ao ENUM `generated_clips.status`; `publisher.py` seleciona apenas clipes `approved` (em vez de `pending`) respeitando quota máx 2/dia e janela 19h-22h America/Sao_Paulo.
+  3. `/aprovar <id>` muda status de `pending` para `approved`; `/rejeitar <id>` muda para `rejected` e apaga o MP4 do clip, mantendo o vídeo bruto.
+  4. `/processar <url>` baixa metadata do YouTube, insere/atualiza `source_videos` com status `pending` (idempotente), e o pipeline existente cuida do resto sem bypass de regras.
+  5. Worker de TTL converte clipes `pending` em `rejected` após 48h; bot envia aviso 24h antes da expiração.
+  6. n8n recebe webhook do Telegram via Cloudflare Tunnel (sem ngrok, sem porta aberta); allowlist hardcoded `chat_id=5760918317` filtra acesso.
+  7. Bot envia notificações proativas em 3 eventos apenas: upload publicado com sucesso, falha crítica no pipeline, e resumo diário às 18h BRT (skip se 0 pendentes).
+**Plans**: 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 6 to break down)
