@@ -1,0 +1,190 @@
+{
+  "name": "02 — Busca de Vídeos por Tema (Canal de Cortes)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "canaldecortes-busca",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-busca",
+      "name": "Webhook Busca",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Chamado pelo workflow 01 quando o usuário envia /buscar"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\nconst query = body.query || body.args || '';\nconst chatId = body.chatId;\n\nif (!query.trim()) {\n  throw new Error('Query vazia. Use: /buscar <tema>');\n}\n\n// Enriquece a busca com termos de futebol brasileiro\nconst enrichedQuery = `${query} futebol brasil site:youtube.com`;\n\nreturn [{ json: { query, enrichedQuery, chatId } }];"
+      },
+      "id": "prepare-query",
+      "name": "Preparar Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "part", "value": "snippet" },
+            { "name": "q", "value": "={{ $json.query }} futebol brasil" },
+            { "name": "type", "value": "video" },
+            { "name": "videoDuration", "value": "long" },
+            { "name": "order", "value": "date" },
+            { "name": "maxResults", "value": "10" },
+            { "name": "regionCode", "value": "BR" },
+            { "name": "relevanceLanguage", "value": "pt" },
+            { "name": "publishedAfter", "value": "={{ new Date(Date.now() - 7*24*60*60*1000).toISOString() }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "youtube-search",
+      "name": "YouTube Search API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "notes": "Requer YOUTUBE_API_KEY configurada como credencial HTTP Query"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst items = response.items || [];\nconst query = $('Preparar Query').first().json.query;\nconst chatId = $('Preparar Query').first().json.chatId;\n\nif (items.length === 0) {\n  return [{ json: { videos: [], query, chatId, message: `Nenhum vídeo encontrado para \"${query}\".` } }];\n}\n\n// Filtra vídeos com duração razoável (canais de futebol BR)\n// e formata para inserção no banco\nconst videos = items.map(item => ({\n  youtubeVideoId: item.id.videoId,\n  title: item.snippet.title,\n  channelId: item.snippet.channelId,\n  channelName: item.snippet.channelTitle,\n  publishedAt: item.snippet.publishedAt,\n  description: item.snippet.description,\n  thumbnailUrl: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url\n}));\n\nreturn [{ json: { videos, query, chatId } }];"
+      },
+      "id": "parse-results",
+      "name": "Parsear Resultados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { videos, query, chatId } = $input.first().json;\nconst now = new Date().toISOString();\n\n// Gera queries SQL para inserção\n// Primeiro verifica/insere os canais, depois insere os vídeos\nconst upsertChannelQueries = [];\nconst insertVideoQueries = [];\n\nconst channelsSeen = new Set();\n\nvideos.forEach(v => {\n  if (!channelsSeen.has(v.channelId)) {\n    channelsSeen.add(v.channelId);\n    upsertChannelQueries.push({\n      channelId: v.channelId,\n      channelName: v.channelName,\n      rssUrl: `https://www.youtube.com/feeds/videos.xml?channel_id=${v.channelId}`\n    });\n  }\n\n  insertVideoQueries.push({\n    youtubeVideoId: v.youtubeVideoId,\n    channelId: v.channelId,\n    title: v.title.replace(/'/g, \"''\"),\n    publishedAt: v.publishedAt\n  });\n});\n\nreturn [{ json: { upsertChannelQueries, insertVideoQueries, query, chatId, total: videos.length } }];"
+      },
+      "id": "prepare-db",
+      "name": "Preparar para BD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "query",
+        "query": "={{ 'INSERT IGNORE INTO source_channels (youtube_channel_id, channel_name, rss_url) VALUES ' + $json.upsertChannelQueries.map(c => `(\\'${c.channelId}\\', \\'${c.channelName.substring(0,255)}\\', \\'${c.rssUrl}\\')`).join(', ') }}",
+        "additionalFields": {}
+      },
+      "id": "insert-channels",
+      "name": "Inserir Canais",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [1300, 200],
+      "credentials": {
+        "mySql": {
+          "id": "mysql-canal-decortes",
+          "name": "MySQL Canal de Cortes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "query",
+        "query": "={{ $('Preparar para BD').first().json.insertVideoQueries.map(v => `INSERT IGNORE INTO source_videos (youtube_video_id, channel_id, title, published_at, status) SELECT \\'${v.youtubeVideoId}\\', id, \\'${v.title.substring(0,499)}\\', \\'${v.publishedAt}\\', \\'pending\\' FROM source_channels WHERE youtube_channel_id = \\'${v.channelId}\\'`).join('; ') }}",
+        "additionalFields": {}
+      },
+      "id": "insert-videos",
+      "name": "Inserir Vídeos",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2,
+      "position": [1300, 400],
+      "credentials": {
+        "mySql": {
+          "id": "mysql-canal-decortes",
+          "name": "MySQL Canal de Cortes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "={{ $('Preparar para BD').first().json.chatId }}",
+        "text": "={{ '✅ Busca por \"' + $('Preparar para BD').first().json.query + '\" concluída!\\n\\n' + $('Preparar para BD').first().json.total + ' vídeos encontrados e adicionados à fila de processamento.\\n\\nO pipeline irá:\\n1. Baixar os vídeos\\n2. Transcrever com IA\\n3. Selecionar os melhores momentos\\n4. Renderizar os clipes\\n\\nUse /fila para acompanhar.' }}",
+        "additionalFields": {}
+      },
+      "id": "notify-done",
+      "name": "Notificar Conclusão",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1500, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-canal-decortes",
+          "name": "Telegram Canal de Cortes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\": true}"
+      },
+      "id": "webhook-response",
+      "name": "Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1700, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Busca": {
+      "main": [
+        [{ "node": "Preparar Query", "type": "main", "index": 0 }]
+      ]
+    },
+    "Preparar Query": {
+      "main": [
+        [{ "node": "YouTube Search API", "type": "main", "index": 0 }]
+      ]
+    },
+    "YouTube Search API": {
+      "main": [
+        [{ "node": "Parsear Resultados", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parsear Resultados": {
+      "main": [
+        [{ "node": "Preparar para BD", "type": "main", "index": 0 }]
+      ]
+    },
+    "Preparar para BD": {
+      "main": [
+        [
+          { "node": "Inserir Canais", "type": "main", "index": 0 },
+          { "node": "Inserir Vídeos", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Inserir Vídeos": {
+      "main": [
+        [{ "node": "Notificar Conclusão", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notificar Conclusão": {
+      "main": [
+        [{ "node": "Resposta", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Busca vídeos no YouTube por tema e insere no banco para processamento pelo clip-processor."
+  }
+}

@@ -1,5 +1,8 @@
 # Futebol em Cortes — Identidade Visual
 
+# Site
+ https://ideogram.ai 
+
 ## Dados do Canal
 
 | Campo | Valor |
