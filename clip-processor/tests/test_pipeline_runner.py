@@ -141,7 +141,7 @@ class TestDownloadPendingVideos:
     def test_successful_download_updates_status_to_downloaded(self):
         """Download bem-sucedido deve atualizar status para downloaded com local_path."""
         mock_conn = MagicMock()
-        cur = self._make_cursor([('abc123',)])
+        cur = self._make_cursor([{'youtube_video_id': 'abc123'}])
         mock_conn.cursor.return_value = cur
 
         with patch('src.pipeline_runner.download_video', return_value=True) as mock_dl, \
@@ -155,7 +155,7 @@ class TestDownloadPendingVideos:
     def test_failed_download_updates_status_to_failed(self):
         """Download falho deve atualizar status para failed."""
         mock_conn = MagicMock()
-        cur = self._make_cursor([('xyz999',)])
+        cur = self._make_cursor([{'youtube_video_id': 'xyz999'}])
         mock_conn.cursor.return_value = cur
 
         with patch('src.pipeline_runner.download_video', return_value=False), \
