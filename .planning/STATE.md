@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Phase 6 em progresso — Wave 2 começou: Plan 06-05 concluído (ttl_worker auto-rejeita pending >48h + warn 24h idempotente via Redis SET NX + APScheduler 1h)"
-stopped_at: Plan 06-05 concluído — Wave 2 em curso (falta 06-06 telegram_notifier); depois Wave 3 (06-07 router n8n)
-last_updated: "2026-06-19T20:42:39.356Z"
-last_activity: 2026-06-19 — Plan 06-05 executado; ttl_worker.py implementado, 3 testes GREEN + integração APScheduler em main.py
+status: "Phase 6 quase finalizada — Wave 2 concluída: Plan 06-06 entregue (telegram_notifier best-effort + 2 integrações + cloudflared service); falta apenas Plan 06-07 (router n8n)"
+stopped_at: Plan 06-06 concluído — falta apenas Wave 3 (06-07 router n8n) para Phase 6 fechar
+last_updated: "2026-06-19T21:24:21.528Z"
+last_activity: 2026-06-19 — Plan 06-06 executado; telegram_notifier.notify implementado + publisher/pipeline_runner instrumentados + cloudflared no docker-compose raiz
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 29
-  completed_plans: 27
-  percent: 93
+  completed_plans: 28
+  percent: 97
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 ## Current Position
 
 Phase: 6 of 6 (Controle Manual N8N + Telegram) — IN PROGRESS
-Plan: 6 of 7 in current phase (06-01/02/03/04/05 concluídos, Wave 2 em curso: 06-06; Wave 3: 06-07)
-Status: Phase 6 em progresso — Wave 2 começou: Plan 06-05 concluído (ttl_worker auto-rejeita pending >48h + warn 24h idempotente via Redis SET NX + APScheduler 1h)
-Last activity: 2026-06-19 — Plan 06-05 executado; ttl_worker.py implementado, 3 testes GREEN + integração APScheduler em main.py
+Plan: 7 of 7 in current phase (06-01..06 concluídos; falta Wave 3: 06-07 router n8n)
+Status: Phase 6 quase finalizada — Wave 2 concluída: Plan 06-06 entregue (telegram_notifier best-effort + 2 integrações + cloudflared service); falta apenas Plan 06-07 (router n8n)
+Last activity: 2026-06-19 — Plan 06-06 executado; telegram_notifier.notify implementado + publisher/pipeline_runner instrumentados + cloudflared no docker-compose raiz
 
-Progress: [█████████░] 93% (27/29 planos — Phases 1-5 completas + Plans 06-01..05)
+Progress: [██████████] 97% (28/29 planos — Phases 1-5 completas + Plans 06-01..06)
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [█████████░] 93% (27/29 planos — Phases 1-5 comp
 | Phase 06-controle-manual-n8n-telegram P02 | 8min | 1 tasks | 2 files |
 | Phase 06-controle-manual-n8n-telegram P04 | 7min | 1 tasks | 1 files |
 | Phase 06-controle-manual-n8n-telegram P05 | 9min | 2 tasks | 2 files |
+| Phase 06-controle-manual-n8n-telegram P06 | 35min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -148,6 +149,10 @@ Recent decisions affecting current work:
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-05: tradeoff aceito — falha de POST do warn marca Redis SET e perde 1 mensagem; rollback do SET introduziria atomicidade fictícia
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-05: ttl_worker usa requests.post direto (não delega a telegram_notifier) — isolamento, worker independe de Plan 06-06 para rodar
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-05: pattern idempotência durável de mensagens — Redis SET NX com TTL = janela do evento (24h); reaproveitar em futuros plans com side-effects out-of-band
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-06: telegram_notifier.notify implementado como best-effort (try/except RequestException + status_code check) — nunca propaga; default N8N_NOTIFY_URL=http://n8n:5678/webhook/notify (rede docker)
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-06: 3 chamadas notify('pipeline_failure', ...) em pipeline_runner.py (uma por estágio: poll/download/publish) em vez de 1 catch-all — Phase 5 estabeleceu 3 try/except separados; estágio nomeado por literal melhora observability
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-06: cloudflared como container separado (não sidecar do n8n) — restart independente, depends_on:[n8n] garante ordem sem acoplar lifecycle; n8n N8N_PORT=5678 literal (não env)
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-06: docker-compose.yml raiz (fora do repo canaldecortes/) modificado diretamente no FS — Task 2 sem commit git; validado via docker compose config (CONFIG VALID)
 
 ### Pending Todos
 
@@ -159,6 +164,6 @@ Manual checkpoint pendente: executar primeiro upload real como privado (`YOUTUBE
 
 ## Session Continuity
 
-Last session: 2026-06-19T20:39:15Z
-Stopped at: Plan 06-05 concluído — Wave 2 em curso (falta 06-06 telegram_notifier); depois Wave 3 (06-07 router n8n)
+Last session: 2026-06-19T21:24:21.525Z
+Stopped at: Plan 06-06 concluído — falta apenas Wave 3 (06-07 router n8n) para Phase 6 fechar
 Resume file: None
