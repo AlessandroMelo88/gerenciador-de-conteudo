@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Phase 5 COMPLETA — publicação YouTube, quota, runner e workflow n8n implementados e testados
-stopped_at: Completed 05-publicacao-e-automacao-total Plan 06
-last_updated: "2026-06-18T21:05:00.000Z"
+stopped_at: Phase 6 context gathered
+last_updated: "2026-06-19T18:48:15.048Z"
 last_activity: 2026-06-18 — Phase 5 executada; 36 testes focados GREEN, 81 testes ampliados GREEN com 1 retry lento excluido
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 5
   total_plans: 22
   completed_plans: 22
@@ -63,6 +63,10 @@ Progress: [██████████] 100% (Phases 1-5 completas — 22/22 
 | Phase 03-ia-transcricao P03 | 5min | 1 tasks | 1 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 6 added: Controle Manual N8N + Telegram
 
 ### Decisions
 
@@ -130,6 +134,6 @@ Manual checkpoint pendente: executar primeiro upload real como privado (`YOUTUBE
 
 ## Session Continuity
 
-Last session: 2026-06-18T17:39:18.305Z
-Stopped at: Completed 04-processamento-de-video Plan 04
-Resume file: None
+Last session: 2026-06-19T18:48:15.039Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-controle-manual-n8n-telegram/06-CONTEXT.md
