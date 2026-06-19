@@ -91,9 +91,112 @@ Para cada arquivo em `telegram-n8n/workflows/`:
 3. `03-tendencias.json`
 4. `04-notificador-fila.json`
 
-## Parte 3 — Configurar Webhook do Telegram
+## Parte 3 (Phase 6) — Exposição via Cloudflare Tunnel
 
-O N8N precisa de uma URL pública para receber os webhooks do Telegram.
+> **Phase 6 substituiu ngrok/NGINX por Cloudflare Tunnel.** O serviço `cloudflared` foi adicionado ao `docker-compose.yml` raiz no Plan 06-06 e expõe o n8n via Cloudflare Zero Trust — **sem porta aberta no host**, sem reverse proxy custom, sem ngrok.
+
+### 3.1 Criar Tunnel no Cloudflare
+
+1. Acessar [https://one.dash.cloudflare.com](https://one.dash.cloudflare.com) → **Networks** → **Tunnels** → **Create a tunnel**
+2. Escolher connector **cloudflared**, dar nome (sugerido: `n8n-canaldecortes`)
+3. Cloudflare exibe um token (formato `eyJh...`). Copiar e colar no `.env`:
+   ```env
+   CLOUDFLARE_TUNNEL_TOKEN=eyJh...
+   ```
+
+### 3.2 Configurar Public Hostname
+
+Na mesma tela do Tunnel:
+- **Public Hostnames** → **Add a public hostname**
+- Subdomain: `n8n`
+- Domain: `<seudominio>` (ex.: `canaldecortes.com.br`)
+- Service type: `HTTP`
+- URL: `n8n:5678` (nome do container — resolvido pela rede docker `internal`)
+
+Salvar.
+
+### 3.3 Atualizar variáveis de ambiente
+
+Adicionar ao `.env` (raiz `/Users/alessandrobm1/develop/server/wordpress/.env`):
+
+```env
+N8N_WEBHOOK_URL=https://n8n.<seudominio>
+N8N_HOST=n8n.<seudominio>
+```
+
+### 3.4 Subir cloudflared + restartar n8n
+
+```bash
+cd /Users/alessandrobm1/develop/server/wordpress
+docker compose up -d cloudflared
+docker compose restart n8n
+```
+
+### 3.5 Validar tunnel ativo
+
+```bash
+docker logs cloudflared 2>&1 | grep -E "Registered tunnel connection"
+curl -I https://n8n.<seudominio>   # deve retornar 200/302 do n8n
+```
+
+## Parte 3.5 (Phase 6) — Configurar Telegram setWebhook (com secret)
+
+1. Criar bot via `@BotFather` no Telegram (`/newbot` → seguir prompts).
+2. Copiar o token retornado e salvar em `.env`:
+   ```env
+   TELEGRAM_BOT_TOKEN=123456789:AAFxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   ```
+3. Gerar secret aleatório:
+   ```bash
+   openssl rand -hex 32
+   ```
+   Salvar em `.env`:
+   ```env
+   TELEGRAM_WEBHOOK_SECRET=<hex>
+   ```
+4. Confirmar `TELEGRAM_CHAT_ID_ALLOWED` no `.env` (Phase 6 usa allowlist via Telegram Trigger):
+   ```env
+   TELEGRAM_CHAT_ID_ALLOWED=5760918317
+   ```
+5. Executar `setWebhook` apontando para o tunnel + secret_token:
+   ```bash
+   source /Users/alessandrobm1/develop/server/wordpress/.env
+   curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+     -H "Content-Type: application/json" \
+     -d "{
+       \"url\": \"$N8N_WEBHOOK_URL/webhook/telegram-canaldecortes\",
+       \"secret_token\": \"$TELEGRAM_WEBHOOK_SECRET\",
+       \"allowed_updates\": [\"message\"]
+     }"
+   ```
+6. Verificar:
+   ```bash
+   curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo" | jq
+   ```
+   Esperado: `result.url` aponta para o tunnel, `pending_update_count=0`, `last_error_message` ausente.
+
+## Parte 3.6 (Phase 6) — Importar workflows no n8n
+
+Após o Tunnel estar ativo:
+
+1. Acessar `https://n8n.<seudominio>` (login se necessário).
+2. **Importar `telegram-n8n/workflows/06-router.json`**:
+   - Menu → **Import from File** → upload → **Save** → **Activate**
+   - Conferir credenciais "Telegram Canal de Cortes" e "MySQL Canal de Cortes" linkadas.
+3. **Importar `telegram-n8n/workflows/06-cron-resumo-diario.json`**:
+   - Mesma rotina → **Activate**.
+4. Workflow `06-router.json` contém **dois triggers**:
+   - **Telegram Trigger** (recebe comandos `/status`, `/clipes`, `/aprovar`, `/rejeitar`, `/processar`, `/ajuda`)
+   - **Webhook `/webhook/notify`** (recebe POSTs internos do `clip-processor` com 3 eventos: `upload_published`, `pipeline_failure`, `clip_ttl_warning`). **NÃO** exposto via Cloudflare — só acessível pela rede docker (`http://n8n:5678/webhook/notify`).
+
+> **Nota:** O workflow `01-telegram-handler.json` (Phases 1-5) NÃO é arquivado automaticamente. Operador decide manualmente no n8n UI quando substituir/desativar.
+
+## Parte 3 (deprecated) — Exposição via ngrok / NGINX
+
+> **Esta seção está mantida apenas como referência histórica para Phases 1-5.** Phase 6 substituiu pelo Cloudflare Tunnel (acima). NÃO use ngrok nem NGINX para o setup atual.
+
+<details>
+<summary>Mostrar passos antigos (ngrok / NGINX) — não usar</summary>
 
 ### Opção A — Exposição via ngrok (desenvolvimento/teste)
 
@@ -114,7 +217,7 @@ Se o servidor já tem IP público, configure:
 - Configure NGINX como proxy reverso para porta 5678
 - Configure SSL com Let's Encrypt
 
-### Configurar o webhook no Telegram
+### Configurar o webhook no Telegram (legado, sem secret_token)
 
 Substitua `TOKEN` e `N8N_URL`:
 
@@ -137,6 +240,8 @@ Resposta esperada:
 ```bash
 curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 ```
+
+</details>
 
 ## Parte 4 — Variáveis de Ambiente Adicionais
 
