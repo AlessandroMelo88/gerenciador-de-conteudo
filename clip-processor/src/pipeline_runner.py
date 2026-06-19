@@ -29,7 +29,7 @@ def _download_pending_videos(db_conn) -> None:
         cur.execute(
             "SELECT youtube_video_id FROM source_videos WHERE status = 'pending' LIMIT 5"
         )
-        pending = [row[0] for row in cur.fetchall()]
+        pending = [row['youtube_video_id'] for row in cur.fetchall()]
 
     for video_id in pending:
         _log(f'Baixando vídeo: {video_id}')
