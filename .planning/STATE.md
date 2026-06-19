@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Phase 6 em progresso — Wave 1: Plan 06-03 concluído (rejeitar.py com guard de status + delete MP4 + preserva raw video)"
-stopped_at: Plan 06-03 concluído — pronto para Plan 06-02/04/05/06 (paralelos da Wave 1)
-last_updated: "2026-06-19T20:24:12.422Z"
-last_activity: 2026-06-19 — Plan 06-03 executado; rejeitar.py implementado, 3 testes GREEN (test_rejeitar)
+status: "Phase 6 em progresso — Wave 1 completa: Plans 06-02, 06-03 e 06-04 concluídos (publisher swap + rejeitar.py + processar.py com regex YouTube + yt-dlp metadata-only + upsert idempotente + pseudo-channel automático)"
+stopped_at: "Plan 06-04 concluído — Wave 1 completa; próximos: Wave 2 (06-05/06-06) depois Wave 3 (06-07)"
+last_updated: "2026-06-19T20:27:30Z"
+last_activity: 2026-06-19 — Plan 06-04 executado; processar.py implementado, 7 testes GREEN (test_processar)
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 29
-  completed_plans: 24
-  percent: 83
+  completed_plans: 27
+  percent: 93
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 ## Current Position
 
 Phase: 6 of 6 (Controle Manual N8N + Telegram) — IN PROGRESS
-Plan: 3 of 7 in current phase (06-01 e 06-03 concluídos, paralelos restantes: 06-02/04/05/06; depois 06-07)
-Status: Phase 6 em progresso — Wave 1: Plan 06-03 concluído (rejeitar.py com guard de status + delete MP4 + preserva raw video)
-Last activity: 2026-06-19 — Plan 06-03 executado; rejeitar.py implementado, 3 testes GREEN (test_rejeitar)
+Plan: 5 of 7 in current phase (06-01/02/03/04 concluídos, Wave 2: 06-05/06-06; Wave 3: 06-07)
+Status: Phase 6 em progresso — Wave 1 completa: Plans 06-02, 06-03 e 06-04 concluídos (publisher swap + rejeitar.py + processar.py com regex YouTube + yt-dlp metadata-only + upsert idempotente + pseudo-channel automático)
+Last activity: 2026-06-19 — Plan 06-04 executado; processar.py implementado, 7 testes GREEN (test_processar)
 
-Progress: [████████░░] 83% (24/29 planos — Phases 1-5 completas + Plans 06-01 e 06-03)
+Progress: [█████████░] 93% (27/29 planos — Phases 1-5 completas + Plans 06-01, 06-02, 06-03 e 06-04)
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [████████░░] 83% (24/29 planos — Phases 1-5 comp
 | Phase 03-ia-transcricao P03 | 5min | 1 tasks | 1 files |
 | Phase 06-controle-manual-n8n-telegram P01 | 6min | 2 tasks | 16 files |
 | Phase 06-controle-manual-n8n-telegram P03 | 5min | 1 tasks | 1 files |
+| Phase 06-controle-manual-n8n-telegram P02 | 8min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,8 @@ Recent decisions affecting current work:
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-03: exit codes documentados (0=ok, 1=clip não existe, 2=status inválido/argv inválido) — n8n executeCommand propaga para bot reportar erro diferenciado
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-03: alias db_connect = get_db_connection no namespace de rejeitar.py — satisfaz contrato Wave 0 dos testes (patch('src.rejeitar.db_connect')) sem alterar API pública de src.db
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-03: /aprovar NÃO terá módulo Python — será feito direto pelo n8n MySQL node com UPDATE parametrizado em Plan 06-07; rejeitar requer Python porque há side-effect (delete MP4)
+- [Phase 06-controle-manual-n8n-telegram]: Phase 6 Plan 06-02: publisher.py SELECT muda 'pending'→'approved' + nova função _transition_approved_to_publishing com guard WHERE status='approved' e cursor.rowcount check (skip silencioso em race com /rejeitar)
+- [Phase 06-controle-manual-n8n-telegram]: Phase 6 fixture pattern: make_conn_with_clips precisa de cursor.rowcount=1 para simular MySQL no caminho feliz do guard de status — Plans futuros que usem guards seguirão mesmo padrão
 
 ### Pending Todos
 
@@ -144,6 +147,6 @@ Manual checkpoint pendente: executar primeiro upload real como privado (`YOUTUBE
 
 ## Session Continuity
 
-Last session: 2026-06-19T20:24:12.419Z
-Stopped at: Plan 06-03 concluído — pronto para Plan 06-02/04/05/06 (paralelos da Wave 1)
+Last session: 2026-06-19T20:27:28.835Z
+Stopped at: Plan 06-02 concluído — paralelos restantes da Wave 1: 06-04; Wave 2: 06-05/06-06; Wave 3: 06-07
 Resume file: None
