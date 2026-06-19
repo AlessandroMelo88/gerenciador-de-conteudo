@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: IA — Transcrição e Seleção** - Groq Whisper transcreve, Claude Haiku seleciona melhores momentos (completed 2026-06-18)
 - [x] **Phase 4: Processamento de Vídeo** - FFmpeg corta, redimensiona 9:16, queima legendas e gera thumbnail + metadados (completed 2026-06-18)
 - [x] **Phase 5: Publicação e Automação Total** - Upload YouTube API, quota management, agendamento e workflow n8n end-to-end (completed 2026-06-18)
+- [ ] **Phase 6: Controle Manual N8N + Telegram** - Bot Telegram para aprovação/rejeição manual de clips; publisher passa a publicar approved
 
 ## Phase Details
 
@@ -110,7 +111,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -119,6 +120,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
 | 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
 | 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
+| 6. Controle Manual N8N + Telegram | 0/7 | Planned | — |
 
 ### Phase 6: Controle Manual N8N + Telegram
 
@@ -133,7 +135,13 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
   5. Worker de TTL converte clipes `pending` em `rejected` após 48h; bot envia aviso 24h antes da expiração.
   6. n8n recebe webhook do Telegram via Cloudflare Tunnel (sem ngrok, sem porta aberta); allowlist hardcoded `chat_id=5760918317` filtra acesso.
   7. Bot envia notificações proativas em 3 eventos apenas: upload publicado com sucesso, falha crítica no pipeline, e resumo diário às 18h BRT (skip se 0 pendentes).
-**Plans**: 0 plans
+**Plans**: 7 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 6 to break down)
+- [ ] 06-01-PLAN.md — Wave 0: migration SQL ENUM + 4 skeletons Python + 5 testes RED + 2 esqueletos n8n + .env.example (CTRL-01..06)
+- [ ] 06-02-PLAN.md — publisher.py: swap 'pending' → 'approved' + guard de status no UPDATE (CTRL-02)
+- [ ] 06-03-PLAN.md — rejeitar.py: UPDATE com guard + delete MP4 + preserva raw video (CTRL-03)
+- [ ] 06-04-PLAN.md — processar.py: parse URL + yt-dlp metadata + upsert idempotente (CTRL-04)
+- [ ] 06-05-PLAN.md — ttl_worker.py: expire 48h + warn 24h idempotente + integração APScheduler (CTRL-05)
+- [ ] 06-06-PLAN.md — telegram_notifier.py + integração publisher/pipeline_runner + cloudflared no docker-compose (CTRL-06)
+- [ ] 06-07-PLAN.md — Workflows n8n completos (router 6 comandos + cron 18h) + SETUP.md + checkpoints operacionais (CTRL-01, CTRL-03, CTRL-04, CTRL-06)
