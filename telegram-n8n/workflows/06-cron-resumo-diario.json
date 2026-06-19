@@ -20,19 +20,77 @@
     },
     {
       "parameters": {
-        "jsCode": "// TODO Plan 06-07: substituir por:\n//   1) MySQL count: SELECT status, COUNT(*) FROM generated_clips GROUP BY status\n//   2) Formatar mensagem (clips pending, approved, published hoje, rejected)\n//   3) Enviar Telegram para TELEGRAM_CHAT_ID_ALLOWED\nreturn [{ json: { todo: 'Query pending + send resumo' } }];"
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) AS pending FROM generated_clips WHERE status='pending'",
+        "options": {}
       },
-      "id": "todo-query-send",
-      "name": "TODO: Query pending + send",
-      "type": "n8n-nodes-base.code",
+      "id": "count-pending",
+      "name": "Count Pending",
+      "type": "n8n-nodes-base.mySql",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [460, 300],
+      "credentials": {
+        "mySql": {
+          "id": "mysql-canal-decortes",
+          "name": "MySQL Canal de Cortes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.pending }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-tem-pending",
+      "name": "Tem Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID_ALLOWED }}",
+        "text": "={{ $json.pending }} clip(s) aguardando aprovação. Use /clipes para listar.",
+        "additionalFields": {}
+      },
+      "id": "send-resumo",
+      "name": "Enviar Resumo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [900, 220],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-canal-decortes",
+          "name": "Telegram Canal de Cortes"
+        }
+      }
     }
   ],
   "connections": {
     "Schedule Trigger 18h BRT": {
       "main": [
-        [{ "node": "TODO: Query pending + send", "type": "main", "index": 0 }]
+        [{ "node": "Count Pending", "type": "main", "index": 0 }]
+      ]
+    },
+    "Count Pending": {
+      "main": [
+        [{ "node": "Tem Pending?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Tem Pending?": {
+      "main": [
+        [{ "node": "Enviar Resumo", "type": "main", "index": 0 }],
+        []
       ]
     }
   },
@@ -42,7 +100,7 @@
     "executionOrder": "v1"
   },
   "meta": {
-    "instanceId": "phase6-skeleton",
-    "description": "Phase 6 Resumo Diário — skeleton (Plan 06-01). Plan 06-07 substitui o nó TODO pela query MySQL + envio Telegram."
+    "instanceId": "phase6-resumo-diario",
+    "description": "Phase 6 Resumo Diário 18h BRT (Plan 06-07). Conta clips pending; envia mensagem Telegram apenas se > 0 (skip silencioso se 0)."
   }
 }
