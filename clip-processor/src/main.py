@@ -34,6 +34,8 @@ except ModuleNotFoundError:
             return None
 from src.pipeline_runner import run_pipeline_once
 from src.db import get_db_connection, recover_stuck_downloads
+from src import ttl_worker
+from src.ttl_worker import run_ttl_once
 
 
 def log(msg: str):
@@ -58,6 +60,19 @@ scheduler.add_job(
     misfire_grace_time=300,
 )
 
+# CTRL-05: TTL worker — auto-rejeita clips pending >TTL_HOURS e avisa em WARN_HOURS.
+# Roda a cada 1h. next_run_time omitido → primeira execução em now + 1h
+# (evita rodar TTL antes do banco estar quente após boot).
+scheduler.add_job(
+    run_ttl_once,
+    'interval',
+    hours=1,
+    id='clip_pending_ttl',
+    coalesce=True,
+    max_instances=1,
+    misfire_grace_time=300,
+)
+
 signal.signal(signal.SIGTERM, shutdown)
 signal.signal(signal.SIGINT, shutdown)
 
@@ -67,6 +82,7 @@ if __name__ == '__main__':
     log(f'[ACQU] REDIS_HOST: {os.environ.get("REDIS_HOST", "não configurado")}')
     log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "private")}')
     log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
+    log(f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)')
 
     # Recovery: vídeos presos em 'downloading' voltam para 'pending'
     try:
