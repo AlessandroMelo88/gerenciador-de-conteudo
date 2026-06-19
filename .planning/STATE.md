@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Phase 6 em progresso — Wave 1 completa: Plans 06-02, 06-03 e 06-04 concluídos (publisher swap + rejeitar.py + processar.py com regex YouTube + yt-dlp metadata-only + upsert idempotente + pseudo-channel automático)"
-stopped_at: "Plan 06-04 concluído — Wave 1 completa (06-02/03/04); próximos: Wave 2 (06-05/06-06) depois Wave 3 (06-07)"
-last_updated: "2026-06-19T20:28:28.847Z"
-last_activity: 2026-06-19 — Plan 06-04 executado; processar.py implementado, 7 testes GREEN (test_processar)
+status: "Phase 6 em progresso — Wave 2 começou: Plan 06-05 concluído (ttl_worker auto-rejeita pending >48h + warn 24h idempotente via Redis SET NX + APScheduler 1h)"
+stopped_at: Plan 06-05 concluído — Wave 2 em curso (falta 06-06 telegram_notifier); depois Wave 3 (06-07 router n8n)
+last_updated: "2026-06-19T20:42:39.356Z"
+last_activity: 2026-06-19 — Plan 06-05 executado; ttl_worker.py implementado, 3 testes GREEN + integração APScheduler em main.py
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 29
-  completed_plans: 26
+  completed_plans: 27
   percent: 93
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 ## Current Position
 
 Phase: 6 of 6 (Controle Manual N8N + Telegram) — IN PROGRESS
-Plan: 5 of 7 in current phase (06-01/02/03/04 concluídos, Wave 2: 06-05/06-06; Wave 3: 06-07)
-Status: Phase 6 em progresso — Wave 1 completa: Plans 06-02, 06-03 e 06-04 concluídos (publisher swap + rejeitar.py + processar.py com regex YouTube + yt-dlp metadata-only + upsert idempotente + pseudo-channel automático)
-Last activity: 2026-06-19 — Plan 06-04 executado; processar.py implementado, 7 testes GREEN (test_processar)
+Plan: 6 of 7 in current phase (06-01/02/03/04/05 concluídos, Wave 2 em curso: 06-06; Wave 3: 06-07)
+Status: Phase 6 em progresso — Wave 2 começou: Plan 06-05 concluído (ttl_worker auto-rejeita pending >48h + warn 24h idempotente via Redis SET NX + APScheduler 1h)
+Last activity: 2026-06-19 — Plan 06-05 executado; ttl_worker.py implementado, 3 testes GREEN + integração APScheduler em main.py
 
-Progress: [█████████░] 93% (27/29 planos — Phases 1-5 completas + Plans 06-01, 06-02, 06-03 e 06-04)
+Progress: [█████████░] 93% (27/29 planos — Phases 1-5 completas + Plans 06-01..05)
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [█████████░] 93% (27/29 planos — Phases 1-5 comp
 | Phase 06-controle-manual-n8n-telegram P03 | 5min | 1 tasks | 1 files |
 | Phase 06-controle-manual-n8n-telegram P02 | 8min | 1 tasks | 2 files |
 | Phase 06-controle-manual-n8n-telegram P04 | 7min | 1 tasks | 1 files |
+| Phase 06-controle-manual-n8n-telegram P05 | 9min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,11 @@ Recent decisions affecting current work:
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-04: yt-dlp metadata-only com skip_download=True não consome quota YouTube Data API — alavanca segura para n8n executeCommand chamado pelo bot
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-04: novo vídeo manual entra como status='pending' (não bypassa pipeline) — daemon APScheduler cuida do resto (download → transcribe → select → cut → publish)
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-04: exit codes CLI documentados (0=ok, 2=URL inválida, 3=metadata yt-dlp falhou) — Plan 06-07 roteia mensagem de erro amigável no router por código
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-05: APScheduler dentro do clip-processor (vs n8n cron) — worker é puro lado-Python, n8n cron precisaria de DNS+rede; consistente com pipeline_cycle Phase 5
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-05: ordem expire-then-warn — invertido geraria clip avisado e expirado no mesmo run (UX confusa para operador)
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-05: tradeoff aceito — falha de POST do warn marca Redis SET e perde 1 mensagem; rollback do SET introduziria atomicidade fictícia
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-05: ttl_worker usa requests.post direto (não delega a telegram_notifier) — isolamento, worker independe de Plan 06-06 para rodar
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-05: pattern idempotência durável de mensagens — Redis SET NX com TTL = janela do evento (24h); reaproveitar em futuros plans com side-effects out-of-band
 
 ### Pending Todos
 
@@ -153,6 +159,6 @@ Manual checkpoint pendente: executar primeiro upload real como privado (`YOUTUBE
 
 ## Session Continuity
 
-Last session: 2026-06-19T20:28:26.043Z
-Stopped at: Plan 06-04 concluído — Wave 1 completa (06-02/03/04); próximos: Wave 2 (06-05/06-06) depois Wave 3 (06-07)
+Last session: 2026-06-19T20:39:15Z
+Stopped at: Plan 06-05 concluído — Wave 2 em curso (falta 06-06 telegram_notifier); depois Wave 3 (06-07 router n8n)
 Resume file: None

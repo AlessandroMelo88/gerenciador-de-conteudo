@@ -120,7 +120,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
 | 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
 | 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
-| 6. Controle Manual N8N + Telegram | 4/7 | In Progress|  |
+| 6. Controle Manual N8N + Telegram | 5/7 | In Progress|  |
 
 ### Phase 6: Controle Manual N8N + Telegram
 
