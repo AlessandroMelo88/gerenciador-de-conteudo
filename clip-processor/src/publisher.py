@@ -34,11 +34,18 @@ def publish_pending_clips(
         clip_id = clip['id']
 
         if not quota_manager.can_upload(now=now):
-            _log(f'Clip {clip_id} mantido pending por quota/janela')
+            _log(f'Clip {clip_id} mantido approved por quota/janela')
             break
 
+        _log(f'Próximo clip approved: id={clip_id}')
+
+        # Phase 6: guard de status — defesa contra race com /rejeitar concorrente.
+        # Se 0 rows afetadas, o clip foi rejeitado em paralelo: skip silencioso.
+        if not _transition_approved_to_publishing(conn, clip_id):
+            _log(f'Clip {clip_id} pulado: status mudou durante seleção')
+            continue
+
         try:
-            _update_clip_status(conn, clip_id, 'publishing')
             youtube_video_id = uploader.upload_clip(clip)
             _mark_clip_published(conn, clip_id, youtube_video_id)
             quota_manager.record_upload(now=now)
@@ -53,6 +60,7 @@ def publish_pending_clips(
 
 
 def _fetch_pending_clips(conn) -> list[dict]:
+    # Phase 6: seleciona apenas 'approved' (mudança de pending). Bot Telegram aprova via /aprovar.
     with conn.cursor() as cur:
         cur.execute(
             'SELECT '
@@ -60,7 +68,7 @@ def _fetch_pending_clips(conn) -> list[dict]:
             'gc.title, gc.description, gc.tags, sv.local_path AS source_local_path '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
-            "WHERE gc.status = 'pending' "
+            "WHERE gc.status = 'approved' "
             'AND gc.clip_path IS NOT NULL '
             'AND gc.title IS NOT NULL '
             'ORDER BY gc.created_at ASC'
@@ -85,6 +93,23 @@ def _update_clip_status(conn, clip_id: int, status: str) -> None:
             (status, clip_id),
         )
     conn.commit()
+
+
+def _transition_approved_to_publishing(conn, clip_id: int) -> bool:
+    """Phase 6: move clip approved → publishing com guard de status.
+
+    Retorna True se a transição ocorreu (1 row afetada), False se o clip já
+    saiu de approved (race com /rejeitar). Em ambos os casos, faz commit.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE generated_clips SET status='publishing' "
+            "WHERE id=%s AND status='approved'",
+            (clip_id,),
+        )
+        rowcount = cur.rowcount
+    conn.commit()
+    return rowcount > 0
 
 
 def _mark_clip_published(conn, clip_id: int, youtube_video_id: str) -> None:
