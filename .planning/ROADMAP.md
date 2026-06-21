@@ -120,7 +120,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
 | 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
 | 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
-| 6. Controle Manual N8N + Telegram | 5/7 | In Progress|  |
+| 6. Controle Manual N8N + Telegram | 7/7 | In Progress|  |
 
 ### Phase 6: Controle Manual N8N + Telegram
 
@@ -139,9 +139,9 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 Plans:
 - [x] 06-01-PLAN.md — Wave 0: migration SQL ENUM + 4 skeletons Python + 5 testes RED + 2 esqueletos n8n + .env.example (CTRL-01..06)
-- [ ] 06-02-PLAN.md — publisher.py: swap 'pending' → 'approved' + guard de status no UPDATE (CTRL-02)
-- [ ] 06-03-PLAN.md — rejeitar.py: UPDATE com guard + delete MP4 + preserva raw video (CTRL-03)
-- [ ] 06-04-PLAN.md — processar.py: parse URL + yt-dlp metadata + upsert idempotente (CTRL-04)
-- [ ] 06-05-PLAN.md — ttl_worker.py: expire 48h + warn 24h idempotente + integração APScheduler (CTRL-05)
-- [ ] 06-06-PLAN.md — telegram_notifier.py + integração publisher/pipeline_runner + cloudflared no docker-compose (CTRL-06)
-- [ ] 06-07-PLAN.md — Workflows n8n completos (router 6 comandos + cron 18h) + SETUP.md + checkpoints operacionais (CTRL-01, CTRL-03, CTRL-04, CTRL-06)
+- [x] 06-02-PLAN.md — publisher.py: swap 'pending' → 'approved' + guard de status no UPDATE (CTRL-02)
+- [x] 06-03-PLAN.md — rejeitar.py: UPDATE com guard + delete MP4 + preserva raw video (CTRL-03)
+- [x] 06-04-PLAN.md — processar.py: parse URL + yt-dlp metadata + upsert idempotente (CTRL-04)
+- [x] 06-05-PLAN.md — ttl_worker.py: expire 48h + warn 24h idempotente + integração APScheduler (CTRL-05)
+- [x] 06-06-PLAN.md — telegram_notifier.py + integração publisher/pipeline_runner + cloudflared no docker-compose (CTRL-06)
+- [x] 06-07-PLAN.md — Workflows n8n completos (router 6 comandos + cron 18h) + SETUP.md + checkpoints operacionais (CTRL-01, CTRL-03, CTRL-04, CTRL-06)

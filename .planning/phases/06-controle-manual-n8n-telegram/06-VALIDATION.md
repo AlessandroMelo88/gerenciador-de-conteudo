@@ -62,8 +62,8 @@ Fixtures compartilhadas (já em `clip-processor/tests/conftest.py`): `mock_db_co
 | 6-06-01 | 06 | 2 | CTRL-06 | unit | `pytest tests/test_telegram_notifier.py::test_success_event -x` | ✅ | ⬜ pending |
 | 6-06-02 | 06 | 2 | CTRL-06 | unit | `pytest tests/test_telegram_notifier.py::test_failure_event -x` | ✅ | ⬜ pending |
 | 6-06-03 | 06 | 2 | CTRL-06 | smoke (compose) | `grep -A2 cloudflared docker-compose.yml \| grep CLOUDFLARE_TUNNEL_TOKEN && grep -E "WEBHOOK_URL\|N8N_PROTOCOL" docker-compose.yml` | ✅ | ⬜ pending |
-| 6-07-01 | 07 | 3 | CTRL-01, CTRL-06 | smoke (JSON validation) | `python -m json.tool telegram-n8n/workflows/06-router.json > /dev/null && python -m json.tool telegram-n8n/workflows/06-cron-resumo-diario.json > /dev/null` | ✅ | ⬜ pending |
-| 6-07-02 | 07 | 3 | CTRL-06 | smoke (cron) | `grep -E '"cronExpression":\s*"0 18' telegram-n8n/workflows/06-cron-resumo-diario.json && grep -E '"timezone":\s*"America/Sao_Paulo"' telegram-n8n/workflows/06-cron-resumo-diario.json` | ✅ | ⬜ pending |
+| 6-07-01 | 07 | 3 | CTRL-01, CTRL-06 | smoke (JSON validation) | `python3 scripts/validate-phase6-n8n.py` | ✅ | ✅ green |
+| 6-07-02 | 07 | 3 | CTRL-06 | smoke (cron) | `python3 scripts/validate-phase6-n8n.py` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -99,6 +99,24 @@ Fixtures compartilhadas (já em `clip-processor/tests/conftest.py`): `mock_db_co
 | Bot ignora silenciosamente chats fora da allowlist | CTRL-01 | Comportamento de não-resposta só verificável com chat real fora da allowlist | Enviar `/ajuda` de chat secundário → nenhuma resposta em 30s; n8n executions log não mostra erro |
 | `/aprovar` produz upload no YouTube respeitando janela | CTRL-02, CTRL-06 | Janela 19h-22h BRT + quota; teste real do ciclo completo | Aprovar 1 clip às 18h; confirmar que upload sai só após 19h; YouTube Studio mostra vídeo (mode privado primeiro) |
 | Notificação proativa de falha crítica | CTRL-06 | Disparo depende de erro real do pipeline | Forçar falha (ex: revogar token YouTube por 1 min); ver mensagem no Telegram |
+
+## Local Artifact Validation
+
+Plan 06-07 adds a repo-local validator for checks that do not require Telegram, Cloudflare, n8n runtime or YouTube:
+
+```bash
+python3 scripts/validate-phase6-n8n.py
+```
+
+Current coverage:
+- `06-router.json` and `06-cron-resumo-diario.json` parse as JSON.
+- Router contains required node types and routes all six commands.
+- `/aprovar`, `/rejeitar`, `/processar`, `/status`, `/clipes` contain the critical SQL/command contracts.
+- Internal `/webhook/notify` routes the 3 supported proactive events.
+- Daily cron is `0 18 * * *` in timezone `America/Sao_Paulo`.
+- `approve-backlog.sql` and `SETUP.md` contain required operational instructions.
+
+This does **not** replace the manual-only checks above. It prevents accidental JSON/workflow regression before import.
 
 ---
 
