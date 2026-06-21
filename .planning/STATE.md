@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Phase 6 quase finalizada — Wave 2 concluída: Plan 06-06 entregue (telegram_notifier best-effort + 2 integrações + cloudflared service); falta apenas Plan 06-07 (router n8n)"
-stopped_at: Plan 06-06 concluído — falta apenas Wave 3 (06-07 router n8n) para Phase 6 fechar
-last_updated: "2026-06-19T21:24:21.528Z"
-last_activity: 2026-06-19 — Plan 06-06 executado; telegram_notifier.notify implementado + publisher/pipeline_runner instrumentados + cloudflared no docker-compose raiz
+status: "Phase 6 quase finalizada — Plan 06-07 Task 1 concluída e validada; aguardando setup operacional Telegram/Cloudflare/n8n e smoke end-to-end"
+stopped_at: Plan 06-07 checkpoint manual — operador precisa configurar BotFather, Cloudflare Tunnel, setWebhook e importar workflows
+last_updated: "2026-06-20T00:00:00-03:00"
+last_activity: 2026-06-20 — Plan 06-07 Task 1 validada localmente via `python3 scripts/validate-phase6-n8n.py`: router/cron JSON parseáveis, nodes críticos presentes, SETUP.md/approve-backlog.sql prontos
 progress:
   total_phases: 6
   completed_phases: 5
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 ## Current Position
 
 Phase: 6 of 6 (Controle Manual N8N + Telegram) — IN PROGRESS
-Plan: 7 of 7 in current phase (06-01..06 concluídos; falta Wave 3: 06-07 router n8n)
-Status: Phase 6 quase finalizada — Wave 2 concluída: Plan 06-06 entregue (telegram_notifier best-effort + 2 integrações + cloudflared service); falta apenas Plan 06-07 (router n8n)
-Last activity: 2026-06-19 — Plan 06-06 executado; telegram_notifier.notify implementado + publisher/pipeline_runner instrumentados + cloudflared no docker-compose raiz
+Plan: 7 of 7 in current phase (06-01..06 concluídos; 06-07 código concluído; checkpoints manuais pendentes)
+Status: Phase 6 quase finalizada — Plan 06-07 Task 1 concluída e validada; aguardando setup operacional Telegram/Cloudflare/n8n e smoke end-to-end
+Last activity: 2026-06-20 — Plan 06-07 Task 1 validada localmente via `python3 scripts/validate-phase6-n8n.py`: router/cron JSON parseáveis, nodes críticos presentes, SETUP.md/approve-backlog.sql prontos
 
 Progress: [██████████] 97% (28/29 planos — Phases 1-5 completas + Plans 06-01..06)
 
@@ -153,6 +153,8 @@ Recent decisions affecting current work:
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-06: 3 chamadas notify('pipeline_failure', ...) em pipeline_runner.py (uma por estágio: poll/download/publish) em vez de 1 catch-all — Phase 5 estabeleceu 3 try/except separados; estágio nomeado por literal melhora observability
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-06: cloudflared como container separado (não sidecar do n8n) — restart independente, depends_on:[n8n] garante ordem sem acoplar lifecycle; n8n N8N_PORT=5678 literal (não env)
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-06: docker-compose.yml raiz (fora do repo canaldecortes/) modificado diretamente no FS — Task 2 sem commit git; validado via docker compose config (CONFIG VALID)
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-07: router n8n consolidado em `06-router.json` com Telegram Trigger, 6 comandos, Webhook interno `/webhook/notify` e allowlist via `TELEGRAM_CHAT_ID_ALLOWED`; cron diário separado em `06-cron-resumo-diario.json` às 18h America/Sao_Paulo
+- [Phase 06-controle-manual-n8n-telegram]: Plan 06-07: checkpoints finais são manuais por dependerem de BotFather, Cloudflare Zero Trust, Telegram setWebhook, import/activate no n8n e confirmação no YouTube Studio
 
 ### Pending Todos
 
@@ -161,9 +163,10 @@ None yet.
 ### Blockers/Concerns
 
 Manual checkpoint pendente: executar primeiro upload real como privado (`YOUTUBE_PRIVACY_STATUS=private`, `MAX_UPLOADS_PER_DAY=1`) e validar no YouTube Studio.
+Manual checkpoint pendente: configurar Telegram BotFather + Cloudflare Tunnel + `setWebhook`, importar/ativar workflows 06 no n8n e validar allowlist real.
 
 ## Session Continuity
 
-Last session: 2026-06-19T21:24:21.525Z
-Stopped at: Plan 06-06 concluído — falta apenas Wave 3 (06-07 router n8n) para Phase 6 fechar
-Resume file: None
+Last session: 2026-06-20T00:00:00-03:00
+Stopped at: Plan 06-07 checkpoint manual — Task 1 concluída; aguardando operador executar setup Telegram/Cloudflare/n8n e smoke tests
+Resume file: .planning/phases/06-controle-manual-n8n-telegram/.continue-here-06-07-manual.md

@@ -132,6 +132,17 @@ docker compose up -d cloudflared
 docker compose restart n8n
 ```
 
+### 3.4.1 Validar artefatos antes de importar
+
+Antes de importar no n8n, rode a validação local dos workflows:
+
+```bash
+cd /Users/alessandrobm1/develop/server/wordpress/canaldecortes
+python3 scripts/validate-phase6-n8n.py
+```
+
+Esse check não chama Telegram, Cloudflare, n8n nem YouTube. Ele valida apenas estrutura dos JSONs, comandos críticos, cron 18h BRT, webhook interno `/notify`, SQL helper e seções obrigatórias deste setup.
+
 ### 3.5 Validar tunnel ativo
 
 ```bash
