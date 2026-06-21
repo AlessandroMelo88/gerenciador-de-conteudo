@@ -1,77 +1,92 @@
-# Research Summary: Canal de Cortes Automatizado
+# Research Summary: Canal de Cortes v2.0
 
-## Stack Recomendado
+**Researched:** 2026-06-21 | **Confidence:** HIGH
 
-**Orquestração:** n8n self-hosted (Docker) — visual, gratuito, integra com qualquer API
+---
 
-**Pipeline de dados:**
-- **Download:** yt-dlp — padrão da indústria, gratuito, suporta cookies
-- **Transcrição:** faster-whisper (modelo `small`, PT-BR) — 4x mais rápido que Whisper padrão, 100% gratuito local
-- **Seleção de momentos:** Claude Haiku API — menor custo da família Claude (~$0.001/vídeo), contexto de 200k tokens
-- **Processamento de vídeo:** FFmpeg — corte, resize 9:16 para Shorts, burn de legendas
-- **Publicação:** YouTube Data API v3 — 6 uploads gratuitos/dia (1.600 unidades por upload)
+## Stack Additions
 
-**Persistência:** MySQL (já existente) + Redis (já existente) — zero custo adicional
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `laravel/framework` | `^13.0` | Admin panel (Laravel 11 é EOL desde mar/2026 — usar 13) |
+| `filament/filament` | `^5.0` | Admin UI — resources, widgets, forms (usar 5, não 3) |
+| `livewire/livewire` | `^4.0` | Reactive layer (dependência do Filament v5) |
+| `irazasyed/telegram-bot-sdk` | `^3.16` | Bot webhook em Laravel (v4 ainda WIP — usar 3.16) |
 
-**Serviço Python custom** (`clip-processor`): FastAPI que conecta todos os componentes, expõe endpoints HTTP para o n8n chamar.
+Sem novas bibliotecas Python. FFmpeg watermark usa `filter_complex overlay` já disponível.
 
-## Table Stakes (Não Tem Sem Isso)
+---
 
-1. Monitor de canais via YouTube RSS (sem cota)
-2. Download automático com yt-dlp
-3. Transcrição com faster-whisper (PT-BR)
-4. Seleção de momentos por Claude Haiku
-5. Corte com FFmpeg + legendas queimadas
-6. Thumbnail automática (frame extraction)
-7. Metadados (título/descrição/tags) gerados por IA
-8. Upload automático via YouTube Data API
-9. Deduplicação (Redis + MySQL UNIQUE)
-10. Gestão de quota diária (máx 6 uploads/dia)
+## Feature Table Stakes
 
-## Principais Riscos a Evitar
+### Admin Panel (Filament)
+- CRUD de canais-fonte (add/deactivate via formulário, sem SQL)
+- CRUD de canais-destino com badge de OAuth (authorized/expired/missing)
+- Dashboard de pipeline — status de source_videos e generated_clips com polling 5s
+- Fila de clips: aprovar/rejeitar com modal de confirmação
+- Auth básica via `php artisan make:filament-user`
 
-| Risco | Impacto | Mitigação |
-|-------|---------|-----------|
-| Copyright strike | Fatal — canal removido | Priorizar canais que incentivam cortes; creditar o original |
-| Spam detection pelo YouTube | Fatal — ban do canal | Começar com 1-2 posts/dia, não 6; qualidade > quantidade |
-| Espaço em disco | Pipeline para | Deletar vídeo bruto após processamento; baixar em 720p |
-| Whisper timeout em vídeos longos | Jobs travados | Extrair só o áudio antes de transcrever |
-| Formato errado para Shorts | Zero tráfego | FFmpeg: 9:16, ≤60s, incluir #Shorts |
-| Prompt Claude mal calibrado | Clips ruins = canal não cresce | Revisar primeiros 20 clips manualmente |
+### Multi-Canal YouTube
+- Tabela `destination_channels` com `niche`, `token_file`, `uploads_per_day`
+- Coluna `niche` em `source_channels` para roteamento
+- Coluna `destination_channel_id` em `generated_clips`
+- Quota Redis por canal: `youtube_uploads:{channel_id}:{date}`
+- **GCP Project separado por canal-destino** (não opcional — quota é por projeto GCP)
 
-## Arquitetura em 6 Fases
+### Telegram Bot (Laravel)
+- Webhook `POST /telegramcanal` — substitui n8n + Cloudflare Tunnel
+- Endpoint interno `POST /internal/pipeline-event` — substitui N8N_NOTIFY_URL
+- Mesmos comandos do v1: /status, /clipes, /aprovar, /rejeitar, /processar, /ajuda
+- Deduplicação de `update_id` via Redis desde o primeiro dia
 
+### Copyright
+- `burn_watermark()` em `video_processor.py` após `burn_subtitles`
+- Blacklist verificada em `rss_poller.py` ANTES do download
+- Créditos do canal original no prompt de `metadata_generator.py`
+- Coluna `blacklisted` em `source_channels` gerenciável pelo painel
+
+---
+
+## Architecture Changes (mínimas no Python)
+
+| Arquivo | Mudança | Linhas est. |
+|---------|---------|-------------|
+| `uploader.py` | `token_file` vira parâmetro obrigatório | ~1 |
+| `publisher.py` | JOIN com `destination_channels`, quota por canal | ~10 |
+| `quota_manager.py` | `channel_id` param, Redis key scoped | ~5 |
+| `video_processor.py` | Adiciona `burn_watermark()` após subtítulos | ~15 |
+| `metadata_generator.py` | Canal fonte no prompt, créditos na descrição | ~3 |
+| `rss_poller.py` | Blacklist check + `assign_destination_channel()` | ~20 |
+| `telegram_notifier.py` | Zero mudança de código — só env var `NOTIFY_URL` | 0 |
+
+Schema — adições sem alterar colunas existentes:
+```sql
+CREATE TABLE destination_channels (id, name, niche, token_file, uploads_per_day, active)
+CREATE TABLE channel_blacklist (id, channel_id, reason, created_at)
+ALTER TABLE source_channels ADD COLUMN niche VARCHAR(100) DEFAULT 'futebol'
+ALTER TABLE generated_clips ADD COLUMN destination_channel_id INT NULL
 ```
-Fase 1: Infraestrutura Base
-  n8n + clip-processor + whisper no Docker; MySQL schema; YouTube channel criado e verificado
 
-Fase 2: Aquisição de Vídeos
-  Monitor RSS → download yt-dlp → deduplicação → fila Redis
+---
 
-Fase 3: Transcrição e Seleção de Momentos
-  faster-whisper → Claude Haiku → lista de momentos com score
+## Critical Warnings
 
-Fase 4: Processamento de Vídeo
-  FFmpeg corte → resize 9:16 → burn subtitles → thumbnail
+1. **GCP Project separado por canal (CRÍTICO):** OAuth de dois canais no mesmo projeto GCP compartilha quota. 2 canais × 3 uploads × 1.600 unidades = 9.600/dia — qualquer chamada extra bloqueia tudo. Um projeto GCP por canal-destino, não negociável.
 
-Fase 5: Publicação Automatizada
-  YouTube OAuth → upload API → agendamento → quota management
+2. **OAuth app em Produção antes do primeiro upload público (CRÍTICO):** Apps em modo Testing expiram refresh token em 7 dias e publicam vídeos como privados silenciosamente. Aprovação Google leva 2–4 semanas — iniciar imediatamente ao configurar o primeiro canal.
 
-Fase 6: Otimização
-  Analytics feedback → ajuste de prompts → alertas de falha
-```
+3. **Nunca usar `--generate` do Filament em tabelas com ENUM (ALTO):** Gera input de texto livre no lugar do ENUM, permitindo corromper a state machine do pipeline. Criar resources com `Select::make()` e opções explícitas.
 
-## Custo Estimado Mensal (após v1)
+4. **Blacklist no RSS monitor, não no publisher (ALTO):** Verificação no publisher desperdiça Groq + Claude + FFmpeg antes de bloquear. Deve ser a primeira checagem em `rss_poller.py`.
 
-| Item | Custo |
-|------|-------|
-| Claude Haiku API (30 vídeos/mês de 1h) | ~$0.03/mês |
-| YouTube API | Gratuito (dentro da cota) |
-| yt-dlp, FFmpeg, Whisper | Gratuito |
-| n8n self-hosted | Gratuito |
-| Infraestrutura Docker (Mac local) | Já existente |
-| **Total** | **~$0/mês** |
+5. **Deduplicar `update_id` do Telegram desde o dia 1 (ALTO):** Timeout ou HTTP 500 faz Telegram reenviar. `/aprovar 45` executado duas vezes corrompe estado. Armazenar `update_id` em Redis antes de processar qualquer comando.
 
-## Decisão Crítica Antecipada
+---
 
-Usar YouTube RSS (e não `search.list` da YouTube API) para monitorar novos vídeos é fundamental — RSS não consome cota e atualiza a cada 15-30min. Isso preserva toda a cota diária (10.000 unidades) para uploads.
+## Build Order
+
+| Phase | Nome | Entrega | Gate |
+|-------|------|---------|------|
+| 7 | Schema + Python Multi-Canal | Roteamento, quota por canal, watermark, blacklist, créditos | Pipeline publica no canal correto com watermark |
+| 8 | Laravel/Filament Admin Panel | CRUD canais, dashboard, aprovar/rejeitar na web | Adicionar canal via formulário → row no MySQL |
+| 9 | Telegram Bot no Laravel | Bot migrado do n8n, n8n desativado para bot | `/status` respondido pelo Laravel |
