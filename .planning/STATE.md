@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: Phase 6 quase finalizada — Plan 06-07 Task 1 concluída e validada; aguardando setup operacional Telegram/Cloudflare/n8n e smoke end-to-end
-stopped_at: Plan 06-07 checkpoint manual — Task 1 concluída; aguardando operador executar setup Telegram/Cloudflare/n8n e smoke tests
-last_updated: "2026-06-21T19:57:04.689Z"
-last_activity: "2026-06-20 — Plan 06-07 Task 1 validada localmente via `python3 scripts/validate-phase6-n8n.py`: router/cron JSON parseáveis, nodes críticos presentes, SETUP.md/approve-backlog.sql prontos"
+milestone: v2.0
+milestone_name: Painel + Multi-Canal
+status: Definindo requisitos — Milestone v2.0 iniciado
+stopped_at: —
+last_updated: "2026-06-21T00:00:00.000Z"
+last_activity: "2026-06-21 — Milestone v2.0 iniciado: multi-canal, painel Laravel/Filament, copyright"
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 29
-  completed_plans: 29
-  percent: 97
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
