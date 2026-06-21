@@ -2,40 +2,40 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Painel + Multi-Canal
-status: Definindo requisitos — Milestone v2.0 iniciado
-stopped_at: —
+status: Roadmap v2.0 definido — Phase 7 pronta para planejamento
+stopped_at: Phase 7 (Schema Multi-Canal + Python Pipeline) — Not started
 last_updated: "2026-06-21T00:00:00.000Z"
-last_activity: "2026-06-21 — Milestone v2.0 iniciado: multi-canal, painel Laravel/Filament, copyright"
+last_activity: "2026-06-21 — Roadmap v2.0 criado: fases 7, 8 e 9 adicionadas ao ROADMAP.md"
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 9
+  completed_phases: 6
+  total_plans: 29
+  completed_plans: 29
+  percent: 67
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-17)
+See: .planning/PROJECT.md (updated 2026-06-21)
 
 **Core value:** Pipeline extrai e publica cortes virais de futebol automaticamente — do monitoramento à publicação — sem intervenção humana para cada vídeo.
-**Current focus:** Milestone v1.0 completo — próxima ação é checkpoint operacional de upload privado
+**Current focus:** Milestone v2.0 — multi-canal, copyright (watermark/blacklist/créditos), painel Laravel/Filament, bot Telegram no Laravel
 
 ## Current Position
 
-Phase: 6 of 6 (Controle Manual N8N + Telegram) — IN PROGRESS
-Plan: 7 of 7 in current phase (06-01..06 concluídos; 06-07 código concluído; checkpoints manuais pendentes)
-Status: Phase 6 quase finalizada — Plan 06-07 Task 1 concluída e validada; aguardando setup operacional Telegram/Cloudflare/n8n e smoke end-to-end
-Last activity: 2026-06-20 — Plan 06-07 Task 1 validada localmente via `python3 scripts/validate-phase6-n8n.py`: router/cron JSON parseáveis, nodes críticos presentes, SETUP.md/approve-backlog.sql prontos
+Phase: 7 of 9 (Schema Multi-Canal + Python Pipeline) — NOT STARTED
+Plan: — (nenhum plano criado ainda)
+Status: Roadmap v2.0 definido; Phase 7 aguarda `/gsd:plan-phase 7`
+Last activity: 2026-06-21 — Roadmap v2.0 (fases 7-9) adicionado ao ROADMAP.md; REQUIREMENTS.md traceability já estava completo
 
-Progress: [██████████] 97% (28/29 planos — Phases 1-5 completas + Plans 06-01..06)
+Progress: [██████████░░░] 67% (v1.0 completo — 6 fases / 29 planos; v2.0 fases 7-9 pendentes)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
+- Total plans completed: 29
 - Average duration: —
 - Total execution time: —
 
@@ -73,6 +73,7 @@ Progress: [██████████] 97% (28/29 planos — Phases 1-5 comp
 ### Roadmap Evolution
 
 - Phase 6 added: Controle Manual N8N + Telegram
+- Phases 7-9 added (v2.0): Schema Multi-Canal + Python Pipeline → Painel Laravel/Filament → Bot Telegram no Laravel
 
 ### Decisions
 
@@ -155,18 +156,23 @@ Recent decisions affecting current work:
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-06: docker-compose.yml raiz (fora do repo canaldecortes/) modificado diretamente no FS — Task 2 sem commit git; validado via docker compose config (CONFIG VALID)
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-07: router n8n consolidado em `06-router.json` com Telegram Trigger, 6 comandos, Webhook interno `/webhook/notify` e allowlist via `TELEGRAM_CHAT_ID_ALLOWED`; cron diário separado em `06-cron-resumo-diario.json` às 18h America/Sao_Paulo
 - [Phase 06-controle-manual-n8n-telegram]: Plan 06-07: checkpoints finais são manuais por dependerem de BotFather, Cloudflare Zero Trust, Telegram setWebhook, import/activate no n8n e confirmação no YouTube Studio
+- [Roadmap v2.0]: Stack v2.0 confirmado — Laravel 13 (não 11, EOL) + Filament 5 (não 3) + Livewire 4 + irazasyed/telegram-bot-sdk 3.16
+- [Roadmap v2.0]: GCP Project separado por canal-destino é obrigatório — compartilhar projeto GCP entre 2 canais consome cota única de 10.000 unidades/dia
+- [Roadmap v2.0]: Filament: nunca usar --generate em tabelas com ENUM; criar resources com Select::make() e opções explícitas para evitar corrupção de state machine
+- [Roadmap v2.0]: Blacklist verificada em rss_poller.py ANTES do download — verificar no publisher desperdiça Groq + Claude + FFmpeg
+- [Roadmap v2.0]: Deduplicação de update_id Telegram via Redis desde o primeiro dia — /aprovar executado duas vezes corrompe estado
+- [Roadmap v2.0]: Phase 7 deve preceder Phase 8 — Filament precisa da tabela destination_channels existir; Phase 8 precede Phase 9 — bot Laravel depende de Laravel running
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-Manual checkpoint pendente: executar primeiro upload real como privado (`YOUTUBE_PRIVACY_STATUS=private`, `MAX_UPLOADS_PER_DAY=1`) e validar no YouTube Studio.
-Manual checkpoint pendente: configurar Telegram BotFather + Cloudflare Tunnel + `setWebhook`, importar/ativar workflows 06 no n8n e validar allowlist real.
+- OAuth app YouTube em modo Testing expira refresh_token em 7 dias e publica vídeos como privados silenciosamente — ao configurar segundo canal, iniciar aprovação Production imediatamente (leva 2-4 semanas).
 
 ## Session Continuity
 
-Last session: 2026-06-20T00:00:00-03:00
-Stopped at: Plan 06-07 checkpoint manual — Task 1 concluída; aguardando operador executar setup Telegram/Cloudflare/n8n e smoke tests
-Resume file: .planning/phases/06-controle-manual-n8n-telegram/.continue-here-06-07-manual.md
+Last session: 2026-06-21T00:00:00-03:00
+Stopped at: Roadmap v2.0 criado — fases 7, 8 e 9 definidas
+Resume file: .planning/ROADMAP.md (Phase 7 seção)

@@ -17,7 +17,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: IA — Transcrição e Seleção** - Groq Whisper transcreve, Claude Haiku seleciona melhores momentos (completed 2026-06-18)
 - [x] **Phase 4: Processamento de Vídeo** - FFmpeg corta, redimensiona 9:16, queima legendas e gera thumbnail + metadados (completed 2026-06-18)
 - [x] **Phase 5: Publicação e Automação Total** - Upload YouTube API, quota management, agendamento e workflow n8n end-to-end (completed 2026-06-18)
-- [ ] **Phase 6: Controle Manual N8N + Telegram** - Bot Telegram para aprovação/rejeição manual de clips; publisher passa a publicar approved
+- [x] **Phase 6: Controle Manual N8N + Telegram** - Bot Telegram para aprovação/rejeição manual de clips; publisher passa a publicar approved (completed 2026-06-21)
+- [ ] **Phase 7: Schema Multi-Canal + Python Pipeline** - Schema migrations, roteamento por nicho, quota por canal, watermark FFmpeg, créditos e blacklist
+- [ ] **Phase 8: Painel Laravel/Filament** - CRUD canais-fonte e destino, dashboard de pipeline, fila de aprovação e autenticação web
+- [ ] **Phase 9: Bot Telegram no Laravel** - Migração do bot do n8n para Laravel com webhook, todos os 6 comandos e notificações do pipeline
 
 ## Phase Details
 
@@ -108,20 +111,6 @@ Plans:
 - [x] 05-05-PLAN.md — Pipeline runner e integração do publisher ao daemon APScheduler
 - [x] 05-06-PLAN.md — Workflow n8n com retry e checkpoint de upload privado end-to-end
 
-## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Infraestrutura Base | 4/4 | Complete | 2026-06-18 |
-| 2. Aquisição de Vídeos | 4/4 | Complete | 2026-06-18 |
-| 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
-| 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
-| 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
-| 6. Controle Manual N8N + Telegram | 7/7 | In Progress|  |
-
 ### Phase 6: Controle Manual N8N + Telegram
 
 **Goal**: Operador aprova ou rejeita clipes pré-cortados via comandos no Telegram orquestrados pelo n8n; pipeline continua autônomo até a aprovação, e o publisher passa a publicar apenas clipes com status `approved`, respeitando quota e janela horária existentes.
@@ -145,3 +134,57 @@ Plans:
 - [x] 06-05-PLAN.md — ttl_worker.py: expire 48h + warn 24h idempotente + integração APScheduler (CTRL-05)
 - [x] 06-06-PLAN.md — telegram_notifier.py + integração publisher/pipeline_runner + cloudflared no docker-compose (CTRL-06)
 - [x] 06-07-PLAN.md — Workflows n8n completos (router 6 comandos + cron 18h) + SETUP.md + checkpoints operacionais (CTRL-01, CTRL-03, CTRL-04, CTRL-06)
+
+### Phase 7: Schema Multi-Canal + Python Pipeline
+
+**Goal**: O pipeline Python publica clips no canal YouTube correto por nicho, com quota independente por canal, watermark queimado em todo clip, créditos do canal original na descrição e canais blacklistados bloqueados antes do download
+**Depends on**: Phase 6
+**Requirements**: MCAN-01, MCAN-02, MCAN-03, MCAN-04, COPY-01, COPY-02, COPY-03
+**Success Criteria** (what must be TRUE):
+  1. Um clip de canal-fonte com `niche='futebol'` é publicado no canal YouTube de futebol; um clip de canal-fonte com `niche='podcast'` é publicado no canal de podcasts — roteamento verificável via `destination_channel_id` na tabela `generated_clips`
+  2. Cada canal-destino tem contador de quota Redis independente (`youtube_uploads:{channel_id}:{date}`); atingir 3 uploads no canal A não bloqueia uploads do canal B
+  3. Todo clip exportado pelo FFmpeg contém o watermark/logo do canal visível em posição fixa no vídeo — verificável assistindo o arquivo MP4 antes do upload
+  4. A descrição gerada pelo Claude para qualquer clip inclui a linha de créditos com o handle do canal original ("Créditos: @canal") — verificável no campo `description` da tabela `generated_clips`
+  5. Canal configurado na blacklist (ex: Globo, SBT, Band, ESPN, Liga/Conmebol) não tem nenhum vídeo baixado — `rss_poller.py` registra o bloqueio antes do download e o vídeo não aparece em `source_videos`
+**Plans**: TBD
+
+### Phase 8: Painel Laravel/Filament
+
+**Goal**: Operador gerencia canais-fonte e canais-destino, monitora o status do pipeline e aprova ou rejeita clips — tudo via painel web com autenticação, sem precisar de SQL ou Telegram
+**Depends on**: Phase 7
+**Requirements**: PANEL-01, PANEL-02, PANEL-03, PANEL-04, PANEL-05
+**Success Criteria** (what must be TRUE):
+  1. Operador acessa o painel com usuário/senha e é redirecionado para login se tentar acessar sem autenticação — nenhuma rota do painel é pública
+  2. Operador adiciona um canal-fonte via formulário (URL do YouTube ou channel_id) e o canal aparece imediatamente na tabela `source_channels` sem precisar executar SQL
+  3. Operador adiciona um canal-destino com campo `niche` via formulário; o painel exibe badge de status OAuth (authorized / expired / missing) para cada canal-destino
+  4. Dashboard mostra lista de `source_videos` e `generated_clips` com status atualizado automaticamente a cada 5 segundos — operador vê o avanço de um vídeo no pipeline sem recarregar a página
+  5. Operador clica em "Aprovar" ou "Rejeitar" num clip da fila no painel; o status muda em `generated_clips` da mesma forma que `/aprovar` e `/rejeitar` do Telegram fazem
+**Plans**: TBD
+
+### Phase 9: Bot Telegram no Laravel
+
+**Goal**: O bot Telegram roda dentro do Laravel via webhook e responde a todos os comandos do v1, com deduplicação de update_id, eliminando a dependência do n8n e do Cloudflare Tunnel para o bot
+**Depends on**: Phase 8
+**Requirements**: BOT-01, BOT-02, BOT-03
+**Success Criteria** (what must be TRUE):
+  1. Enviar `/status` ou qualquer dos 6 comandos do v1 ao bot resulta em resposta do Laravel — o n8n não está envolvido no fluxo do bot e o Cloudflare Tunnel pode ser desativado sem quebrar o bot
+  2. Enviar o mesmo update_id duas vezes (simulando retry do Telegram) não executa o comando duas vezes — a deduplicação via Redis rejeita o duplicado silenciosamente
+  3. O pipeline Python envia notificações (upload publicado, falha crítica, resumo diário) via endpoint interno do Laravel (`POST /internal/pipeline-event`), que por sua vez entrega a mensagem no Telegram — `telegram_notifier.py` não chama a API do Telegram diretamente
+**Plans**: TBD
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Infraestrutura Base | 4/4 | Complete | 2026-06-18 |
+| 2. Aquisição de Vídeos | 4/4 | Complete | 2026-06-18 |
+| 3. IA — Transcrição e Seleção | 4/4 | Complete | 2026-06-18 |
+| 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
+| 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
+| 6. Controle Manual N8N + Telegram | 7/7 | Complete | 2026-06-21 |
+| 7. Schema Multi-Canal + Python Pipeline | 0/? | Not started | - |
+| 8. Painel Laravel/Filament | 0/? | Not started | - |
+| 9. Bot Telegram no Laravel | 0/? | Not started | - |
