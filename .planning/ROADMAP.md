@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Processamento de Vídeo** - FFmpeg corta, redimensiona 9:16, queima legendas e gera thumbnail + metadados (completed 2026-06-18)
 - [x] **Phase 5: Publicação e Automação Total** - Upload YouTube API, quota management, agendamento e workflow n8n end-to-end (completed 2026-06-18)
 - [x] **Phase 6: Controle Manual N8N + Telegram** - Bot Telegram para aprovação/rejeição manual de clips; publisher passa a publicar approved (completed 2026-06-21)
-- [ ] **Phase 7: Schema Multi-Canal + Python Pipeline** - Schema migrations, roteamento por nicho, quota por canal, watermark FFmpeg, créditos e blacklist
+- [x] **Phase 7: Schema Multi-Canal + Python Pipeline** - Schema migrations, roteamento por nicho, quota por canal, watermark FFmpeg, créditos e blacklist (completed 2026-06-22)
 - [ ] **Phase 8: Painel Laravel/Filament** - CRUD canais-fonte e destino, dashboard de pipeline, fila de aprovação e autenticação web
 - [ ] **Phase 9: Bot Telegram no Laravel** - Migração do bot do n8n para Laravel com webhook, todos os 6 comandos e notificações do pipeline
 
@@ -194,6 +194,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
 | 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
 | 6. Controle Manual N8N + Telegram | 7/7 | Complete | 2026-06-21 |
-| 7. Schema Multi-Canal + Python Pipeline | 6/7 | In Progress|  |
+| 7. Schema Multi-Canal + Python Pipeline | 7/7 | Complete   | 2026-06-22 |
 | 8. Painel Laravel/Filament | 0/? | Not started | - |
 | 9. Bot Telegram no Laravel | 0/? | Not started | - |
