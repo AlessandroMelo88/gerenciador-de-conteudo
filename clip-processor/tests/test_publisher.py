@@ -1,6 +1,7 @@
 """
 Testes para publisher.py — publicação de clips pendentes.
 """
+import os
 import pytest
 from unittest.mock import MagicMock, call, patch
 from datetime import datetime
@@ -72,10 +73,35 @@ SAMPLE_CLIP = {
     'title': 'Gol incrível do Vini Jr',
     'description': 'Descrição do clip',
     'tags': 'futebol,gol,vini',
+    'destination_channel_id': 1,
+    'channel_handle': '@sportv',
 }
 
 
 class TestPublishPendingClips:
+    def test_default_seleciona_pending_quando_manual_approval_off(self):
+        """Default (MANUAL_APPROVAL_REQUIRED ausente): publisher pega clips 'pending'."""
+        conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
+        redis = MagicMock()
+        uploader = make_mock_uploader(video_id='yt_auto_01')
+
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('MANUAL_APPROVAL_REQUIRED', None)
+            with patch('src.publisher.QuotaManager') as MockQuota:
+                MockQuota.return_value.can_upload.return_value = True
+                publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
+
+        select_calls = [
+            c for c in cursor.execute.call_args_list
+            if c.args and 'SELECT' in str(c.args[0]).upper()
+            and 'gc.status = %s' in str(c.args[0])
+        ]
+        assert select_calls, 'SELECT parametrizado não encontrado'
+        assert select_calls[0].args[1] == ('pending',), (
+            f"Default deve selecionar status='pending' para auto-publicar. "
+            f'Params: {select_calls[0].args[1]}'
+        )
+
     def test_successful_upload_transitions_to_published(self):
         """Upload bem-sucedido: pending → publishing → published."""
         conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
@@ -203,16 +229,15 @@ class TestPublishPendingClips:
                 mock_remove.assert_not_called()
 
 
+@patch.dict(os.environ, {'MANUAL_APPROVAL_REQUIRED': 'true'})
 class TestPublishApprovedClips:
-    """Phase 6 — publisher.py deve passar a selecionar status='approved' (não 'pending').
+    """Phase 6 — quando MANUAL_APPROVAL_REQUIRED=true, publisher seleciona 'approved'.
 
-    Estado RED até Plan 06-02: o SELECT em publisher._fetch_pending_clips ainda
-    usa WHERE gc.status = 'pending'. Esses testes ficam vermelhos até o swap
-    do literal pending → approved.
+    Default (env var ausente ou 'false') publica 'pending' direto — coberto em TestPublishPendingClips.
     """
 
     def test_seleciona_apenas_approved(self):
-        """O SELECT que busca clips para publicar deve filtrar por status='approved'."""
+        """O SELECT que busca clips para publicar deve passar 'approved' como parâmetro."""
         conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
         redis = MagicMock()
         uploader = make_mock_uploader(video_id='yt_approved_01')
@@ -221,18 +246,17 @@ class TestPublishApprovedClips:
             MockQuota.return_value.can_upload.return_value = True
             publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
 
-        # Procura o SELECT que filtra por status — DEVE ser approved
-        select_sqls = [
-            str(c.args[0]) for c in cursor.execute.call_args_list
+        # Procura o SELECT — deve ter passado 'approved' como parâmetro
+        select_calls = [
+            c for c in cursor.execute.call_args_list
             if c.args and 'SELECT' in str(c.args[0]).upper()
-            and 'STATUS' in str(c.args[0]).upper()
+            and 'gc.status = %s' in str(c.args[0])
         ]
-        joined = ' '.join(select_sqls)
-        assert "'approved'" in joined, (
-            f"publisher deve selecionar status='approved' (Phase 6). SELECTs vistos: {select_sqls}"
-        )
-        assert "'pending'" not in joined, (
-            "publisher ainda referencia status='pending' — swap Phase 6 não foi aplicado"
+        assert select_calls, f'SELECT parametrizado não encontrado. Calls: {cursor.execute.call_args_list}'
+        select_params = select_calls[0].args[1] if len(select_calls[0].args) > 1 else None
+        assert select_params == ('approved',), (
+            f"publisher deve selecionar status='approved' com MANUAL_APPROVAL_REQUIRED=true. "
+            f'Params vistos: {select_params}'
         )
 
     def test_quota_blocked_leaves_clip_as_approved(self):
@@ -271,3 +295,79 @@ class TestPublishApprovedClips:
 
         assert result == 0
         uploader.upload_clip.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 — RED tests: Multi-Canal (MCAN-02, MCAN-04)
+# Estes testes falham até a implementação em Wave 3-4.
+# ---------------------------------------------------------------------------
+
+class TestPublisherMultiCanal:
+    """Testes RED para roteamento multi-canal no publisher (MCAN-02, MCAN-04)."""
+
+    def test_fetch_pending_clips_for_channel_returns_correct_dest(self):
+        """MCAN-02: _fetch_pending_clips_for_channel filtra por destination_channel_id.
+
+        Clips com destination_channel_id=1 são retornados; clips com
+        destination_channel_id=2 não.
+        """
+        from src.publisher import _fetch_pending_clips_for_channel
+
+        clip_canal_1 = {**SAMPLE_CLIP, 'id': 1, 'destination_channel_id': 1}
+
+        conn, cursor = make_conn_with_clips([clip_canal_1])
+        cursor.fetchall.return_value = [clip_canal_1]
+
+        clips = _fetch_pending_clips_for_channel(conn, dest_id=1)
+
+        assert len(clips) == 1
+        assert clips[0]['destination_channel_id'] == 1
+        execute_calls = [str(c) for c in cursor.execute.call_args_list]
+        assert any('1' in c for c in execute_calls), (
+            'SELECT deve filtrar por destination_channel_id=1'
+        )
+
+    def test_fetch_pending_clips_excludes_other_channels(self):
+        """MCAN-02: clips de canal 2 não aparecem na busca do canal 1."""
+        from src.publisher import _fetch_pending_clips_for_channel
+
+        conn, cursor = make_conn_with_clips([])
+        cursor.fetchall.return_value = []
+
+        clips = _fetch_pending_clips_for_channel(conn, dest_id=1)
+
+        assert clips == []
+
+    def test_quota_canal_1_does_not_block_canal_2(self):
+        """MCAN-04: quota atingida no canal 1 não bloqueia publicação no canal 2.
+
+        Cada canal-destino tem seu próprio QuotaManager com channel_id distinto.
+        Dois canais publicam independentemente — quota de um não afeta o outro.
+        """
+        clip_canal_1 = {**SAMPLE_CLIP, 'id': 1, 'destination_channel_id': 1}
+        clip_canal_2 = {**SAMPLE_CLIP, 'id': 2, 'destination_channel_id': 2}
+
+        # Canal 1: quota bloqueada
+        conn_1, _ = make_conn_with_clips([clip_canal_1])
+        redis_1 = MagicMock()
+        uploader_1 = make_mock_uploader()
+
+        # Canal 2: quota disponível
+        conn_2, _ = make_conn_with_clips([clip_canal_2])
+        redis_2 = MagicMock()
+        uploader_2 = make_mock_uploader(video_id='yt_canal2_01')
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            mock_q1 = MagicMock()
+            mock_q1.can_upload.return_value = False
+            mock_q2 = MagicMock()
+            mock_q2.can_upload.return_value = True
+            MockQuota.side_effect = [mock_q1, mock_q2]
+
+            result_1 = publish_pending_clips(conn_1, redis_1, uploader=uploader_1, now=dt_sp(20))
+            result_2 = publish_pending_clips(conn_2, redis_2, uploader=uploader_2, now=dt_sp(20))
+
+        assert result_1 == 0  # Canal 1 bloqueado
+        assert result_2 == 1  # Canal 2 publica normalmente
+        uploader_1.upload_clip.assert_not_called()
+        uploader_2.upload_clip.assert_called_once()

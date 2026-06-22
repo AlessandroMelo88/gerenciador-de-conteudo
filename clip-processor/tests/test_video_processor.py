@@ -145,3 +145,50 @@ class TestSubtitles:
         assert 'subtitles=' in filter_arg
         assert 'force_style=' in filter_arg
         assert 'Outline=2' in filter_arg
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 — RED tests: Overlay Watermark (COPY-01)
+# Estes testes falham até a implementação em Wave 3-4.
+# ---------------------------------------------------------------------------
+
+class TestOverlayWatermark:
+    """Testes RED para overlay_watermark (COPY-01)."""
+
+    def test_watermark_present_calls_ffmpeg_with_filter_complex(self, tmp_path, mocker):
+        """COPY-01: wm_path existente → ffmpeg com -filter_complex e overlay=W-w-20:20."""
+        from src.video_processor import overlay_watermark
+
+        mock_run = mocker.patch('src.video_processor.subprocess.run')
+        mocker.patch('os.path.exists', return_value=True)
+
+        output = tmp_path / 'watermarked.mp4'
+        result = overlay_watermark(
+            '/app/clips/clip.mp4',
+            '/app/assets/watermark.png',
+            str(output),
+        )
+
+        assert result == str(output)
+        cmd = mock_run.call_args.args[0]
+        assert '-filter_complex' in cmd
+        filter_val = cmd[cmd.index('-filter_complex') + 1]
+        assert 'overlay=W-w-20:20' in filter_val
+
+    def test_watermark_missing_returns_input_path_without_ffmpeg(self, tmp_path, mocker):
+        """COPY-01: wm_path ausente → retorna input_path sem chamar subprocess."""
+        from src.video_processor import overlay_watermark
+
+        mock_run = mocker.patch('src.video_processor.subprocess.run')
+        mocker.patch('os.path.exists', return_value=False)
+
+        output = tmp_path / 'watermarked.mp4'
+        result = overlay_watermark(
+            '/app/clips/clip.mp4',
+            '/app/assets/missing_watermark.png',
+            str(output),
+        )
+
+        # Deve retornar o caminho de entrada sem modificação
+        assert result == '/app/clips/clip.mp4'
+        mock_run.assert_not_called()
