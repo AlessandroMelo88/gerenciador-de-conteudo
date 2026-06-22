@@ -59,12 +59,16 @@ class YouTubeUploader:
     def __init__(
         self,
         token_file: str | None = None,
+        channel_slug: str | None = None,
         youtube_factory=None,
         service=None,
         service_factory=None,
         media_upload_factory=None,
     ):
-        self.token_file = token_file or os.environ.get('YOUTUBE_TOKEN_FILE', DEFAULT_TOKEN_FILE)
+        if channel_slug:
+            self.token_file = f'/app/youtube/token-{channel_slug}.json'
+        else:
+            self.token_file = token_file or os.environ.get('YOUTUBE_TOKEN_FILE', DEFAULT_TOKEN_FILE)
         self._youtube_factory = youtube_factory
         self._service = service
         self._service_factory = service_factory
