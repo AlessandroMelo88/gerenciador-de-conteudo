@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: "Roadmap v2.0 definido; Phase 7 aguarda `/gsd:plan-phase 7`"
-stopped_at: Completed 07-schema-multi-canal-python-pipeline-05-PLAN.md
-last_updated: "2026-06-22T20:40:03.302Z"
+stopped_at: Completed 07-schema-multi-canal-python-pipeline-06-PLAN.md
+last_updated: "2026-06-22T21:12:31.651Z"
 last_activity: 2026-06-21 — Roadmap v2.0 (fases 7-9) adicionado ao ROADMAP.md; REQUIREMENTS.md traceability já estava completo
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 36
-  completed_plans: 34
+  completed_plans: 35
   percent: 67
 ---
 
@@ -72,6 +72,7 @@ Progress: [██████████░░░] 67% (v1.0 completo — 6 fas
 | Phase 07-schema-multi-canal-python-pipeline P03 | 8min | 2 tasks | 2 files |
 | Phase 07-schema-multi-canal-python-pipeline P04 | 12min | 1 tasks | 1 files |
 | Phase 07-schema-multi-canal-python-pipeline P05 | 2min | 2 tasks | 2 files |
+| Phase 07-schema-multi-canal-python-pipeline P06 | 29min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -177,6 +178,9 @@ Recent decisions affecting current work:
 - [Phase 07-schema-multi-canal-python-pipeline]: Guard Python no loop (if channel.get('blacklisted'): continue) adicionado além do filtro SQL — mocks de teste injetam canais com blacklisted=True via fetchall.return_value, bypass o SQL; dual-layer garante correctness em produção e testes
 - [Phase 07-schema-multi-canal-python-pipeline]: Plan 07-05: overlay_watermark usa -filter_complex overlay=W-w-20:20 com clip ANTES watermark nos -i args; graceful degradation retorna input_path se arquivo ausente
 - [Phase 07-schema-multi-canal-python-pipeline]: Plan 07-05: append_credits guard duplo (not template or not handle) — basta um vazio para nao adicionar creditos malformados
+- [Phase 07-schema-multi-canal-python-pipeline]: _lookup_destination_channel_id chamado uma vez antes do loop de moments em insert_selected_moments — consistência e eficiência de queries
+- [Phase 07-schema-multi-canal-python-pipeline]: publish_pending_clips fallback legado quando _fetch_destination_channels retorna [] — pipeline funcional em ambientes sem migration Phase 7 aplicada
+- [Phase 07-schema-multi-canal-python-pipeline]: make_conn_with_clips com fetchall.side_effect: primeiro [] aciona fallback legado, novos testes multi-canal sobrescrevem side_effect explicitamente
 
 ### Pending Todos
 
@@ -188,6 +192,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-22T20:40:03.299Z
-Stopped at: Completed 07-schema-multi-canal-python-pipeline-05-PLAN.md
+Last session: 2026-06-22T21:12:31.647Z
+Stopped at: Completed 07-schema-multi-canal-python-pipeline-06-PLAN.md
 Resume file: None
