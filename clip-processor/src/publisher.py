@@ -2,17 +2,28 @@
 publisher.py — Publica clips pending no YouTube e atualiza o banco.
 
 Exporta:
-  - publish_pending_clips(conn, redis_client, uploader=None, now=None)
+  - publish_pending_clips(conn, redis_client, uploader=None, quota_manager=None, now=None)
+  - _fetch_destination_channels(conn)
+  - _fetch_pending_clips_for_channel(conn, destination_channel_id)
 """
 import os
 from datetime import datetime, timezone
 
+from src.metadata_generator import append_credits
 from src.quota_manager import QuotaManager
 from src.telegram_notifier import notify
 from src.uploader import YouTubeUploader
 
 
-NON_TERMINAL_CLIP_STATUSES = ('pending_cut', 'cutting', 'pending', 'publishing')
+NON_TERMINAL_CLIP_STATUSES = ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')
+
+
+def _publishable_status() -> str:
+    """'approved' quando operador deve aprovar via Telegram, 'pending' para auto-publicar.
+
+    Controlado por MANUAL_APPROVAL_REQUIRED (default 'false' = 100% auto).
+    """
+    return 'approved' if os.environ.get('MANUAL_APPROVAL_REQUIRED', 'false').lower() == 'true' else 'pending'
 
 
 def _log(msg: str) -> None:
@@ -26,23 +37,90 @@ def publish_pending_clips(
     quota_manager: QuotaManager | None = None,
     now: datetime | None = None,
 ) -> int:
-    """Publica clips prontos e retorna quantidade publicada."""
-    uploader = uploader or YouTubeUploader()
-    quota_manager = quota_manager or QuotaManager(redis_client)
+    """Publica clips prontos e retorna quantidade publicada.
+
+    Fluxo multi-canal (Phase 7):
+    - Busca canais-destino ativos em destination_channels
+    - Para cada canal: instancia QuotaManager e YouTubeUploader independentes
+    - Appenda créditos na descrição antes do upload quando template disponível
+
+    Fallback legado (sem canais-destino configurados):
+    - Usa _fetch_pending_clips() original com um único uploader/quota_manager
+    """
+    dest_channels = _fetch_destination_channels(conn)
+
+    if not dest_channels:
+        # Fallback: sem canais-destino configurados — usa fluxo legado
+        _log('[PUBLISHER] Nenhum canal-destino ativo — usando fluxo legado')
+        ch_uploader = uploader or YouTubeUploader()
+        ch_quota = quota_manager or QuotaManager(redis_client)
+        return _publish_clips_for(conn, _fetch_pending_clips(conn), ch_uploader, ch_quota, now)
+
+    total = 0
+    for dest in dest_channels:
+        ch_uploader = uploader or YouTubeUploader(channel_slug=dest['slug'])
+        ch_quota = quota_manager or QuotaManager(redis_client, channel_id=dest['youtube_channel_id'])
+        clips = _fetch_pending_clips_for_channel(conn, dest['id'])
+
+        for clip in clips:
+            if dest.get('credit_template') and clip.get('channel_handle'):
+                clip = dict(clip)  # não mutar original
+                clip['description'] = append_credits(
+                    clip.get('description') or '',
+                    dest['credit_template'],
+                    clip['channel_handle'],
+                )
+            total += _publish_one(conn, clip, ch_uploader, ch_quota, now)
+
+    return total
+
+
+def _fetch_destination_channels(conn) -> list[dict]:
+    """Retorna canais-destino ativos de destination_channels."""
+    with conn.cursor() as cur:
+        cur.execute(
+            'SELECT id, slug, name, niche, youtube_channel_id, credit_template '
+            'FROM destination_channels WHERE active = TRUE'
+        )
+        return cur.fetchall() or []
+
+
+def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[dict]:
+    """Retorna clips prontos para publicar filtrados por canal-destino."""
+    with conn.cursor() as cur:
+        cur.execute(
+            'SELECT gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
+            'gc.title, gc.description, gc.tags, '
+            'sv.local_path AS source_local_path, '
+            'sc.channel_handle '
+            'FROM generated_clips gc '
+            'JOIN source_videos sv ON sv.id = gc.source_video_id '
+            'JOIN source_channels sc ON sc.id = sv.channel_id '
+            'WHERE gc.status = %s '
+            'AND gc.destination_channel_id = %s '
+            'AND gc.clip_path IS NOT NULL '
+            'AND gc.title IS NOT NULL '
+            'ORDER BY gc.created_at ASC',
+            (_publishable_status(), destination_channel_id),
+        )
+        return cur.fetchall() or []
+
+
+def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
+    """Publica uma sequência de clips com um uploader/quota_manager dado."""
+    current_status = _publishable_status()
     published_count = 0
 
-    for clip in _fetch_pending_clips(conn):
+    for clip in clips:
         clip_id = clip['id']
 
         if not quota_manager.can_upload(now=now):
-            _log(f'Clip {clip_id} mantido approved por quota/janela')
+            _log(f'Clip {clip_id} mantido {current_status} por quota/janela')
             break
 
-        _log(f'Próximo clip approved: id={clip_id}')
+        _log(f'Próximo clip {current_status}: id={clip_id}')
 
-        # Phase 6: guard de status — defesa contra race com /rejeitar concorrente.
-        # Se 0 rows afetadas, o clip foi rejeitado em paralelo: skip silencioso.
-        if not _transition_approved_to_publishing(conn, clip_id):
+        if not _transition_to_publishing(conn, clip_id):
             _log(f'Clip {clip_id} pulado: status mudou durante seleção')
             continue
 
@@ -53,8 +131,6 @@ def publish_pending_clips(
             _maybe_finalize_source_video(conn, clip['source_video_id'], clip.get('source_local_path'))
             published_count += 1
             _log(f'Clip {clip_id} publicado no YouTube: {youtube_video_id}')
-            # Phase 6 (CTRL-06): notifica Telegram via webhook interno do n8n.
-            # notify() é best-effort — nunca propaga exceções.
             notify('upload_published', {
                 'clip_id': clip_id,
                 'youtube_video_id': youtube_video_id,
@@ -68,8 +144,41 @@ def publish_pending_clips(
     return published_count
 
 
+def _publish_one(conn, clip, uploader, quota_manager, now) -> int:
+    """Publica um único clip. Retorna 1 se publicado, 0 caso contrário."""
+    current_status = _publishable_status()
+    clip_id = clip['id']
+
+    if not quota_manager.can_upload(now=now):
+        _log(f'Clip {clip_id} mantido {current_status} por quota/janela')
+        return 0
+
+    _log(f'Próximo clip {current_status}: id={clip_id}')
+
+    if not _transition_to_publishing(conn, clip_id):
+        _log(f'Clip {clip_id} pulado: status mudou durante seleção')
+        return 0
+
+    try:
+        youtube_video_id = uploader.upload_clip(clip)
+        _mark_clip_published(conn, clip_id, youtube_video_id)
+        quota_manager.record_upload(now=now)
+        _maybe_finalize_source_video(conn, clip['source_video_id'], clip.get('source_local_path'))
+        _log(f'Clip {clip_id} publicado no YouTube: {youtube_video_id}')
+        notify('upload_published', {
+            'clip_id': clip_id,
+            'youtube_video_id': youtube_video_id,
+            'youtube_url': f'https://www.youtube.com/watch?v={youtube_video_id}',
+            'title': clip.get('title'),
+        })
+        return 1
+    except Exception as exc:
+        _mark_clip_failed(conn, clip_id, str(exc))
+        _log(f'Falha ao publicar clip {clip_id}: {exc}')
+        return 0
+
+
 def _fetch_pending_clips(conn) -> list[dict]:
-    # Phase 6: seleciona apenas 'approved' (mudança de pending). Bot Telegram aprova via /aprovar.
     with conn.cursor() as cur:
         cur.execute(
             'SELECT '
@@ -77,10 +186,11 @@ def _fetch_pending_clips(conn) -> list[dict]:
             'gc.title, gc.description, gc.tags, sv.local_path AS source_local_path '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
-            "WHERE gc.status = 'approved' "
+            'WHERE gc.status = %s '
             'AND gc.clip_path IS NOT NULL '
             'AND gc.title IS NOT NULL '
-            'ORDER BY gc.created_at ASC'
+            'ORDER BY gc.created_at ASC',
+            (_publishable_status(),),
         )
         return cur.fetchall()
 
@@ -104,17 +214,17 @@ def _update_clip_status(conn, clip_id: int, status: str) -> None:
     conn.commit()
 
 
-def _transition_approved_to_publishing(conn, clip_id: int) -> bool:
-    """Phase 6: move clip approved → publishing com guard de status.
+def _transition_to_publishing(conn, clip_id: int) -> bool:
+    """Move clip do status publicável → publishing com guard.
 
     Retorna True se a transição ocorreu (1 row afetada), False se o clip já
-    saiu de approved (race com /rejeitar). Em ambos os casos, faz commit.
+    saiu do status publicável (race com /rejeitar). Em ambos os casos, faz commit.
     """
     with conn.cursor() as cur:
         cur.execute(
             "UPDATE generated_clips SET status='publishing' "
-            "WHERE id=%s AND status='approved'",
-            (clip_id,),
+            'WHERE id=%s AND status=%s',
+            (clip_id, _publishable_status()),
         )
         rowcount = cur.rowcount
     conn.commit()
