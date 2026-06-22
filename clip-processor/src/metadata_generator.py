@@ -4,6 +4,7 @@ metadata_generator.py — Geração de título, descrição e tags para YouTube.
 Exporta:
   - generate_metadata(clip_context, anthropic_client=None) -> dict
   - update_clip_metadata(conn, clip_id, metadata) -> None
+  - append_credits(description, credit_template, channel_handle) -> str
 
 Convenções:
   - anthropic_client=None cria cliente de produção; injetado em testes
@@ -109,6 +110,18 @@ def generate_metadata(clip_context: dict, anthropic_client=None) -> dict:
             'description': clip_context.get('reason') or 'Melhor momento selecionado automaticamente.',
             'tags': ['futebol', 'cortes', 'shorts'],
         }, clip_context)
+
+
+def append_credits(description: str, credit_template: str, channel_handle: str) -> str:
+    """Adiciona linha de créditos ao final da descrição.
+
+    Nunca sobrescreve conteúdo existente.
+    Retorna descrição sem modificação se template ou handle estiverem vazios.
+    """
+    if not credit_template or not channel_handle:
+        return description
+    credits_line = credit_template.format(channel_handle=channel_handle)
+    return f'{description}\n\n{credits_line}'
 
 
 def update_clip_metadata(conn, clip_id: int, metadata: dict) -> None:
