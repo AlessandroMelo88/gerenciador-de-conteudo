@@ -58,16 +58,16 @@
 
 ### Multi-Canal
 
-- [ ] **MCAN-01**: Sistema suporta múltiplos canais YouTube de destino, cada um com token OAuth próprio e GCP Project separado
-- [ ] **MCAN-02**: Canais-fonte têm campo `niche` (futebol, podcast, etc.) que determina qual canal-destino recebe o clip
-- [ ] **MCAN-03**: Cota de uploads é independente por canal-destino (3/dia por canal; 2 canais = 6/dia total)
+- [x] **MCAN-01**: Sistema suporta múltiplos canais YouTube de destino, cada um com token OAuth próprio e GCP Project separado
+- [x] **MCAN-02**: Canais-fonte têm campo `niche` (futebol, podcast, etc.) que determina qual canal-destino recebe o clip
+- [x] **MCAN-03**: Cota de uploads é independente por canal-destino (3/dia por canal; 2 canais = 6/dia total)
 - [ ] **MCAN-04**: Pipeline publica automaticamente 3 vídeos/dia por canal no horário 19h-22h BRT
 
 ### Copyright
 
 - [ ] **COPY-01**: Watermark/logo do canal é queimado no clip via FFmpeg após geração das legendas
-- [ ] **COPY-02**: Descrição gerada pelo Claude inclui créditos do canal original ("Créditos: @canal")
-- [ ] **COPY-03**: Canais blacklistados (Globo, SBT, Band, ESPN direto, Liga/Conmebol) são bloqueados no RSS poller antes do download
+- [x] **COPY-02**: Descrição gerada pelo Claude inclui créditos do canal original ("Créditos: @canal")
+- [x] **COPY-03**: Canais blacklistados (Globo, SBT, Band, ESPN direto, Liga/Conmebol) são bloqueados no RSS poller antes do download
 
 ### Admin Panel
 
@@ -141,13 +141,13 @@
 | CTRL-04 | Phase 6 | Complete |
 | CTRL-05 | Phase 6 | Complete |
 | CTRL-06 | Phase 6 | Complete |
-| MCAN-01 | Phase 7 | Pending |
-| MCAN-02 | Phase 7 | Pending |
-| MCAN-03 | Phase 7 | Pending |
+| MCAN-01 | Phase 7 | Complete |
+| MCAN-02 | Phase 7 | Complete |
+| MCAN-03 | Phase 7 | Complete |
 | MCAN-04 | Phase 7 | Pending |
 | COPY-01 | Phase 7 | Pending |
-| COPY-02 | Phase 7 | Pending |
-| COPY-03 | Phase 7 | Pending |
+| COPY-02 | Phase 7 | Complete |
+| COPY-03 | Phase 7 | Complete |
 | PANEL-01 | Phase 8 | Pending |
 | PANEL-02 | Phase 8 | Pending |
 | PANEL-03 | Phase 8 | Pending |
