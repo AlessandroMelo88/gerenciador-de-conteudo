@@ -21,10 +21,11 @@ UPLOAD_WINDOW_END = UPLOAD_WINDOW_END_HOUR
 class QuotaManager:
     """Controla uploads diarios do YouTube por data local de Sao_Paulo."""
 
-    def __init__(self, redis_client, max_uploads_per_day: int | None = None):
+    def __init__(self, redis_client, max_uploads_per_day: int | None = None, channel_id: str | None = None):
         self.redis_client = redis_client
         self.max_uploads_per_day = self._resolve_limit(max_uploads_per_day)
         self._max = self.max_uploads_per_day
+        self.channel_id = channel_id
 
     def can_upload(self, now: datetime | None = None) -> bool:
         """Retorna True se horario e quota permitirem upload."""
@@ -61,7 +62,10 @@ class QuotaManager:
         return UPLOAD_WINDOW_START_HOUR <= now.hour < UPLOAD_WINDOW_END_HOUR
 
     def _key(self, now: datetime) -> str:
-        return f'youtube_uploads:{now.strftime("%Y-%m-%d")}'
+        date_str = now.strftime('%Y-%m-%d')
+        if self.channel_id:
+            return f'youtube_uploads:{self.channel_id}:{date_str}'
+        return f'youtube_uploads:{date_str}'
 
     def _seconds_until_next_midnight(self, now: datetime) -> int:
         next_day = (now + timedelta(days=1)).date()
