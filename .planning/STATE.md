@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: "Roadmap v2.0 definido; Phase 7 aguarda `/gsd:plan-phase 7`"
-stopped_at: Completed 07-schema-multi-canal-python-pipeline-01-PLAN.md
-last_updated: "2026-06-22T19:47:47.353Z"
+stopped_at: Completed 07-schema-multi-canal-python-pipeline-02-PLAN.md
+last_updated: "2026-06-22T20:08:56.356Z"
 last_activity: 2026-06-21 — Roadmap v2.0 (fases 7-9) adicionado ao ROADMAP.md; REQUIREMENTS.md traceability já estava completo
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 36
-  completed_plans: 30
+  completed_plans: 31
   percent: 67
 ---
 
@@ -68,6 +68,7 @@ Progress: [██████████░░░] 67% (v1.0 completo — 6 fas
 | Phase 06-controle-manual-n8n-telegram P05 | 9min | 2 tasks | 2 files |
 | Phase 06-controle-manual-n8n-telegram P06 | 35min | 2 tasks | 4 files |
 | Phase 07-schema-multi-canal-python-pipeline P01 | 8min | 1 tasks | 1 files |
+| Phase 07-schema-multi-canal-python-pipeline P02 | 18min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,8 @@ Recent decisions affecting current work:
 - [Phase 07-schema-multi-canal-python-pipeline]: FK destination_channel_id em generated_clips é INT NULL — clips legados permanecem válidos sem canal destino definido
 - [Phase 07-schema-multi-canal-python-pipeline]: blacklist UPDATE comentado na migration — evita blacklistar canais acidentalmente em dev; operador descomenta com channel_names reais
 - [Phase 07-schema-multi-canal-python-pipeline]: INFORMATION_SCHEMA.STATISTICS usado para checar INDEX antes de ADD INDEX — complementa padrão de COLUMNS para ADD COLUMN
+- [Phase 07-schema-multi-canal-python-pipeline]: Plan 07-02: Import de símbolos não existentes feito localmente dentro dos métodos de teste — evita ImportError no nível de módulo que quebraria coleta de testes existentes
+- [Phase 07-schema-multi-canal-python-pipeline]: Plan 07-02: SAMPLE_CLIP enriquecido com destination_channel_id e channel_handle — campos extras em dicts Python são ignorados por testes existentes que não os verificam
 
 ### Pending Todos
 
@@ -177,6 +180,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-22T19:47:47.349Z
-Stopped at: Completed 07-schema-multi-canal-python-pipeline-01-PLAN.md
+Last session: 2026-06-22T20:08:56.349Z
+Stopped at: Completed 07-schema-multi-canal-python-pipeline-02-PLAN.md
 Resume file: None
