@@ -6,6 +6,7 @@ Exporta:
   - generate_srt(transcript, start_time, end_time, srt_path) -> str
   - burn_subtitles(input_clip_path, srt_path, output_path) -> str
   - extract_thumbnail(clip_path, thumbnail_path, at_seconds=None) -> str
+  - overlay_watermark(input_path, watermark_path, output_path) -> str
   - process_clip(conn, clip_id, anthropic_client=None) -> bool
 
 Convenções:
@@ -133,6 +134,36 @@ def extract_thumbnail(clip_path: str, thumbnail_path: str, at_seconds: float = N
         capture_output=True,
     )
     return thumbnail_path
+
+
+def overlay_watermark(input_path: str, watermark_path: str, output_path: str) -> str:
+    """Aplica watermark PNG no canto superior direito do clip via FFmpeg.
+
+    Usa -filter_complex overlay=W-w-20:20 com dois inputs (clip + PNG alpha).
+    Retorna input_path sem chamar FFmpeg se o watermark não existir (graceful degradation).
+    """
+    if not os.path.exists(watermark_path):
+        _log(f'[WATERMARK] Arquivo não encontrado: {watermark_path} — pulo overlay')
+        return input_path
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    subprocess.run(
+        [
+            'ffmpeg',
+            '-i', input_path,        # [0] = clip vídeo
+            '-i', watermark_path,    # [1] = PNG watermark
+            '-filter_complex', 'overlay=W-w-20:20',  # canto sup direito, margem 20px
+            '-c:v', 'libx264',
+            '-preset', 'veryfast',
+            '-crf', '23',
+            '-c:a', 'copy',
+            output_path,
+            '-y',
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return output_path
 
 
 def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
