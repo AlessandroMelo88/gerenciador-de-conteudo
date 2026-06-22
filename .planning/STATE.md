@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: "Roadmap v2.0 definido; Phase 7 aguarda `/gsd:plan-phase 7`"
-stopped_at: Completed 07-schema-multi-canal-python-pipeline-04-PLAN.md
-last_updated: "2026-06-22T20:31:54.638Z"
+stopped_at: Completed 07-schema-multi-canal-python-pipeline-05-PLAN.md
+last_updated: "2026-06-22T20:40:03.302Z"
 last_activity: 2026-06-21 — Roadmap v2.0 (fases 7-9) adicionado ao ROADMAP.md; REQUIREMENTS.md traceability já estava completo
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 36
-  completed_plans: 33
+  completed_plans: 34
   percent: 67
 ---
 
@@ -71,6 +71,7 @@ Progress: [██████████░░░] 67% (v1.0 completo — 6 fas
 | Phase 07-schema-multi-canal-python-pipeline P02 | 18min | 2 tasks | 6 files |
 | Phase 07-schema-multi-canal-python-pipeline P03 | 8min | 2 tasks | 2 files |
 | Phase 07-schema-multi-canal-python-pipeline P04 | 12min | 1 tasks | 1 files |
+| Phase 07-schema-multi-canal-python-pipeline P05 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -174,6 +175,8 @@ Recent decisions affecting current work:
 - [Phase 07-schema-multi-canal-python-pipeline]: channel_slug takes precedence over token_file when provided — aligns with MCAN-01 where slug-based auth is the multi-canal path
 - [Phase 07-schema-multi-canal-python-pipeline]: Redis key format youtube_uploads:{channel_id}:{date} isolates quota per destination channel without any shared counter
 - [Phase 07-schema-multi-canal-python-pipeline]: Guard Python no loop (if channel.get('blacklisted'): continue) adicionado além do filtro SQL — mocks de teste injetam canais com blacklisted=True via fetchall.return_value, bypass o SQL; dual-layer garante correctness em produção e testes
+- [Phase 07-schema-multi-canal-python-pipeline]: Plan 07-05: overlay_watermark usa -filter_complex overlay=W-w-20:20 com clip ANTES watermark nos -i args; graceful degradation retorna input_path se arquivo ausente
+- [Phase 07-schema-multi-canal-python-pipeline]: Plan 07-05: append_credits guard duplo (not template or not handle) — basta um vazio para nao adicionar creditos malformados
 
 ### Pending Todos
 
@@ -185,6 +188,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-22T20:31:54.625Z
-Stopped at: Completed 07-schema-multi-canal-python-pipeline-04-PLAN.md
+Last session: 2026-06-22T20:40:03.299Z
+Stopped at: Completed 07-schema-multi-canal-python-pipeline-05-PLAN.md
 Resume file: None
