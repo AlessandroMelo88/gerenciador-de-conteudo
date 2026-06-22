@@ -242,3 +242,78 @@ class TestAIPipelineIntegration:
         assert 'selecting' in status_calls
         # A ordem importa: transcribing deve vir antes de selecting
         assert status_calls.index('transcribing') < status_calls.index('selecting')
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 — RED tests: Blacklist guard (COPY-03)
+# Estes testes falham até a implementação em Wave 3-4.
+# ---------------------------------------------------------------------------
+
+class TestBlacklistGuard:
+    """Testes RED para blacklist guard no rss_poller (COPY-03)."""
+
+    def test_blacklisted_channel_does_not_trigger_insert_video(
+        self, mock_db_conn, mock_redis, mocker
+    ):
+        """COPY-03: canal com blacklisted=True não chama insert_video.
+
+        O guard deve checar blacklisted ANTES de inserir — evita desperdício
+        de Groq + Claude + FFmpeg em conteúdo proibido.
+        """
+        blacklisted_channel = {
+            'id': 2,
+            'youtube_channel_id': 'UCblacklisted',
+            'channel_name': 'Canal Bloqueado',
+            'rss_url': 'https://www.youtube.com/feeds/videos.xml?channel_id=UCblacklisted',
+            'blacklisted': True,
+            'target_niche': 'futebol',
+        }
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.fetchall.return_value = [blacklisted_channel]
+
+        sample_rss = """<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
+      xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <yt:videoId>vid_blocked_01</yt:videoId>
+    <title>Vídeo de canal bloqueado</title>
+    <published>2026-06-18T10:00:00+00:00</published>
+  </entry>
+</feed>"""
+
+        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
+            status_code=200,
+            text=sample_rss,
+        ))
+        mocker.patch('src.rss_poller.is_seen', return_value=False)
+        mock_insert = mocker.patch('src.rss_poller.insert_video')
+
+        poll_all_channels(mock_db_conn, mock_redis)
+
+        mock_insert.assert_not_called()
+
+    def test_non_blacklisted_channel_calls_insert_video(
+        self, mock_db_conn, mock_redis, sample_rss_xml, mocker
+    ):
+        """COPY-03: canal com blacklisted=False (ou None) chama insert_video normalmente."""
+        active_channel = {
+            'id': 1,
+            'youtube_channel_id': 'UCxxx',
+            'channel_name': 'Canal Ativo',
+            'rss_url': 'https://www.youtube.com/feeds/videos.xml?channel_id=UCxxx',
+            'blacklisted': False,
+            'target_niche': 'futebol',
+        }
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.fetchall.return_value = [active_channel]
+
+        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
+            status_code=200,
+            text=sample_rss_xml,
+        ))
+        mocker.patch('src.rss_poller.is_seen', return_value=False)
+        mock_insert = mocker.patch('src.rss_poller.insert_video')
+
+        poll_all_channels(mock_db_conn, mock_redis)
+
+        assert mock_insert.call_count >= 1

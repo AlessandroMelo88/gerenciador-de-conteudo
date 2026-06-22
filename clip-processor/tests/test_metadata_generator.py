@@ -84,3 +84,37 @@ class TestMetadataPersistence:
         assert 'UPDATE generated_clips' in sql
         assert params == ('Titulo', 'Descricao', 'futebol,cortes', 10)
         mock_db_conn.commit.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 — RED tests: append_credits (COPY-02)
+# Estes testes falham até a implementação em Wave 3-4.
+# ---------------------------------------------------------------------------
+
+class TestAppendCredits:
+    """Testes RED para append_credits (COPY-02)."""
+
+    def test_append_credits_formats_template_with_channel_handle(self):
+        """COPY-02: template com {channel_handle} é substituído pelo handle real."""
+        from src.metadata_generator import append_credits
+
+        result = append_credits(
+            'Descrição do clip',
+            'Créditos: @{channel_handle}',
+            'sportv',
+        )
+        assert result == 'Descrição do clip\n\nCréditos: @sportv'
+
+    def test_append_credits_empty_template_returns_description_unchanged(self):
+        """COPY-02: template vazio → retorna descrição sem modificação."""
+        from src.metadata_generator import append_credits
+
+        result = append_credits('Descrição', '', 'sportv')
+        assert result == 'Descrição'
+
+    def test_append_credits_empty_handle_returns_description_unchanged(self):
+        """COPY-02: handle vazio → retorna descrição sem modificação."""
+        from src.metadata_generator import append_credits
+
+        result = append_credits('Descrição', 'Créditos: @{channel_handle}', '')
+        assert result == 'Descrição'
