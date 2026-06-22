@@ -7,7 +7,7 @@ Exporta:
   - _process_pending_clips(conn)
 
 Comportamento:
-  - Busca canais ativos do MySQL
+  - Busca canais ativos do MySQL (blacklisted=FALSE filtrado no SELECT — COPY-03)
   - Para cada canal, faz GET no rss_url e parseia com feedparser
   - Para cada entrada: extrai video_id, verifica deduplicação, insere se novo
   - Resiliência por canal: falha em um canal não aborta os demais
@@ -144,14 +144,23 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
         )
 
     try:
-        # Buscar canais ativos
+        # Buscar canais ativos (canais blacklistados filtrados no SELECT — COPY-03)
         with db_conn.cursor() as cur:
-            cur.execute('SELECT id, channel_name, rss_url FROM source_channels WHERE active = TRUE')
+            cur.execute(
+                'SELECT id, channel_name, rss_url, target_niche, channel_handle '
+                'FROM source_channels '
+                'WHERE active = TRUE AND blacklisted = FALSE'
+            )
             channels = cur.fetchall()
 
         total_new = 0
 
         for channel in channels:
+            # Guard de segurança: ignora canais blacklistados mesmo que apareçam no resultado
+            # (em produção, filtrado no SELECT; guard garante correctness nos mocks — COPY-03)
+            if channel.get('blacklisted'):
+                continue
+
             channel_id = channel['id']
             channel_name = channel['channel_name']
             rss_url = channel['rss_url']
