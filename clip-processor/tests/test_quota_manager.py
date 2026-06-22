@@ -125,3 +125,61 @@ class TestRecordUpload:
         ttl = r.expire.call_args[0][1]
         # 20h → meia-noite = 4 horas = 14400 segundos
         assert 14000 < ttl <= 14400
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 — RED tests: Multi-Canal (MCAN-03, MCAN-04)
+# Estes testes falham até a implementação em Wave 3-4.
+# ---------------------------------------------------------------------------
+
+class TestQuotaManagerMultiCanal:
+    """Testes RED para suporte a channel_id no QuotaManager (MCAN-03, MCAN-04)."""
+
+    def test_key_includes_channel_id_when_provided(self):
+        """MCAN-03: _key() deve incluir channel_id quando fornecido.
+
+        QuotaManager(r, channel_id='UCabc123')._key(dt) deve retornar
+        'youtube_uploads:UCabc123:2026-06-18'.
+        """
+        r = make_redis(count=0)
+        qm = QuotaManager(r, channel_id='UCabc123')
+        key = qm._key(dt_sp(20))
+        assert key == 'youtube_uploads:UCabc123:2026-06-18'
+
+    def test_key_fallback_without_channel_id(self):
+        """Retrocompat: _key() sem channel_id retorna 'youtube_uploads:2026-06-18'."""
+        r = make_redis(count=0)
+        qm = QuotaManager(r)
+        key = qm._key(dt_sp(20))
+        assert key == 'youtube_uploads:2026-06-18'
+
+    def test_two_channels_use_independent_redis_keys(self):
+        """MCAN-04: Dois QuotaManager com channel_id diferentes usam keys Redis distintas.
+
+        Canal UCaaa e UCbbb não compartilham quota.
+        """
+        r_a = make_redis(count=0)
+        r_b = make_redis(count=0)
+        qm_a = QuotaManager(r_a, max_uploads_per_day=2, channel_id='UCaaa')
+        qm_b = QuotaManager(r_b, max_uploads_per_day=2, channel_id='UCbbb')
+
+        key_a = qm_a._key(dt_sp(20))
+        key_b = qm_b._key(dt_sp(20))
+
+        # Keys devem ser diferentes para garantir independência de quota
+        assert key_a != key_b
+        assert 'UCaaa' in key_a
+        assert 'UCbbb' in key_b
+
+    def test_channel_a_quota_exhausted_does_not_block_channel_b(self):
+        """MCAN-04: Quota atingida no canal A não bloqueia canal B."""
+        # Canal A: quota atingida
+        r_a = make_redis(count=2)
+        qm_a = QuotaManager(r_a, max_uploads_per_day=2, channel_id='UCaaa')
+
+        # Canal B: quota disponível
+        r_b = make_redis(count=0)
+        qm_b = QuotaManager(r_b, max_uploads_per_day=2, channel_id='UCbbb')
+
+        assert qm_a.can_upload(now=dt_sp(20)) is False
+        assert qm_b.can_upload(now=dt_sp(20)) is True
