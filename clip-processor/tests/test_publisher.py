@@ -35,14 +35,26 @@ def make_mock_quota(can_upload=True):
     return quota
 
 
-def make_conn_with_clips(clips: list[dict]):
-    """Cria mock de conexão MySQL com clips configurados."""
+def make_conn_with_clips(clips: list[dict], dest_channels: list[dict] | None = None):
+    """Cria mock de conexão MySQL com clips configurados.
+
+    Args:
+        clips: clips pendentes a retornar por _fetch_pending_clips / _fetch_pending_clips_for_channel
+        dest_channels: canais-destino para _fetch_destination_channels.
+                       None (padrão) → [] que ativa o fallback legado em publish_pending_clips.
+    """
     conn = MagicMock()
     cursor = MagicMock()
 
-    # fetchall para _select_pending_clips retorna clips configurados
-    # fetchone para _cleanup_source_if_done retorna sem pendentes
-    cursor.fetchall.return_value = clips
+    # Multi-canal: _fetch_destination_channels é chamado primeiro.
+    # Por padrão, retorna [] para ativar o fallback legado (_fetch_pending_clips).
+    # Testes multi-canal passam dest_channels explicitamente.
+    actual_dest_channels = dest_channels if dest_channels is not None else []
+    cursor.fetchall.side_effect = [
+        actual_dest_channels,   # _fetch_destination_channels
+        clips,                  # _fetch_pending_clips (fallback) OU _fetch_pending_clips_for_channel
+    ] + [clips] * (len(clips) + 10)  # extra fetchall calls se houver múltiplos canais
+
     cursor.fetchone.side_effect = [
         {'cnt': 0},   # non-terminal clips count
         {'cnt': 1},   # published clips count
@@ -97,7 +109,9 @@ class TestPublishPendingClips:
             and 'gc.status = %s' in str(c.args[0])
         ]
         assert select_calls, 'SELECT parametrizado não encontrado'
-        assert select_calls[0].args[1] == ('pending',), (
+        # Multi-canal: params pode ser ('pending',) [legacy] ou ('pending', dest_id) [multi-canal]
+        status_param = select_calls[0].args[1][0] if select_calls[0].args[1] else None
+        assert status_param == 'pending', (
             f"Default deve selecionar status='pending' para auto-publicar. "
             f'Params: {select_calls[0].args[1]}'
         )
@@ -206,7 +220,8 @@ class TestPublishPendingClips:
         """Arquivo bruto não deve ser removido se outro clip do mesmo vídeo ainda está pendente."""
         conn = MagicMock()
         cursor = MagicMock()
-        cursor.fetchall.return_value = [SAMPLE_CLIP]
+        # Multi-canal: primeiro fetchall retorna [] (fallback legado), segundo retorna [SAMPLE_CLIP]
+        cursor.fetchall.side_effect = [[], [SAMPLE_CLIP]] + [[]] * 10
         # Retorna 1 clip não-terminal (ainda há pendente)
         cursor.fetchone.return_value = {'cnt': 1}
         # Phase 6: guard de status precisa de rowcount=1 para o UPDATE approved→publishing
@@ -253,10 +268,11 @@ class TestPublishApprovedClips:
             and 'gc.status = %s' in str(c.args[0])
         ]
         assert select_calls, f'SELECT parametrizado não encontrado. Calls: {cursor.execute.call_args_list}'
-        select_params = select_calls[0].args[1] if len(select_calls[0].args) > 1 else None
-        assert select_params == ('approved',), (
+        # Multi-canal: params pode ser ('approved',) [legacy] ou ('approved', dest_id) [multi-canal]
+        status_param = select_calls[0].args[1][0] if select_calls[0].args[1] else None
+        assert status_param == 'approved', (
             f"publisher deve selecionar status='approved' com MANUAL_APPROVAL_REQUIRED=true. "
-            f'Params vistos: {select_params}'
+            f'Params vistos: {select_calls[0].args[1]}'
         )
 
     def test_quota_blocked_leaves_clip_as_approved(self):
@@ -316,9 +332,11 @@ class TestPublisherMultiCanal:
         clip_canal_1 = {**SAMPLE_CLIP, 'id': 1, 'destination_channel_id': 1}
 
         conn, cursor = make_conn_with_clips([clip_canal_1])
+        # Chamar _fetch_pending_clips_for_channel diretamente — reset do side_effect
+        cursor.fetchall.side_effect = None
         cursor.fetchall.return_value = [clip_canal_1]
 
-        clips = _fetch_pending_clips_for_channel(conn, dest_id=1)
+        clips = _fetch_pending_clips_for_channel(conn, 1)  # positional arg
 
         assert len(clips) == 1
         assert clips[0]['destination_channel_id'] == 1
@@ -332,9 +350,10 @@ class TestPublisherMultiCanal:
         from src.publisher import _fetch_pending_clips_for_channel
 
         conn, cursor = make_conn_with_clips([])
+        cursor.fetchall.side_effect = None
         cursor.fetchall.return_value = []
 
-        clips = _fetch_pending_clips_for_channel(conn, dest_id=1)
+        clips = _fetch_pending_clips_for_channel(conn, 1)  # positional arg
 
         assert clips == []
 
@@ -371,3 +390,88 @@ class TestPublisherMultiCanal:
         assert result_2 == 1  # Canal 2 publica normalmente
         uploader_1.upload_clip.assert_not_called()
         uploader_2.upload_clip.assert_called_once()
+
+    def test_fetch_destination_channels_returns_active(self):
+        """MCAN-01: _fetch_destination_channels retorna apenas canais ativos."""
+        from src.publisher import _fetch_destination_channels
+
+        dest_channels = [
+            {'id': 1, 'slug': 'futebol-br', 'name': 'Futebol BR', 'niche': 'futebol',
+             'youtube_channel_id': 'UCaaa', 'credit_template': 'Vídeo de {channel_handle}'},
+            {'id': 2, 'slug': 'esportes-ao-vivo', 'name': 'Esportes Ao Vivo', 'niche': 'esportes',
+             'youtube_channel_id': 'UCbbb', 'credit_template': None},
+        ]
+        conn, cursor = make_conn_with_clips([])
+        # Reset side_effect e usar return_value para teste direto desta função
+        cursor.fetchall.side_effect = None
+        cursor.fetchall.return_value = dest_channels
+
+        result = _fetch_destination_channels(conn)
+
+        assert len(result) == 2
+        execute_calls = [str(c) for c in cursor.execute.call_args_list]
+        assert any('active' in c.lower() or 'WHERE' in c for c in execute_calls), \
+            'SELECT deve filtrar por active = TRUE'
+
+    def test_publish_multi_canal_loop_publishes_to_both_channels(self):
+        """MCAN-01/03: publish_pending_clips itera por canais-destino e publica clips de cada."""
+        clip_ch1 = {**SAMPLE_CLIP, 'id': 1, 'destination_channel_id': 1}
+        clip_ch2 = {**SAMPLE_CLIP, 'id': 2, 'destination_channel_id': 2, 'channel_handle': '@espn'}
+
+        dest_ch1 = {'id': 1, 'slug': 'futebol-br', 'youtube_channel_id': 'UCaaa',
+                    'credit_template': None, 'name': 'Futebol BR'}
+        dest_ch2 = {'id': 2, 'slug': 'esportes', 'youtube_channel_id': 'UCbbb',
+                    'credit_template': None, 'name': 'Esportes'}
+
+        conn, cursor = make_conn_with_clips([])
+        redis = MagicMock()
+        uploader = make_mock_uploader(video_id='yt_multi_01')
+
+        # _fetch_destination_channels retorna 2 canais
+        # _fetch_pending_clips_for_channel retorna 1 clip por canal
+        cursor.fetchall.side_effect = [
+            [dest_ch1, dest_ch2],   # _fetch_destination_channels
+            [clip_ch1],              # _fetch_pending_clips_for_channel(conn, 1)
+            [clip_ch2],              # _fetch_pending_clips_for_channel(conn, 2)
+        ]
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            MockQuota.return_value.can_upload.return_value = True
+            result = publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
+
+        # Deve publicar 2 clips (1 por canal)
+        assert result == 2
+        assert uploader.upload_clip.call_count == 2
+
+    def test_append_credits_called_when_template_and_handle_available(self):
+        """COPY-02: append_credits é chamado antes do upload quando credit_template e channel_handle presentes."""
+        clip_with_handle = {
+            **SAMPLE_CLIP,
+            'id': 1,
+            'destination_channel_id': 1,
+            'channel_handle': '@sportv',
+            'description': 'Descrição original',
+        }
+        dest = {'id': 1, 'slug': 'futebol-br', 'youtube_channel_id': 'UCaaa',
+                'credit_template': 'Crédito: {channel_handle}', 'name': 'Futebol BR'}
+
+        conn, cursor = make_conn_with_clips([])
+        redis = MagicMock()
+        uploader = make_mock_uploader(video_id='yt_credits_01')
+
+        cursor.fetchall.side_effect = [
+            [dest],
+            [clip_with_handle],
+        ]
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            MockQuota.return_value.can_upload.return_value = True
+            with patch('src.publisher.append_credits', return_value='Desc + Crédito') as mock_credits:
+                result = publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
+
+        assert result == 1
+        mock_credits.assert_called_once_with(
+            'Descrição original',
+            'Crédito: {channel_handle}',
+            '@sportv',
+        )
