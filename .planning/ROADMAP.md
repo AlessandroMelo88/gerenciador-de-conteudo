@@ -145,8 +145,17 @@ Plans:
   2. Cada canal-destino tem contador de quota Redis independente (`youtube_uploads:{channel_id}:{date}`); atingir 3 uploads no canal A não bloqueia uploads do canal B
   3. Todo clip exportado pelo FFmpeg contém o watermark/logo do canal visível em posição fixa no vídeo — verificável assistindo o arquivo MP4 antes do upload
   4. A descrição gerada pelo Claude para qualquer clip inclui a linha de créditos com o handle do canal original ("Créditos: @canal") — verificável no campo `description` da tabela `generated_clips`
-  5. Canal configurado na blacklist (ex: Globo, SBT, Band, ESPN, Liga/Conmebol) não tem nenhum vídeo baixado — `rss_poller.py` registra o bloqueio antes do download e o vídeo não aparece em `source_videos`
-**Plans**: TBD
+  5. Canal configurado na blacklist (ex: Globo, SBT, Band, ESPN, Liga/Conmebol) não tem nenhum vídeo baixado — `rss_poller.py` filtra canais blacklistados antes do download e eles não aparecem em `source_videos`
+**Plans**: 7 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Migration SQL: destination_channels + ALTER source_channels (target_niche, channel_handle, blacklisted) + ALTER generated_clips (destination_channel_id FK) + seed 2 canais
+- [ ] 07-02-PLAN.md — Wave 0 tests RED: estender 6 arquivos de teste com novos testes falhando para MCAN/COPY
+- [ ] 07-03-PLAN.md — QuotaManager com channel_id + YouTubeUploader com channel_slug (MCAN-01, MCAN-03, MCAN-04)
+- [ ] 07-04-PLAN.md — rss_poller: blacklist guard + target_niche no SELECT (COPY-03, MCAN-02)
+- [ ] 07-05-PLAN.md — video_processor: overlay_watermark() + metadata_generator: append_credits() (COPY-01, COPY-02)
+- [ ] 07-06-PLAN.md — selector: destination_channel_id no INSERT + video_processor: integração watermark + publisher: loop multi-canal (MCAN-01..04, COPY-01..02)
+- [ ] 07-07-PLAN.md — youtube_oauth helper CLI + volume branding no docker-compose + checkpoint visual watermark (MCAN-01, COPY-01)
 
 ### Phase 8: Painel Laravel/Filament
 
@@ -185,6 +194,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. Processamento de Vídeo | 4/4 | Complete | 2026-06-18 |
 | 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
 | 6. Controle Manual N8N + Telegram | 7/7 | Complete | 2026-06-21 |
-| 7. Schema Multi-Canal + Python Pipeline | 0/? | Not started | - |
+| 7. Schema Multi-Canal + Python Pipeline | 0/7 | Not started | - |
 | 8. Painel Laravel/Filament | 0/? | Not started | - |
 | 9. Bot Telegram no Laravel | 0/? | Not started | - |
