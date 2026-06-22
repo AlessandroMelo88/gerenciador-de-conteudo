@@ -121,6 +121,44 @@ def select_moments(transcript: dict, anthropic_client=None) -> list[dict]:
         return []
 
 
+def _lookup_destination_channel_id(conn, source_video_id: int) -> int | None:
+    """Resolve destination_channel_id via JOIN source_videos → source_channels → destination_channels.
+
+    Returns:
+        ID do canal-destino ativo para o nicho do canal de origem, ou None se não encontrado.
+    """
+    with conn.cursor() as cur:
+        # Passo 1: obter target_niche do canal de origem
+        cur.execute(
+            'SELECT sc.target_niche '
+            'FROM source_videos sv '
+            'JOIN source_channels sc ON sc.id = sv.channel_id '
+            'WHERE sv.id = %s',
+            (source_video_id,),
+        )
+        row = cur.fetchone()
+
+    if not row or not row.get('target_niche'):
+        return None
+
+    target_niche = row['target_niche']
+
+    with conn.cursor() as cur:
+        # Passo 2: encontrar canal-destino ativo para o nicho
+        cur.execute(
+            'SELECT id FROM destination_channels '
+            'WHERE niche = %s AND active = TRUE '
+            'LIMIT 1',
+            (target_niche,),
+        )
+        dest_row = cur.fetchone()
+
+    if not dest_row:
+        return None
+
+    return dest_row['id']
+
+
 def insert_selected_moments(conn, source_video_id: int, video_id: str, moments: list[dict]) -> int:
     """Filtra e insere momentos com score >= 7 em generated_clips.
 
@@ -135,6 +173,10 @@ def insert_selected_moments(conn, source_video_id: int, video_id: str, moments: 
     """
     # Remover overlaps antes de inserir (mantém o de maior score)
     filtered = _remove_overlaps(moments)
+
+    # Resolver destination_channel_id uma vez antes do loop de momentos
+    # Edge case: target_niche NULL ou sem canal ativo → None (inserção continua sem FK)
+    destination_channel_id = _lookup_destination_channel_id(conn, source_video_id)
 
     inserted = 0
     for moment in filtered:
@@ -151,12 +193,13 @@ def insert_selected_moments(conn, source_video_id: int, video_id: str, moments: 
         with conn.cursor() as cur:
             cur.execute(
                 'INSERT INTO generated_clips '
-                '(source_video_id, start_time, end_time, score, reason, status) '
-                'VALUES (%s, %s, %s, %s, %s, %s)',
-                (source_video_id, moment['start_time'], moment['end_time'], score, reason, 'pending_cut'),
+                '(source_video_id, start_time, end_time, score, reason, status, destination_channel_id) '
+                'VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                (source_video_id, moment['start_time'], moment['end_time'], score, reason,
+                 'pending_cut', destination_channel_id),
             )
         conn.commit()
         inserted += 1
-        _log(f'Momento inserido (score {score}): {reason}')
+        _log(f'Momento inserido (score {score}, dest_ch={destination_channel_id}): {reason}')
 
     return inserted

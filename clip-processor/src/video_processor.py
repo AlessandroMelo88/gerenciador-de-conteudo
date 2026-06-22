@@ -167,7 +167,11 @@ def overlay_watermark(input_path: str, watermark_path: str, output_path: str) ->
 
 
 def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
-    """Processa um registro de generated_clips com status pending_cut."""
+    """Processa um registro de generated_clips com status pending_cut.
+
+    Pipeline: cut → generate_srt → burn_subtitles → overlay_watermark → extract_thumbnail
+    O arquivo intermediário _subtitled.mp4 é removido após o watermark (ou rename).
+    """
     try:
         clip = _fetch_clip(conn, clip_id)
         if clip is None:
@@ -181,12 +185,31 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
 
         raw_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}_raw.mp4')
         srt_path = os.path.join(CLIPS_DIR, f'{clip_id}.srt')
+        subtitled_path = os.path.join(CLIPS_DIR, f'{clip_id}_subtitled.mp4')
         final_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}.mp4')
         thumbnail_path = os.path.join(THUMBNAILS_DIR, f'{clip_id}.jpg')
 
         cut_clip(clip['local_path'], clip['start_time'], clip['end_time'], raw_clip_path)
         generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
-        burn_subtitles(raw_clip_path, srt_path, final_clip_path)
+        burn_subtitles(raw_clip_path, srt_path, subtitled_path)
+
+        # Aplicar watermark se canal-destino tem slug configurado
+        slug = clip.get('destination_channel_slug')
+        if slug:
+            watermark_path = f'/app/branding/watermark-{slug}.png'
+            # overlay_watermark retorna subtitled_path se arquivo de watermark não existir (graceful)
+            result_path = overlay_watermark(subtitled_path, watermark_path, final_clip_path)
+            if result_path == subtitled_path:
+                # Watermark ausente: renomear para path final
+                os.rename(subtitled_path, final_clip_path)
+            else:
+                # Watermark aplicado: remover intermediário
+                if os.path.exists(subtitled_path):
+                    os.remove(subtitled_path)
+        else:
+            # Sem canal-destino: renomear arquivo legendado para path final
+            os.rename(subtitled_path, final_clip_path)
+
         duration = max(float(clip['end_time']) - float(clip['start_time']), 1.0)
         extract_thumbnail(final_clip_path, thumbnail_path, at_seconds=duration / 2)
 
@@ -219,9 +242,11 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
         cur.execute(
             'SELECT '
             'gc.id, gc.source_video_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
-            'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path '
+            'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path, '
+            'dc.slug AS destination_channel_slug '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
+            'LEFT JOIN destination_channels dc ON dc.id = gc.destination_channel_id '
             'WHERE gc.id = %s',
             (clip_id,),
         )

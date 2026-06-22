@@ -81,13 +81,14 @@ class TestVideoProcessor:
             'end_time': 220.0,
             'score': 9,
             'reason': 'Debate acalorado',
+            'destination_channel_slug': None,  # sem canal-destino: usa os.rename
         }
         cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = clip_row
 
         mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/10_raw.mp4')
         mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/10.srt')
-        mocker.patch('src.video_processor.burn_subtitles', return_value='/app/clips/10.mp4')
+        mocker.patch('src.video_processor.burn_subtitles', return_value='/app/clips/10_subtitled.mp4')
         mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/10.jpg')
         mocker.patch('src.video_processor.generate_metadata', return_value={
             'title': 'Titulo',
@@ -95,6 +96,7 @@ class TestVideoProcessor:
             'tags': ['futebol'],
         })
         mocker.patch('src.video_processor.update_clip_metadata')
+        mocker.patch('src.video_processor.os.rename')  # slug=None → rename subtitled → final
 
         assert process_clip(mock_db_conn, 10) is True
         execute_calls = [str(call) for call in cursor.execute.call_args_list]
@@ -112,6 +114,7 @@ class TestVideoProcessor:
             'reason': 'Motivo',
             'score': 8,
             'source_title': 'Titulo',
+            'destination_channel_slug': None,
         }
         mocker.patch('src.video_processor.cut_clip', side_effect=RuntimeError('ffmpeg failed'))
 
@@ -192,3 +195,90 @@ class TestOverlayWatermark:
         # Deve retornar o caminho de entrada sem modificação
         assert result == '/app/clips/clip.mp4'
         mock_run.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Wave 4 — Integration tests: process_clip com overlay_watermark (MCAN-02)
+# ---------------------------------------------------------------------------
+
+class TestProcessClipWithWatermark:
+    """Testes de integração: process_clip aplica overlay_watermark com slug do canal-destino."""
+
+    def test_process_clip_calls_overlay_watermark_with_slug(self, tmp_path, mock_db_conn, mocker):
+        """MCAN-02: process_clip chama overlay_watermark com watermark_path derivado do slug."""
+        transcript_path = tmp_path / 'transcript.json'
+        transcript_path.write_text(json.dumps(SAMPLE_TRANSCRIPT), encoding='utf-8')
+
+        clip_row = {
+            'id': 20,
+            'source_video_id': 1,
+            'youtube_video_id': 'vid002bbbbbb',
+            'source_title': 'Debate quente',
+            'local_path': '/app/videos/source.mp4',
+            'transcript_path': str(transcript_path),
+            'start_time': 100.0,
+            'end_time': 220.0,
+            'score': 9,
+            'reason': 'Debate acalorado',
+            'destination_channel_slug': 'futebol-br',
+        }
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = clip_row
+
+        mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/20_raw.mp4')
+        mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/20.srt')
+        mocker.patch('src.video_processor.burn_subtitles', return_value='/app/clips/20_subtitled.mp4')
+        mock_watermark = mocker.patch('src.video_processor.overlay_watermark', return_value='/app/clips/20.mp4')
+        mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/20.jpg')
+        mocker.patch('src.video_processor.generate_metadata', return_value={
+            'title': 'Titulo', 'description': 'Desc', 'tags': ['futebol'],
+        })
+        mocker.patch('src.video_processor.update_clip_metadata')
+        mocker.patch('src.video_processor.os.remove')
+
+        result = process_clip(mock_db_conn, 20)
+
+        assert result is True
+        mock_watermark.assert_called_once()
+        call_args = mock_watermark.call_args
+        assert '/app/branding/watermark-futebol-br.png' in call_args.args or \
+               '/app/branding/watermark-futebol-br.png' in str(call_args), \
+               f'overlay_watermark deve receber watermark-futebol-br.png. Args: {call_args}'
+
+    def test_process_clip_skips_watermark_when_slug_is_null(self, tmp_path, mock_db_conn, mocker):
+        """MCAN-02: destination_channel_slug NULL → os.rename é usado, overlay_watermark NÃO chamado."""
+        transcript_path = tmp_path / 'transcript.json'
+        transcript_path.write_text(json.dumps(SAMPLE_TRANSCRIPT), encoding='utf-8')
+
+        clip_row = {
+            'id': 21,
+            'source_video_id': 1,
+            'youtube_video_id': 'vid003cccccc',
+            'source_title': 'Jogo sem canal destino',
+            'local_path': '/app/videos/source.mp4',
+            'transcript_path': str(transcript_path),
+            'start_time': 100.0,
+            'end_time': 220.0,
+            'score': 8,
+            'reason': 'Moment sem canal',
+            'destination_channel_slug': None,
+        }
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = clip_row
+
+        mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/21_raw.mp4')
+        mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/21.srt')
+        mocker.patch('src.video_processor.burn_subtitles', return_value='/app/clips/21_subtitled.mp4')
+        mock_watermark = mocker.patch('src.video_processor.overlay_watermark')
+        mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/21.jpg')
+        mocker.patch('src.video_processor.generate_metadata', return_value={
+            'title': 'Titulo', 'description': 'Desc', 'tags': [],
+        })
+        mocker.patch('src.video_processor.update_clip_metadata')
+        mock_rename = mocker.patch('src.video_processor.os.rename')
+
+        result = process_clip(mock_db_conn, 21)
+
+        assert result is True
+        mock_watermark.assert_not_called()
+        mock_rename.assert_called_once()
