@@ -212,3 +212,31 @@ class TestUploadClip:
 
         call_kwargs = yt.videos.return_value.insert.call_args[1]
         assert call_kwargs['body']['status']['privacyStatus'] == 'public'
+
+
+# ---------------------------------------------------------------------------
+# Wave 2 — RED tests: Channel Slug token path (MCAN-01)
+# Estes testes falham até a implementação em Wave 3-4.
+# ---------------------------------------------------------------------------
+
+class TestYouTubeUploaderChannelSlug:
+    """Testes RED para suporte a channel_slug no YouTubeUploader (MCAN-01)."""
+
+    def test_channel_slug_determines_token_file_path(self):
+        """MCAN-01: channel_slug='futebol-em-cortes' → token_file='/app/youtube/token-futebol-em-cortes.json'."""
+        from src.uploader import DEFAULT_TOKEN_FILE
+
+        uploader = YouTubeUploader(channel_slug='futebol-em-cortes')
+        assert uploader.token_file == '/app/youtube/token-futebol-em-cortes.json'
+
+    def test_no_channel_slug_uses_default_token_file(self):
+        """Retrocompat: sem channel_slug, usa DEFAULT_TOKEN_FILE."""
+        from src.uploader import DEFAULT_TOKEN_FILE
+
+        uploader = YouTubeUploader()
+        assert uploader.token_file == DEFAULT_TOKEN_FILE
+
+    def test_explicit_token_file_overrides_channel_slug(self):
+        """Retrocompat: token_file explícito tem precedência sobre channel_slug."""
+        uploader = YouTubeUploader(token_file='/custom/path.json')
+        assert uploader.token_file == '/custom/path.json'
