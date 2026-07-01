@@ -168,7 +168,18 @@ Plans:
   3. Operador adiciona um canal-destino com campo `niche` via formulário; o painel exibe badge de status OAuth (authorized / expired / missing) para cada canal-destino
   4. Dashboard mostra lista de `source_videos` e `generated_clips` com status atualizado automaticamente a cada 5 segundos — operador vê o avanço de um vídeo no pipeline sem recarregar a página
   5. Operador clica em "Aprovar" ou "Rejeitar" num clip da fila no painel; o status muda em `generated_clips` da mesma forma que `/aprovar` e `/rejeitar` do Telegram fazem
-**Plans**: TBD
+**Plans**: 9 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Docker wiring + Laravel/Filament/Pest bootstrap + config (Wave 1)
+- [ ] 08-02-PLAN.md — Python Wave 0: SQL migration `oauth_expired_flag` + internal_api.py skeleton + testes RED (Wave 1)
+- [ ] 08-03-PLAN.md — Laravel Wave 0: Eloquent Models + Factories + 6 test skeletons RED (Wave 2)
+- [ ] 08-04-PLAN.md — Auth (PANEL-05): CreatePainelUser/ResetPainelPassword + AdminPanelProvider login/profile + register 404 (Wave 3)
+- [ ] 08-05-PLAN.md — Source Channel Resource + ClipProcessorClient (PANEL-01) (Wave 3)
+- [ ] 08-06-PLAN.md — Destination Channel Resource + OAuth badge + uploader.py RefreshError capture (PANEL-02) (Wave 3)
+- [ ] 08-07-PLAN.md — internal_api.py GREEN + main.py Flask thread + docker-compose env token (PANEL-01, PANEL-04) (Wave 3)
+- [ ] 08-08-PLAN.md — Dashboard 4 widgets + Aprovar/Rejeitar actions (PANEL-03, PANEL-04) (Wave 4)
+- [ ] 08-09-PLAN.md — E2E checkpoint humano + README setup consolidado (Wave 5)
 
 ### Phase 9: Bot Telegram no Laravel
 
@@ -195,5 +206,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
 | 6. Controle Manual N8N + Telegram | 7/7 | Complete | 2026-06-21 |
 | 7. Schema Multi-Canal + Python Pipeline | 7/7 | Complete   | 2026-06-22 |
-| 8. Painel Laravel/Filament | 0/? | Not started | - |
+| 8. Painel Laravel/Filament | 0/9 | Not started | - |
 | 9. Bot Telegram no Laravel | 0/? | Not started | - |
