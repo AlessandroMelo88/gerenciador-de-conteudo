@@ -19,6 +19,14 @@ pest()->extend(TestCase::class)
     ->in('Feature');
 
 /*
+| Unit tests também estendem Tests\TestCase (app Laravel bootado, sem tocar
+| o banco) — necessário porque DestinationChannelOauthStatusTest usa o
+| helper config() para sobrescrever services.clip_processor.token_dir.
+*/
+pest()->extend(TestCase::class)
+    ->in('Unit');
+
+/*
 |--------------------------------------------------------------------------
 | Expectations
 |--------------------------------------------------------------------------
