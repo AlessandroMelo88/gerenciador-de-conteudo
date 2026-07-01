@@ -61,20 +61,20 @@
 - [x] **MCAN-01**: Sistema suporta múltiplos canais YouTube de destino, cada um com token OAuth próprio e GCP Project separado
 - [x] **MCAN-02**: Canais-fonte têm campo `niche` (futebol, podcast, etc.) que determina qual canal-destino recebe o clip
 - [x] **MCAN-03**: Cota de uploads é independente por canal-destino (3/dia por canal; 2 canais = 6/dia total)
-- [ ] **MCAN-04**: Pipeline publica automaticamente 3 vídeos/dia por canal no horário 19h-22h BRT
+- [x] **MCAN-04**: Pipeline publica automaticamente 3 vídeos/dia por canal no horário 19h-22h BRT
 
 ### Copyright
 
-- [ ] **COPY-01**: Watermark/logo do canal é queimado no clip via FFmpeg após geração das legendas
+- [x] **COPY-01**: Watermark/logo do canal é queimado no clip via FFmpeg após geração das legendas
 - [x] **COPY-02**: Descrição gerada pelo Claude inclui créditos do canal original ("Créditos: @canal")
 - [x] **COPY-03**: Canais blacklistados (Globo, SBT, Band, ESPN direto, Liga/Conmebol) são bloqueados no RSS poller antes do download
 
 ### Admin Panel
 
-- [ ] **PANEL-01**: Operador pode adicionar/remover/desativar canais-fonte via formulário web (URL do YouTube ou channel_id) sem SQL
-- [ ] **PANEL-02**: Operador pode adicionar canais-destino com niche e status OAuth (authorized/expired/missing) pelo painel
+- [x] **PANEL-01**: Operador pode adicionar/remover/desativar canais-fonte via formulário web (URL do YouTube ou channel_id) sem SQL
+- [x] **PANEL-02**: Operador pode adicionar canais-destino com niche e status OAuth (authorized/expired/missing) pelo painel
 - [ ] **PANEL-03**: Dashboard mostra status em tempo real de source_videos e generated_clips com atualização automática
-- [ ] **PANEL-04**: Operador pode aprovar ou rejeitar clips da fila pelo painel web (alternativa ao Telegram)
+- [x] **PANEL-04**: Operador pode aprovar ou rejeitar clips da fila pelo painel web (alternativa ao Telegram)
 - [ ] **PANEL-05**: Painel protegido por autenticação básica de usuário/senha
 
 ### Telegram Bot (Laravel)
@@ -144,14 +144,14 @@
 | MCAN-01 | Phase 7 | Complete |
 | MCAN-02 | Phase 7 | Complete |
 | MCAN-03 | Phase 7 | Complete |
-| MCAN-04 | Phase 7 | Pending |
-| COPY-01 | Phase 7 | Pending |
+| MCAN-04 | Phase 7 | Complete |
+| COPY-01 | Phase 7 | Complete |
 | COPY-02 | Phase 7 | Complete |
 | COPY-03 | Phase 7 | Complete |
-| PANEL-01 | Phase 8 | Pending |
-| PANEL-02 | Phase 8 | Pending |
+| PANEL-01 | Phase 8 | Complete |
+| PANEL-02 | Phase 8 | Complete |
 | PANEL-03 | Phase 8 | Pending |
-| PANEL-04 | Phase 8 | Pending |
+| PANEL-04 | Phase 8 | Complete |
 | PANEL-05 | Phase 8 | Pending |
 | BOT-01 | Phase 9 | Pending |
 | BOT-02 | Phase 9 | Pending |
