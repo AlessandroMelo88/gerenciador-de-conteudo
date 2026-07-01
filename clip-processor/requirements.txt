@@ -10,3 +10,4 @@ feedparser
 redis
 pytest
 pytest-mock
+flask
