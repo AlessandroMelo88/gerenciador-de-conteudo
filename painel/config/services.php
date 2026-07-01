@@ -40,6 +40,7 @@ return [
     'clip_processor' => [
         'url' => env('CLIP_PROCESSOR_INTERNAL_URL', 'http://clip-processor:8090'),
         'token' => env('CLIP_PROCESSOR_INTERNAL_TOKEN'),
+        'token_dir' => env('CLIP_PROCESSOR_TOKEN_DIR', '/var/www/html/painel/../youtube'),
     ],
 
 ];
