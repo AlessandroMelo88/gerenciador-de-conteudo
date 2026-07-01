@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Roadmap v2.0 definido; Phase 7 aguarda `/gsd:plan-phase 7`"
-stopped_at: Phase 8 context gathered
-last_updated: "2026-07-01T17:46:14.966Z"
-last_activity: 2026-06-21 — Roadmap v2.0 (fases 7-9) adicionado ao ROADMAP.md; REQUIREMENTS.md traceability já estava completo
+status: "Phase 8 em execução — Plan 08-02 concluído"
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-07-01T19:12:23.925Z"
+last_activity: 2026-07-01 — Plan 08-02 executado: migration idempotente oauth_expired_flag, skeleton internal_api.py, 7 testes RED (PANEL-01, PANEL-02, PANEL-04)
 progress:
   total_phases: 9
   completed_phases: 7
-  total_plans: 36
-  completed_plans: 36
-  percent: 67
+  total_plans: 45
+  completed_plans: 37
+  percent: 82
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 7 of 9 (Schema Multi-Canal + Python Pipeline) — NOT STARTED
-Plan: — (nenhum plano criado ainda)
-Status: Roadmap v2.0 definido; Phase 7 aguarda `/gsd:plan-phase 7`
-Last activity: 2026-06-21 — Roadmap v2.0 (fases 7-9) adicionado ao ROADMAP.md; REQUIREMENTS.md traceability já estava completo
+Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Wave 1, Plan 02/09 concluído)
+Plan: 02 of 9 — 08-02-PLAN.md (Wave 0 Python: migration oauth_expired_flag + internal_api.py skeleton + testes RED)
+Status: Plan 08-02 concluído; demais planos da Wave 1 (08-01, 08-03) e waves seguintes pendentes de execução
+Last activity: 2026-07-01 — Plan 08-02 executado: migration idempotente oauth_expired_flag, skeleton internal_api.py, 7 testes RED (PANEL-01, PANEL-02, PANEL-04)
 
-Progress: [██████████░░░] 67% (v1.0 completo — 6 fases / 29 planos; v2.0 fases 7-9 pendentes)
+Progress: [████████░░] 82% (37/45 planos — Phases 1-7 completas; Phase 8 em andamento 1/9 planos com SUMMARY; Phase 9 pendente)
 
 ## Performance Metrics
 
@@ -73,6 +73,7 @@ Progress: [██████████░░░] 67% (v1.0 completo — 6 fas
 | Phase 07-schema-multi-canal-python-pipeline P04 | 12min | 1 tasks | 1 files |
 | Phase 07-schema-multi-canal-python-pipeline P05 | 2min | 2 tasks | 2 files |
 | Phase 07-schema-multi-canal-python-pipeline P06 | 29min | 2 tasks | 6 files |
+| Phase 08 P02 | 35min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -181,6 +182,8 @@ Recent decisions affecting current work:
 - [Phase 07-schema-multi-canal-python-pipeline]: _lookup_destination_channel_id chamado uma vez antes do loop de moments em insert_selected_moments — consistência e eficiência de queries
 - [Phase 07-schema-multi-canal-python-pipeline]: publish_pending_clips fallback legado quando _fetch_destination_channels retorna [] — pipeline funcional em ambientes sem migration Phase 7 aplicada
 - [Phase 07-schema-multi-canal-python-pipeline]: make_conn_with_clips com fetchall.side_effect: primeiro [] aciona fallback legado, novos testes multi-canal sobrescrevem side_effect explicitamente
+- [Phase 08]: [Phase 08-painel-laravel-filament]: oauth_expired_flag como coluna BOOLEAN em destination_channels (não Redis) — self-healing no proximo upload bem-sucedido
+- [Phase 08]: [Phase 08-painel-laravel-filament]: internal_api.py importa src.rejeitar no topo do modulo para expor patch alvo aos testes (src.internal_api.rejeitar)
 
 ### Pending Todos
 
@@ -192,6 +195,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-01T17:46:14.920Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-painel-laravel-filament/08-CONTEXT.md
+Last session: 2026-07-01T19:11:12.453Z
+Stopped at: Completed 08-02-PLAN.md
+Resume file: None
