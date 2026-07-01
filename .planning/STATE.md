@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Phase 8 em execução — Plan 08-02 concluído"
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-07-01T19:12:23.925Z"
-last_activity: 2026-07-01 — Plan 08-02 executado: migration idempotente oauth_expired_flag, skeleton internal_api.py, 7 testes RED (PANEL-01, PANEL-02, PANEL-04)
+status: "Phase 8 em execução — Plans 08-01 e 08-02 concluídos"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-07-01T21:10:00.000Z"
+last_activity: 2026-07-01 — Plan 08-01 executado: Laravel 13.18.0 + Filament 5.6.7 + Pest 4.7.4 bootstrap em canaldecortes/painel/, bind mounts docker (php/nginx), rebuild da imagem php para 8.3
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 45
-  completed_plans: 37
-  percent: 82
+  completed_plans: 38
+  percent: 84
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Wave 1, Plan 02/09 concluído)
-Plan: 02 of 9 — 08-02-PLAN.md (Wave 0 Python: migration oauth_expired_flag + internal_api.py skeleton + testes RED)
-Status: Plan 08-02 concluído; demais planos da Wave 1 (08-01, 08-03) e waves seguintes pendentes de execução
-Last activity: 2026-07-01 — Plan 08-02 executado: migration idempotente oauth_expired_flag, skeleton internal_api.py, 7 testes RED (PANEL-01, PANEL-02, PANEL-04)
+Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Wave 1, Plans 01 e 02/09 concluídos)
+Plan: 01 of 9 — 08-01-PLAN.md (Bootstrap Laravel 13 + Filament 5.4 + Pest 4 + wiring Docker do painel)
+Status: Plans 08-01 e 08-02 concluídos; demais planos da Wave 1 (08-03) e waves seguintes pendentes de execução
+Last activity: 2026-07-01 — Plan 08-01 executado: Laravel 13.18.0 + Filament 5.6.7 + Pest 4.7.4 instalados em canaldecortes/painel/, servido via container php/nginx compartilhados em canaldecortes.local; imagem php reconstruída para PHP 8.3
 
-Progress: [████████░░] 82% (37/45 planos — Phases 1-7 completas; Phase 8 em andamento 1/9 planos com SUMMARY; Phase 9 pendente)
+Progress: [████████░░] 84% (38/45 planos — Phases 1-7 completas; Phase 8 em andamento 2/9 planos com SUMMARY; Phase 9 pendente)
 
 ## Performance Metrics
 
@@ -74,6 +74,7 @@ Progress: [████████░░] 82% (37/45 planos — Phases 1-7 comp
 | Phase 07-schema-multi-canal-python-pipeline P05 | 2min | 2 tasks | 2 files |
 | Phase 07-schema-multi-canal-python-pipeline P06 | 29min | 2 tasks | 6 files |
 | Phase 08 P02 | 35min | 3 tasks | 5 files |
+| Phase 08 P01 | ~65min | 2 tasks | 96 files |
 
 ## Accumulated Context
 
@@ -184,6 +185,10 @@ Recent decisions affecting current work:
 - [Phase 07-schema-multi-canal-python-pipeline]: make_conn_with_clips com fetchall.side_effect: primeiro [] aciona fallback legado, novos testes multi-canal sobrescrevem side_effect explicitamente
 - [Phase 08]: [Phase 08-painel-laravel-filament]: oauth_expired_flag como coluna BOOLEAN em destination_channels (não Redis) — self-healing no proximo upload bem-sucedido
 - [Phase 08]: [Phase 08-painel-laravel-filament]: internal_api.py importa src.rejeitar no topo do modulo para expor patch alvo aos testes (src.internal_api.rejeitar)
+- [Phase 08-painel-laravel-filament P01]: Imagem wordpress-php reconstruída para PHP 8.3 (Dockerfile já declarava php:8.3-fpm mas imagem em uso ainda era 8.2.29) — pré-requisito não documentado para instalar Laravel 13
+- [Phase 08-painel-laravel-filament P01]: config/database.php ganha conexão Redis nomeada 'pipeline' (DB 0) isolada da 'default' (DB 1) — nunca usar Redis::get() direto para ler chaves do pipeline Python
+- [Phase 08-painel-laravel-filament P01]: Pest 4 não tem `php artisan pest:install` — usar `./vendor/bin/pest --init` para gerar tests/Pest.php
+- [Phase 08-painel-laravel-filament P01]: wordpress/docker-compose.yml e wordpress/Dockerfile ficam fora do repo git canaldecortes/ — mudanças aplicadas direto no FS, validadas via docker compose config, sem commit (mesmo padrão da Phase 6 P06)
 
 ### Pending Todos
 
@@ -195,6 +200,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-01T19:11:12.453Z
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-07-01T21:10:00.000Z
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None

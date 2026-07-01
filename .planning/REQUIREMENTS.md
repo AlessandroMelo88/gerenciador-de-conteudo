@@ -75,7 +75,7 @@
 - [x] **PANEL-02**: Operador pode adicionar canais-destino com niche e status OAuth (authorized/expired/missing) pelo painel
 - [ ] **PANEL-03**: Dashboard mostra status em tempo real de source_videos e generated_clips com atualização automática
 - [x] **PANEL-04**: Operador pode aprovar ou rejeitar clips da fila pelo painel web (alternativa ao Telegram)
-- [ ] **PANEL-05**: Painel protegido por autenticação básica de usuário/senha
+- [x] **PANEL-05**: Painel protegido por autenticação básica de usuário/senha
 
 ### Telegram Bot (Laravel)
 
@@ -152,7 +152,7 @@
 | PANEL-02 | Phase 8 | Complete |
 | PANEL-03 | Phase 8 | Pending |
 | PANEL-04 | Phase 8 | Complete |
-| PANEL-05 | Phase 8 | Pending |
+| PANEL-05 | Phase 8 | Complete |
 | BOT-01 | Phase 9 | Pending |
 | BOT-02 | Phase 9 | Pending |
 | BOT-03 | Phase 9 | Pending |
