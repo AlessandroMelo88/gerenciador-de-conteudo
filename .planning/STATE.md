@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Plans 08-05 e 08-07 concluídos (PANEL-01/PANEL-04); Plans 08-04/06/08/09 pendentes ou em execução paralela
-stopped_at: Completed 08-07-PLAN.md
-last_updated: "2026-07-02T01:40:00.000Z"
-last_activity: "2026-07-01 — Plan 08-07 executado: GREEN de resolve_channel (yt-dlp subprocess) e reject_clip (chamada direta a src.rejeitar.rejeitar) em internal_api.py; thread daemon Flask wired em main.py (iniciada antes do ciclo do pipeline); CLIP_PROCESSOR_INTERNAL_TOKEN propagado ao clip-processor via docker-compose.yml; 6/6 testes GREEN em test_internal_api.py; 401 validado end-to-end via container php"
+status: Plans 08-04/08-05/08-07 concluídos (PANEL-05/PANEL-01/PANEL-04); Plans 08-06/08-08/08-09 pendentes ou em execução paralela
+stopped_at: Completed 08-04-PLAN.md
+last_updated: "2026-07-02T03:57:40.193Z"
+last_activity: "2026-07-02 — Plan 08-04 executado: painel:create-user/painel:reset-password via Laravel Prompts (senha nunca ecoada), ->profile() habilitado no AdminPanelProvider, User implementa FilamentUser::canAccessPanel() (corrige bloqueio 403 fora de app.env=local), 3/3 AuthGuardTest + 2/2 AdminProfilePageTest GREEN"
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 45
-  completed_plans: 41
-  percent: 91
+  completed_plans: 42
+  percent: 93
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Wave 2/3 em execução paralela — Plans 04/05/06/07 concorrentes)
-Plan: 07 of 9 — 08-07-PLAN.md (GREEN internal_api.py + wiring main.py + docker-compose)
-Status: Plans 08-05 e 08-07 concluídos (PANEL-01/PANEL-04); Plans 08-04/06/08/09 pendentes ou em execução paralela
-Last activity: 2026-07-01 — Plan 08-07 executado: resolve_channel/reject_clip GREEN em internal_api.py, thread daemon Flask em main.py (antes do ciclo do pipeline), CLIP_PROCESSOR_INTERNAL_TOKEN propagado ao docker-compose.yml, 6/6 testes GREEN, 401 validado end-to-end via container php, porta 8090 confirmada não publicada no host
+Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Wave 2/3 em execução paralela — Plans 06/08/09 restantes)
+Plan: 04 of 9 — 08-04-PLAN.md (auth: comandos artisan create-user/reset-password + profile page + FilamentUser fix)
+Status: Plans 08-04/08-05/08-07 concluídos (PANEL-05/PANEL-01/PANEL-04); Plans 08-06/08-08/08-09 pendentes ou em execução paralela
+Last activity: 2026-07-02 — Plan 08-04 executado: painel:create-user/painel:reset-password via Laravel Prompts (senha nunca ecoada), ->profile() habilitado no AdminPanelProvider, User implementa FilamentUser::canAccessPanel() (corrige bloqueio 403 fora de app.env=local), 3/3 AuthGuardTest + 2/2 AdminProfilePageTest GREEN
 
-Progress: [█████████░] 91% (41/45 planos — Phases 1-7 completas; Phase 8 em andamento 5/9 planos com SUMMARY; Phase 9 pendente)
+Progress: [█████████░] 93% (42/45 planos — Phases 1-7 completas; Phase 8 em andamento 6/9 planos com SUMMARY; Phase 9 pendente)
 
 ## Performance Metrics
 
@@ -78,6 +78,7 @@ Progress: [█████████░] 91% (41/45 planos — Phases 1-7 comp
 | Phase 08 P03 | ~40min | 3 tasks | 18 files |
 | Phase 08-painel-laravel-filament P05 | ~30min | 2 tasks | 6 files |
 | Phase 08 P07 | ~25min | 2 tasks | 3 files |
+| Phase 08-painel-laravel-filament P04 | ~20min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -199,6 +200,8 @@ Recent decisions affecting current work:
 - [Phase 08-painel-laravel-filament]: SourceChannelResource: navigationIcon deve ser string|BackedEnum|null (Filament 5.6.7), nao ?string; rotas REST POST/PATCH adicionadas em routes/web.php pois Filament Resource so expoe GET/HEAD (form submit via Livewire)
 - [Phase 08-painel-laravel-filament]: Sidecar HTTP interno (Plan 08-07): thread daemon Flask iniciada ANTES do ciclo inicial do pipeline (não depois) para disponibilidade imediata ao painel
 - [Phase 08-painel-laravel-filament]: wordpress/.env (nao canaldecortes/.env) e o arquivo real lido pelo Docker Compose para variaveis do docker-compose.yml raiz
+- [Phase 08-painel-laravel-filament]: User implementa FilamentUser::canAccessPanel()=>true (single-user) — corrige bloqueio de acesso ao painel fora de app.env=local
+- [Phase 08-painel-laravel-filament]: painel:create-user/painel:reset-password via Laravel Prompts com validate closures; senha nunca ecoada, testável via expectsQuestion (fallback nativo em ambiente de teste)
 
 ### Pending Todos
 
@@ -211,6 +214,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-02T01:37:22.295Z
-Stopped at: Completed 08-07-PLAN.md
+Last session: 2026-07-02T03:57:40.190Z
+Stopped at: Completed 08-04-PLAN.md
 Resume file: None
