@@ -2,6 +2,7 @@
 # Phase 5: Pipeline completo com publicação YouTube
 import signal
 import os
+import threading
 from datetime import datetime
 try:
     from apscheduler.schedulers.blocking import BlockingScheduler
@@ -36,10 +37,15 @@ from src.pipeline_runner import run_pipeline_once
 from src.db import get_db_connection, recover_stuck_downloads
 from src import ttl_worker
 from src.ttl_worker import run_ttl_once
+from src.internal_api import app as _internal_app
 
 
 def log(msg: str):
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] {msg}', flush=True)
+
+
+def _start_internal_api():
+    _internal_app.run(host='0.0.0.0', port=8090, use_reloader=False, debug=False)
 
 
 scheduler = BlockingScheduler(timezone='America/Sao_Paulo')
@@ -91,6 +97,13 @@ if __name__ == '__main__':
         conn.close()
     except Exception as e:
         log(f'[ACQU] Aviso: recovery on startup falhou — {e}')
+
+    # Sidecar HTTP interno consumido pelo painel Laravel (Phase 8).
+    # Thread daemon → morre com o processo principal. Iniciado ANTES do ciclo
+    # inicial do pipeline (que pode levar minutos) para que o painel tenha o
+    # sidecar disponível imediatamente após o boot, sem depender do ciclo.
+    threading.Thread(target=_start_internal_api, daemon=True, name='internal-api').start()
+    log('[ACQU] Sidecar HTTP interno iniciado em 0.0.0.0:8090 (thread daemon)')
 
     # Executar imediatamente na inicialização (não esperar 6h)
     log('[ACQU] Executando ciclo inicial...')
