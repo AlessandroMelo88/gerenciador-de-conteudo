@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Plans 08-01, 08-02 e 08-03 concluídos; Wave 1 completa — waves seguintes (08-04..08-09) pendentes de execução
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-07-01T21:50:00.000Z"
-last_activity: "2026-07-01 — Plan 08-03 executado: 4 Eloquent Models + 4 Factories + phpunit.xml MySQL (DatabaseTransactions) + 6 test files RED (5 Feature + 1 Unit) para Resources/Actions do painel"
+status: Plan 08-05 concluído (PANEL-01); Plans 08-04/06/07/08/09 pendentes ou em execução paralela
+stopped_at: Completed 08-05-PLAN.md
+last_updated: "2026-07-02T01:37:04.414Z"
+last_activity: "2026-07-01 — Plan 08-05 executado: ClipProcessorClient (resolveChannel/rejectClip) + SourceChannelResource Filament (Select target_niche explícito, ToggleColumn blacklisted com tooltip PT-BR) + rotas REST POST/PATCH em routes/web.php — 3/3 testes de SourceChannelResourceTest GREEN"
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 45
-  completed_plans: 39
-  percent: 87
+  completed_plans: 41
+  percent: 89
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Wave 1 completa, Plans 01/02/03 de 9 concluídos)
-Plan: 03 of 9 — 08-03-PLAN.md (Wave 0 Laravel: Eloquent Models, Factories, testes RED)
-Status: Plans 08-01, 08-02 e 08-03 concluídos; waves seguintes (08-04..08-09) pendentes de execução
-Last activity: 2026-07-01 — Plan 08-03 executado: 4 Eloquent Models sem migration sobre tabelas do pipeline Python, 4 Factories, phpunit.xml migrado para MySQL real (DatabaseTransactions), 6 test files RED/GREEN (5 Feature + 1 Unit) fixando o contrato dos Plans 08-04..08-09
+Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Wave 2/3 em execução paralela — Plans 04/05/06/07 concorrentes)
+Plan: 05 of 9 — 08-05-PLAN.md (SourceChannelResource + ClipProcessorClient)
+Status: Plan 08-05 concluído (PANEL-01); Plans 08-04/06/07/08/09 pendentes ou em execução paralela
+Last activity: 2026-07-01 — Plan 08-05 executado: ClipProcessorClient (resolveChannel/rejectClip) + SourceChannelResource Filament (Select target_niche explícito, ToggleColumn blacklisted com tooltip PT-BR) + rotas REST POST/PATCH em routes/web.php — 3/3 testes de SourceChannelResourceTest GREEN
 
-Progress: [█████████░] 87% (39/45 planos — Phases 1-7 completas; Phase 8 em andamento 3/9 planos com SUMMARY; Phase 9 pendente)
+Progress: [█████████░] 89% (40/45 planos — Phases 1-7 completas; Phase 8 em andamento 4/9 planos com SUMMARY; Phase 9 pendente)
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Progress: [█████████░] 87% (39/45 planos — Phases 1-7 comp
 | Phase 08 P02 | 35min | 3 tasks | 5 files |
 | Phase 08 P01 | ~65min | 2 tasks | 96 files |
 | Phase 08 P03 | ~40min | 3 tasks | 18 files |
+| Phase 08-painel-laravel-filament P05 | ~30min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -194,6 +195,7 @@ Recent decisions affecting current work:
 - [Phase 08-painel-laravel-filament P03]: tests/Pest.php passa a estender Tests\TestCase também em Unit (não só Feature) — necessário para o helper config()/app() funcionar em testes Unit que não tocam o banco (ex: DestinationChannelOauthStatusTest)
 - [Phase 08-painel-laravel-filament P03]: token_dir configurável via CLIP_PROCESSOR_TOKEN_DIR (default /var/www/html/painel/../youtube) — Plan 08-08 precisa adicionar bind mount ./canaldecortes/youtube:ro ao serviço php do docker-compose.yml (hoje só montado no clip-processor)
 - [Phase 08-painel-laravel-filament P03]: Migrations Laravel nativas (users/cache/jobs) aplicadas em clips_automation via `php artisan migrate` — nunca haviam sido rodadas desde o bootstrap do Plan 08-01
+- [Phase 08-painel-laravel-filament]: SourceChannelResource: navigationIcon deve ser string|BackedEnum|null (Filament 5.6.7), nao ?string; rotas REST POST/PATCH adicionadas em routes/web.php pois Filament Resource so expoe GET/HEAD (form submit via Livewire)
 
 ### Pending Todos
 
@@ -206,6 +208,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-01T21:50:00.000Z
-Stopped at: Completed 08-03-PLAN.md
+Last session: 2026-07-02T01:35:29.298Z
+Stopped at: Completed 08-05-PLAN.md
 Resume file: None
