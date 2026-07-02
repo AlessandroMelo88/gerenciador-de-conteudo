@@ -96,8 +96,7 @@ class DestinationChannelResource extends Resource
     {
         return [
             'index' => Pages\ListDestinationChannels::route('/'),
-            'create' => Pages\CreateDestinationChannel::route('/create'),
-            'edit' => Pages\EditDestinationChannel::route('/{record}/edit'),
+            'edit'  => Pages\EditDestinationChannel::route('/{record}/edit'),
         ];
     }
 }

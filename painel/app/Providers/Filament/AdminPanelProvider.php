@@ -10,8 +10,6 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -41,10 +39,8 @@ class AdminPanelProvider extends PanelProvider
             // (QuotaTodayWidget, PendingApprovalWidget, RecentUploadsWidget, RecentFailuresWidget)
             // automaticamente — não listar de novo em ->widgets() para evitar duplicação no dashboard.
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
-            ->widgets([
-                AccountWidget::class,
-                FilamentInfoWidget::class,
-            ])
+            ->widgets([])
+            ->renderHook('panels::sidebar.footer', fn () => view('filament.sidebar-footer'))
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

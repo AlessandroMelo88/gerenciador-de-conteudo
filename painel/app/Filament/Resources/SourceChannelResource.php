@@ -64,8 +64,7 @@ class SourceChannelResource extends Resource
     {
         return [
             'index' => Pages\ListSourceChannels::route('/'),
-            'create' => Pages\CreateSourceChannel::route('/create'),
-            'edit' => Pages\EditSourceChannel::route('/{record}/edit'),
+            'edit'  => Pages\EditSourceChannel::route('/{record}/edit'),
         ];
     }
 }

@@ -14,6 +14,11 @@ class RecentFailuresWidget extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
+    public static function canView(): bool
+    {
+        return false;
+    }
+
     protected static ?string $heading = 'Últimas falhas';
 
     // Widgets Filament 5 são lazy por padrão (x-intersect/AJAX) — desabilitado por
