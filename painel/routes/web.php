@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\DestinationChannel;
+use App\Models\GeneratedClip;
 use App\Models\SourceChannel;
 use App\Services\ClipProcessorClient;
 use Illuminate\Http\Request;
@@ -76,4 +77,33 @@ Route::middleware(['web', 'auth'])->group(function () {
 
         return redirect('/admin/destination-channels');
     })->name('destination-channels.store');
+
+    // Rotas REST usadas pela fila de aprovação do dashboard (Plan 08-08, PANEL-04).
+    // Mesmo motivo dos blocos acima: o contrato de testes RED (Plan 08-03,
+    // ClipApprovalActionTest) exige POST direto em vez do fluxo Livewire das
+    // Actions inline do PendingApprovalWidget. Ambos os caminhos (widget e rota)
+    // reusam exatamente a mesma lógica de negócio (UPDATE guard / ClipProcessorClient).
+    Route::post('/admin/clips/{clip}/approve', function (GeneratedClip $clip) {
+        GeneratedClip::query()
+            ->where('id', $clip->id)
+            ->where('status', 'pending')
+            ->update(['status' => 'approved']);
+
+        return redirect('/admin');
+    })->name('clips.approve');
+
+    Route::post('/admin/clips/{clip}/reject', function (GeneratedClip $clip, ClipProcessorClient $client) {
+        try {
+            $exit = $client->rejectClip($clip->id);
+        } catch (RuntimeException $e) {
+            return redirect('/admin')->with('error', $e->getMessage());
+        }
+
+        return match ($exit) {
+            0 => redirect('/admin'),
+            1 => redirect('/admin')->with('error', 'Clip não existe'),
+            2 => redirect('/admin')->with('error', 'Status inválido para rejeitar'),
+            default => redirect('/admin')->with('error', "exit_code={$exit}"),
+        };
+    })->name('clips.reject');
 });

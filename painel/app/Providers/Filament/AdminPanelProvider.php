@@ -37,6 +37,9 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Dashboard::class,
             ])
+            // discoverWidgets já registra os 4 widgets em App\Filament\Widgets
+            // (QuotaTodayWidget, PendingApprovalWidget, RecentUploadsWidget, RecentFailuresWidget)
+            // automaticamente — não listar de novo em ->widgets() para evitar duplicação no dashboard.
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
