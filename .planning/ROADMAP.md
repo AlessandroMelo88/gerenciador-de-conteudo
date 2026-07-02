@@ -190,7 +190,13 @@ Plans:
   1. Enviar `/status` ou qualquer dos 6 comandos do v1 ao bot resulta em resposta do Laravel — o n8n não está envolvido no fluxo do bot e o Cloudflare Tunnel pode ser desativado sem quebrar o bot
   2. Enviar o mesmo update_id duas vezes (simulando retry do Telegram) não executa o comando duas vezes — a deduplicação via Redis rejeita o duplicado silenciosamente
   3. O pipeline Python envia notificações (upload publicado, falha crítica, resumo diário) via endpoint interno do Laravel (`POST /internal/pipeline-event`), que por sua vez entrega a mensagem no Telegram — `telegram_notifier.py` não chama a API do Telegram diretamente
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — SDK install + CSRF config + Wave 0 RED tests (3 PHP + 2 Python)
+- [ ] 09-02-PLAN.md — TelegramWebhookController + 6 Command classes + /internal/pipeline-event
+- [ ] 09-03-PLAN.md — Python migration (telegram_notifier + ttl_worker + internal_api) + Artisan Schedule
+- [ ] 09-04-PLAN.md — Checkpoint humano: setWebhook + verificação bot + desativação n8n
 
 ## Progress
 
