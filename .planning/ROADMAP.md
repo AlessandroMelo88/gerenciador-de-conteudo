@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Publicação e Automação Total** - Upload YouTube API, quota management, agendamento e workflow n8n end-to-end (completed 2026-06-18)
 - [x] **Phase 6: Controle Manual N8N + Telegram** - Bot Telegram para aprovação/rejeição manual de clips; publisher passa a publicar approved (completed 2026-06-21)
 - [x] **Phase 7: Schema Multi-Canal + Python Pipeline** - Schema migrations, roteamento por nicho, quota por canal, watermark FFmpeg, créditos e blacklist (completed 2026-06-22)
-- [ ] **Phase 8: Painel Laravel/Filament** - CRUD canais-fonte e destino, dashboard de pipeline, fila de aprovação e autenticação web
+- [x] **Phase 8: Painel Laravel/Filament** (completed 2026-07-02) - CRUD canais-fonte e destino, dashboard de pipeline, fila de aprovação e autenticação web
 - [ ] **Phase 9: Bot Telegram no Laravel** - Migração do bot do n8n para Laravel com webhook, todos os 6 comandos e notificações do pipeline
 
 ## Phase Details
@@ -168,7 +168,7 @@ Plans:
   3. Operador adiciona um canal-destino com campo `niche` via formulário; o painel exibe badge de status OAuth (authorized / expired / missing) para cada canal-destino
   4. Dashboard mostra lista de `source_videos` e `generated_clips` com status atualizado automaticamente a cada 5 segundos — operador vê o avanço de um vídeo no pipeline sem recarregar a página
   5. Operador clica em "Aprovar" ou "Rejeitar" num clip da fila no painel; o status muda em `generated_clips` da mesma forma que `/aprovar` e `/rejeitar` do Telegram fazem
-**Plans**: 8/9 plans executed
+**Plans**: 9/9 plans
 
 Plans:
 - [x] 08-01-PLAN.md — Docker wiring + Laravel/Filament/Pest bootstrap + config (Wave 1)
@@ -179,7 +179,7 @@ Plans:
 - [x] 08-06-PLAN.md — Destination Channel Resource + OAuth badge + uploader.py RefreshError capture (PANEL-02) (Wave 3)
 - [x] 08-07-PLAN.md — internal_api.py GREEN + main.py Flask thread + docker-compose env token (PANEL-01, PANEL-04) (Wave 3)
 - [x] 08-08-PLAN.md — Dashboard 4 widgets + Aprovar/Rejeitar actions (PANEL-03, PANEL-04) (Wave 4)
-- [ ] 08-09-PLAN.md — E2E checkpoint humano + README setup consolidado (Wave 5)
+- [x] 08-09-PLAN.md — E2E checkpoint humano + README setup consolidado (Wave 5)
 
 ### Phase 9: Bot Telegram no Laravel
 
@@ -206,5 +206,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Publicação e Automação Total | 6/6 | Complete | 2026-06-18 |
 | 6. Controle Manual N8N + Telegram | 7/7 | Complete | 2026-06-21 |
 | 7. Schema Multi-Canal + Python Pipeline | 7/7 | Complete   | 2026-06-22 |
-| 8. Painel Laravel/Filament | 8/9 | In Progress|  |
+| 8. Painel Laravel/Filament | 9/9 | Complete | 2026-07-02 |
 | 9. Bot Telegram no Laravel | 0/? | Not started | - |
