@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Plans 08-04/08-05/08-06/08-07 concluídos (PANEL-05/PANEL-01/PANEL-02/PANEL-04); Plans 08-08/08-09 pendentes ou em execução paralela
-stopped_at: Completed 08-06-PLAN.md
-last_updated: "2026-07-02T04:01:57.130Z"
-last_activity: "2026-07-02 — Plan 08-06 executado: uploader.py captura RefreshError e persiste oauth_expired_flag (self-healing), DestinationChannelResource criado com badge OAuth 3 cores + bloco copy-paste OAuth, 5/5 testes GREEN, zero regressão Python/Laravel"
+status: Plans 08-04/08-05/08-06/08-07/08-08 concluídos (PANEL-05/PANEL-01/PANEL-02/PANEL-04/PANEL-03); Plan 08-09 pendente
+stopped_at: Completed 08-08-PLAN.md
+last_updated: "2026-07-02T05:43:13.949Z"
+last_activity: "2026-07-02 — Plan 08-08 executado: 4 widgets Filament (Cota/Fila de aprovação/Últimos uploads/Últimas falhas) com polling 5s nativo, rotas REST approve/reject clip, ClipApprovalActionTest 4/4 + DashboardPollingTest 2/2 GREEN, suite Laravel 25/25 GREEN, zero regressão Python"
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 45
-  completed_plans: 43
-  percent: 96
+  completed_plans: 44
+  percent: 98
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Wave 3 em execução paralela — Plans 08/09 restantes)
-Plan: 06 of 9 — 08-06-PLAN.md (uploader.py RefreshError capture + DestinationChannelResource CRUD com badge OAuth)
-Status: Plans 08-04/08-05/08-06/08-07 concluídos (PANEL-05/PANEL-01/PANEL-02/PANEL-04); Plans 08-08/08-09 pendentes ou em execução paralela
-Last activity: 2026-07-02 — Plan 08-06 executado: uploader.py captura RefreshError e persiste oauth_expired_flag (self-healing), DestinationChannelResource criado com badge OAuth 3 cores + bloco copy-paste OAuth, 5/5 testes GREEN, zero regressão Python/Laravel
+Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (falta apenas Plan 08-09)
+Plan: 08 of 9 — 08-08-PLAN.md (Dashboard widgets: Cota, Fila de aprovação, Últimos uploads, Últimas falhas + Aprovar/Rejeitar)
+Status: Plans 08-04/08-05/08-06/08-07/08-08 concluídos (PANEL-05/PANEL-01/PANEL-02/PANEL-04/PANEL-03); Plan 08-09 pendente
+Last activity: 2026-07-02 — Plan 08-08 executado: 4 widgets Filament (Cota/Fila de aprovação/Últimos uploads/Últimas falhas) com polling 5s nativo, rotas REST approve/reject clip, ClipApprovalActionTest 4/4 + DashboardPollingTest 2/2 GREEN, suite Laravel 25/25 GREEN, zero regressão Python
 
-Progress: [██████████] 96% (43/45 planos — Phases 1-7 completas; Phase 8 em andamento 7/9 planos com SUMMARY; Phase 9 pendente)
+Progress: [██████████] 98% (44/45 planos — Phases 1-7 completas; Phase 8 em andamento 8/9 planos com SUMMARY; Phase 9 pendente)
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Progress: [██████████] 96% (43/45 planos — Phases 1-7 comp
 | Phase 08 P07 | ~25min | 2 tasks | 3 files |
 | Phase 08-painel-laravel-filament P04 | ~20min | 2 tasks | 7 files |
 | Phase 08 P06 | ~25min | 2 tasks | 7 files |
+| Phase 08-painel-laravel-filament P08 | ~55min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -205,6 +206,9 @@ Recent decisions affecting current work:
 - [Phase 08-painel-laravel-filament]: painel:create-user/painel:reset-password via Laravel Prompts com validate closures; senha nunca ecoada, testável via expectsQuestion (fallback nativo em ambiente de teste)
 - [Phase 08]: [Phase 08-painel-laravel-filament P06] uploader.py: RefreshError capturado em try/except ao redor de creds.refresh(); _flag_expired/_clear_expired fazem UPDATE best-effort em destination_channels.oauth_expired_flag via db_connect, nunca mascarando o RefreshError original
 - [Phase 08]: [Phase 08-painel-laravel-filament P06] DestinationChannelResource: badge oauth_status com 3 cores (success/danger/gray) resolvido inteiramente pelo accessor do Model — ClipProcessorClient nao precisou de extensao
+- [Phase 08-painel-laravel-filament]: [Phase 08] Filament 5 widgets sao lazy por padrao (CanBeLazy::$isLazy=true, renderizam via x-intersect/AJAX) — dashboard precisa de $isLazy=false para wire:poll/conteudo aparecer na resposta HTTP inicial
+- [Phase 08-painel-laravel-filament]: [Phase 08 P08] RecentFailuresWidget usa GeneratedClip::query() (Eloquent) como fonte unica — Filament\Tables\Table::applyQueryScopes() rejeita DB::table()->unionAll() (Query Builder puro); contador de source_videos falhados exposto via ->description() no cabecalho
+- [Phase 08-painel-laravel-filament]: [Phase 08 P08] Migration 05-controle-manual-migration.sql (Phase 6, ja commitada) aplicada diretamente nesta instancia MySQL — ENUM generated_clips.status nunca havia recebido approved/rejected neste ambiente
 
 ### Pending Todos
 
@@ -217,6 +221,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-02T04:01:57.124Z
-Stopped at: Completed 08-06-PLAN.md
+Last session: 2026-07-02T05:43:13.946Z
+Stopped at: Completed 08-08-PLAN.md
 Resume file: None

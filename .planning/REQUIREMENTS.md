@@ -73,7 +73,7 @@
 
 - [x] **PANEL-01**: Operador pode adicionar/remover/desativar canais-fonte via formulário web (URL do YouTube ou channel_id) sem SQL
 - [x] **PANEL-02**: Operador pode adicionar canais-destino com niche e status OAuth (authorized/expired/missing) pelo painel
-- [ ] **PANEL-03**: Dashboard mostra status em tempo real de source_videos e generated_clips com atualização automática
+- [x] **PANEL-03**: Dashboard mostra status em tempo real de source_videos e generated_clips com atualização automática
 - [x] **PANEL-04**: Operador pode aprovar ou rejeitar clips da fila pelo painel web (alternativa ao Telegram)
 - [x] **PANEL-05**: Painel protegido por autenticação básica de usuário/senha
 
@@ -150,7 +150,7 @@
 | COPY-03 | Phase 7 | Complete |
 | PANEL-01 | Phase 8 | Complete |
 | PANEL-02 | Phase 8 | Complete |
-| PANEL-03 | Phase 8 | Pending |
+| PANEL-03 | Phase 8 | Complete |
 | PANEL-04 | Phase 8 | Complete |
 | PANEL-05 | Phase 8 | Complete |
 | BOT-01 | Phase 9 | Pending |
