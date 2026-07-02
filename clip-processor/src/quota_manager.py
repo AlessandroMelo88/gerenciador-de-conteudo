@@ -59,6 +59,8 @@ class QuotaManager:
         return now.astimezone(SAO_PAULO_TZ)
 
     def _is_upload_window(self, now: datetime) -> bool:
+        if os.environ.get('UPLOAD_WINDOW_BYPASS', 'false').lower() == 'true':
+            return True
         return UPLOAD_WINDOW_START_HOUR <= now.hour < UPLOAD_WINDOW_END_HOUR
 
     def _key(self, now: datetime) -> str:

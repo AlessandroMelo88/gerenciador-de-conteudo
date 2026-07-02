@@ -88,7 +88,6 @@ def run_pipeline_once(db_conn=None, redis_client=None):
             publish_result = publish_pending_clips(
                 db_conn,
                 redis_client,
-                uploader=YouTubeUploader(),
             )
         except Exception as exc:
             _log(f'ERRO em publish_pending_clips: {exc}')

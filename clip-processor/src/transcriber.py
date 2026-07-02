@@ -87,8 +87,11 @@ def transcribe_video(video_id: str, video_path: str, groq_client=None, db_conn=N
                 temperature=0.0,
             )
 
+        def _g(seg, key):
+            return seg[key] if isinstance(seg, dict) else getattr(seg, key)
+
         segments = [
-            {'start': seg.start, 'end': seg.end, 'text': seg.text}
+            {'start': _g(seg, 'start'), 'end': _g(seg, 'end'), 'text': _g(seg, 'text')}
             for seg in result.segments
         ]
 

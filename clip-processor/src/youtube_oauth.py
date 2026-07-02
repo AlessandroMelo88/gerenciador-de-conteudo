@@ -60,11 +60,16 @@ def generate_token(channel_slug: str, secrets_file: str = None) -> str:
         )
 
     flow = InstalledAppFlow.from_client_secrets_file(secrets_file, SCOPES)
-    creds = flow.run_local_server(
-        port=0,
-        access_type="offline",
-        prompt="consent",
-    )
+    flow.redirect_uri = "http://localhost:8085/"
+    auth_url, _ = flow.authorization_url(access_type="offline", prompt="consent")
+
+    print(f"\nAbra esta URL no browser:\n\n{auth_url}\n")
+    print("Depois de autorizar, o browser vai tentar abrir localhost:8085 e mostrar erro.")
+    print("Isso e normal. Copie a URL COMPLETA da barra do browser e cole aqui:")
+    redirect_response = input("> ").strip()
+
+    flow.fetch_token(authorization_response=redirect_response)
+    creds = flow.credentials
 
     creds_data = json.loads(creds.to_json())
     if not creds_data.get("refresh_token"):
@@ -94,7 +99,6 @@ def main():
 
     print(f"Gerando token OAuth para canal: {args.channel}")
     print(f"Usando client_secrets: {SECRETS_FILE}")
-    print("Um browser sera aberto. Faca login com a conta do canal e autorize o acesso.")
     print()
 
     token_path = generate_token(args.channel)
