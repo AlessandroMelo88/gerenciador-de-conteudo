@@ -77,3 +77,37 @@ def test_reject_clip_propagates_exit_code_1(client):
         )
     assert resp.status_code == 200
     assert resp.get_json()['exit_code'] == 1
+
+
+# ── Testes para /internal/process-url (Phase 9, BOT-03) ──────────────────────
+# RED até Plan 09-03 adicionar o endpoint em internal_api.py.
+
+
+def test_process_url_requires_auth(client):
+    """POST /internal/process-url sem token retorna 401."""
+    resp = client.post('/internal/process-url', json={'url': 'https://youtube.com/watch?v=abc'})
+    assert resp.status_code == 401
+
+
+def test_process_url_calls_processar_main_and_returns_exit_code(client):
+    """POST /internal/process-url chama processar_main(url) e retorna {'exit_code': N}."""
+    with patch('src.internal_api.processar_main') as mock_proc:
+        mock_proc.return_value = 0
+        resp = client.post(
+            '/internal/process-url',
+            json={'url': 'https://youtube.com/watch?v=abc'},
+            headers={'X-Internal-Token': 'test-token-123'},
+        )
+    assert resp.status_code == 200
+    assert resp.get_json()['exit_code'] == 0
+    mock_proc.assert_called_once_with('https://youtube.com/watch?v=abc')
+
+
+def test_process_url_missing_url_returns_400(client):
+    """POST /internal/process-url sem campo 'url' retorna 400."""
+    resp = client.post(
+        '/internal/process-url',
+        json={},
+        headers={'X-Internal-Token': 'test-token-123'},
+    )
+    assert resp.status_code == 400
