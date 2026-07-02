@@ -7,9 +7,11 @@ use App\Services\ClipProcessorClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// URL raiz = o painel (decisão CONTEXT.md: "canaldecortes.local raiz, sem
+// subdomínio 'painel' — o painel É o Canal de Cortes para o operador").
+// Redireciona para /admin, que por sua vez redireciona para /admin/login
+// quando não autenticado (comportamento nativo do Filament).
+Route::get('/', fn () => redirect('/admin'));
 
 // Rotas REST usadas pelo SourceChannelResource (Plan 08-05, PANEL-01).
 // O painel Filament (Livewire) cobre o fluxo real do operador via /admin/source-channels,
