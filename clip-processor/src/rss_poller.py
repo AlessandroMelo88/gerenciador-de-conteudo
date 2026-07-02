@@ -22,6 +22,18 @@ import feedparser
 import redis
 from datetime import datetime
 
+# Palavras-chave que bloqueiam ingestão de vídeos — títulos com qualquer uma são ignorados
+_TITLE_BLOCK_KEYWORDS = [
+    'aposta', 'apostas', 'bet ', 'bets ', 'betting', 'odds', 'cassino', 'casino',
+    'tigrinho', 'crash game', 'blaze', 'esportebet', 'pixbet', 'sportingbet',
+]
+
+
+def _is_blocked_title(title: str) -> bool:
+    t = title.lower()
+    return any(kw in t for kw in _TITLE_BLOCK_KEYWORDS)
+
+
 from src.db import get_db_connection, insert_video, update_status
 from src.dedup import is_seen
 from src.transcriber import transcribe_video, save_transcript
@@ -190,6 +202,10 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
                     # Vídeo novo — extrair metadados e inserir
                     title = entry.get('title', video_id)
                     published_at = entry.get('published', None)
+
+                    if _is_blocked_title(title):
+                        _log(f'Título bloqueado (keyword): {video_id} — {title}')
+                        continue
 
                     insert_video(db_conn, video_id, channel_id, title, published_at)
                     _log(f'Novo vídeo detectado: {video_id} — {title}')
