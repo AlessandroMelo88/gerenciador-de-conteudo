@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Plans 08-04/08-05/08-07 concluídos (PANEL-05/PANEL-01/PANEL-04); Plans 08-06/08-08/08-09 pendentes ou em execução paralela
-stopped_at: Completed 08-04-PLAN.md
-last_updated: "2026-07-02T03:57:40.193Z"
-last_activity: "2026-07-02 — Plan 08-04 executado: painel:create-user/painel:reset-password via Laravel Prompts (senha nunca ecoada), ->profile() habilitado no AdminPanelProvider, User implementa FilamentUser::canAccessPanel() (corrige bloqueio 403 fora de app.env=local), 3/3 AuthGuardTest + 2/2 AdminProfilePageTest GREEN"
+status: Plans 08-04/08-05/08-06/08-07 concluídos (PANEL-05/PANEL-01/PANEL-02/PANEL-04); Plans 08-08/08-09 pendentes ou em execução paralela
+stopped_at: Completed 08-06-PLAN.md
+last_updated: "2026-07-02T04:01:57.130Z"
+last_activity: "2026-07-02 — Plan 08-06 executado: uploader.py captura RefreshError e persiste oauth_expired_flag (self-healing), DestinationChannelResource criado com badge OAuth 3 cores + bloco copy-paste OAuth, 5/5 testes GREEN, zero regressão Python/Laravel"
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 45
-  completed_plans: 42
-  percent: 93
+  completed_plans: 43
+  percent: 96
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Wave 2/3 em execução paralela — Plans 06/08/09 restantes)
-Plan: 04 of 9 — 08-04-PLAN.md (auth: comandos artisan create-user/reset-password + profile page + FilamentUser fix)
-Status: Plans 08-04/08-05/08-07 concluídos (PANEL-05/PANEL-01/PANEL-04); Plans 08-06/08-08/08-09 pendentes ou em execução paralela
-Last activity: 2026-07-02 — Plan 08-04 executado: painel:create-user/painel:reset-password via Laravel Prompts (senha nunca ecoada), ->profile() habilitado no AdminPanelProvider, User implementa FilamentUser::canAccessPanel() (corrige bloqueio 403 fora de app.env=local), 3/3 AuthGuardTest + 2/2 AdminProfilePageTest GREEN
+Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Wave 3 em execução paralela — Plans 08/09 restantes)
+Plan: 06 of 9 — 08-06-PLAN.md (uploader.py RefreshError capture + DestinationChannelResource CRUD com badge OAuth)
+Status: Plans 08-04/08-05/08-06/08-07 concluídos (PANEL-05/PANEL-01/PANEL-02/PANEL-04); Plans 08-08/08-09 pendentes ou em execução paralela
+Last activity: 2026-07-02 — Plan 08-06 executado: uploader.py captura RefreshError e persiste oauth_expired_flag (self-healing), DestinationChannelResource criado com badge OAuth 3 cores + bloco copy-paste OAuth, 5/5 testes GREEN, zero regressão Python/Laravel
 
-Progress: [█████████░] 93% (42/45 planos — Phases 1-7 completas; Phase 8 em andamento 6/9 planos com SUMMARY; Phase 9 pendente)
+Progress: [██████████] 96% (43/45 planos — Phases 1-7 completas; Phase 8 em andamento 7/9 planos com SUMMARY; Phase 9 pendente)
 
 ## Performance Metrics
 
@@ -79,6 +79,7 @@ Progress: [█████████░] 93% (42/45 planos — Phases 1-7 comp
 | Phase 08-painel-laravel-filament P05 | ~30min | 2 tasks | 6 files |
 | Phase 08 P07 | ~25min | 2 tasks | 3 files |
 | Phase 08-painel-laravel-filament P04 | ~20min | 2 tasks | 7 files |
+| Phase 08 P06 | ~25min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -202,6 +203,8 @@ Recent decisions affecting current work:
 - [Phase 08-painel-laravel-filament]: wordpress/.env (nao canaldecortes/.env) e o arquivo real lido pelo Docker Compose para variaveis do docker-compose.yml raiz
 - [Phase 08-painel-laravel-filament]: User implementa FilamentUser::canAccessPanel()=>true (single-user) — corrige bloqueio de acesso ao painel fora de app.env=local
 - [Phase 08-painel-laravel-filament]: painel:create-user/painel:reset-password via Laravel Prompts com validate closures; senha nunca ecoada, testável via expectsQuestion (fallback nativo em ambiente de teste)
+- [Phase 08]: [Phase 08-painel-laravel-filament P06] uploader.py: RefreshError capturado em try/except ao redor de creds.refresh(); _flag_expired/_clear_expired fazem UPDATE best-effort em destination_channels.oauth_expired_flag via db_connect, nunca mascarando o RefreshError original
+- [Phase 08]: [Phase 08-painel-laravel-filament P06] DestinationChannelResource: badge oauth_status com 3 cores (success/danger/gray) resolvido inteiramente pelo accessor do Model — ClipProcessorClient nao precisou de extensao
 
 ### Pending Todos
 
@@ -214,6 +217,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-02T03:57:40.190Z
-Stopped at: Completed 08-04-PLAN.md
+Last session: 2026-07-02T04:01:57.124Z
+Stopped at: Completed 08-06-PLAN.md
 Resume file: None
