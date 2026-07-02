@@ -9,11 +9,12 @@ import sys
 import types
 from pathlib import Path
 
+from src.db import get_db_connection as db_connect
+
 
 DEFAULT_TOKEN_FILE = '/app/token.json'
 YOUTUBE_UPLOAD_SCOPES = [
     'https://www.googleapis.com/auth/youtube.upload',
-    'https://www.googleapis.com/auth/youtube.readonly',
 ]
 
 
@@ -53,6 +54,13 @@ except ModuleNotFoundError:
     sys.modules.setdefault('googleapiclient.errors', errors_module)
 
 
+try:
+    from google.auth.exceptions import RefreshError
+except ModuleNotFoundError:
+    class RefreshError(Exception):  # pragma: no cover - fallback only for local tests without deps
+        pass
+
+
 class YouTubeUploader:
     """Cliente fino para videos.insert + thumbnails.set."""
 
@@ -65,6 +73,7 @@ class YouTubeUploader:
         service_factory=None,
         media_upload_factory=None,
     ):
+        self.channel_slug = channel_slug  # armazenado para uso em _flag_expired / _clear_expired
         if channel_slug:
             self.token_file = f'/app/youtube/token-{channel_slug}.json'
         else:
@@ -99,6 +108,9 @@ class YouTubeUploader:
         if not video_id:
             raise RuntimeError('YouTube upload did not return a video id')
 
+        # Self-healing OAuth flag
+        self._clear_expired()
+
         if thumbnail_path:
             thumb_media = self._media_upload_factory(
                 thumbnail_path,
@@ -130,8 +142,54 @@ class YouTubeUploader:
         creds = Credentials.from_authorized_user_file(str(token_path), YOUTUBE_UPLOAD_SCOPES)
         if getattr(creds, 'expired', False) and getattr(creds, 'refresh_token', None):
             from google.auth.transport.requests import Request
-            creds.refresh(Request())
+            try:
+                creds.refresh(Request())
+            except RefreshError:
+                self._flag_expired()  # persiste no MySQL antes de re-raise
+                raise
         return creds
+
+    def _flag_expired(self) -> None:
+        """Marca destination_channels.oauth_expired_flag=TRUE para o slug atual.
+
+        Best-effort: se channel_slug for None (uso legado), silenciosamente skip.
+        Se a conexão MySQL falhar, log e continua (não substitui a exceção RefreshError).
+        """
+        if not getattr(self, 'channel_slug', None):
+            return
+        try:
+            conn = db_connect()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        'UPDATE destination_channels SET oauth_expired_flag = TRUE WHERE slug = %s',
+                        (self.channel_slug,),
+                    )
+                    conn.commit()
+            finally:
+                conn.close()
+        except Exception as exc:  # pragma: no cover — defensive
+            import logging
+            logging.getLogger(__name__).warning('Falha ao marcar oauth_expired_flag: %s', exc)
+
+    def _clear_expired(self) -> None:
+        """Self-healing: reseta oauth_expired_flag=FALSE após upload bem-sucedido."""
+        if not getattr(self, 'channel_slug', None):
+            return
+        try:
+            conn = db_connect()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        'UPDATE destination_channels SET oauth_expired_flag = FALSE WHERE slug = %s',
+                        (self.channel_slug,),
+                    )
+                    conn.commit()
+            finally:
+                conn.close()
+        except Exception as exc:  # pragma: no cover
+            import logging
+            logging.getLogger(__name__).warning('Falha ao limpar oauth_expired_flag: %s', exc)
 
     def _get_service(self):
         if self._service is not None:
