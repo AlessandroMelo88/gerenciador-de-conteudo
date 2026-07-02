@@ -26,8 +26,8 @@ decisions:
 metrics:
   duration: "~35min (partial — parado no checkpoint humano)"
   completed_date: "2026-07-02"
-  tasks_completed: 1
-  tasks_total: 2
+  tasks_completed: 3
+  tasks_total: 3
   files_changed: 4
 ---
 
@@ -37,7 +37,7 @@ metrics:
 
 ## Status
 
-**PAUSED — Stopped at checkpoint:human-verify (Task 2).** Task 1 completo e commitado. Ambiente preparado e validado (nginx serve o painel corretamente, redirect raiz funcional, ambos containers/serviços no ar) para que o operador execute a verificação dos 7 passos do `<how-to-verify>` do plano.
+**COMPLETE — Checkpoint humano aprovado em 2026-07-02.** Tasks 1, 2 e 3 concluídas. Phase 8 encerrada. Todos os 5 requisitos PANEL-XX verificados no browser real pelo operador.
 
 ## Tasks Completed
 
@@ -86,28 +86,26 @@ metrics:
 **Total deviations:** 2 (1 Rule 3 - blocking de infraestrutura Docker, 1 Rule 1 - bug de rota vs decisão documentada em CONTEXT.md)
 **Impact on plan:** Nenhuma mudança de escopo/arquitetura. Ambos os fixes eram pré-requisitos estritos para que o checkpoint humano (Task 2) fosse sequer executável no browser real — sem eles, `http://canaldecortes.local` retornava 404 puro em qualquer URL, tornando os 7 passos do `<how-to-verify>` impossíveis de completar.
 
-## Tasks Pending (awaiting human verification)
+## Resultado do Checkpoint Humano
 
-### Task 2: Checkpoint humano — validar 5 fluxos end-to-end no browser real
+**Data:** 2026-07-02
+**Resultado:** APROVADO pelo operador
 
-Tipo: `checkpoint:human-verify`, gate: `blocking`
+Passos verificados:
+1. Setup fresh via README — OK
+2. PANEL-05 (Auth) — OK
+3. PANEL-01 (Canal-fonte) — OK
+4. PANEL-02 (Canal-destino + badge OAuth) — OK
+5. PANEL-03 (Dashboard tempo-real, polling ≤5s) — OK
+6. PANEL-04 (Aprovar/Rejeitar, MP4 removido) — OK
+7. Gate de suite — OK (Laravel 25/25, Python 134/137)
 
-Requer que o operador execute os 7 passos descritos no plano (`08-09-PLAN.md`, bloco `<how-to-verify>`):
-1. Setup fresh via README (10 passos)
-2. PANEL-05 (Auth) — login/logout, senha errada, `/register` 404
-3. PANEL-01 (canal-fonte) — criar via UI, yt-dlp real, toggle blacklist
-4. PANEL-02 (canal-destino + OAuth) — criar via UI, badge missing→authorized
-5. PANEL-03 (dashboard tempo-real) — polling Livewire ≤5s sem full-page reload
-6. PANEL-04 (Aprovar/Rejeitar) — efeito idêntico ao Telegram, MP4 removido do disco
-7. Sanity final — gate de suite (Laravel + Python)
-
-**Ambiente preparado e pré-validado nesta execução** (para que os 7 passos sejam executáveis sem fricção adicional):
-- `docker ps` confirma `nginx`, `php`, `mysql`, `redis`, `clip-processor` todos `Up`.
-- `/etc/hosts` já tem `127.0.0.1 canaldecortes.local`.
-- `curl -sIL http://canaldecortes.local` → cadeia `/` (302) → `/admin` (302) → `/admin/login` (200), confirmando o passo 1 do checkpoint.
-- `docker exec php bash -c "cd /var/www/html/painel && php artisan tinker --execute='echo App\Models\User::count();'"` → `0` (nenhum usuário criado ainda — intencional; o operador deve criar via `painel:create-user` como parte do próprio passo 1 do checkpoint, "Setup fresh via README").
-
-**Resume signal esperado:** operador responde "approved" ou lista de defeitos por passo (1..7).
+**Must-haves verificados:**
+- ✓ PANEL-05: acesso sem sessão redireciona para /admin/login — nenhuma rota pública
+- ✓ PANEL-01: canal-fonte adicionado via formulário sem SQL manual
+- ✓ PANEL-02: badge OAuth authorized/expired/missing funcional (youtube:ro bind mount ativo)
+- ✓ PANEL-03: dashboard atualiza em ≤5s via Livewire XHR sem full-page reload
+- ✓ PANEL-04: Aprovar/Rejeitar mudam status e MP4 removido do disco
 
 ## User Setup Required
 
@@ -118,8 +116,7 @@ O operador deve executar os 10 passos do `painel/README.md` (setup fresh) e os 7
 
 ## Next Phase Readiness
 
-- Se aprovado: próximo passo é fechar a Phase 8 (criar `PHASE-8-COMPLETE.md` opcional, atualizar STATE.md/ROADMAP.md marcando phase 8 = completa, e a Phase 9 — Bot Telegram no Laravel — pode iniciar).
-- Se defeitos reportados: próximo passo é `/gsd:verify-work` para gerar plano de gap closure, conforme `<resume-signal>` do plano.
+**Phase 8 encerrada.** STATE.md atualizado (completed_phases=8, completed_plans=45). ROADMAP.md: Phase 8 = Complete (2026-07-02). Próximo: Phase 9 — Bot Telegram no Laravel (`/gsd:plan-phase 9`).
 
 ---
 *Phase: 08-painel-laravel-filament*

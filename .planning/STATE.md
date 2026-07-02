@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Checkpoint 08-09: aguardando verificação humana end-to-end (Task 2 do Plan 08-09)"
-stopped_at: "Checkpoint 08-09: aguardando verificação humana (Task 2)"
-last_updated: "2026-07-02T06:00:00.000Z"
-last_activity: "2026-07-02 — Plan 08-09 Task 1 executado: README consolidado (10 passos setup fresh), 2 bugs de ambiente corrigidos (nginx sem bind mount do painel = 404 puro; raiz '/' sem redirect para /admin), suite Laravel 25/25 GREEN, suite Python 134/137 GREEN (3 falhas pré-existentes fora de escopo). Parado no checkpoint:human-verify (Task 2) aguardando operador validar 5 fluxos PANEL-XX no browser real."
+status: "Phase 8 completa — Painel Laravel/Filament verificado end-to-end. Pronto para Phase 9 (Bot Telegram no Laravel)."
+stopped_at: "N/A — Phase 8 encerrada. Próxima: Phase 9."
+last_updated: "2026-07-02T20:00:00.000Z"
+last_activity: "2026-07-02 — Phase 8 concluída. Checkpoint humano aprovado: 5 requisitos PANEL-XX verificados no browser. Suite Laravel 25/25 GREEN, Python 134/137 GREEN (3 falhas pré-existentes documentadas)."
 progress:
   total_phases: 9
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 45
-  completed_plans: 44
-  percent: 98
+  completed_plans: 45
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-21)
 
 ## Current Position
 
-Phase: 8 of 9 (Painel Laravel/Filament) — IN PROGRESS (Plan 08-09 Task 1 concluído; Task 2 = checkpoint humano pendente)
-Plan: 09 of 9 — 08-09-PLAN.md (Checkpoint final end-to-end: 5 requisitos PANEL-XX no browser real + gate de suite)
-Status: PAUSED no checkpoint:human-verify da Task 2 do Plan 08-09. Task 1 concluída (README consolidado, suites GREEN, 2 bugs de ambiente corrigidos). Aguardando operador executar os 7 passos do `<how-to-verify>` e responder "approved" ou reportar defeitos.
-Last activity: 2026-07-02 — Plan 08-09 Task 1 executado: README consolidado (10 passos setup fresh), 2 bugs de ambiente corrigidos (nginx sem bind mount do painel = 404 puro; raiz '/' sem redirect para /admin), suite Laravel 25/25 GREEN, suite Python 134/137 GREEN (3 falhas pré-existentes fora de escopo). Parado no checkpoint:human-verify (Task 2) aguardando operador validar 5 fluxos PANEL-XX no browser real.
+Phase: 9 of 9 (Bot Telegram no Laravel) — NOT STARTED
+Plan: N/A — Phase 8 encerrada, Phase 9 ainda sem planos.
+Status: Phase 8 COMPLETE. Checkpoint humano aprovado em 2026-07-02. Próxima ação: `/gsd:plan-phase 9` para planejar Bot Telegram no Laravel.
+Last activity: 2026-07-02 — Phase 8 concluída. Checkpoint aprovado: 5 requisitos PANEL-XX verificados no browser (PANEL-01 a PANEL-05). Suite Laravel 25/25 GREEN, Python 134/137 GREEN (3 falhas pré-existentes test_quota_manager documentadas). Bind mount youtube:ro ativo no php. 6 arquivos Python commitados.
 
-Progress: [██████████] 98% (44/45 planos — Phases 1-7 completas; Phase 8 em andamento 8/9 planos com SUMMARY; Phase 9 pendente)
+Progress: [██████████] 100% (45/45 planos — Phases 1-8 completas; Phase 9 pendente)
 
 ## Performance Metrics
 
