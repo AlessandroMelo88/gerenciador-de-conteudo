@@ -43,3 +43,23 @@
 ### Python full-suite confirmation (post Plan 08-06)
 
 `docker exec clip-processor pytest tests/ --ignore=tests/test_internal_api.py -q` → **3 failed, 128 passed** (the 3 failures are the same pre-existing `test_quota_manager.py::TestCanUpload` failures documented above under Plan 08-02 — unrelated to `uploader.py`/`RefreshError` work). `test_uploader_expired.py` is included in the 128 passed.
+
+## Plan 08-08
+
+### `ClipApprovalActionTest`/`DashboardPollingTest` now resolved
+
+The 6 pre-existing failures documented above under Plan 08-06 (4 `ClipApprovalActionTest` + 2 `DashboardPollingTest`) are **resolved by this plan**: 4 widgets created, registered via `discoverWidgets`, and `POST /admin/clips/{id}/approve|reject` routes added. Full Laravel suite: **25 passed, 0 failed**.
+
+### Python full-suite confirmation (post Plan 08-08)
+
+`docker exec clip-processor pytest tests/ -q` → **3 failed, 134 passed**. The 3 failures are the same pre-existing `test_quota_manager.py::TestCanUpload` failures documented above under Plan 08-02 (`UPLOAD_WINDOW_BYPASS=true` in `wordpress/.env`) — no file touched by Plan 08-08 affects `quota_manager.py`. Zero regression attributable to this plan.
+
+### Applied pre-existing migration `mysql/init/05-controle-manual-migration.sql` (Rule 3 — blocking)
+
+**Found during:** Task 2, first run of `ClipApprovalActionTest` — the `approve` route failed with `SQLSTATE[01000]: Data truncated for column 'status'` because the live `clips_automation.generated_clips.status` ENUM in this environment only had `('pending_cut','pending','cutting','publishing','published','failed')`, missing `approved`/`rejected` (added by Phase 6's `05-controle-manual-migration.sql`, which exists in the repo but had never been applied to this MySQL instance/volume).
+
+**Fix:** Applied the existing, already-committed migration file directly: `docker exec -i mysql mysql -u clips_user -p${CLIPS_DB_PASSWORD} clips_automation < mysql/init/05-controle-manual-migration.sql`. No new SQL file created — the migration was already correct and idempotent (`MODIFY COLUMN` with the full target ENUM); it just hadn't been run against this database instance/volume.
+
+**Verification:** `SHOW COLUMNS FROM generated_clips LIKE 'status'` now shows the full 8-value ENUM including `approved`/`rejected`. `ClipApprovalActionTest` 4/4 GREEN afterward.
+
+**Impact:** Database schema change only, no code file modified — not committed (matches the established pattern for out-of-repo/infra-only changes in this phase, e.g. `08-01-SUMMARY.md`/`06-06-SUMMARY.md`).
