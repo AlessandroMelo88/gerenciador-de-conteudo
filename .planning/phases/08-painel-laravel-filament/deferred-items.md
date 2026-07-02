@@ -25,3 +25,21 @@
 - `.planning/REQUIREMENTS.md`
 
 **Recommendation:** Operator/next plan should review and either commit or discard these pre-existing changes before Plan 08-06/08-07 touch the same files, to avoid conflating unrelated diffs.
+
+## Plan 08-06
+
+### Pre-existing Laravel test failures unrelated to this plan's scope
+
+**Found during:** Task 2 full-suite regression check (`docker exec php bash -c "cd /var/www/html/painel && php artisan test"`).
+
+**Failures (6, all pre-existing — none caused by files this plan touched):**
+- `Tests\Feature\ClipApprovalActionTest` — 4 tests (404 on `/admin/clips/{id}/approve|reject` — routes don't exist yet, drives Plan 08-08)
+- `Tests\Feature\DashboardPollingTest` — 2 tests (no `wire:poll.5s` / quota widget rendered yet — drives Plan 08-09)
+
+**Root cause:** These routes/widgets are not in scope of Plan 08-06 (uploader RefreshError + DestinationChannelResource). They are explicitly assigned to Plans 08-08 (clip approval/rejection action) and 08-09 (dashboard widgets) per `08-RESEARCH.md`/`08-VALIDATION.md`.
+
+**Scope decision:** Out of scope for Plan 08-06. Confirmed unchanged before/after this plan's commits — `DestinationChannelResourceTest` (2/2) and `DestinationChannelOauthStatusTest` (3/3) are the only tests that flipped state (RED→GREEN). `SourceChannelResourceTest` (3/3) remains GREEN with zero regression.
+
+### Python full-suite confirmation (post Plan 08-06)
+
+`docker exec clip-processor pytest tests/ --ignore=tests/test_internal_api.py -q` → **3 failed, 128 passed** (the 3 failures are the same pre-existing `test_quota_manager.py::TestCanUpload` failures documented above under Plan 08-02 — unrelated to `uploader.py`/`RefreshError` work). `test_uploader_expired.py` is included in the 128 passed.
