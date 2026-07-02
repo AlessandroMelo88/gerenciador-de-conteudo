@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Phase 8 completa — Painel Laravel/Filament verificado end-to-end. Pronto para Phase 9 (Bot Telegram no Laravel)."
-stopped_at: "N/A — Phase 8 encerrada. Próxima: Phase 9."
-last_updated: "2026-07-02T20:00:00.000Z"
-last_activity: "2026-07-02 — Phase 8 concluída. Checkpoint humano aprovado: 5 requisitos PANEL-XX verificados no browser. Suite Laravel 25/25 GREEN, Python 134/137 GREEN (3 falhas pré-existentes documentadas)."
+status: completed
+stopped_at: Completed 09-bot-telegram-no-laravel-09-01-PLAN.md
+last_updated: "2026-07-02T23:55:47.343Z"
+last_activity: "2026-07-02 — Phase 8 concluída. Checkpoint aprovado: 5 requisitos PANEL-XX verificados no browser (PANEL-01 a PANEL-05). Suite Laravel 25/25 GREEN, Python 134/137 GREEN (3 falhas pré-existentes test_quota_manager documentadas). Bind mount youtube:ro ativo no php. 6 arquivos Python commitados."
 progress:
   total_phases: 9
   completed_phases: 8
-  total_plans: 45
-  completed_plans: 45
+  total_plans: 49
+  completed_plans: 46
   percent: 100
 ---
 
@@ -81,6 +81,7 @@ Progress: [██████████] 100% (45/45 planos — Phases 1-8 com
 | Phase 08-painel-laravel-filament P04 | ~20min | 2 tasks | 7 files |
 | Phase 08 P06 | ~25min | 2 tasks | 7 files |
 | Phase 08-painel-laravel-filament P08 | ~55min | 2 tasks | 6 files |
+| Phase 09-bot-telegram-no-laravel P01 | 4min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,9 @@ Recent decisions affecting current work:
 - [Phase 08-painel-laravel-filament]: [Phase 08] Filament 5 widgets sao lazy por padrao (CanBeLazy::$isLazy=true, renderizam via x-intersect/AJAX) — dashboard precisa de $isLazy=false para wire:poll/conteudo aparecer na resposta HTTP inicial
 - [Phase 08-painel-laravel-filament]: [Phase 08 P08] RecentFailuresWidget usa GeneratedClip::query() (Eloquent) como fonte unica — Filament\Tables\Table::applyQueryScopes() rejeita DB::table()->unionAll() (Query Builder puro); contador de source_videos falhados exposto via ->description() no cabecalho
 - [Phase 08-painel-laravel-filament]: [Phase 08 P08] Migration 05-controle-manual-migration.sql (Phase 6, ja commitada) aplicada diretamente nesta instancia MySQL — ENUM generated_clips.status nunca havia recebido approved/rejected neste ambiente
+- [Phase 09-bot-telegram-no-laravel]: config/telegram.php usa estrutura mínima (bots.mybot + token + chat_id_allowed + commands vazio) em vez do template verbose do vendor — clareza para Plan 09-02
+- [Phase 09-bot-telegram-no-laravel]: test_telegram_notifier.py substituído completamente — remove N8N_NOTIFY_URL do topo do módulo para não conflitar com novos testes LARAVEL_NOTIFY_URL
+- [Phase 09-bot-telegram-no-laravel]: Container clip-processor não monta tests/ como volume — docker cp necessário ao atualizar testes Python antes do próximo rebuild
 
 ### Pending Todos
 
@@ -221,6 +225,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-02T06:00:00.000Z
-Stopped at: Checkpoint 08-09: aguardando verificação humana (Task 2)
-Resume file: .planning/phases/08-painel-laravel-filament/08-09-SUMMARY.md
+Last session: 2026-07-02T23:55:47.338Z
+Stopped at: Completed 09-bot-telegram-no-laravel-09-01-PLAN.md
+Resume file: None

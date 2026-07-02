@@ -79,9 +79,9 @@
 
 ### Telegram Bot (Laravel)
 
-- [ ] **BOT-01**: Bot Telegram migrado para Laravel; webhook em `alessandromelo.com.br/telegramcanal` via nginx → Laravel
-- [ ] **BOT-02**: Todos os 6 comandos do v1 funcionam no novo bot Laravel com deduplicação de update_id via Redis
-- [ ] **BOT-03**: Notificações do pipeline Python (upload publicado, falha crítica, resumo diário) enviadas via Laravel
+- [x] **BOT-01**: Bot Telegram migrado para Laravel; webhook em `alessandromelo.com.br/telegramcanal` via nginx → Laravel
+- [x] **BOT-02**: Todos os 6 comandos do v1 funcionam no novo bot Laravel com deduplicação de update_id via Redis
+- [x] **BOT-03**: Notificações do pipeline Python (upload publicado, falha crítica, resumo diário) enviadas via Laravel
 
 ---
 
@@ -153,9 +153,9 @@
 | PANEL-03 | Phase 8 | Complete |
 | PANEL-04 | Phase 8 | Complete |
 | PANEL-05 | Phase 8 | Complete |
-| BOT-01 | Phase 9 | Pending |
-| BOT-02 | Phase 9 | Pending |
-| BOT-03 | Phase 9 | Pending |
+| BOT-01 | Phase 9 | Complete |
+| BOT-02 | Phase 9 | Complete |
+| BOT-03 | Phase 9 | Complete |
 
 **Coverage:**
 - v1 requirements: 26 total — all Complete ✓
