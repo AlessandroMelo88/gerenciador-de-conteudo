@@ -1,42 +1,88 @@
 # Painel Canal de Cortes
 
-Painel administrativo Laravel 13 + Filament 5.4 para gerenciar canais-fonte,
-canais-destino, monitorar o pipeline em tempo real e aprovar/rejeitar clips —
-sem SQL manual, sem depender do Telegram.
+Interface web (Laravel 13 + Filament 5) para o operador do pipeline Canal de Cortes:
+- Gerenciar canais-fonte (RSS) e canais-destino (YouTube).
+- Ver dashboard em tempo real do pipeline (uploads, cota, falhas).
+- Aprovar/rejeitar clips gerados pela IA — mesmo efeito de `/aprovar` e `/rejeitar` no Telegram.
 
 Roda dentro do container `php` compartilhado do stack `wordpress/`, servido
 pelo `nginx` em `http://canaldecortes.local`, conectado à base `clips_automation`
 (MySQL) e à instância `redis` já existentes.
 
-## Setup local
+## Setup local (uma vez)
 
-```bash
-# 1. Adicionar o host local (uma vez)
-echo "127.0.0.1 canaldecortes.local" | sudo tee -a /etc/hosts
+1. Garantir que `wordpress/` docker-compose está rodando:
+   ```
+   docker compose -f wordpress/docker-compose.yml up -d nginx php mysql redis clip-processor
+   ```
 
-# 2. Subir os serviços necessários
-docker compose -f wordpress/docker-compose.yml up -d nginx php mysql redis
+2. Adicionar host local:
+   ```
+   echo "127.0.0.1 canaldecortes.local" | sudo tee -a /etc/hosts
+   ```
 
-# 3. Instalar dependências PHP dentro do container php
-docker exec -it php bash -c "cd /var/www/html/painel && composer install"
+3. Instalar dependências PHP:
+   ```
+   docker exec -it php bash -c "cd /var/www/html/painel && composer install"
+   ```
 
-# 4. Preencher canaldecortes/painel/.env com DB_PASSWORD (CLIPS_DB_PASSWORD
-#    real do canaldecortes/.env) e CLIP_PROCESSOR_INTERNAL_TOKEN
+4. Gerar token do sidecar HTTP (compartilhado entre Laravel e clip-processor):
+   ```
+   openssl rand -hex 32
+   ```
+   Colar o hex em DOIS lugares:
+   - `wordpress/.env` → `CLIP_PROCESSOR_INTERNAL_TOKEN=<hex>` (arquivo real lido pelo Docker Compose para o serviço `clip-processor`)
+   - `canaldecortes/painel/.env` → `CLIP_PROCESSOR_INTERNAL_TOKEN=<hex>`
 
-# 5. Criar o usuário operador (comando será criado no Plan 08-04)
-docker exec -it php bash -c "cd /var/www/html/painel && php artisan painel:create-user"
+5. Preencher `canaldecortes/painel/.env` com `DB_PASSWORD` (mesmo valor de `CLIPS_DB_PASSWORD` do `canaldecortes/.env`).
+
+6. Aplicar a migration de OAuth flag (idempotente):
+   ```
+   docker exec -i mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} clips_automation \
+     < canaldecortes/mysql/init/07-panel-oauth-flag-migration.sql
+   ```
+
+7. Rodar migrations do Laravel (só cria users/sessions/cache/jobs em `clips_automation`):
+   ```
+   docker exec -it php bash -c "cd /var/www/html/painel && php artisan migrate --no-interaction"
+   ```
+
+8. Criar o operador (interativo — senha nunca ecoa):
+   ```
+   docker exec -it php php artisan --working-dir=/var/www/html/painel painel:create-user
+   ```
+   Email registrado: `alessandrobm1988@gmail.com`. Senha ≥10 chars.
+
+9. Recriar container `clip-processor` para carregar `CLIP_PROCESSOR_INTERNAL_TOKEN`:
+   ```
+   docker compose -f wordpress/docker-compose.yml up -d --force-recreate clip-processor
+   ```
+
+10. Acessar: http://canaldecortes.local → login → dashboard.
+
+## Reset de senha
+
+```
+docker exec -it php php artisan --working-dir=/var/www/html/painel painel:reset-password alessandrobm1988@gmail.com
 ```
 
-## URL
+## Preview MP4 dos clips
 
-Acesse o painel em: `http://canaldecortes.local`
+Este painel NÃO embute player HTML5 (por decisão explícita — reduz superfície de ataque).
+Os arquivos MP4 ficam em `canaldecortes/videos/clips/` no filesystem local:
+```
+open canaldecortes/videos/clips/{clip_id}.mp4   # macOS
+```
 
-Login em `http://canaldecortes.local/admin/login` — usuário único (single-user),
-criado via `php artisan painel:create-user`.
+## Autorizar novo canal-destino (OAuth)
 
-## Preview MP4
+Após criar o canal-destino no painel, o painel mostra este comando copy-paste:
+```
+docker exec -it clip-processor python -m src.youtube_oauth --channel {slug}
+```
+Rodar no host, seguir o fluxo do Google. Volta ao painel: badge OAuth vira "authorized".
 
-O painel NÃO tem player HTML5 embutido (reduz superfície de ataque e complexidade
-de nginx). Os arquivos de vídeo gerados ficam disponíveis no filesystem local em
-`canaldecortes/videos/clips/` — para assistir um clip antes de aprovar, abra o
-arquivo `.mp4` correspondente diretamente no Finder ou no VLC.
+## Testes
+
+- Suíte Laravel: `docker exec -it php bash -c "cd /var/www/html/painel && php artisan test"`
+- Suíte Python: `docker exec -it clip-processor pytest tests/ -v`
