@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\DestinationChannel;
 use App\Models\SourceChannel;
 use App\Services\ClipProcessorClient;
 use Illuminate\Http\Request;
@@ -50,4 +51,29 @@ Route::middleware(['web', 'auth'])->group(function () {
 
         return redirect('/admin/source-channels');
     })->name('source-channels.update');
+
+    // Rota REST usada pelo DestinationChannelResource (Plan 08-06, PANEL-02).
+    // Mesmo motivo do bloco source-channels acima: Filament Resource só expõe GET/HEAD
+    // (submit real via Livewire); o contrato de testes RED (Plan 08-03) exige POST direto.
+    Route::post('/admin/destination-channels', function (Request $request) {
+        $data = $request->validate([
+            'slug' => ['required', 'string'],
+            'name' => ['required', 'string'],
+            'niche' => ['required', 'string'],
+            'youtube_channel_id' => ['required', 'string'],
+            'credit_template' => ['sometimes', 'nullable', 'string'],
+            'active' => ['sometimes', 'boolean'],
+        ]);
+
+        DestinationChannel::create([
+            'slug' => $data['slug'],
+            'name' => $data['name'],
+            'niche' => $data['niche'],
+            'youtube_channel_id' => $data['youtube_channel_id'],
+            'credit_template' => $data['credit_template'] ?? 'Créditos: @{channel_handle}',
+            'active' => $data['active'] ?? true,
+        ]);
+
+        return redirect('/admin/destination-channels');
+    })->name('destination-channels.store');
 });
