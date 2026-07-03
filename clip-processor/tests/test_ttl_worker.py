@@ -2,6 +2,8 @@
 Testes para ttl_worker.py — expiração automática de clips pending.
 
 Estado RED até Plan 06-05.
+Atualizado em Plan 09-03: ttl_worker.py usa notify() do telegram_notifier
+em vez de requests.post direto — testes agora patcham src.ttl_worker.notify.
 """
 import pytest
 from unittest.mock import MagicMock, patch
@@ -18,7 +20,7 @@ class TestExpire:
             {'id': 1, 'created_at': '2026-06-17T00:00:00Z'},
         ]
 
-        with patch('src.ttl_worker.requests.post'):
+        with patch('src.ttl_worker.notify'):
             run_ttl_once(conn=mock_db_conn, redis_client=mock_redis)
 
         # Pelo menos um UPDATE com status='rejected' e WHERE created_at + INTERVAL
@@ -32,8 +34,8 @@ class TestExpire:
 
 
 class TestWarn:
-    def test_warn_envia_para_n8n(self, mock_db_conn, mock_redis):
-        """run_ttl_once: clips entre WARN_HOURS e TTL_HOURS disparam POST para n8n."""
+    def test_warn_envia_notificacao(self, mock_db_conn, mock_redis):
+        """run_ttl_once: clips entre WARN_HOURS e TTL_HOURS disparam notify() para Laravel."""
         cursor = mock_db_conn.cursor.return_value
         # Simula 2 clips na janela de aviso
         cursor.fetchall.side_effect = [
@@ -46,14 +48,14 @@ class TestWarn:
         # Redis SET NX retorna True (chave não existia antes)
         mock_redis.set.return_value = True
 
-        with patch('src.ttl_worker.requests.post') as mock_post:
-            mock_post.return_value = MagicMock(status_code=200)
+        with patch('src.ttl_worker.notify') as mock_notify:
+            mock_notify.return_value = True
             run_ttl_once(conn=mock_db_conn, redis_client=mock_redis)
 
-        assert mock_post.call_count >= 2
+        assert mock_notify.call_count >= 2
 
     def test_no_warn_duplicado(self, mock_db_conn, mock_redis):
-        """Redis SET NX False (já avisou): NÃO dispara POST extra."""
+        """Redis SET NX False (já avisou): NÃO dispara notify() extra."""
         cursor = mock_db_conn.cursor.return_value
         cursor.fetchall.side_effect = [
             [],  # expire query
@@ -62,8 +64,8 @@ class TestWarn:
         # Redis SET NX retorna False — já existe
         mock_redis.set.return_value = False
 
-        with patch('src.ttl_worker.requests.post') as mock_post:
-            mock_post.return_value = MagicMock(status_code=200)
+        with patch('src.ttl_worker.notify') as mock_notify:
+            mock_notify.return_value = True
             run_ttl_once(conn=mock_db_conn, redis_client=mock_redis)
 
-        assert mock_post.call_count == 0
+        assert mock_notify.call_count == 0

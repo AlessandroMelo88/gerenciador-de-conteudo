@@ -15,6 +15,7 @@ import subprocess
 
 from flask import Flask, jsonify, request
 
+from src.processar import main as processar_main
 from src.rejeitar import rejeitar
 
 INTERNAL_TOKEN = os.environ.get('CLIP_PROCESSOR_INTERNAL_TOKEN')
@@ -87,5 +88,20 @@ def _route_reject_clip():
     try:
         exit_code = reject_clip(int(clip_id))
     except Exception as e:
+        return jsonify(error=str(e)), 500
+    return jsonify(exit_code=exit_code), 200
+
+
+@app.post('/internal/process-url')
+def _route_process_url():
+    if not _check_auth():
+        return jsonify(error='unauthorized'), 401
+    payload = request.get_json(silent=True) or {}
+    url = payload.get('url')
+    if not url:
+        return jsonify(error='missing url'), 400
+    try:
+        exit_code = processar_main(url)
+    except Exception as e:  # noqa: BLE001
         return jsonify(error=str(e)), 500
     return jsonify(exit_code=exit_code), 200
