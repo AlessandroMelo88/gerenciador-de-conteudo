@@ -56,4 +56,24 @@ class ClipProcessorClient
 
         return (int) $response->json('exit_code', 1);
     }
+
+    /**
+     * Enfileira URL do YouTube para processamento pelo pipeline.
+     *
+     * @return int exit_code (0=ok, 2=URL inválida, 3=metadata yt-dlp falhou)
+     *
+     * @throws RuntimeException em erro HTTP 5xx ou timeout.
+     */
+    public function processUrl(string $url): int
+    {
+        $response = Http::timeout(30)
+            ->withHeader('X-Internal-Token', (string) $this->token)
+            ->post($this->baseUrl.'/internal/process-url', ['url' => $url]);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Erro ao processar URL: HTTP '.$response->status());
+        }
+
+        return (int) $response->json('exit_code', 3);
+    }
 }
