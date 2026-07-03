@@ -109,3 +109,10 @@ Route::middleware(['web', 'auth'])->group(function () {
         };
     })->name('clips.reject');
 });
+
+// Phase 9 (BOT-01, BOT-03): rotas sem autenticação — chamadas por Telegram e pelo clip-processor.
+// CSRF excluído para ambas em bootstrap/app.php (Plan 09-01).
+use App\Http\Controllers\TelegramWebhookController;
+
+Route::post('/telegramcanal', [TelegramWebhookController::class, 'handle']);
+Route::post('/internal/pipeline-event', [TelegramWebhookController::class, 'pipelineEvent']);
