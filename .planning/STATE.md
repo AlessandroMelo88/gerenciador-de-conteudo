@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 09-bot-telegram-no-laravel-09-01-PLAN.md
-last_updated: "2026-07-02T23:55:47.343Z"
+stopped_at: Completed 09-bot-telegram-no-laravel-09-03-PLAN.md
+last_updated: "2026-07-03T00:14:35.324Z"
 last_activity: "2026-07-02 — Phase 8 concluída. Checkpoint aprovado: 5 requisitos PANEL-XX verificados no browser (PANEL-01 a PANEL-05). Suite Laravel 25/25 GREEN, Python 134/137 GREEN (3 falhas pré-existentes test_quota_manager documentadas). Bind mount youtube:ro ativo no php. 6 arquivos Python commitados."
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 49
-  completed_plans: 46
+  completed_plans: 47
   percent: 100
 ---
 
@@ -82,6 +82,7 @@ Progress: [██████████] 100% (45/45 planos — Phases 1-8 com
 | Phase 08 P06 | ~25min | 2 tasks | 7 files |
 | Phase 08-painel-laravel-filament P08 | ~55min | 2 tasks | 6 files |
 | Phase 09-bot-telegram-no-laravel P01 | 4min | 2 tasks | 10 files |
+| Phase 09-bot-telegram-no-laravel P03 | -162min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -213,6 +214,8 @@ Recent decisions affecting current work:
 - [Phase 09-bot-telegram-no-laravel]: config/telegram.php usa estrutura mínima (bots.mybot + token + chat_id_allowed + commands vazio) em vez do template verbose do vendor — clareza para Plan 09-02
 - [Phase 09-bot-telegram-no-laravel]: test_telegram_notifier.py substituído completamente — remove N8N_NOTIFY_URL do topo do módulo para não conflitar com novos testes LARAVEL_NOTIFY_URL
 - [Phase 09-bot-telegram-no-laravel]: Container clip-processor não monta tests/ como volume — docker cp necessário ao atualizar testes Python antes do próximo rebuild
+- [Phase 09-bot-telegram-no-laravel]: ttl_worker.py usa notify() do telegram_notifier — remove import requests direto; testes atualizados para patch src.ttl_worker.notify
+- [Phase 09-bot-telegram-no-laravel]: Artisan Schedule dailyAt('18:00') timezone America/Sao_Paulo = 0 21 * * * UTC — substitui n8n cron 06-cron-resumo-diario.json
 
 ### Pending Todos
 
@@ -225,6 +228,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-02T23:55:47.338Z
-Stopped at: Completed 09-bot-telegram-no-laravel-09-01-PLAN.md
+Last session: 2026-07-03T00:14:35.320Z
+Stopped at: Completed 09-bot-telegram-no-laravel-09-03-PLAN.md
 Resume file: None
