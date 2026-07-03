@@ -1,26 +1,25 @@
 """Worker de TTL para clipes pending (CTRL-05).
 
 - Expira: clipes com status='pending' e created_at < NOW() - INTERVAL TTL_HOURS HOUR → 'rejected'.
-- Avisa: clipes na janela [WARN_HOURS, TTL_HOURS) recebem 1 aviso via n8n/Telegram
+- Avisa: clipes na janela [WARN_HOURS, TTL_HOURS) recebem 1 aviso via Laravel/Telegram
   (idempotente via Redis SET NX com TTL=24h).
 
 Rodado periodicamente pelo APScheduler em main.py (IntervalTrigger hours=1).
 
 Exporta:
-  - TTL_HOURS, WARN_HOURS, N8N_NOTIFY_URL (constantes module-level)
+  - TTL_HOURS, WARN_HOURS (constantes module-level)
   - run_ttl_once(conn=None, redis_client=None) -> dict
 """
 import os
 
 import redis
-import requests
 
 from src.db import get_db_connection
+from src.telegram_notifier import notify
 
 
 TTL_HOURS = int(os.getenv('CLIP_PENDING_TTL_HOURS', '48'))
 WARN_HOURS = int(os.getenv('CLIP_PENDING_WARN_HOURS', '24'))
-N8N_NOTIFY_URL = os.getenv('N8N_NOTIFY_URL', 'http://n8n:5678/webhook/notify')
 WARN_TTL_SECONDS = 24 * 3600  # mesma duração da janela do warn
 
 
@@ -78,24 +77,16 @@ def run_ttl_once(conn=None, redis_client=None) -> dict:
         for clip in soon_to_expire:
             key = f'clip_warned:{clip["id"]}'
             if redis_client.set(key, '1', nx=True, ex=WARN_TTL_SECONDS):
-                try:
-                    requests.post(
-                        N8N_NOTIFY_URL,
-                        json={
-                            'event': 'clip_ttl_warning',
-                            'payload': {
-                                'clip_id': clip['id'],
-                                'title': clip.get('title'),
-                                'expires_in_hours': TTL_HOURS - WARN_HOURS,
-                            },
-                        },
-                        timeout=5,
-                    )
+                sent = notify('clip_ttl_warning', {
+                    'clip_id': clip['id'],
+                    'title': clip.get('title'),
+                    'expires_in_hours': TTL_HOURS - WARN_HOURS,
+                })
+                if sent:
                     warned += 1
-                except requests.RequestException as exc:
-                    print(f'[TTL] warn POST falhou para clip {clip["id"]}: {exc}')
-                    # NÃO incrementa warned; Redis já marcou — no próximo run, NX retorna False.
-                    # Tradeoff conhecido: 1 falha de rede pode "comer" 1 aviso. Aceitável v1.
+                else:
+                    print(f'[TTL] warn POST falhou para clip {clip["id"]}')
+                    # NÃO incrementa warned; Redis já marcou — mesmo tradeoff da Phase 6.
 
         print(f'[TTL] expired={expired_count} warned={warned}')
         return {'expired': expired_count, 'warned': warned}
