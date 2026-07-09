@@ -19,9 +19,9 @@ class SourceChannelResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-rss';
 
-    protected static ?string $modelLabel = 'Canal-fonte';
+    protected static ?string $modelLabel = 'Canal fonte';
 
-    protected static ?string $pluralModelLabel = 'Canais-fonte';
+    protected static ?string $pluralModelLabel = 'Canais fonte';
 
     public static function form(Schema $schema): Schema
     {

@@ -23,7 +23,9 @@ class QuotaTodayWidget extends BaseWidget
     protected function getStats(): array
     {
         $date = Carbon::now('America/Sao_Paulo')->format('Y-m-d');
+        $palette = ['info', 'warning', 'success', 'primary'];
         $stats = [];
+        $index = 0;
 
         foreach (DestinationChannel::query()->where('active', true)->get() as $channel) {
             $key = "youtube_uploads:{$channel->youtube_channel_id}:{$date}";
@@ -33,15 +35,17 @@ class QuotaTodayWidget extends BaseWidget
                 $count = 0;
             }
             $limit = 3;
+            $color = $count >= $limit ? 'danger' : $palette[$index % count($palette)];
             $stats[] = Stat::make(
-                label: 'Cota — '.$channel->name,
+                label: $channel->name,
                 value: "{$count}/{$limit}",
-            )->description($channel->slug)
-                ->color($count >= $limit ? 'danger' : ($count > 0 ? 'warning' : 'success'));
+            )->description('uploads hoje')
+                ->color($color);
+            $index++;
         }
 
         if (empty($stats)) {
-            $stats[] = Stat::make('Cota', '—')->description('Nenhum canal-destino ativo');
+            $stats[] = Stat::make('Uploads hoje', '—')->description('Nenhum canal-destino ativo');
         }
 
         return $stats;

@@ -17,10 +17,7 @@ class PendingApprovalWidget extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
-    public static function canView(): bool
-    {
-        return false;
-    }
+    public static function canView(): bool { return false; }
 
     protected static ?string $heading = 'Fila de aprovação';
 

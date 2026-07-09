@@ -1,7 +1,49 @@
+# ============================================================
+# Segredos e credenciais — NUNCA commitar
+# ============================================================
 .env
-youtube/token.json
-youtube/client_secret.json
-youtube/old_client_secret.json
+.env.*
+!.env.example
+painel/.env
+painel/.env.*
+!painel/.env.example
+
+# YouTube OAuth (tokens e client secrets)
+youtube/token*.json
+youtube/client_secret*.json
 youtube/*client_secret*.json
+youtube/old_client_secret.json
+
+# ============================================================
+# Dados de runtime — gerados pelo pipeline (volume Docker)
+# ============================================================
+videos/*
+!videos/.gitkeep
+*.part
+
+# Modelos Whisper (download local, muito pesados)
 whisper/models/
+
+# Dados persistentes do n8n
 n8n/data/
+
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+
+# ============================================================
+# Sistema operacional / IDE
+# ============================================================
+.DS_Store
+Thumbs.db
+.claude/
+.cursor/
