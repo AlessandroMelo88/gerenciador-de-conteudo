@@ -23,9 +23,9 @@ class DestinationChannelResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-tv';
 
-    protected static ?string $modelLabel = 'Canal-destino';
+    protected static ?string $modelLabel = 'Canal destino';
 
-    protected static ?string $pluralModelLabel = 'Canais-destino';
+    protected static ?string $pluralModelLabel = 'Canais destino';
 
     public static function form(Schema $schema): Schema
     {
