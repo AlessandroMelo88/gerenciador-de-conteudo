@@ -33,20 +33,28 @@ def resolve_channel(url: str) -> dict:
     Padrão yt-dlp: --flat-playlist --skip-download --dump-single-json {url}
     (Zero cota YouTube Data API — mesma tática do /processar da Phase 6.)
 
+    --playlist-items 1: sem isso, uma URL de canal (ex: /@Handle) faz o yt-dlp
+    paginar todas as abas (videos/streams/shorts) do canal inteiro antes de
+    retornar o JSON, o que estoura o timeout de 30s em canais grandes — mesmo
+    precisando apenas dos metadados do canal (id/nome/handle), não da lista completa.
+
     Raises:
         RuntimeError: yt-dlp retornou exit code != 0.
     """
     result = subprocess.run(
-        ['yt-dlp', '--flat-playlist', '--skip-download', '--dump-single-json', url],
+        [
+            'yt-dlp', '--flat-playlist', '--skip-download', '--playlist-items', '1',
+            '--dump-single-json', url,
+        ],
         capture_output=True, text=True, timeout=30,
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or 'yt-dlp failed')
 
     payload = json.loads(result.stdout)
-    channel_id = payload.get('id') or payload.get('channel_id') or ''
+    channel_id = payload.get('channel_id') or payload.get('id') or ''
     channel_name = payload.get('channel') or payload.get('title') or channel_id
-    channel_handle = payload.get('uploader_id') or payload.get('channel_id') or ''
+    channel_handle = payload.get('uploader_id') or payload.get('id') or ''
     if channel_handle and not channel_handle.startswith('@'):
         channel_handle = '@' + channel_handle.lstrip('@')
 
