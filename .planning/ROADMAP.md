@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Controle Manual N8N + Telegram** - Bot Telegram para aprovação/rejeição manual de clips; publisher passa a publicar approved (completed 2026-06-21)
 - [x] **Phase 7: Schema Multi-Canal + Python Pipeline** - Schema migrations, roteamento por nicho, quota por canal, watermark FFmpeg, créditos e blacklist (completed 2026-06-22)
 - [x] **Phase 8: Painel Laravel/Filament** (completed 2026-07-02) - CRUD canais-fonte e destino, dashboard de pipeline, fila de aprovação e autenticação web
-- [ ] **Phase 9: Bot Telegram no Laravel** - Migração do bot do n8n para Laravel com webhook, todos os 6 comandos e notificações do pipeline
+- [~] **Phase 9: Bot Telegram no Laravel** - Cancelada (2026-07-10) — painel Laravel/Filament cobre todos os casos de uso; código Plans 01-03 no repo mas webhook nunca ativado
 
 ## Phase Details
 
@@ -213,4 +213,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Controle Manual N8N + Telegram | 7/7 | Complete | 2026-06-21 |
 | 7. Schema Multi-Canal + Python Pipeline | 7/7 | Complete   | 2026-06-22 |
 | 8. Painel Laravel/Filament | 9/9 | Complete | 2026-07-02 |
-| 9. Bot Telegram no Laravel | 3/4 | In Progress|  |
+| 9. Bot Telegram no Laravel | —/4 | Cancelled | 2026-07-10 |
