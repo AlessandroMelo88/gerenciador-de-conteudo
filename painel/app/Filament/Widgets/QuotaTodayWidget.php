@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Redis;
 
 class QuotaTodayWidget extends BaseWidget
 {
+    protected ?string $heading = 'Cota de Uploads';
+
     // Filament\Widgets\Concerns\CanPoll já define $pollingInterval = '5s' (instance
     // property, não static) como default — não redeclarar aqui (FatalError:
     // "Cannot redeclare non static ... as static").
