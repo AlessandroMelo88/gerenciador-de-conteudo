@@ -21,4 +21,16 @@
         font-size: 1.125rem !important;
         font-weight: 600 !important;
     }
+
+    /* Garante que a aside da sidebar seja flex-column para o footer ficar no rodapé */
+    .fi-sidebar {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Nav cresce para ocupar o espaço restante, empurrando o footer para baixo */
+    .fi-sidebar-nav {
+        flex: 1 1 0% !important;
+        overflow-y: auto !important;
+    }
 </style>
