@@ -41,6 +41,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([])
             ->renderHook('panels::sidebar.footer', fn () => view('filament.sidebar-footer'))
+            ->renderHook('panels::head.end', fn () => view('filament.custom-styles'))
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
