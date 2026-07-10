@@ -4,16 +4,21 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\SourceVideoResource\Pages;
 use App\Models\SourceVideo;
+use App\Services\ClipProcessorClient;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use RuntimeException;
 
 class SourceVideoResource extends Resource
 {
@@ -29,6 +34,9 @@ class SourceVideoResource extends Resource
 
     protected static ?int $navigationSort = 5;
 
+    /** Espelha NON_TERMINAL_CLIP_STATUSES de clip-processor/src/publisher.py. */
+    protected const NON_TERMINAL_CLIP_STATUSES = ['pending_cut', 'cutting', 'pending', 'approved', 'publishing'];
+
     public static function form(Schema $schema): Schema
     {
         return $schema->schema([]);
@@ -37,6 +45,11 @@ class SourceVideoResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->withCount([
+                'generatedClips as total_clips_count',
+                'generatedClips as em_andamento_count' => fn (Builder $q) => $q->whereIn('status', self::NON_TERMINAL_CLIP_STATUSES),
+                'generatedClips as publicados_count' => fn (Builder $q) => $q->where('status', 'published'),
+            ]))
             ->defaultSort('updated_at', 'desc')
             ->columns([
                 TextColumn::make('id')
@@ -48,6 +61,7 @@ class SourceVideoResource extends Resource
                     ->label('Título')
                     ->searchable()
                     ->limit(55)
+                    ->size('xs')
                     ->tooltip(fn (SourceVideo $record): string => $record->title ?? ''),
 
                 TextColumn::make('sourceChannel.channel_name')
@@ -74,6 +88,38 @@ class SourceVideoResource extends Resource
                     ->fontFamily('mono')
                     ->color('primary'),
 
+                TextColumn::make('local_path')
+                    ->label('Arquivo local')
+                    ->state(fn (SourceVideo $record): string => filled($record->local_path) ? 'Sim' : 'Não')
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'Sim' ? 'info' : 'gray'),
+
+                TextColumn::make('uso')
+                    ->label('Uso')
+                    ->state(function (SourceVideo $record): string {
+                        if ($record->status === 'failed') {
+                            return 'Falhou — pode apagar';
+                        }
+
+                        if ((int) $record->total_clips_count > 0
+                            && (int) $record->em_andamento_count === 0
+                            && (int) $record->publicados_count === 0) {
+                            return 'Sem uso — pode apagar';
+                        }
+
+                        if ((int) $record->publicados_count > 0 && (int) $record->em_andamento_count === 0) {
+                            return 'Publicado';
+                        }
+
+                        return 'Em uso';
+                    })
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'Falhou — pode apagar', 'Sem uso — pode apagar' => 'danger',
+                        'Publicado' => 'success',
+                        default => 'gray',
+                    }),
+
                 TextColumn::make('published_at')
                     ->label('Publicado em')
                     ->dateTime('d/m/Y H:i')
@@ -99,29 +145,82 @@ class SourceVideoResource extends Resource
                         'published'    => 'Publicado',
                         'failed'       => 'Falha',
                     ]),
+
+                Filter::make('seguro_apagar')
+                    ->label('Só sem uso (seguro apagar)')
+                    ->toggle()
+                    ->query(function (Builder $query): Builder {
+                        return $query->where(function (Builder $q) {
+                            $q->where('status', 'failed')
+                                ->orWhere(function (Builder $q2) {
+                                    $q2->whereHas('generatedClips')
+                                        ->whereDoesntHave('generatedClips', function (Builder $sub) {
+                                            $sub->whereIn('status', self::NON_TERMINAL_CLIP_STATUSES);
+                                        })
+                                        ->whereDoesntHave('generatedClips', function (Builder $sub) {
+                                            $sub->where('status', 'published');
+                                        });
+                                });
+                        });
+                    }),
             ])
             ->actions([
-                Action::make('open_youtube')
-                    ->label('YouTube')
-                    ->icon('heroicon-o-arrow-top-right-on-square')
-                    ->color('gray')
-                    ->url(fn (SourceVideo $record): string => "https://youtube.com/watch?v={$record->youtube_video_id}")
-                    ->openUrlInNewTab(),
+                ActionGroup::make([
+                    Action::make('open_youtube')
+                        ->label('YouTube')
+                        ->icon('heroicon-o-arrow-top-right-on-square')
+                        ->color('gray')
+                        ->url(fn (SourceVideo $record): string => "https://youtube.com/watch?v={$record->youtube_video_id}")
+                        ->openUrlInNewTab(),
 
-                Action::make('copy_url')
-                    ->label('Copiar URL')
-                    ->icon('heroicon-o-clipboard-document')
-                    ->color('gray')
-                    ->action(function (SourceVideo $record, $livewire): void {
-                        $url = "https://youtube.com/watch?v={$record->youtube_video_id}";
-                        $livewire->js("navigator.clipboard.writeText('{$url}').catch(()=>{})");
-                        Notification::make()
-                            ->title('URL copiada')
-                            ->body($url)
-                            ->success()
-                            ->duration(3000)
-                            ->send();
-                    }),
+                    Action::make('copy_url')
+                        ->label('Copiar URL')
+                        ->icon('heroicon-o-clipboard-document')
+                        ->color('gray')
+                        ->action(function (SourceVideo $record, $livewire): void {
+                            $url = "https://youtube.com/watch?v={$record->youtube_video_id}";
+                            $livewire->js("navigator.clipboard.writeText('{$url}').catch(()=>{})");
+                            Notification::make()
+                                ->title('URL copiada')
+                                ->body($url)
+                                ->success()
+                                ->duration(3000)
+                                ->send();
+                        }),
+
+                    Action::make('delete_file')
+                        ->label('Apagar arquivo local')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->visible(fn (SourceVideo $record): bool => filled($record->local_path))
+                        ->requiresConfirmation()
+                        ->modalHeading('Apagar arquivo local')
+                        ->modalDescription('Apaga o vídeo bruto (.mp4) do disco para liberar espaço. Os cortes já gerados a partir dele NÃO são afetados. Essa ação não pode ser desfeita — o vídeo precisaria ser baixado de novo se for necessário no futuro.')
+                        ->modalSubmitActionLabel('Apagar')
+                        ->action(function (SourceVideo $record): void {
+                            $client = app(ClipProcessorClient::class);
+
+                            try {
+                                $result = $client->deleteSourceVideo($record->id);
+                            } catch (RuntimeException $e) {
+                                Notification::make()
+                                    ->title('Falha ao apagar')
+                                    ->body($e->getMessage())
+                                    ->danger()
+                                    ->send();
+
+                                return;
+                            }
+
+                            $record->refresh();
+                            $mb = round($result['freed_bytes'] / 1024 / 1024, 1);
+
+                            Notification::make()
+                                ->title("Arquivo apagado ({$mb} MB liberados)")
+                                ->success()
+                                ->send();
+                        }),
+                ]),
             ])
             ->bulkActions([
                 BulkAction::make('copy_urls')
@@ -157,9 +256,69 @@ class SourceVideoResource extends Resource
                             ->send();
                     })
                     ->deselectRecordsAfterCompletion(),
+
+                BulkAction::make('delete_files')
+                    ->label('Apagar arquivos selecionados')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Apagar arquivos locais selecionados')
+                    ->modalDescription(function (Collection $records): string {
+                        $deletable = $records->filter(fn (SourceVideo $r) => filled($r->local_path))->count();
+                        $skipped = $records->count() - $deletable;
+
+                        $text = "Apaga os vídeos brutos (.mp4) do disco para liberar espaço. Os cortes já gerados NÃO são afetados. {$deletable} de {$records->count()} selecionados têm arquivo local e serão apagados.";
+
+                        if ($skipped > 0) {
+                            $text .= " {$skipped} já não têm arquivo local e serão ignorados.";
+                        }
+
+                        return $text;
+                    })
+                    ->modalSubmitActionLabel('Apagar')
+                    ->action(function (Collection $records): void {
+                        $client = app(ClipProcessorClient::class);
+                        $freedBytes = 0;
+                        $failures = 0;
+                        $skipped = 0;
+
+                        foreach ($records as $record) {
+                            if (blank($record->local_path)) {
+                                $skipped++;
+
+                                continue;
+                            }
+
+                            try {
+                                $result = $client->deleteSourceVideo($record->id);
+                                $freedBytes += $result['freed_bytes'];
+                            } catch (RuntimeException) {
+                                $failures++;
+                            }
+                        }
+
+                        $mb = round($freedBytes / 1024 / 1024, 1);
+                        $bodyLines = [];
+                        if ($failures > 0) {
+                            $bodyLines[] = "{$failures} arquivo(s) não puderam ser apagados.";
+                        }
+                        if ($skipped > 0) {
+                            $bodyLines[] = "{$skipped} já não tinham arquivo local (ignorados).";
+                        }
+
+                        Notification::make()
+                            ->title("{$mb} MB liberados")
+                            ->body(implode(' ', $bodyLines) ?: null)
+                            ->success()
+                            ->send();
+                    })
+                    ->deselectRecordsAfterCompletion(),
             ])
+            ->checkIfRecordIsSelectableUsing(fn (SourceVideo $record): bool => filled($record->local_path))
             ->poll('10s')
-            ->striped();
+            ->striped()
+            ->paginationPageOptions([25, 50, 100, 250, 500])
+            ->defaultPaginationPageOption(100);
     }
 
     public static function getPages(): array

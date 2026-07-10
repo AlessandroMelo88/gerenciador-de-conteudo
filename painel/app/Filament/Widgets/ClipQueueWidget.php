@@ -69,6 +69,10 @@ class ClipQueueWidget extends Widget
                 ->where('status', 'pending')
                 ->latest()
                 ->get(),
+            'queuedClips' => GeneratedClip::with(['sourceVideo', 'destinationChannel'])
+                ->where('status', 'approved')
+                ->oldest('created_at')
+                ->get(),
             'failures' => GeneratedClip::with(['destinationChannel'])
                 ->where('status', 'failed')
                 ->latest('updated_at')

@@ -26,4 +26,9 @@ class SourceVideo extends Model
     {
         return $this->belongsTo(SourceChannel::class, 'channel_id');
     }
+
+    public function generatedClips()
+    {
+        return $this->hasMany(GeneratedClip::class, 'source_video_id');
+    }
 }

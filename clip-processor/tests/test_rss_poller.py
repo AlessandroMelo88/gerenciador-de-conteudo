@@ -190,8 +190,8 @@ class TestAIPipelineIntegration:
         )
         # Verificar que save_transcript foi chamado após transcrição bem-sucedida
         mock_save.assert_called_once_with(mock_db_conn, 'vid001aaaaaa', mock_transcript)
-        # Verificar que select_moments foi chamado
-        mock_select.assert_called_once_with(mock_transcript, anthropic_client=None)
+        # Verificar que select_moments foi chamado (fmt default 'curto' quando ausente no row)
+        mock_select.assert_called_once_with(mock_transcript, anthropic_client=None, fmt='curto')
 
     def test_process_ai_pipeline_transcription_failure_marks_failed(self, mock_db_conn, mocker):
         """AI-04: Falha na transcrição (None) marca vídeo como failed e não chama select_moments."""

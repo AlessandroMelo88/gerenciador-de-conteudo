@@ -2,8 +2,10 @@
 internal_api.py — Sidecar HTTP interno consumido pelo painel Laravel.
 
 Endpoints:
-  - POST /internal/resolve-channel  {url}      -> {channel_id, channel_name, channel_handle}
-  - POST /internal/reject-clip      {clip_id}  -> {exit_code}
+  - POST /internal/resolve-channel      {url}              -> {channel_id, channel_name, channel_handle}
+  - POST /internal/reject-clip          {clip_id}          -> {exit_code}
+  - POST /internal/process-url          {url}              -> {exit_code}
+  - POST /internal/delete-source-video  {source_video_id}  -> {deleted, freed_bytes}
 
 Auth: header X-Internal-Token verificado contra CLIP_PROCESSOR_INTERNAL_TOKEN.
 Rede: bind 0.0.0.0:8090 dentro do container `clip-processor`, rede docker `internal`
@@ -15,6 +17,7 @@ import subprocess
 
 from flask import Flask, jsonify, request
 
+from src.db import get_db_connection
 from src.processar import main as processar_main
 from src.rejeitar import rejeitar
 
@@ -70,6 +73,49 @@ def reject_clip(clip_id: int) -> int:
     return int(rejeitar(int(clip_id)))
 
 
+def delete_source_video_file(source_video_id: int) -> dict:
+    """Apaga o arquivo bruto (.mp4) de um source_video e zera local_path no banco.
+
+    Não mexe no status do vídeo nem nos generated_clips — é só limpeza de disco,
+    disparada manualmente pelo operador via painel (Vídeos > Apagar arquivo).
+    Recusa apagar se o vídeo está em 'downloading' ou 'cutting' agora (arquivo em uso).
+
+    Raises:
+        RuntimeError: vídeo não existe, ou está em uso no momento.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT id, status, local_path FROM source_videos WHERE id = %s',
+                (source_video_id,),
+            )
+            row = cur.fetchone()
+
+        if not row:
+            raise RuntimeError('source_video não encontrado')
+
+        if row['status'] in ('downloading', 'cutting'):
+            raise RuntimeError(f"vídeo em uso agora (status={row['status']}) — tente novamente em instantes")
+
+        local_path = row['local_path']
+        freed_bytes = 0
+        if local_path and os.path.exists(local_path):
+            freed_bytes = os.path.getsize(local_path)
+            os.remove(local_path)
+
+        with conn.cursor() as cur:
+            cur.execute(
+                'UPDATE source_videos SET local_path = NULL WHERE id = %s',
+                (source_video_id,),
+            )
+        conn.commit()
+
+        return {'deleted': True, 'freed_bytes': freed_bytes}
+    finally:
+        conn.close()
+
+
 @app.post('/internal/resolve-channel')
 def _route_resolve_channel():
     if not _check_auth():
@@ -106,10 +152,26 @@ def _route_process_url():
         return jsonify(error='unauthorized'), 401
     payload = request.get_json(silent=True) or {}
     url = payload.get('url')
+    fmt = payload.get('format', 'curto')
     if not url:
         return jsonify(error='missing url'), 400
     try:
-        exit_code = processar_main(url)
+        exit_code = processar_main(url, fmt=fmt)
     except Exception as e:  # noqa: BLE001
         return jsonify(error=str(e)), 500
     return jsonify(exit_code=exit_code), 200
+
+
+@app.post('/internal/delete-source-video')
+def _route_delete_source_video():
+    if not _check_auth():
+        return jsonify(error='unauthorized'), 401
+    payload = request.get_json(silent=True) or {}
+    source_video_id = payload.get('source_video_id')
+    if source_video_id is None:
+        return jsonify(error='missing source_video_id'), 400
+    try:
+        result = delete_source_video_file(int(source_video_id))
+    except RuntimeError as e:
+        return jsonify(error=str(e)), 422
+    return jsonify(result), 200

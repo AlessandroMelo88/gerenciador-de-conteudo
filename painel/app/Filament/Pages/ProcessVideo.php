@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Services\ClipProcessorClient;
 use BackedEnum;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -39,9 +40,19 @@ class ProcessVideo extends Page implements HasForms
     {
         return $schema
             ->components([
+                Radio::make('format')
+                    ->label('Formato')
+                    ->options([
+                        'curto' => 'Curto (shorts — vários momentos de 15s a 3min, vertical)',
+                        'longo' => 'Longo (1 segmento de 10 a 20min — análise/entrevista, horizontal)',
+                    ])
+                    ->default('curto')
+                    ->inline()
+                    ->required(),
+
                 Textarea::make('urls')
                     ->label('URLs do YouTube (uma por linha)')
-                    ->helperText('Cole um ou mais links de vídeos do YouTube, um por linha. Cada vídeo entra na fila normal do pipeline (download → transcrição → seleção → corte).')
+                    ->helperText('Cole um ou mais links de vídeos do YouTube, um por linha. Cada vídeo entra na fila normal do pipeline (download → transcrição → seleção → corte) no formato escolhido acima.')
                     ->placeholder("https://www.youtube.com/watch?v=...\nhttps://www.youtube.com/watch?v=...")
                     ->rows(6)
                     ->required(),
@@ -73,13 +84,14 @@ class ProcessVideo extends Page implements HasForms
         }
 
         $client = app(ClipProcessorClient::class);
+        $format = $state['format'] ?? 'curto';
 
         $ok = [];
         $failed = [];
 
         foreach ($urls as $url) {
             try {
-                $exitCode = $client->processUrl($url);
+                $exitCode = $client->processUrl($url, $format);
 
                 match ($exitCode) {
                     0 => $ok[] = $url,

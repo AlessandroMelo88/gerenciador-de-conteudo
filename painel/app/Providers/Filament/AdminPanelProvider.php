@@ -40,7 +40,9 @@ class AdminPanelProvider extends PanelProvider
             // automaticamente — não listar de novo em ->widgets() para evitar duplicação no dashboard.
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([])
-            ->renderHook('panels::sidebar.footer', fn () => view('filament.sidebar-footer'))
+            // sidebar.nav.end renderiza DENTRO da tag <nav>, após a lista de itens
+            // (sidebar.footer renderiza fora do <nav>, como irmão dele dentro do <aside>).
+            ->renderHook('panels::sidebar.nav.end', fn () => view('filament.sidebar-footer'))
             ->renderHook('panels::head.end', fn () => view('filament.custom-styles'))
             ->middleware([
                 EncryptCookies::class,

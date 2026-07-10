@@ -85,7 +85,7 @@ def fetch_metadata(video_id: str) -> dict:
     }
 
 
-def upsert_source_video(conn, meta: dict) -> Tuple[str, bool]:
+def upsert_source_video(conn, meta: dict, fmt: str = 'curto') -> Tuple[str, bool]:
     """Insere ou retorna status atual. Idempotente.
 
     Estratégia SELECT-then-INSERT (em vez de INSERT...ON DUPLICATE KEY):
@@ -137,30 +137,38 @@ def upsert_source_video(conn, meta: dict) -> Tuple[str, bool]:
         # 3) Inserir novo vídeo com status='pending' (não bypassa pipeline)
         cur.execute(
             'INSERT INTO source_videos '
-            '(youtube_video_id, channel_id, title, published_at, status) '
-            'VALUES (%s, %s, %s, %s, %s)',
+            '(youtube_video_id, channel_id, title, published_at, status, format) '
+            'VALUES (%s, %s, %s, %s, %s, %s)',
             (
                 meta['youtube_video_id'],
                 internal_channel_id,
                 meta['title'],
                 meta['published_at'],
                 'pending',
+                fmt,
             )
         )
     conn.commit()
     return ('pending', True)
 
 
-def main(url: str) -> int:
+def main(url: str, fmt: str = 'curto') -> int:
     """Entrypoint CLI. Exit codes:
       - 0: OK (inserido ou já existia)
       - 2: URL inválida
       - 3: metadata yt-dlp falhou (vídeo privado, inexistente, region-locked)
+
+    Args:
+        fmt: 'curto' (shorts, padrão) ou 'longo' (segmento único de 10-20min,
+             sem crop vertical) — controla o modo do seletor/corte mais tarde.
     """
     video_id = parse_video_id(url)
     if not video_id:
         print(f'ERRO: URL inválida: {url}')
         return 2
+
+    if fmt not in ('curto', 'longo'):
+        fmt = 'curto'
 
     try:
         meta = fetch_metadata(video_id)
@@ -170,9 +178,9 @@ def main(url: str) -> int:
 
     conn = get_db_connection()
     try:
-        status, created = upsert_source_video(conn, meta)
+        status, created = upsert_source_video(conn, meta, fmt=fmt)
         verb = 'inserido' if created else 'já existia'
-        print(f'OK: {video_id} {verb} — status={status} — título="{meta["title"]}"')
+        print(f'OK: {video_id} {verb} — status={status} — formato={fmt} — título="{meta["title"]}"')
         return 0
     finally:
         conn.close()
