@@ -7,6 +7,14 @@ use App\Services\ClipProcessorClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// Logout via GET — usado pelo NavigationItem "Sair" da sidebar (sem form/JS).
+Route::get('/admin/do-logout', function () {
+    filament()->auth()->logout();
+    session()->invalidate();
+    session()->regenerateToken();
+    return redirect('/admin/login');
+})->middleware(['web', 'auth'])->name('admin.do-logout');
+
 // URL raiz = o painel (decisão CONTEXT.md: "canaldecortes.local raiz, sem
 // subdomínio 'painel' — o painel É o Canal de Cortes para o operador").
 // Redireciona para /admin, que por sua vez redireciona para /admin/login

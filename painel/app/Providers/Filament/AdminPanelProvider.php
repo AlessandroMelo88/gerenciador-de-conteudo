@@ -6,6 +6,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationItem;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -40,7 +41,12 @@ class AdminPanelProvider extends PanelProvider
             // automaticamente — não listar de novo em ->widgets() para evitar duplicação no dashboard.
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([])
-            ->renderHook('panels::sidebar.footer', fn () => view('filament.sidebar-footer'))
+            ->navigationItems([
+                NavigationItem::make('Sair')
+                    ->icon('heroicon-o-arrow-right-on-rectangle')
+                    ->sort(99)
+                    ->url(fn () => route('admin.do-logout')),
+            ])
             ->renderHook('panels::head.end', fn () => view('filament.custom-styles'))
             ->middleware([
                 EncryptCookies::class,

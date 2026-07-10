@@ -16,8 +16,9 @@
         height: 1.1rem !important;
     }
 
-    /* Garante que o footer (Sair) tenha o mesmo fundo da sidebar */
-    .fi-sidebar-footer {
-        background-color: #0c1220 !important;
+    /* Heading das páginas de listagem: mesma escala do Dashboard */
+    .fi-header-heading {
+        font-size: 1.125rem !important;
+        font-weight: 600 !important;
     }
 </style>
