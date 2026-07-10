@@ -100,7 +100,20 @@ def test_process_url_calls_processar_main_and_returns_exit_code(client):
         )
     assert resp.status_code == 200
     assert resp.get_json()['exit_code'] == 0
-    mock_proc.assert_called_once_with('https://youtube.com/watch?v=abc')
+    mock_proc.assert_called_once_with('https://youtube.com/watch?v=abc', fmt='curto')
+
+
+def test_process_url_passes_format_longo(client):
+    """POST /internal/process-url com format='longo' repassa fmt='longo' pro processar_main."""
+    with patch('src.internal_api.processar_main') as mock_proc:
+        mock_proc.return_value = 0
+        resp = client.post(
+            '/internal/process-url',
+            json={'url': 'https://youtube.com/watch?v=abc', 'format': 'longo'},
+            headers={'X-Internal-Token': 'test-token-123'},
+        )
+    assert resp.status_code == 200
+    mock_proc.assert_called_once_with('https://youtube.com/watch?v=abc', fmt='longo')
 
 
 def test_process_url_missing_url_returns_400(client):

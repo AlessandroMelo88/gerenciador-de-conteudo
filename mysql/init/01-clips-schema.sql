@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS source_videos (
     'failed'
   ) DEFAULT 'pending',
   local_path VARCHAR(1024),
+  format ENUM('curto', 'longo') NOT NULL DEFAULT 'curto',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_source_videos_channel FOREIGN KEY (channel_id)

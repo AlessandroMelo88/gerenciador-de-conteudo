@@ -11,6 +11,14 @@
             </x-filament::tabs.item>
 
             <x-filament::tabs.item
+                wire:click="setTab('queued')"
+                :active="$activeTab === 'queued'"
+                :badge="$queuedClips->count()"
+            >
+                Na fila (aguardando cota)
+            </x-filament::tabs.item>
+
+            <x-filament::tabs.item
                 wire:click="setTab('failures')"
                 :active="$activeTab === 'failures'"
                 :badge="$failures->count()"
@@ -83,6 +91,72 @@
                                                     Rejeitar
                                                 </x-filament::button>
                                             </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            @endif
+
+            {{-- ── Na fila (aprovados aguardando cota diária) ── --}}
+            @if ($activeTab === 'queued')
+                @if ($queuedClips->isEmpty())
+                    <x-filament::empty-state
+                        heading="Fila vazia"
+                        description="Nenhum clip aprovado aguardando publicação"
+                        icon="heroicon-o-check-circle"
+                    />
+                @else
+                    <x-filament::callout color="info" icon="heroicon-o-information-circle" style="margin-bottom:1rem">
+                        Publica automaticamente em ordem (mais antigo primeiro), respeitando o limite diário de uploads. Se não fizer nada, a fila segue sozinha. Use "Rejeitar" só se a notícia ficou velha/irrelevante.
+                    </x-filament::callout>
+                    <div style="overflow-x:auto">
+                        <table style="width:100%;font-size:0.75rem;border-collapse:collapse">
+                            <thead>
+                                <tr>
+                                    <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Pos.</th>
+                                    <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">ID</th>
+                                    <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Título</th>
+                                    <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Vídeo fonte</th>
+                                    <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Destino</th>
+                                    <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Score</th>
+                                    <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Aprovado</th>
+                                    <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($queuedClips as $index => $clip)
+                                    <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                                        <td style="padding:10px 10px;color:#9ca3af;white-space:nowrap">#{{ $index + 1 }}</td>
+                                        <td style="padding:10px 10px;color:#9ca3af;white-space:nowrap">{{ $clip->id }}</td>
+                                        <td style="padding:10px 10px;max-width:180px">
+                                            <span title="{{ $clip->title }}" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e5e7eb">
+                                                {{ str($clip->title)->limit(35) }}
+                                            </span>
+                                        </td>
+                                        <td style="padding:10px 10px;max-width:140px;color:#9ca3af">
+                                            <span title="{{ $clip->sourceVideo?->title }}" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                                                {{ str($clip->sourceVideo?->title ?? '—')->limit(22) }}
+                                            </span>
+                                        </td>
+                                        <td style="padding:10px 10px;color:#9ca3af;white-space:nowrap">{{ $clip->destinationChannel?->name }}</td>
+                                        <td style="padding:10px 10px;white-space:nowrap">
+                                            <x-filament::badge color="warning">{{ $clip->score }}</x-filament::badge>
+                                        </td>
+                                        <td style="padding:10px 10px;color:#9ca3af;white-space:nowrap">{{ $clip->created_at?->diffForHumans() }}</td>
+                                        <td style="padding:10px 10px;white-space:nowrap">
+                                            <x-filament::button
+                                                wire:click="rejeitar({{ $clip->id }})"
+                                                wire:confirm="Rejeitar clip #{{ $clip->id }}? O MP4 será removido do disco e ele sai da fila."
+                                                wire:loading.attr="disabled"
+                                                color="danger"
+                                                size="xs"
+                                                outlined
+                                            >
+                                                Rejeitar
+                                            </x-filament::button>
                                         </td>
                                     </tr>
                                 @endforeach

@@ -1,4 +1,4 @@
-<div class="px-2 pb-3">
+<div class="px-2 pb-3" style="margin-top: auto;">
     <ul>
         <li class="fi-sidebar-item fi-sidebar-item-has-url">
             <a href="{{ route('admin.do-logout') }}" class="fi-sidebar-item-btn">

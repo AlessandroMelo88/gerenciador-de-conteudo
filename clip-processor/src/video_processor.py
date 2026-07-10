@@ -31,14 +31,22 @@ def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [VID] {msg}')
 
 
-def cut_clip(source_path: str, start_time: float, end_time: float, output_path: str) -> str:
-    """Corta um trecho do vídeo fonte e converte para 1080x1920."""
+def cut_clip(source_path: str, start_time: float, end_time: float, output_path: str, fmt: str = 'curto') -> str:
+    """Corta um trecho do vídeo fonte.
+
+    fmt='curto' (padrão): converte pra vertical 1080x1920 (Shorts).
+    fmt='longo': mantém aspecto horizontal original, só normaliza a altura pra
+    1080p — vídeo de 10-20min não faz sentido em formato vertical.
+    """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    video_filter = (
-        'scale=1080:1920:force_original_aspect_ratio=increase,'
-        'crop=1080:1920,'
-        'setsar=1'
-    )
+    if fmt == 'longo':
+        video_filter = 'scale=-2:1080,setsar=1'
+    else:
+        video_filter = (
+            'scale=1080:1920:force_original_aspect_ratio=increase,'
+            'crop=1080:1920,'
+            'setsar=1'
+        )
     subprocess.run(
         [
             'ffmpeg',
@@ -189,7 +197,7 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
         final_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}.mp4')
         thumbnail_path = os.path.join(THUMBNAILS_DIR, f'{clip_id}.jpg')
 
-        cut_clip(clip['local_path'], clip['start_time'], clip['end_time'], raw_clip_path)
+        cut_clip(clip['local_path'], clip['start_time'], clip['end_time'], raw_clip_path, fmt=clip.get('format') or 'curto')
         generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
         burn_subtitles(raw_clip_path, srt_path, subtitled_path)
 
@@ -242,7 +250,7 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
         cur.execute(
             'SELECT '
             'gc.id, gc.source_video_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
-            'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path, '
+            'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path, sv.format, '
             'dc.slug AS destination_channel_slug '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '

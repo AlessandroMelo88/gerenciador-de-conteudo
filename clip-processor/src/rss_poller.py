@@ -98,16 +98,17 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
         # Seleção
         update_status(conn, video_id, 'selecting')
 
-        # Obter source_video_id INT para FK em generated_clips
+        # Obter source_video_id INT + formato (curto/longo) para FK em generated_clips
         with conn.cursor() as cur:
-            cur.execute('SELECT id FROM source_videos WHERE youtube_video_id = %s', (video_id,))
+            cur.execute('SELECT id, format FROM source_videos WHERE youtube_video_id = %s', (video_id,))
             row = cur.fetchone()
         if row is None:
             _log(f'[AI] AVISO: source_video_id não encontrado para {video_id}')
             return
         source_video_id = row['id']
+        fmt = row.get('format') or 'curto'
 
-        moments = select_moments(transcript, anthropic_client=anthropic_client)
+        moments = select_moments(transcript, anthropic_client=anthropic_client, fmt=fmt)
         inserted = insert_selected_moments(conn, source_video_id, video_id, moments)
         _log(f'[AI] Pipeline concluído para {video_id}: {inserted} momento(s) inserido(s) em generated_clips')
 

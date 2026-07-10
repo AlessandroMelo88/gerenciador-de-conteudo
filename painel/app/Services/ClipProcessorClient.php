@@ -60,20 +60,49 @@ class ClipProcessorClient
     /**
      * Enfileira URL do YouTube para processamento pelo pipeline.
      *
+     * @param  string  $format  'curto' (shorts, padrão) ou 'longo' (segmento único 10-20min)
      * @return int exit_code (0=ok, 2=URL inválida, 3=metadata yt-dlp falhou)
      *
      * @throws RuntimeException em erro HTTP 5xx ou timeout.
      */
-    public function processUrl(string $url): int
+    public function processUrl(string $url, string $format = 'curto'): int
     {
         $response = Http::timeout(30)
             ->withHeader('X-Internal-Token', (string) $this->token)
-            ->post($this->baseUrl.'/internal/process-url', ['url' => $url]);
+            ->post($this->baseUrl.'/internal/process-url', ['url' => $url, 'format' => $format]);
 
         if (! $response->successful()) {
             throw new RuntimeException('Erro ao processar URL: HTTP '.$response->status());
         }
 
         return (int) $response->json('exit_code', 3);
+    }
+
+    /**
+     * Apaga o arquivo bruto (.mp4) de um source_video no disco do clip-processor
+     * e zera local_path no banco. Não mexe em status/generated_clips.
+     *
+     * @return array{deleted: bool, freed_bytes: int}
+     *
+     * @throws RuntimeException ao falhar (vídeo não existe, em uso, ou erro HTTP).
+     */
+    public function deleteSourceVideo(int $sourceVideoId): array
+    {
+        $response = Http::timeout(15)
+            ->withHeader('X-Internal-Token', (string) $this->token)
+            ->post($this->baseUrl.'/internal/delete-source-video', ['source_video_id' => $sourceVideoId]);
+
+        if ($response->status() === 422) {
+            throw new RuntimeException((string) $response->json('error', 'Não consegui apagar esse arquivo.'));
+        }
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Erro interno ao chamar o clip-processor: HTTP '.$response->status());
+        }
+
+        return [
+            'deleted' => (bool) $response->json('deleted', false),
+            'freed_bytes' => (int) $response->json('freed_bytes', 0),
+        ];
     }
 }

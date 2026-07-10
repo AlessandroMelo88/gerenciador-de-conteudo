@@ -14,15 +14,36 @@ from datetime import datetime
 
 SYSTEM_PROMPT = (
     "Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos. "
-    "Analise a transcrição fornecida e identifique os melhores segmentos para criar clips de 5 a 10 minutos. "
+    "Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, "
+    "de 15 segundos a 3 minutos — reações rápidas, tiradas, frases de efeito. "
     "Para futebol: priorize análise tática, debate acalorado, reação a gol, revelação de bastidores. "
     "Para podcasts: priorize discussão intensa, revelação importante, momento de conflito ou humor. "
     "Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente "
     "(10 = viral garantido, 1 = sem valor). "
-    "Considere apenas momentos onde o conteúdo é coeso e completo dentro do intervalo de 5-10 minutos.\n\n"
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
+
+# Modo 'longo' (Processar Vídeo > formato=longo): 1 segmento contínuo de 10-20min
+# em vez de vários momentos curtos. Prompt separado porque o modelo (testado com
+# Groq Llama 3.3-70b) ignora instruções de duração longa quando misturado com o
+# pedido de "múltiplos momentos curtos" do modo padrão.
+LONG_SYSTEM_PROMPT = (
+    "Você é um especialista em identificar o melhor segmento de ANÁLISE ou ENTREVISTA longa "
+    "de um vídeo de futebol/esportes para virar um vídeo único no YouTube (não um short). "
+    "Analise a transcrição e identifique O MELHOR segmento CONTÍNUO — não fragmente em vários "
+    "pedaços — com duração ENTRE 600 e 1200 segundos (10 a 20 minutos). "
+    "Priorize um raciocínio completo: uma análise tática do início ao fim, uma resposta longa e "
+    "coesa de um entrevistado, ou um debate que se desenvolve com começo, meio e fim dentro da "
+    "janela de 10-20 minutos. Não escolha um trecho curto — o segmento PRECISA ter pelo menos "
+    "600 segundos de duração (end_time - start_time >= 600). "
+    "Retorne exatamente 1 momento. "
+    "Responda APENAS com JSON válido, sem texto adicional:\n"
+    '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
+)
+
+MIN_LONGFORM_SECONDS = 600
+MAX_LONGFORM_SECONDS = 1200
 
 
 def _log(msg: str) -> None:
@@ -35,18 +56,18 @@ def _parse_moments(raw_text: str) -> list[dict]:
     return data.get('moments', [])
 
 
-def _select_via_anthropic_client(client, transcript_text: str) -> list[dict]:
+def _select_via_anthropic_client(client, transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -> list[dict]:
     """Usa cliente Anthropic já instanciado (produção ou mock de teste)."""
     response = client.messages.create(
         model='claude-haiku-4-5',
         max_tokens=2048,
-        system=SYSTEM_PROMPT,
+        system=system_prompt,
         messages=[{'role': 'user', 'content': transcript_text}],
     )
     return _parse_moments(response.content[0].text)
 
 
-def _select_via_groq(transcript_text: str) -> list[dict]:
+def _select_via_groq(transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -> list[dict]:
     """Seleciona momentos via Groq LLaMA 3.3-70b (fallback sempre disponível)."""
     from groq import Groq
     client = Groq()
@@ -54,7 +75,7 @@ def _select_via_groq(transcript_text: str) -> list[dict]:
     response = client.chat.completions.create(
         model='llama-3.3-70b-versatile',
         messages=[
-            {'role': 'system', 'content': SYSTEM_PROMPT},
+            {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': transcript_text},
         ],
         response_format={'type': 'json_object'},
@@ -64,8 +85,8 @@ def _select_via_groq(transcript_text: str) -> list[dict]:
     return _parse_moments(response.choices[0].message.content)
 
 
-def _remove_overlaps(moments: list[dict]) -> list[dict]:
-    """Remove momentos sobrepostos, mantendo o de maior score. Retorna no máximo 3."""
+def _remove_overlaps(moments: list[dict], max_count: int = 3) -> list[dict]:
+    """Remove momentos sobrepostos, mantendo o de maior score. Retorna no máximo max_count."""
     sorted_moments = sorted(moments, key=lambda m: m['score'], reverse=True)
     selected = []
     for candidate in sorted_moments:
@@ -76,12 +97,41 @@ def _remove_overlaps(moments: list[dict]) -> list[dict]:
         )
         if not overlaps:
             selected.append(candidate)
-        if len(selected) >= 3:
+        if len(selected) >= max_count:
             break
     return selected
 
 
-def select_moments(transcript: dict, anthropic_client=None) -> list[dict]:
+def _enforce_longform_duration(moments: list[dict], transcript_duration: float) -> list[dict]:
+    """Garante duração mínima de MIN_LONGFORM_SECONDS para o modo 'longo'.
+
+    O modelo (mesmo instruído) às vezes devolve segmentos curtos — em vez de
+    descartar, estica o segmento simetricamente até o mínimo, respeitando os
+    limites da transcrição e o teto de MAX_LONGFORM_SECONDS.
+    """
+    adjusted = []
+    for m in moments:
+        duration = m['end_time'] - m['start_time']
+        if duration >= MIN_LONGFORM_SECONDS:
+            adjusted.append(m)
+            continue
+
+        target = min(MIN_LONGFORM_SECONDS, transcript_duration) if transcript_duration else MIN_LONGFORM_SECONDS
+        missing = target - duration
+        new_start = max(0, m['start_time'] - missing / 2)
+        new_end = new_start + target
+        if transcript_duration and new_end > transcript_duration:
+            new_end = transcript_duration
+            new_start = max(0, new_end - target)
+
+        m = dict(m)
+        m['start_time'] = new_start
+        m['end_time'] = min(new_end, new_start + MAX_LONGFORM_SECONDS)
+        adjusted.append(m)
+    return adjusted
+
+
+def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto') -> list[dict]:
     """Analisa transcrição e retorna momentos selecionados via IA.
 
     Fluxo de seleção de provider:
@@ -93,10 +143,16 @@ def select_moments(transcript: dict, anthropic_client=None) -> list[dict]:
     Args:
         transcript: dict com {'video_id', 'text', 'segments'} — output de transcribe_video()
         anthropic_client: cliente Anthropic injetado para testes (None = modo produção)
+        fmt: 'curto' (vários momentos de 15s-3min, padrão) ou 'longo' (1 segmento
+             contínuo de 10-20min — usado pelo Processar Vídeo manual)
 
     Returns:
-        Lista de dicts com {'start_time', 'end_time', 'score', 'reason'}, máx 3, sem overlap
+        Lista de dicts com {'start_time', 'end_time', 'score', 'reason'}, sem overlap.
     """
+    is_longo = fmt == 'longo'
+    system_prompt = LONG_SYSTEM_PROMPT if is_longo else SYSTEM_PROMPT
+    max_moments = 1 if is_longo else 3
+
     lines = []
     for seg in transcript.get('segments', []):
         start = int(seg['start'])
@@ -104,8 +160,13 @@ def select_moments(transcript: dict, anthropic_client=None) -> list[dict]:
         lines.append(f'[{start}s-{end}s] {seg["text"]}')
     transcript_text = '\n'.join(lines)
 
-    # Groq free tier: ~12k TPM — trunca transcrições longas para ~8000 chars (~6k tokens)
-    MAX_CHARS = 8000
+    segments = transcript.get('segments', [])
+    transcript_duration = float(segments[-1]['end']) if segments else 0.0
+
+    # Groq free tier: ~12k TPM. Modo curto trunca bem cedo (~8k chars); modo longo
+    # precisa "ver" o vídeo inteiro pra achar um segmento de 10-20min, então usa
+    # um teto bem maior antes de truncar.
+    MAX_CHARS = 20000 if is_longo else 8000
     if len(transcript_text) > MAX_CHARS:
         transcript_text = transcript_text[:MAX_CHARS]
         _log(f'[SELECTOR] Transcrição truncada para {MAX_CHARS} chars (original maior)')
@@ -114,10 +175,16 @@ def select_moments(transcript: dict, anthropic_client=None) -> list[dict]:
         _log('[SELECTOR] Transcrição vazia — sem momentos')
         return []
 
+    def _finalize(moments: list[dict]) -> list[dict]:
+        result = _remove_overlaps(moments, max_count=max_moments)
+        if is_longo:
+            result = _enforce_longform_duration(result, transcript_duration)
+        return result
+
     # Caminho de testes: cliente injetado diretamente
     if anthropic_client is not None:
         try:
-            return _remove_overlaps(_select_via_anthropic_client(anthropic_client, transcript_text))
+            return _finalize(_select_via_anthropic_client(anthropic_client, transcript_text, system_prompt))
         except Exception as e:
             _log(f'Erro ao selecionar momentos: {e}')
             return []
@@ -129,15 +196,15 @@ def select_moments(transcript: dict, anthropic_client=None) -> list[dict]:
             import anthropic
             client = anthropic.Anthropic(api_key=api_key)
             _log('[SELECTOR] Usando Anthropic Claude Haiku')
-            moments = _select_via_anthropic_client(client, transcript_text)
-            return _remove_overlaps(moments)
+            moments = _select_via_anthropic_client(client, transcript_text, system_prompt)
+            return _finalize(moments)
         except Exception as e:
             _log(f'[SELECTOR] Anthropic indisponível ({e}) — fallback para Groq')
     else:
         _log('[SELECTOR] ANTHROPIC_API_KEY ausente — usando Groq LLaMA diretamente')
 
     try:
-        return _remove_overlaps(_select_via_groq(transcript_text))
+        return _finalize(_select_via_groq(transcript_text, system_prompt))
     except Exception as e:
         _log(f'Erro ao selecionar momentos: {e}')
         return []
