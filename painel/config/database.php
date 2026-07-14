@@ -181,12 +181,16 @@ return [
 
         // Conexão SÓ para leitura de chaves geradas pelo pipeline Python
         // (youtube_uploads:{channel_id}:{date}). NÃO usar para session/cache do Laravel.
+        // 'prefix' => '' sobrescreve o prefixo global (redis.options.prefix) só nesta
+        // conexão — sem isso, toda leitura busca "{app-slug}-database-youtube_uploads:..."
+        // que o Python nunca escreve, e a cota sempre aparece zerada.
         'pipeline' => [
             'url' => env('REDIS_URL'),
             'host' => env('REDIS_HOST', '127.0.0.1'),
             'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
             'database' => 0,
+            'prefix' => '',
         ],
 
     ],

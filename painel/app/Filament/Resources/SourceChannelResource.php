@@ -3,9 +3,12 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\SourceChannelResource\Pages;
+use App\Models\Niche;
 use App\Models\SourceChannel;
 use BackedEnum;
-use Filament\Forms\Components\Select;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -33,14 +36,7 @@ class SourceChannelResource extends Resource
                 ->live()
                 ->dehydrated(false),  // não persiste em source_channels; usado só para resolver via yt-dlp
 
-            Select::make('target_niche')
-                ->label('Nicho de destino')
-                ->options([
-                    'futebol' => 'Futebol',
-                    'podcast' => 'Podcast',
-                ])
-                ->required()
-                ->default('futebol'),
+            Niche::selectField('target_niche', 'Nicho de destino'),
         ]);
     }
 
@@ -56,6 +52,14 @@ class SourceChannelResource extends Resource
                     ->label('Blacklisted')
                     ->tooltip('Afeta apenas novos vídeos. Para purgar a fila use SQL manual.'),
                 TextColumn::make('created_at')->label('Criado')->dateTime()->since(),
+            ])
+            ->actions([
+                DeleteAction::make(),
+            ])
+            ->bulkActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                ]),
             ])
             ->defaultSort('created_at', 'desc');
     }

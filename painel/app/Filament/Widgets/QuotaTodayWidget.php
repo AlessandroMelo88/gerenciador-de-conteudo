@@ -29,6 +29,10 @@ class QuotaTodayWidget extends BaseWidget
         $stats = [];
         $index = 0;
 
+        // min(MAX_UPLOADS_PER_DAY, 6) espelha o clamp de ABSOLUTE_MAX_UPLOADS_PER_DAY
+        // em clip-processor/src/quota_manager.py — mesma env var, mesmo teto.
+        $limit = min((int) env('MAX_UPLOADS_PER_DAY', 2), 6);
+
         foreach (DestinationChannel::query()->where('active', true)->get() as $channel) {
             $key = "youtube_uploads:{$channel->youtube_channel_id}:{$date}";
             try {
@@ -36,7 +40,6 @@ class QuotaTodayWidget extends BaseWidget
             } catch (\Throwable $e) {
                 $count = 0;
             }
-            $limit = 3;
             $color = $count >= $limit ? 'danger' : $palette[$index % count($palette)];
             $stats[] = Stat::make(
                 label: $channel->name,

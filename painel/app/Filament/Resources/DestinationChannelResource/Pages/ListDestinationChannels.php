@@ -3,8 +3,8 @@
 namespace App\Filament\Resources\DestinationChannelResource\Pages;
 
 use App\Filament\Resources\DestinationChannelResource;
+use App\Models\Niche;
 use Filament\Actions\CreateAction;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -31,10 +31,7 @@ class ListDestinationChannels extends ListRecords
                         ->label('Nome')
                         ->required(),
 
-                    Select::make('niche')
-                        ->label('Nicho')
-                        ->options(['futebol' => 'Futebol', 'podcast' => 'Podcast'])
-                        ->required(),
+                    Niche::selectField('niche', 'Nicho'),
 
                     TextInput::make('youtube_channel_id')
                         ->label('YouTube Channel ID (UC...)')

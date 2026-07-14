@@ -42,6 +42,17 @@ class ClipQueueWidget extends Widget
         Notification::make()->title("Clip #{$id} aprovado")->success()->send();
     }
 
+    public function formatTrecho(?float $start, ?float $end): string
+    {
+        if ($start === null || $end === null) {
+            return '—';
+        }
+
+        $fmt = fn (float $seconds): string => sprintf('%d:%02d', intdiv((int) $seconds, 60), (int) $seconds % 60);
+
+        return "{$fmt($start)}–{$fmt($end)}";
+    }
+
     public function rejeitar(int $id): void
     {
         $client = app(ClipProcessorClient::class);
@@ -65,11 +76,11 @@ class ClipQueueWidget extends Widget
     protected function getViewData(): array
     {
         return [
-            'pendingClips' => GeneratedClip::with(['sourceVideo', 'destinationChannel'])
+            'pendingClips' => GeneratedClip::with(['sourceVideo.sourceChannel', 'destinationChannel'])
                 ->where('status', 'pending')
                 ->latest()
                 ->get(),
-            'queuedClips' => GeneratedClip::with(['sourceVideo', 'destinationChannel'])
+            'queuedClips' => GeneratedClip::with(['sourceVideo.sourceChannel', 'destinationChannel'])
                 ->where('status', 'approved')
                 ->oldest('created_at')
                 ->get(),

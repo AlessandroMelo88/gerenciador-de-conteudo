@@ -138,10 +138,17 @@ class TestDownloadPendingVideos:
         cur.__exit__ = MagicMock(return_value=False)
         return cur
 
+    def _make_cursor_with_side_effect(self, results):
+        cur = MagicMock()
+        cur.fetchall.side_effect = results
+        cur.__enter__ = lambda s: s
+        cur.__exit__ = MagicMock(return_value=False)
+        return cur
+
     def test_successful_download_updates_status_to_downloaded(self):
         """Download bem-sucedido deve atualizar status para downloaded com local_path."""
         mock_conn = MagicMock()
-        cur = self._make_cursor([{'youtube_video_id': 'abc123'}])
+        cur = self._make_cursor_with_side_effect([[], [{'youtube_video_id': 'abc123'}]])
         mock_conn.cursor.return_value = cur
 
         with patch('src.pipeline_runner.download_video', return_value=True) as mock_dl, \
@@ -155,7 +162,7 @@ class TestDownloadPendingVideos:
     def test_failed_download_updates_status_to_failed(self):
         """Download falho deve atualizar status para failed."""
         mock_conn = MagicMock()
-        cur = self._make_cursor([{'youtube_video_id': 'xyz999'}])
+        cur = self._make_cursor_with_side_effect([[], [{'youtube_video_id': 'xyz999'}]])
         mock_conn.cursor.return_value = cur
 
         with patch('src.pipeline_runner.download_video', return_value=False), \
@@ -167,13 +174,32 @@ class TestDownloadPendingVideos:
     def test_no_pending_videos_does_nothing(self):
         """Sem vídeos pending, não deve chamar download_video."""
         mock_conn = MagicMock()
-        cur = self._make_cursor([])
+        cur = self._make_cursor_with_side_effect([[], []])
         mock_conn.cursor.return_value = cur
 
         with patch('src.pipeline_runner.download_video') as mock_dl:
             _download_pending_videos(mock_conn)
 
         mock_dl.assert_not_called()
+
+    def test_downloads_two_longos_then_three_curtos_in_sequence(self):
+        """Sequência fixa: até 2 longos primeiro, depois até 3 curtos."""
+        mock_conn = MagicMock()
+        longos = [{'youtube_video_id': 'longo1'}, {'youtube_video_id': 'longo2'}]
+        curtos = [
+            {'youtube_video_id': 'curto1'},
+            {'youtube_video_id': 'curto2'},
+            {'youtube_video_id': 'curto3'},
+        ]
+        cur = self._make_cursor_with_side_effect([longos, curtos])
+        mock_conn.cursor.return_value = cur
+
+        with patch('src.pipeline_runner.download_video', return_value=True) as mock_dl, \
+             patch('src.pipeline_runner.update_status'):
+            _download_pending_videos(mock_conn)
+
+        downloaded_order = [call.args[0] for call in mock_dl.call_args_list]
+        assert downloaded_order == ['longo1', 'longo2', 'curto1', 'curto2', 'curto3']
 
     def test_scheduler_compatible_coalesce(self):
         """Importar main.py não deve iniciar o scheduler (coalesce = True verificado via import)."""

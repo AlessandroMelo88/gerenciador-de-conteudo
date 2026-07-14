@@ -105,4 +105,29 @@ class ClipProcessorClient
             'freed_bytes' => (int) $response->json('freed_bytes', 0),
         ];
     }
+
+    /**
+     * Limpa vídeos fonte publicados antes de `$beforeDate` (formato 'Y-m-d'):
+     * apaga a linha inteira dos que nunca foram processados (sem clips), e libera
+     * o arquivo bruto dos que já geraram clips mas não precisam mais dele.
+     *
+     * @return array{deleted_rows: int, freed_bytes: int}
+     *
+     * @throws RuntimeException em erro HTTP.
+     */
+    public function purgeOldVideos(string $beforeDate): array
+    {
+        $response = Http::timeout(60)
+            ->withHeader('X-Internal-Token', (string) $this->token)
+            ->post($this->baseUrl.'/internal/purge-old-videos', ['before_date' => $beforeDate]);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Erro ao limpar vídeos antigos: HTTP '.$response->status());
+        }
+
+        return [
+            'deleted_rows' => (int) $response->json('deleted_rows', 0),
+            'freed_bytes' => (int) $response->json('freed_bytes', 0),
+        ];
+    }
 }

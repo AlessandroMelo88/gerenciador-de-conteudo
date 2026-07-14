@@ -20,6 +20,7 @@ import re
 import requests
 import feedparser
 import redis
+import yt_dlp
 from datetime import datetime
 
 # Palavras-chave que bloqueiam ingestão de vídeos — títulos com qualquer uma são ignorados
@@ -37,7 +38,7 @@ def _is_blocked_title(title: str) -> bool:
 from src.db import get_db_connection, insert_video, update_status
 from src.dedup import is_seen
 from src.transcriber import transcribe_video, save_transcript
-from src.selector import select_moments, insert_selected_moments
+from src.selector import select_moments, insert_selected_moments, MIN_LONGFORM_SECONDS
 from src.video_processor import process_clip
 
 
@@ -48,6 +49,25 @@ REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 def _log(msg: str) -> None:
     """Loga mensagem com timestamp para stdout."""
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [ACQU] {msg}')
+
+
+def _detect_format(video_id: str) -> str:
+    """Decide 'curto' ou 'longo' com base na duração real do vídeo fonte.
+
+    Vídeos com MIN_LONGFORM_SECONDS ou mais (entrevistas, podcasts, análises longas)
+    têm material suficiente pra um corte longo horizontal; o resto continua shorts.
+    Falha ao consultar metadados (rede, vídeo indisponível) → assume 'curto' (comportamento
+    anterior), sem abortar a ingestão do vídeo por isso.
+    """
+    try:
+        with yt_dlp.YoutubeDL({'quiet': True, 'no_color': True, 'skip_download': True}) as ydl:
+            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
+        duration = info.get('duration') if info else None
+        if duration and duration >= MIN_LONGFORM_SECONDS:
+            return 'longo'
+    except Exception as exc:
+        _log(f'AVISO: falha ao obter duração de {video_id} para detecção de formato: {exc}')
+    return 'curto'
 
 
 def _extract_video_id(entry) -> str | None:
@@ -208,8 +228,9 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
                         _log(f'Título bloqueado (keyword): {video_id} — {title}')
                         continue
 
-                    insert_video(db_conn, video_id, channel_id, title, published_at)
-                    _log(f'Novo vídeo detectado: {video_id} — {title}')
+                    fmt = _detect_format(video_id)
+                    insert_video(db_conn, video_id, channel_id, title, published_at, format=fmt)
+                    _log(f'Novo vídeo detectado ({fmt}): {video_id} — {title}')
                     total_new += 1
 
             except Exception as exc:
