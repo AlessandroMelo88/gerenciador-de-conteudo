@@ -102,6 +102,21 @@ Route::middleware(['web', 'auth'])->group(function () {
         return redirect('/admin');
     })->name('clips.approve');
 
+    // Preview leve do clip cortado direto no dashboard (checar legenda/qualidade
+    // antes de aprovar) — serve o .mp4 já compartilhado via volume com o
+    // clip-processor (ver docker-compose.yml e config/filesystems.php 'clips-videos').
+    Route::get('/admin/clips/{clip}/preview', function (GeneratedClip $clip) {
+        $relativePath = "clips/{$clip->id}.mp4";
+
+        if (! \Illuminate\Support\Facades\Storage::disk('clips-videos')->exists($relativePath)) {
+            abort(404);
+        }
+
+        return response()->file(
+            \Illuminate\Support\Facades\Storage::disk('clips-videos')->path($relativePath)
+        );
+    })->name('clips.preview');
+
     Route::post('/admin/clips/{clip}/reject', function (GeneratedClip $clip, ClipProcessorClient $client) {
         try {
             $exit = $client->rejectClip($clip->id);

@@ -124,6 +124,12 @@ def append_credits(description: str, credit_template: str, channel_handle: str) 
     return f'{description}\n\n{credits_line}'
 
 
+def resolve_credit_handle(channel_handle: str | None, channel_name: str | None) -> str:
+    """Handle a usar no crédito: prioriza @handle real; cai para o nome do canal
+    fonte se o handle não estiver cadastrado em source_channels."""
+    return channel_handle or channel_name or ''
+
+
 def update_clip_metadata(conn, clip_id: int, metadata: dict) -> None:
     """Persiste metadata em generated_clips."""
     normalized = _normalize_metadata(metadata)

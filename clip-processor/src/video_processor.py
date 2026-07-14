@@ -97,13 +97,24 @@ def generate_srt(transcript: dict, start_time: float, end_time: float, srt_path:
 
 
 def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str) -> str:
-    """Queima legendas SRT no clip usando FFmpeg."""
+    """Queima legendas SRT no clip usando FFmpeg.
+
+    Alignment=8 (topo-centro): nos vídeos fonte (câmera de reação/análise), o
+    apresentador costuma ocupar o centro/base do frame vertical — legenda no
+    rodapé cai sempre em cima do rosto. PlayResX/Y fixam a referência de escala
+    do libass no tamanho real do clip (1080x1920), já que Fontsize é relativo
+    a isso e sem PlayRes explícito o texto sai desproporcionalmente pequeno.
+    BorderStyle=3 (caixa opaca) + DejaVu Sans Bold: única família disponível no
+    container (fc-list), mais "chamativa" que Arial (que nem está instalada).
+    """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     subtitle_filter = (
         f"subtitles={srt_path}:"
-        "force_style='Fontname=Arial,Fontsize=12,"
+        "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=70,"
+        "PlayResX=1080,PlayResY=1920,"
         "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
-        "BorderStyle=1,Outline=2,Shadow=1,Alignment=2,MarginV=160'"
+        "BackColour=&H80000000,"
+        "BorderStyle=3,Outline=2,Shadow=0,Alignment=8,MarginV=120'"
     )
     subprocess.run(
         [

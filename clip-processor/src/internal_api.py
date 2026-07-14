@@ -15,6 +15,7 @@ import json
 import os
 import subprocess
 
+import redis
 from flask import Flask, jsonify, request
 
 from src.db import get_db_connection
@@ -22,6 +23,8 @@ from src.processar import main as processar_main
 from src.rejeitar import rejeitar
 
 INTERNAL_TOKEN = os.environ.get('CLIP_PROCESSOR_INTERNAL_TOKEN')
+REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 
 app = Flask(__name__)
 
@@ -114,6 +117,110 @@ def delete_source_video_file(source_video_id: int) -> dict:
         return {'deleted': True, 'freed_bytes': freed_bytes}
     finally:
         conn.close()
+
+
+# Status de clip que ainda precisam do vídeo bruto em disco pra rodar o corte.
+_CLIP_STATUSES_NEED_RAW_FILE = ('pending_cut', 'cutting')
+
+
+def purge_old_videos(before_date: str) -> dict:
+    """Limpa vídeos fonte com published_at anterior a `before_date` (formato 'YYYY-MM-DD').
+
+    Duas ações, pra manter o disco/banco enxutos sem quebrar nada em andamento:
+      1. Vídeos que nunca passaram da ingestão (status pending/failed/downloaded)
+         e não têm nenhum generated_clips — apaga a linha inteira (nunca vão ser
+         processados de qualquer forma, já que o download prioriza notícia recente).
+      2. Vídeos que já geraram clips (status selecting) mas cujo arquivo bruto
+         (.mp4) ainda está no disco — apaga só o arquivo (libera espaço), mantendo
+         a linha e os clips intactos. Pula qualquer vídeo com clip pending_cut/cutting
+         (ainda precisa do bruto pra terminar o corte).
+
+    Também remove do Redis a chave de deduplicação (video:{youtube_video_id}) das
+    linhas apagadas — sem isso, a chave (TTL 30 dias) continua marcando o vídeo
+    como "já visto" mesmo depois de removido do MySQL, e se o mesmo video_id
+    voltar a aparecer num feed RSS o poller nunca mais o insere.
+
+    Args:
+        before_date: string 'YYYY-MM-DD' — vídeos publicados antes dessa data são alvo.
+
+    Returns:
+        dict com deleted_rows (linhas removidas) e freed_bytes (espaço liberado).
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT sv.youtube_video_id FROM source_videos sv "
+                "WHERE sv.published_at < %s "
+                "AND sv.status IN ('pending', 'failed', 'downloaded') "
+                "AND NOT EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id)",
+                (before_date,),
+            )
+            video_ids_to_purge = [row['youtube_video_id'] for row in cur.fetchall()]
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE sv FROM source_videos sv "
+                "WHERE sv.published_at < %s "
+                "AND sv.status IN ('pending', 'failed', 'downloaded') "
+                "AND NOT EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id)",
+                (before_date,),
+            )
+            deleted_rows = cur.rowcount
+        conn.commit()
+
+        if video_ids_to_purge:
+            try:
+                r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+                r.delete(*[f'video:{vid}' for vid in video_ids_to_purge])
+            except redis.RedisError:
+                pass
+
+        placeholders = ', '.join(['%s'] * len(_CLIP_STATUSES_NEED_RAW_FILE))
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT sv.id, sv.local_path FROM source_videos sv "
+                f"WHERE sv.published_at < %s AND sv.local_path IS NOT NULL "
+                f"AND sv.status NOT IN ('downloading', 'cutting') "
+                f"AND NOT EXISTS ("
+                f"  SELECT 1 FROM generated_clips gc "
+                f"  WHERE gc.source_video_id = sv.id AND gc.status IN ({placeholders})"
+                f")",
+                (before_date, *_CLIP_STATUSES_NEED_RAW_FILE),
+            )
+            rows_with_file = cur.fetchall()
+
+        freed_bytes = 0
+        for row in rows_with_file:
+            local_path = row['local_path']
+            if local_path and os.path.exists(local_path):
+                freed_bytes += os.path.getsize(local_path)
+                os.remove(local_path)
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE source_videos SET local_path = NULL WHERE id = %s',
+                    (row['id'],),
+                )
+        conn.commit()
+
+        return {'deleted_rows': deleted_rows, 'freed_bytes': freed_bytes}
+    finally:
+        conn.close()
+
+
+@app.post('/internal/purge-old-videos')
+def _route_purge_old_videos():
+    if not _check_auth():
+        return jsonify(error='unauthorized'), 401
+    payload = request.get_json(silent=True) or {}
+    before_date = payload.get('before_date')
+    if not before_date:
+        return jsonify(error='missing before_date'), 400
+    try:
+        result = purge_old_videos(before_date)
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+    return jsonify(result), 200
 
 
 @app.post('/internal/resolve-channel')

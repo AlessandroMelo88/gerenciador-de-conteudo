@@ -33,7 +33,7 @@ except ModuleNotFoundError:
 
         def start(self):
             return None
-from src.pipeline_runner import run_pipeline_once
+from src.pipeline_runner import run_pipeline_once, run_publish_only
 from src.db import get_db_connection, recover_stuck_downloads
 from src import ttl_worker
 from src.ttl_worker import run_ttl_once
@@ -63,7 +63,20 @@ scheduler.add_job(
     id='pipeline_cycle',
     coalesce=True,
     max_instances=1,
-    misfire_grace_time=300,
+    misfire_grace_time=1800,
+)
+
+# Publica clips já aprovados isoladamente, bem mais frequente que o ciclo
+# completo (6h) — evita represar a fila esperando o próximo ciclo cheio
+# quando a cota diária reseta ou libera espaço.
+scheduler.add_job(
+    run_publish_only,
+    'interval',
+    minutes=20,
+    id='publish_cycle',
+    coalesce=True,
+    max_instances=1,
+    misfire_grace_time=900,
 )
 
 # CTRL-05: TTL worker — auto-rejeita clips pending >TTL_HOURS e avisa em WARN_HOURS.
@@ -76,7 +89,7 @@ scheduler.add_job(
     id='clip_pending_ttl',
     coalesce=True,
     max_instances=1,
-    misfire_grace_time=300,
+    misfire_grace_time=900,
 )
 
 signal.signal(signal.SIGTERM, shutdown)

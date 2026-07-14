@@ -83,7 +83,7 @@ def update_status(conn, video_id, status, local_path=None):
     _log(f'Status atualizado: video_id={video_id} → {status}')
 
 
-def insert_video(conn, video_id, channel_id, title, published_at):
+def insert_video(conn, video_id, channel_id, title, published_at, format='curto'):
     """Insere um novo vídeo na tabela source_videos com status 'pending'.
 
     Usa INSERT IGNORE para ser idempotente — ignora duplicatas silenciosamente.
@@ -94,13 +94,14 @@ def insert_video(conn, video_id, channel_id, title, published_at):
         channel_id: FK para source_channels.id
         title: título do vídeo
         published_at: data/hora de publicação (string ISO 8601 ou datetime)
+        format: 'curto' ou 'longo' — decidido pelo poller com base na duração do vídeo fonte
     """
     sql = (
         'INSERT IGNORE INTO source_videos '
-        '(youtube_video_id, channel_id, title, published_at, status) '
-        'VALUES (%s, %s, %s, %s, %s)'
+        '(youtube_video_id, channel_id, title, published_at, status, format) '
+        'VALUES (%s, %s, %s, %s, %s, %s)'
     )
-    params = (video_id, channel_id, title, published_at, 'pending')
+    params = (video_id, channel_id, title, published_at, 'pending', format)
 
     with conn.cursor() as cur:
         cur.execute(sql, params)

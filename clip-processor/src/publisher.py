@@ -9,7 +9,7 @@ Exporta:
 import os
 from datetime import datetime, timezone
 
-from src.metadata_generator import append_credits
+from src.metadata_generator import append_credits, resolve_credit_handle
 from src.quota_manager import QuotaManager
 from src.telegram_notifier import notify
 from src.uploader import YouTubeUploader
@@ -63,12 +63,13 @@ def publish_pending_clips(
         clips = _fetch_pending_clips_for_channel(conn, dest['id'])
 
         for clip in clips:
-            if dest.get('credit_template') and clip.get('channel_handle'):
+            credit_handle = resolve_credit_handle(clip.get('channel_handle'), clip.get('channel_name'))
+            if dest.get('credit_template') and credit_handle:
                 clip = dict(clip)  # não mutar original
                 clip['description'] = append_credits(
                     clip.get('description') or '',
                     dest['credit_template'],
-                    clip['channel_handle'],
+                    credit_handle,
                 )
             total += _publish_one(conn, clip, ch_uploader, ch_quota, now)
 
@@ -86,13 +87,22 @@ def _fetch_destination_channels(conn) -> list[dict]:
 
 
 def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[dict]:
-    """Retorna clips prontos para publicar filtrados por canal-destino."""
+    """Retorna clips prontos para publicar filtrados por canal-destino.
+
+    Faz fairness round-robin por canal fonte (sc.id): sem isso, uma leva de
+    clips represada (ex.: dezenas de vídeos presos em 'selecting' por semanas
+    que destravam de uma vez) fura a fila FIFO por created_at e monopoliza a
+    cota diária por dias seguidos, enquanto outros canais fonte com volume
+    maior ficam represados atrás. Round-robin garante que, a cada ciclo de
+    publicação, nenhum canal fonte publique dois clips seguidos enquanto
+    houver clip pendente de outro canal.
+    """
     with conn.cursor() as cur:
         cur.execute(
             'SELECT gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, '
             'sv.local_path AS source_local_path, '
-            'sc.channel_handle '
+            'sc.id AS source_channel_id, sc.channel_handle, sc.channel_name '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'JOIN source_channels sc ON sc.id = sv.channel_id '
@@ -103,7 +113,29 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
             'ORDER BY gc.created_at ASC',
             (_publishable_status(), destination_channel_id),
         )
-        return cur.fetchall() or []
+        clips = cur.fetchall() or []
+    return _round_robin_by_source_channel(clips)
+
+
+def _round_robin_by_source_channel(clips: list[dict]) -> list[dict]:
+    """Reordena clips (já em ordem created_at ASC) intercalando por source_channel_id,
+    preservando a ordem relativa dentro de cada canal."""
+    queues: dict = {}
+    order: list = []
+    for clip in clips:
+        key = clip.get('source_channel_id')
+        if key not in queues:
+            queues[key] = []
+            order.append(key)
+        queues[key].append(clip)
+
+    result = []
+    while order:
+        for key in list(order):
+            result.append(queues[key].pop(0))
+            if not queues[key]:
+                order.remove(key)
+    return result
 
 
 def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:

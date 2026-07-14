@@ -9,6 +9,7 @@ use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -162,6 +163,64 @@ class SourceVideoResource extends Resource
                                         });
                                 });
                         });
+                    }),
+
+                Filter::make('published_at')
+                    ->label('Publicado no YouTube')
+                    ->schema([
+                        DatePicker::make('published_from')->label('De'),
+                        DatePicker::make('published_until')->label('Até'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when($data['published_from'] ?? null, fn (Builder $q, $date) => $q->whereDate('published_at', '>=', $date))
+                            ->when($data['published_until'] ?? null, fn (Builder $q, $date) => $q->whereDate('published_at', '<=', $date));
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        $indicators = [];
+                        if ($data['published_from'] ?? null) {
+                            $indicators[] = 'Publicado de '.$data['published_from'];
+                        }
+                        if ($data['published_until'] ?? null) {
+                            $indicators[] = 'até '.$data['published_until'];
+                        }
+
+                        return $indicators;
+                    }),
+            ])
+            ->headerActions([
+                Action::make('purge_old_videos')
+                    ->label('Limpar vídeos antigos')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->schema([
+                        DatePicker::make('before_date')
+                            ->label('Apagar vídeos publicados antes de')
+                            ->required()
+                            ->default(now()->subDays(3)->toDateString())
+                            ->maxDate(now()),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalHeading('Limpar vídeos antigos')
+                    ->modalDescription('Apaga do banco os vídeos publicados antes da data escolhida que nunca chegaram a gerar clip (nunca vão mais ser processados, já que o download sempre prioriza notícia recente). Além disso, libera do disco o arquivo bruto dos vídeos mais antigos que já geraram clip mas não precisam mais dele. Clips já cortados e publicados NÃO são afetados.')
+                    ->modalSubmitActionLabel('Limpar')
+                    ->action(function (array $data): void {
+                        $client = app(ClipProcessorClient::class);
+
+                        try {
+                            $result = $client->purgeOldVideos($data['before_date']);
+                        } catch (RuntimeException $e) {
+                            Notification::make()->title('Falha ao limpar')->body($e->getMessage())->danger()->send();
+
+                            return;
+                        }
+
+                        $mb = round($result['freed_bytes'] / 1024 / 1024, 1);
+
+                        Notification::make()
+                            ->title("{$result['deleted_rows']} vídeo(s) removido(s) do banco, {$mb} MB liberados")
+                            ->success()
+                            ->send();
                     }),
             ])
             ->actions([

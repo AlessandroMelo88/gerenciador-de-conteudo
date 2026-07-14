@@ -7,7 +7,29 @@ Exports esperados: poll_all_channels(db_conn, redis_client)
 
 RED state: imports falham pois src/rss_poller.py ainda não existe.
 """
-from src.rss_poller import poll_all_channels
+from src.rss_poller import poll_all_channels, _detect_format
+
+
+class TestDetectFormat:
+
+    def test_detect_format_returns_longo_for_long_video(self, mocker):
+        mock_ydl = mocker.MagicMock()
+        mock_ydl.extract_info.return_value = {'duration': 900}
+        mocker.patch('src.rss_poller.yt_dlp.YoutubeDL').return_value.__enter__.return_value = mock_ydl
+
+        assert _detect_format('abc12345678') == 'longo'
+
+    def test_detect_format_returns_curto_for_short_video(self, mocker):
+        mock_ydl = mocker.MagicMock()
+        mock_ydl.extract_info.return_value = {'duration': 45}
+        mocker.patch('src.rss_poller.yt_dlp.YoutubeDL').return_value.__enter__.return_value = mock_ydl
+
+        assert _detect_format('abc12345678') == 'curto'
+
+    def test_detect_format_defaults_to_curto_on_error(self, mocker):
+        mocker.patch('src.rss_poller.yt_dlp.YoutubeDL', side_effect=Exception('network down'))
+
+        assert _detect_format('abc12345678') == 'curto'
 
 
 class TestPollAllChannels:
@@ -33,6 +55,9 @@ class TestPollAllChannels:
 
         # Mock: nenhum vídeo já visto (is_seen retorna False)
         mocker.patch('src.rss_poller.is_seen', return_value=False)
+
+        # Mock: detecção de formato sem chamada de rede real
+        mocker.patch('src.rss_poller._detect_format', return_value='curto')
 
         # Mock: insert_video não levanta exceção
         mock_insert = mocker.patch('src.rss_poller.insert_video')
@@ -312,6 +337,7 @@ class TestBlacklistGuard:
             text=sample_rss_xml,
         ))
         mocker.patch('src.rss_poller.is_seen', return_value=False)
+        mocker.patch('src.rss_poller._detect_format', return_value='curto')
         mock_insert = mocker.patch('src.rss_poller.insert_video')
 
         poll_all_channels(mock_db_conn, mock_redis)

@@ -3,7 +3,7 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 
-from src.internal_api import app, resolve_channel, reject_clip
+from src.internal_api import app, resolve_channel, reject_clip, purge_old_videos
 
 
 @pytest.fixture
@@ -124,3 +124,57 @@ def test_process_url_missing_url_returns_400(client):
         headers={'X-Internal-Token': 'test-token-123'},
     )
     assert resp.status_code == 400
+
+
+# ── Testes para /internal/purge-old-videos ────────────────────────────────────
+
+
+def test_purge_old_videos_requires_auth(client):
+    resp = client.post('/internal/purge-old-videos', json={'before_date': '2026-07-10'})
+    assert resp.status_code == 401
+
+
+def test_purge_old_videos_missing_date_returns_400(client):
+    resp = client.post(
+        '/internal/purge-old-videos',
+        json={},
+        headers={'X-Internal-Token': 'test-token-123'},
+    )
+    assert resp.status_code == 400
+
+
+def test_purge_old_videos_deletes_rows_and_frees_files(client, mocker):
+    """purge_old_videos apaga linhas sem clips e libera arquivo de linhas com clips
+    (desde que nenhum clip pending_cut/cutting dependa do bruto), e limpa as chaves
+    Redis de deduplicação das linhas apagadas."""
+    mock_conn = MagicMock()
+    mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
+    mock_cursor.rowcount = 5
+    mock_cursor.fetchall.side_effect = [
+        [{'youtube_video_id': 'abc123xyz01'}],  # SELECT video_ids antes do DELETE
+        [{'id': 42, 'local_path': '/app/videos/abc.mp4'}],  # SELECT rows_with_file
+    ]
+    mocker.patch('src.internal_api.get_db_connection', return_value=mock_conn)
+    mocker.patch('os.path.exists', return_value=True)
+    mocker.patch('os.path.getsize', return_value=1024 * 1024)
+    mock_remove = mocker.patch('os.remove')
+    mock_redis = MagicMock()
+    mocker.patch('src.internal_api.redis.Redis', return_value=mock_redis)
+
+    result = purge_old_videos('2026-07-10')
+
+    assert result == {'deleted_rows': 5, 'freed_bytes': 1024 * 1024}
+    mock_remove.assert_called_once_with('/app/videos/abc.mp4')
+    mock_redis.delete.assert_called_once_with('video:abc123xyz01')
+
+
+def test_purge_old_videos_route_returns_result(client, mocker):
+    mocker.patch('src.internal_api.purge_old_videos', return_value={'deleted_rows': 3, 'freed_bytes': 2048})
+
+    resp = client.post(
+        '/internal/purge-old-videos',
+        json={'before_date': '2026-07-10'},
+        headers={'X-Internal-Token': 'test-token-123'},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json() == {'deleted_rows': 3, 'freed_bytes': 2048}
