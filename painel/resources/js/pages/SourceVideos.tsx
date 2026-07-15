@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { AppSidebar } from '@/components/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
+import { PageHeader } from '@/components/page-header';
 import { ConfirmButton } from '@/components/confirm-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -171,13 +172,10 @@ export default function SourceVideos() {
                 <SidebarInset>
                     <SiteHeader title="Vídeos" />
                     <div className="flex flex-1 flex-col gap-4 p-4">
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm text-muted-foreground">
-                                Lista de todo vídeo bruto (fonte) já baixado ou tentado pelo pipeline — não são os
-                                clips finais, são a matéria-prima. {videos.total} vídeo(s).
-                            </p>
-                            <PurgeOldDialog />
-                        </div>
+                        <PageHeader
+                            description={`Lista de todo vídeo bruto (fonte) já baixado ou tentado pelo pipeline — não são os clips finais, são a matéria-prima. ${videos.total} vídeo(s).`}
+                            actions={<PurgeOldDialog />}
+                        />
 
                         <Tabs
                             value={filters.tab}

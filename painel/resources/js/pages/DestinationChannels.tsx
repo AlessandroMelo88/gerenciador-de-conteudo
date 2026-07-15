@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { AppSidebar } from '@/components/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
+import { PageHeader } from '@/components/page-header';
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
 import { Badge } from '@/components/ui/badge';
@@ -221,15 +222,15 @@ export default function DestinationChannels() {
                 <SidebarInset>
                     <SiteHeader title="Canais Destino" />
                     <div className="flex flex-1 flex-col gap-4 p-4">
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">
-                                Canais do YouTube onde os clips são publicados.
-                            </p>
-                            <ChannelDialog
-                                niches={niches}
-                                trigger={<Button>Novo Canal-destino</Button>}
-                            />
-                        </div>
+                        <PageHeader
+                            description="Canais do YouTube onde os clips são publicados."
+                            actions={
+                                <ChannelDialog
+                                    niches={niches}
+                                    trigger={<Button>Novo Canal Destino</Button>}
+                                />
+                            }
+                        />
                         <div className="overflow-x-auto rounded-lg border">
                             <Table>
                                 <TableHeader>

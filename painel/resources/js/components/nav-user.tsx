@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 
 import {
     Avatar,
@@ -18,7 +18,7 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from '@/components/ui/sidebar';
-import { ChevronsUpDownIcon, LogOutIcon } from 'lucide-react';
+import { ChevronsUpDownIcon, LogOutIcon, SettingsIcon } from 'lucide-react';
 
 export function NavUser({ user }: { user: { name: string; email: string } | null }) {
     const { isMobile } = useSidebar();
@@ -71,6 +71,12 @@ export function NavUser({ user }: { user: { name: string; email: string } | null
                             </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                            <Link href="/painel/configuracoes" className="cursor-pointer">
+                                <SettingsIcon />
+                                Configurações
+                            </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => router.post('/logout')} className="cursor-pointer">
                             <LogOutIcon />
                             Sair
