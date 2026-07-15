@@ -3,6 +3,7 @@
 use App\Models\DestinationChannel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(DatabaseTransactions::class);
 
@@ -10,7 +11,7 @@ it('creates a destination_channel with niche via Select field', function () {
     $user = User::factory()->create();
     $countBefore = DestinationChannel::query()->count();
     $this->actingAs($user)
-        ->post('/admin/destination-channels', [
+        ->post('/painel/canais-destino', [
             'slug' => 'novo-canal-teste',
             'name' => 'Novo Canal',
             'niche' => 'podcast',
@@ -24,11 +25,15 @@ it('creates a destination_channel with niche via Select field', function () {
     expect($channel->niche)->toBe('podcast');
 });
 
-it('renders OAuth status badge in the resource table', function () {
+it('exposes OAuth status in the destination channels page props', function () {
     $user = User::factory()->create();
     DestinationChannel::factory()->create(['slug' => 'badge-test', 'oauth_expired_flag' => true]);
+
     $this->actingAs($user)
-        ->get('/admin/destination-channels')
+        ->get('/painel/canais-destino')
         ->assertOk()
-        ->assertSee('expired');
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('DestinationChannels')
+            ->where('channels', fn ($channels) => collect($channels)
+                ->firstWhere('slug', 'badge-test')['oauthStatus'] === 'expired'));
 });

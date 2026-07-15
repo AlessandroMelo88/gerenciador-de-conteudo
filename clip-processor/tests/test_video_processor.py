@@ -147,7 +147,9 @@ class TestSubtitles:
         filter_arg = cmd[cmd.index('-vf') + 1]
         assert 'subtitles=' in filter_arg
         assert 'force_style=' in filter_arg
-        assert 'Outline=2' in filter_arg
+        assert 'Outline=1' in filter_arg
+        assert 'Alignment=2' in filter_arg
+        assert 'Fontsize=38' in filter_arg
 
 
 # ---------------------------------------------------------------------------

@@ -185,10 +185,13 @@ class TestPublishPendingClips:
         redis = MagicMock()
         uploader = make_mock_uploader()
 
-        # Primeira chamada: pode; segunda: bloqueada
+        # has_capacity (cota/janela total): primeira chamada pode, segunda bloqueada
+        # — bloqueio de cota TOTAL para o loop inteiro (não confundir com reserva
+        # de formato, que usa can_upload e só pula aquele clip via `continue`).
         with patch('src.publisher.QuotaManager') as MockQuota:
             mock_quota = MagicMock()
-            mock_quota.can_upload.side_effect = [True, False]
+            mock_quota.has_capacity.side_effect = [True, False]
+            mock_quota.can_upload.side_effect = [True]
             MockQuota.return_value = mock_quota
 
             result = publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))

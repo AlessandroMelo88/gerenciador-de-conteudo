@@ -4,12 +4,12 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 
 uses(DatabaseTransactions::class);
 
-it('redirects unauthenticated visitor from /admin to /admin/login', function () {
-    $this->get('/admin')->assertRedirect('/admin/login');
+it('redirects unauthenticated visitor from /painel to /login', function () {
+    $this->get('/painel')->assertRedirect('/login');
 });
 
-it('serves /admin/login without authentication', function () {
-    $this->get('/admin/login')->assertOk();
+it('serves /login without authentication', function () {
+    $this->get('/login')->assertOk();
 });
 
 it('rejects /register route entirely', function () {
