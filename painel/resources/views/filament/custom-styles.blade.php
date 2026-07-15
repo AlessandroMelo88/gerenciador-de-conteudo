@@ -22,4 +22,13 @@
         font-weight: 600 !important;
     }
 
+    /* Subheading: caption pequena e discreta abaixo do título, não um bloco cheio */
+    .fi-header-subheading {
+        max-width: 42rem;
+        margin-top: 0.25rem !important;
+        font-size: 0.8rem !important;
+        line-height: 1.4 !important;
+        color: rgb(107 114 128) !important;
+    }
+
 </style>

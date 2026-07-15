@@ -99,22 +99,22 @@ def generate_srt(transcript: dict, start_time: float, end_time: float, srt_path:
 def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str) -> str:
     """Queima legendas SRT no clip usando FFmpeg.
 
-    Alignment=8 (topo-centro): nos vídeos fonte (câmera de reação/análise), o
-    apresentador costuma ocupar o centro/base do frame vertical — legenda no
-    rodapé cai sempre em cima do rosto. PlayResX/Y fixam a referência de escala
-    do libass no tamanho real do clip (1080x1920), já que Fontsize é relativo
-    a isso e sem PlayRes explícito o texto sai desproporcionalmente pequeno.
-    BorderStyle=3 (caixa opaca) + DejaVu Sans Bold: única família disponível no
-    container (fc-list), mais "chamativa" que Arial (que nem está instalada).
+    Alignment=2 (rodapé-centro), estilo próximo do closed caption nativo do
+    YouTube: fonte menor, caixa semi-transparente e fina em vez do bloco opaco
+    grande. MarginV afasta o texto da barra de interações/UI do player. PlayResX/Y
+    fixam a referência de escala do libass no tamanho real do clip (1080x1920),
+    já que Fontsize é relativo a isso e sem PlayRes explícito o texto sai
+    desproporcionalmente pequeno. DejaVu Sans Bold: única família disponível no
+    container (fc-list).
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     subtitle_filter = (
         f"subtitles={srt_path}:"
-        "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=70,"
+        "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=38,"
         "PlayResX=1080,PlayResY=1920,"
         "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
-        "BackColour=&H80000000,"
-        "BorderStyle=3,Outline=2,Shadow=0,Alignment=8,MarginV=120'"
+        "BackColour=&H60000000,"
+        "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=180'"
     )
     subprocess.run(
         [
