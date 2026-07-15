@@ -6,6 +6,7 @@ import { ActiveWindowTable } from '@/components/active-window-table';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ClipQueueTabs } from '@/components/clip-queue-tabs';
 import { OverviewCards } from '@/components/overview-cards';
+import { PageHeader } from '@/components/page-header';
 import { SiteHeader } from '@/components/site-header';
 import { Toaster } from '@/components/ui/sonner';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
@@ -41,11 +42,7 @@ export default function Dashboard() {
                         <div className="@container/main flex flex-1 flex-col gap-2">
                             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
                                 <div className="px-4 lg:px-6">
-                                    <p className="text-sm text-muted-foreground">
-                                        Central de controle do pipeline: baixa → transcreve → IA seleciona momentos →
-                                        corta → publica. Clips com o mesmo título vindo do mesmo vídeo não são
-                                        duplicados — veja a coluna &quot;Trecho&quot;.
-                                    </p>
+                                    <PageHeader description="Central de controle do pipeline: baixa → transcreve → IA seleciona momentos → corta → publica. Clips com o mesmo título vindo do mesmo vídeo não são duplicados — veja a coluna &quot;Trecho&quot;." />
                                 </div>
                                 <OverviewCards quota={quota} overview={overview} />
                                 <div className="px-4 lg:px-6">

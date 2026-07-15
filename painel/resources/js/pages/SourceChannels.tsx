@@ -3,6 +3,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 
 import { AppSidebar } from '@/components/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
+import { PageHeader } from '@/components/page-header';
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
 import { Badge } from '@/components/ui/badge';
@@ -60,7 +61,7 @@ function CreateChannelDialog({ niches }: { niches: Niche[] }) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>Novo Canal-fonte</Button>
+                <Button>Novo Canal Fonte</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -112,13 +113,10 @@ export default function SourceChannels() {
                 <SidebarInset>
                     <SiteHeader title="Canais Fonte" />
                     <div className="flex flex-1 flex-col gap-4 p-4">
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">
-                                Canais do YouTube que o robô monitora pra encontrar conteúdo bruto. Formato
-                                curto/longo é decidido automaticamente pela duração do vídeo, não por canal.
-                            </p>
-                            <CreateChannelDialog niches={niches} />
-                        </div>
+                        <PageHeader
+                            description="Canais do YouTube que o robô monitora pra encontrar conteúdo bruto. Formato curto/longo é decidido automaticamente pela duração do vídeo, não por canal."
+                            actions={<CreateChannelDialog niches={niches} />}
+                        />
 
                         <Tabs
                             value={activeTab}

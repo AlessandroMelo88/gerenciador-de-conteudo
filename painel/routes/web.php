@@ -7,6 +7,7 @@ use App\Http\Controllers\DocumentationController;
 use App\Http\Controllers\NicheController;
 use App\Http\Controllers\ProcessVideoController;
 use App\Http\Controllers\SourceChannelController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SourceVideoController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Models\GeneratedClip;
@@ -66,11 +67,15 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/painel/processar-video', [ProcessVideoController::class, 'store']);
 
     Route::get('/painel/documentacao', [DocumentationController::class, 'show'])->name('documentation.show');
+
+    Route::get('/painel/configuracoes', [SettingsController::class, 'show'])->name('settings.show');
+    Route::put('/painel/configuracoes/senha', [SettingsController::class, 'updatePassword'])->name('settings.password');
 });
 
 // URL raiz = o painel (decisão CONTEXT.md: "canaldecortes.local raiz, sem
 // subdomínio 'painel' — o painel É o Canal de Cortes para o operador").
-Route::get('/', fn () => redirect('/painel'));
+// Logado vai direto pro painel; deslogado vai pro login (sem redirect duplo).
+Route::get('/', fn () => redirect(auth()->check() ? '/painel' : '/login'));
 
 // Phase 9 (BOT-01, BOT-03): rotas sem autenticação — chamadas por Telegram e pelo clip-processor.
 // CSRF excluído para ambas em bootstrap/app.php (Plan 09-01).
