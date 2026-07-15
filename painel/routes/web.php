@@ -1,141 +1,78 @@
 <?php
 
-use App\Models\DestinationChannel;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DestinationChannelController;
+use App\Http\Controllers\DocumentationController;
+use App\Http\Controllers\NicheController;
+use App\Http\Controllers\ProcessVideoController;
+use App\Http\Controllers\SourceChannelController;
+use App\Http\Controllers\SourceVideoController;
+use App\Http\Controllers\TelegramWebhookController;
 use App\Models\GeneratedClip;
-use App\Models\SourceChannel;
-use App\Services\ClipProcessorClient;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
-// Logout via GET — usado pelo NavigationItem "Sair" da sidebar (sem form/JS).
-Route::get('/admin/do-logout', function () {
-    filament()->auth()->logout();
-    session()->invalidate();
-    session()->regenerateToken();
-    return redirect('/admin/login');
-})->middleware(['web', 'auth'])->name('admin.do-logout');
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'show'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
+});
 
-// URL raiz = o painel (decisão CONTEXT.md: "canaldecortes.local raiz, sem
-// subdomínio 'painel' — o painel É o Canal de Cortes para o operador").
-// Redireciona para /admin, que por sua vez redireciona para /admin/login
-// quando não autenticado (comportamento nativo do Filament).
-Route::get('/', fn () => redirect('/admin'));
+Route::post('/logout', [AuthController::class, 'logout'])
+    ->middleware(['web', 'auth'])
+    ->name('logout');
 
-// Rotas REST usadas pelo SourceChannelResource (Plan 08-05, PANEL-01).
-// O painel Filament (Livewire) cobre o fluxo real do operador via /admin/source-channels,
-// mas o contrato de testes RED (Plan 08-03) exige endpoints REST diretos para criar/atualizar.
 Route::middleware(['web', 'auth'])->group(function () {
-    Route::post('/admin/source-channels', function (Request $request, ClipProcessorClient $client) {
-        $data = $request->validate([
-            'url' => ['required', 'string'],
-            'target_niche' => ['required', 'string'],
-        ]);
-
-        try {
-            $resolved = $client->resolveChannel($data['url']);
-        } catch (RuntimeException $e) {
-            return back()->withErrors(['url' => $e->getMessage()])->withInput();
-        }
-
-        $ytId = $resolved['channel_id'];
-
-        SourceChannel::create([
-            'youtube_channel_id' => $ytId,
-            'channel_name' => $resolved['channel_name'],
-            'channel_handle' => $resolved['channel_handle'],
-            'rss_url' => "https://www.youtube.com/feeds/videos.xml?channel_id={$ytId}",
-            'active' => true,
-            'blacklisted' => false,
-            'target_niche' => $data['target_niche'],
-        ]);
-
-        return redirect('/admin/source-channels');
-    })->name('source-channels.store');
-
-    Route::patch('/admin/source-channels/{sourceChannel}', function (Request $request, SourceChannel $sourceChannel) {
-        $data = $request->validate([
-            'blacklisted' => ['sometimes', 'boolean'],
-            'active' => ['sometimes', 'boolean'],
-        ]);
-
-        $sourceChannel->update($data);
-
-        return redirect('/admin/source-channels');
-    })->name('source-channels.update');
-
-    // Rota REST usada pelo DestinationChannelResource (Plan 08-06, PANEL-02).
-    // Mesmo motivo do bloco source-channels acima: Filament Resource só expõe GET/HEAD
-    // (submit real via Livewire); o contrato de testes RED (Plan 08-03) exige POST direto.
-    Route::post('/admin/destination-channels', function (Request $request) {
-        $data = $request->validate([
-            'slug' => ['required', 'string'],
-            'name' => ['required', 'string'],
-            'niche' => ['required', 'string'],
-            'youtube_channel_id' => ['required', 'string'],
-            'credit_template' => ['sometimes', 'nullable', 'string'],
-            'active' => ['sometimes', 'boolean'],
-        ]);
-
-        DestinationChannel::create([
-            'slug' => $data['slug'],
-            'name' => $data['name'],
-            'niche' => $data['niche'],
-            'youtube_channel_id' => $data['youtube_channel_id'],
-            'credit_template' => $data['credit_template'] ?? 'Créditos: @{channel_handle}',
-            'active' => $data['active'] ?? true,
-        ]);
-
-        return redirect('/admin/destination-channels');
-    })->name('destination-channels.store');
-
-    // Rotas REST usadas pela fila de aprovação do dashboard (Plan 08-08, PANEL-04).
-    // Mesmo motivo dos blocos acima: o contrato de testes RED (Plan 08-03,
-    // ClipApprovalActionTest) exige POST direto em vez do fluxo Livewire das
-    // Actions inline do PendingApprovalWidget. Ambos os caminhos (widget e rota)
-    // reusam exatamente a mesma lógica de negócio (UPDATE guard / ClipProcessorClient).
-    Route::post('/admin/clips/{clip}/approve', function (GeneratedClip $clip) {
-        GeneratedClip::query()
-            ->where('id', $clip->id)
-            ->where('status', 'pending')
-            ->update(['status' => 'approved']);
-
-        return redirect('/admin');
-    })->name('clips.approve');
+    Route::get('/painel', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/painel/clips/{clip}/approve', [DashboardController::class, 'approve'])->name('dashboard.clips.approve');
+    Route::post('/painel/clips/{clip}/reject', [DashboardController::class, 'reject'])->name('dashboard.clips.reject');
+    Route::post('/painel/clips/{clip}/reprocess', [DashboardController::class, 'reprocess'])->name('dashboard.clips.reprocess');
+    Route::post('/painel/clips/bulk-approve', [DashboardController::class, 'bulkApprove'])->name('dashboard.clips.bulk-approve');
+    Route::post('/painel/clips/bulk-reject', [DashboardController::class, 'bulkReject'])->name('dashboard.clips.bulk-reject');
+    Route::post('/painel/videos/{video}/delete', [DashboardController::class, 'deleteVideo'])->name('dashboard.videos.delete');
 
     // Preview leve do clip cortado direto no dashboard (checar legenda/qualidade
     // antes de aprovar) — serve o .mp4 já compartilhado via volume com o
     // clip-processor (ver docker-compose.yml e config/filesystems.php 'clips-videos').
-    Route::get('/admin/clips/{clip}/preview', function (GeneratedClip $clip) {
+    Route::get('/painel/clips/{clip}/preview', function (GeneratedClip $clip) {
         $relativePath = "clips/{$clip->id}.mp4";
 
-        if (! \Illuminate\Support\Facades\Storage::disk('clips-videos')->exists($relativePath)) {
+        if (! Storage::disk('clips-videos')->exists($relativePath)) {
             abort(404);
         }
 
-        return response()->file(
-            \Illuminate\Support\Facades\Storage::disk('clips-videos')->path($relativePath)
-        );
+        return response()->file(Storage::disk('clips-videos')->path($relativePath));
     })->name('clips.preview');
 
-    Route::post('/admin/clips/{clip}/reject', function (GeneratedClip $clip, ClipProcessorClient $client) {
-        try {
-            $exit = $client->rejectClip($clip->id);
-        } catch (RuntimeException $e) {
-            return redirect('/admin')->with('error', $e->getMessage());
-        }
+    Route::post('/painel/niches', [NicheController::class, 'store'])->name('niches.store');
 
-        return match ($exit) {
-            0 => redirect('/admin'),
-            1 => redirect('/admin')->with('error', 'Clip não existe'),
-            2 => redirect('/admin')->with('error', 'Status inválido para rejeitar'),
-            default => redirect('/admin')->with('error', "exit_code={$exit}"),
-        };
-    })->name('clips.reject');
+    Route::get('/painel/canais-destino', [DestinationChannelController::class, 'index'])->name('destination-channels.index');
+    Route::post('/painel/canais-destino', [DestinationChannelController::class, 'store'])->name('destination-channels.store');
+    Route::put('/painel/canais-destino/{destinationChannel}', [DestinationChannelController::class, 'update']);
+    Route::post('/painel/canais-destino/{destinationChannel}/watermark', [DestinationChannelController::class, 'uploadWatermark']);
+    Route::delete('/painel/canais-destino/{destinationChannel}', [DestinationChannelController::class, 'destroy']);
+
+    Route::get('/painel/canais-fonte', [SourceChannelController::class, 'index'])->name('source-channels.index');
+    Route::post('/painel/canais-fonte', [SourceChannelController::class, 'store'])->name('source-channels.store');
+    Route::put('/painel/canais-fonte/{sourceChannel}', [SourceChannelController::class, 'update'])->name('source-channels.update');
+    Route::delete('/painel/canais-fonte/{sourceChannel}', [SourceChannelController::class, 'destroy']);
+
+    Route::get('/painel/videos', [SourceVideoController::class, 'index'])->name('source-videos.index');
+    Route::post('/painel/videos/{video}/delete-file', [SourceVideoController::class, 'deleteFile']);
+    Route::post('/painel/videos/bulk-delete-files', [SourceVideoController::class, 'bulkDeleteFiles']);
+    Route::post('/painel/videos/purge-old', [SourceVideoController::class, 'purgeOld']);
+
+    Route::get('/painel/processar-video', [ProcessVideoController::class, 'show'])->name('process-video.show');
+    Route::post('/painel/processar-video', [ProcessVideoController::class, 'store']);
+
+    Route::get('/painel/documentacao', [DocumentationController::class, 'show'])->name('documentation.show');
 });
+
+// URL raiz = o painel (decisão CONTEXT.md: "canaldecortes.local raiz, sem
+// subdomínio 'painel' — o painel É o Canal de Cortes para o operador").
+Route::get('/', fn () => redirect('/painel'));
 
 // Phase 9 (BOT-01, BOT-03): rotas sem autenticação — chamadas por Telegram e pelo clip-processor.
 // CSRF excluído para ambas em bootstrap/app.php (Plan 09-01).
-use App\Http\Controllers\TelegramWebhookController;
-
 Route::post('/telegramcanal', [TelegramWebhookController::class, 'handle']);
 Route::post('/internal/pipeline-event', [TelegramWebhookController::class, 'pipelineEvent']);

@@ -4,7 +4,8 @@ pipeline_runner.py — Uma execucao completa do pipeline.
 Usado pelo daemon e pelo workflow n8n.
 """
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import redis as redis_lib
 
@@ -18,45 +19,62 @@ from src.uploader import YouTubeUploader
 
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+SAO_PAULO_TZ = ZoneInfo('America/Sao_Paulo')
 
 
 def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [RUN] {msg}', flush=True)
 
 
-LONGO_PER_CYCLE = 2
-CURTO_PER_CYCLE = 3
+# Janela: no máximo esses tantos vídeos com arquivo em disco (local_path IS NOT
+# NULL) ao mesmo tempo, por formato — não baixa mais que isso independente do
+# tamanho do backlog. Repõe só o déficit (janela - ocupação atual) a cada rodada,
+# então vaga aberta (por publicação concluída ou por exclusão manual no painel)
+# é reposta na rodada seguinte, mantendo a janela sempre perto de cheia.
+DOWNLOAD_WINDOW_CURTO = 6
+DOWNLOAD_WINDOW_LONGO = 4
+
+# Só entra na janela vídeo publicado há no máximo esse tanto de dias — mesmo
+# com vaga livre e backlog represado, notícia velha nunca é baixada; evita
+# gastar disco/banda com conteúdo que não vai mais fazer sentido postar.
+FRESHNESS_DAYS = 1
 
 
 def _select_pending_videos(db_conn) -> list:
-    """Seleciona vídeos pendentes pra baixar nesta rodada, na sequência fixa
-    LONGO_PER_CYCLE longos seguidos de CURTO_PER_CYCLE curtos.
+    """Seleciona vídeos pendentes pra repor a janela de download ativo.
 
-    Ordena por published_at DESC (notícia mais recente primeiro), não por
-    created_at — com um backlog grande de vídeos represados, ordenar pela
-    ordem de descoberta faria notícia de meses atrás furar na frente de
-    notícia de hoje só por ter sido enfileirada primeiro. Se não houver o
-    suficiente de um formato, baixa só os disponíveis — não puxa do outro
-    formato pra completar a cota.
+    Para cada formato: conta quantos vídeos já ocupam a janela (local_path
+    setado), calcula o déficit até o teto (DOWNLOAD_WINDOW_LONGO/CURTO) e busca
+    só esse tanto, restrito a published_at de hoje ou ontem (FRESHNESS_DAYS),
+    ordenado por published_at DESC (notícia mais recente primeiro). Se um
+    formato já está na janela cheia, não baixa nada dele nesta rodada — não
+    puxa do outro formato pra completar.
     """
-    with db_conn.cursor() as cur:
-        cur.execute(
-            "SELECT youtube_video_id FROM source_videos "
-            "WHERE status = 'pending' AND format = 'longo' "
-            "ORDER BY published_at DESC LIMIT %s",
-            (LONGO_PER_CYCLE,),
-        )
-        longos = [row['youtube_video_id'] for row in cur.fetchall()]
+    cutoff_date = (datetime.now(SAO_PAULO_TZ) - timedelta(days=FRESHNESS_DAYS)).date()
 
-        cur.execute(
-            "SELECT youtube_video_id FROM source_videos "
-            "WHERE status = 'pending' AND format = 'curto' "
-            "ORDER BY published_at DESC LIMIT %s",
-            (CURTO_PER_CYCLE,),
-        )
-        curtos = [row['youtube_video_id'] for row in cur.fetchall()]
+    result = []
+    for fmt, window in (('longo', DOWNLOAD_WINDOW_LONGO), ('curto', DOWNLOAD_WINDOW_CURTO)):
+        with db_conn.cursor() as cur:
+            cur.execute(
+                'SELECT COUNT(*) AS c FROM source_videos WHERE format=%s AND local_path IS NOT NULL',
+                (fmt,),
+            )
+            occupied = cur.fetchone()['c']
 
-    return longos + curtos
+        deficit = max(0, window - occupied)
+        if deficit == 0:
+            continue
+
+        with db_conn.cursor() as cur:
+            cur.execute(
+                "SELECT youtube_video_id FROM source_videos "
+                "WHERE status = 'pending' AND format = %s AND DATE(published_at) >= %s "
+                'ORDER BY published_at DESC LIMIT %s',
+                (fmt, cutoff_date, deficit),
+            )
+            result.extend(row['youtube_video_id'] for row in cur.fetchall())
+
+    return result
 
 
 def _download_pending_videos(db_conn) -> None:
@@ -164,6 +182,52 @@ def run_publish_only(db_conn=None, redis_client=None):
             'error_msg': str(exc)[:500],
         })
         return None
+    finally:
+        if own_db:
+            db_conn.close()
+
+
+def run_ingest_cycle(db_conn=None, redis_client=None):
+    """Roda RSS/download/AI (poll_all_channels + _download_pending_videos), sem publish.
+
+    Substitui o ciclo completo de 6h como job principal — poll_all_channels já
+    processa vídeos 'downloaded' (transcrição/seleção IA) e clips 'pending_cut'
+    (corte), então rodar isso a cada 20min (mesma cadência de run_publish_only)
+    faz a janela de download (DOWNLOAD_WINDOW_*) repor vaga logo após um vídeo
+    ser excluído manualmente no painel, em vez de esperar até 6h.
+    """
+    own_db = db_conn is None
+    own_redis = redis_client is None
+
+    if own_db:
+        db_conn = get_db_connection()
+    if own_redis:
+        redis_client = redis_lib.Redis(
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            decode_responses=True,
+        )
+
+    try:
+        try:
+            poll_all_channels(db_conn=db_conn, redis_client=redis_client)
+        except Exception as exc:
+            _log(f'ERRO em poll_all_channels (ciclo ingest): {exc}')
+            notify('pipeline_failure', {
+                'stage': 'poll_all_channels',
+                'error_msg': str(exc)[:500],
+            })
+
+        try:
+            _download_pending_videos(db_conn)
+        except Exception as exc:
+            _log(f'ERRO em _download_pending_videos (ciclo ingest): {exc}')
+            notify('pipeline_failure', {
+                'stage': 'download_pending_videos',
+                'error_msg': str(exc)[:500],
+            })
+
+        _log('Ciclo de ingestão finalizado')
     finally:
         if own_db:
             db_conn.close()

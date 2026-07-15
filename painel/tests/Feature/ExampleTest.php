@@ -2,19 +2,18 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
     /**
-     * A raiz do painel redireciona para /admin (decisão CONTEXT.md: "o painel
+     * A raiz do painel redireciona para /painel (decisão CONTEXT.md: "o painel
      * É o Canal de Cortes" — sem welcome page genérica).
      */
-    public function test_the_application_redirects_root_to_admin_panel(): void
+    public function test_the_application_redirects_root_to_painel(): void
     {
         $response = $this->get('/');
 
-        $response->assertRedirect('/admin');
+        $response->assertRedirect('/painel');
     }
 }

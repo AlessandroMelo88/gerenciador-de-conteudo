@@ -4,7 +4,14 @@ Testes para pipeline_runner.py — ciclo completo do pipeline.
 import pytest
 from unittest.mock import MagicMock, patch, call
 
-from src.pipeline_runner import run_pipeline_once, _download_pending_videos
+from src.pipeline_runner import (
+    run_pipeline_once,
+    run_ingest_cycle,
+    _download_pending_videos,
+    _select_pending_videos,
+    DOWNLOAD_WINDOW_CURTO,
+    DOWNLOAD_WINDOW_LONGO,
+)
 
 
 class TestRunPipelineOnce:
@@ -130,17 +137,90 @@ class TestRunPipelineOnce:
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
 
 
-class TestDownloadPendingVideos:
-    def _make_cursor(self, rows):
+class TestSelectPendingVideos:
+    """Testes para _select_pending_videos — janela de download ativo (DOWNLOAD-01)."""
+
+    def _make_cursor(self, fetchone_results, fetchall_results):
         cur = MagicMock()
-        cur.fetchall.return_value = rows
+        cur.fetchone.side_effect = fetchone_results
+        cur.fetchall.side_effect = fetchall_results
         cur.__enter__ = lambda s: s
         cur.__exit__ = MagicMock(return_value=False)
         return cur
 
-    def _make_cursor_with_side_effect(self, results):
+    def test_empty_window_fills_up_to_ceiling(self):
+        """Janela vazia (occupied=0) deve buscar até o teto de cada formato."""
+        mock_conn = MagicMock()
+        longos = [{'youtube_video_id': 'longo1'}, {'youtube_video_id': 'longo2'}]
+        curtos = [
+            {'youtube_video_id': 'curto1'},
+            {'youtube_video_id': 'curto2'},
+            {'youtube_video_id': 'curto3'},
+        ]
+        cur = self._make_cursor(
+            fetchone_results=[{'c': 0}, {'c': 0}],
+            fetchall_results=[longos, curtos],
+        )
+        mock_conn.cursor.return_value = cur
+
+        result = _select_pending_videos(mock_conn)
+
+        assert result == ['longo1', 'longo2', 'curto1', 'curto2', 'curto3']
+
+    def test_full_window_skips_format_entirely(self):
+        """Formato já na janela cheia não gera nenhuma query SELECT (só o COUNT)."""
+        mock_conn = MagicMock()
+        cur = self._make_cursor(
+            fetchone_results=[{'c': DOWNLOAD_WINDOW_LONGO}, {'c': 0}],
+            fetchall_results=[[{'youtube_video_id': 'curto1'}]],
+        )
+        mock_conn.cursor.return_value = cur
+
+        result = _select_pending_videos(mock_conn)
+
+        assert result == ['curto1']
+        # 2 COUNTs (longo+curto) + 1 SELECT (só curto, longo pulado) = 3 execute
+        assert cur.execute.call_count == 3
+
+    def test_deficit_limits_query_to_missing_slots(self):
+        """Déficit parcial (occupied=1 de janela 4) deve pedir LIMIT 3, não o teto inteiro."""
+        mock_conn = MagicMock()
+        cur = self._make_cursor(
+            fetchone_results=[{'c': DOWNLOAD_WINDOW_LONGO - 1}, {'c': DOWNLOAD_WINDOW_CURTO}],
+            fetchall_results=[[{'youtube_video_id': 'longo1'}]],
+        )
+        mock_conn.cursor.return_value = cur
+
+        result = _select_pending_videos(mock_conn)
+
+        assert result == ['longo1']
+        select_call = cur.execute.call_args_list[1]
+        assert select_call.args[1][-1] == 1  # LIMIT = déficit (4 - 3 = 1)
+
+    def test_filters_by_freshness_cutoff(self):
+        """SELECT deve restringir a published_at de hoje ou ontem (FRESHNESS_DAYS=1)."""
+        from datetime import datetime, timedelta
+        from src.pipeline_runner import SAO_PAULO_TZ
+
+        mock_conn = MagicMock()
+        cur = self._make_cursor(
+            fetchone_results=[{'c': 0}, {'c': DOWNLOAD_WINDOW_CURTO}],
+            fetchall_results=[[]],
+        )
+        mock_conn.cursor.return_value = cur
+
+        _select_pending_videos(mock_conn)
+
+        expected_cutoff = (datetime.now(SAO_PAULO_TZ) - timedelta(days=1)).date()
+        select_call = cur.execute.call_args_list[1]
+        assert select_call.args[1][1] == expected_cutoff
+
+
+class TestDownloadPendingVideos:
+    def _make_cursor_with_side_effect(self, fetchone_results, fetchall_results):
         cur = MagicMock()
-        cur.fetchall.side_effect = results
+        cur.fetchone.side_effect = fetchone_results
+        cur.fetchall.side_effect = fetchall_results
         cur.__enter__ = lambda s: s
         cur.__exit__ = MagicMock(return_value=False)
         return cur
@@ -148,7 +228,10 @@ class TestDownloadPendingVideos:
     def test_successful_download_updates_status_to_downloaded(self):
         """Download bem-sucedido deve atualizar status para downloaded com local_path."""
         mock_conn = MagicMock()
-        cur = self._make_cursor_with_side_effect([[], [{'youtube_video_id': 'abc123'}]])
+        cur = self._make_cursor_with_side_effect(
+            fetchone_results=[{'c': 0}, {'c': 0}],
+            fetchall_results=[[], [{'youtube_video_id': 'abc123'}]],
+        )
         mock_conn.cursor.return_value = cur
 
         with patch('src.pipeline_runner.download_video', return_value=True) as mock_dl, \
@@ -162,7 +245,10 @@ class TestDownloadPendingVideos:
     def test_failed_download_updates_status_to_failed(self):
         """Download falho deve atualizar status para failed."""
         mock_conn = MagicMock()
-        cur = self._make_cursor_with_side_effect([[], [{'youtube_video_id': 'xyz999'}]])
+        cur = self._make_cursor_with_side_effect(
+            fetchone_results=[{'c': 0}, {'c': 0}],
+            fetchall_results=[[], [{'youtube_video_id': 'xyz999'}]],
+        )
         mock_conn.cursor.return_value = cur
 
         with patch('src.pipeline_runner.download_video', return_value=False), \
@@ -174,7 +260,10 @@ class TestDownloadPendingVideos:
     def test_no_pending_videos_does_nothing(self):
         """Sem vídeos pending, não deve chamar download_video."""
         mock_conn = MagicMock()
-        cur = self._make_cursor_with_side_effect([[], []])
+        cur = self._make_cursor_with_side_effect(
+            fetchone_results=[{'c': 0}, {'c': 0}],
+            fetchall_results=[[], []],
+        )
         mock_conn.cursor.return_value = cur
 
         with patch('src.pipeline_runner.download_video') as mock_dl:
@@ -182,8 +271,22 @@ class TestDownloadPendingVideos:
 
         mock_dl.assert_not_called()
 
-    def test_downloads_two_longos_then_three_curtos_in_sequence(self):
-        """Sequência fixa: até 2 longos primeiro, depois até 3 curtos."""
+    def test_window_full_does_nothing(self):
+        """Janela já cheia nos dois formatos não deve chamar download_video."""
+        mock_conn = MagicMock()
+        cur = self._make_cursor_with_side_effect(
+            fetchone_results=[{'c': DOWNLOAD_WINDOW_LONGO}, {'c': DOWNLOAD_WINDOW_CURTO}],
+            fetchall_results=[],
+        )
+        mock_conn.cursor.return_value = cur
+
+        with patch('src.pipeline_runner.download_video') as mock_dl:
+            _download_pending_videos(mock_conn)
+
+        mock_dl.assert_not_called()
+
+    def test_downloads_longos_then_curtos_in_sequence(self):
+        """Ordem fixa: repõe longos primeiro, depois curtos."""
         mock_conn = MagicMock()
         longos = [{'youtube_video_id': 'longo1'}, {'youtube_video_id': 'longo2'}]
         curtos = [
@@ -191,7 +294,10 @@ class TestDownloadPendingVideos:
             {'youtube_video_id': 'curto2'},
             {'youtube_video_id': 'curto3'},
         ]
-        cur = self._make_cursor_with_side_effect([longos, curtos])
+        cur = self._make_cursor_with_side_effect(
+            fetchone_results=[{'c': 0}, {'c': 0}],
+            fetchall_results=[longos, curtos],
+        )
         mock_conn.cursor.return_value = cur
 
         with patch('src.pipeline_runner.download_video', return_value=True) as mock_dl, \
@@ -203,16 +309,91 @@ class TestDownloadPendingVideos:
 
     def test_scheduler_compatible_coalesce(self):
         """Importar main.py não deve iniciar o scheduler (coalesce = True verificado via import)."""
-        # Verifica que main.py pode ser importado sem iniciar o scheduler
-        import importlib
         import src.main as main_module
 
         job = None
         for j in main_module.scheduler.get_jobs():
-            if j.id == 'pipeline_cycle':
+            if j.id == 'ingest_cycle':
                 job = j
                 break
 
-        assert job is not None, 'Job pipeline_cycle não encontrado no scheduler'
+        assert job is not None, 'Job ingest_cycle não encontrado no scheduler'
         assert job.coalesce is True, 'coalesce deve ser True'
         assert job.max_instances == 1, 'max_instances deve ser 1'
+
+
+class TestRunIngestCycle:
+    def test_calls_poll_then_download_in_order(self):
+        """Deve chamar poll → download em ordem, sem publish."""
+        call_order = []
+
+        def fake_poll(**kwargs):
+            call_order.append('poll')
+
+        def fake_download(conn):
+            call_order.append('download')
+
+        mock_conn = MagicMock()
+        mock_redis = MagicMock()
+
+        with patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll), \
+             patch('src.pipeline_runner._download_pending_videos', side_effect=fake_download), \
+             patch('src.pipeline_runner.publish_pending_clips') as mock_pub:
+            run_ingest_cycle(db_conn=mock_conn, redis_client=mock_redis)
+
+        assert call_order == ['poll', 'download']
+        mock_pub.assert_not_called()
+
+    def test_download_failure_does_not_propagate(self):
+        """Erro em _download_pending_videos não deve propagar."""
+        mock_conn = MagicMock()
+        mock_redis = MagicMock()
+
+        with patch('src.pipeline_runner.poll_all_channels'), \
+             patch('src.pipeline_runner._download_pending_videos',
+                   side_effect=Exception('disk full')):
+            run_ingest_cycle(db_conn=mock_conn, redis_client=mock_redis)
+
+    def test_poll_failure_does_not_skip_download(self):
+        """Erro em poll_all_channels não deve impedir tentativa de download."""
+        call_order = []
+        mock_conn = MagicMock()
+        mock_redis = MagicMock()
+
+        def fake_poll(**kwargs):
+            call_order.append('poll_failed')
+            raise Exception('poll bombed')
+
+        def fake_download(conn):
+            call_order.append('download')
+
+        with patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll), \
+             patch('src.pipeline_runner._download_pending_videos', side_effect=fake_download):
+            run_ingest_cycle(db_conn=mock_conn, redis_client=mock_redis)
+
+        assert call_order == ['poll_failed', 'download']
+
+    def test_creates_own_connection_when_none_injected(self):
+        """Sem injeção, deve criar e fechar a própria conexão."""
+        mock_conn = MagicMock()
+        mock_redis_instance = MagicMock()
+
+        with patch('src.pipeline_runner.get_db_connection', return_value=mock_conn) as mock_get_db, \
+             patch('src.pipeline_runner.redis_lib.Redis', return_value=mock_redis_instance), \
+             patch('src.pipeline_runner.poll_all_channels'), \
+             patch('src.pipeline_runner._download_pending_videos'):
+            run_ingest_cycle()
+
+        mock_get_db.assert_called_once()
+        mock_conn.close.assert_called_once()
+
+    def test_does_not_close_injected_db_connection(self):
+        """Conexão injetada não deve ser fechada pelo runner."""
+        mock_conn = MagicMock()
+        mock_redis = MagicMock()
+
+        with patch('src.pipeline_runner.poll_all_channels'), \
+             patch('src.pipeline_runner._download_pending_videos'):
+            run_ingest_cycle(db_conn=mock_conn, redis_client=mock_redis)
+
+        mock_conn.close.assert_not_called()

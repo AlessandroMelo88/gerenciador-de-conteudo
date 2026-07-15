@@ -11,7 +11,7 @@ it('approves a pending clip via panel action (UPDATE guard: only pending)', func
     $user = User::factory()->create();
     $clip = GeneratedClip::factory()->create(['status' => 'pending']);
     $this->actingAs($user)
-        ->post("/admin/clips/{$clip->id}/approve")
+        ->post("/painel/clips/{$clip->id}/approve")
         ->assertRedirect();
     expect($clip->refresh()->status)->toBe('approved');
 });
@@ -20,7 +20,7 @@ it('does not approve a non-pending clip', function () {
     $user = User::factory()->create();
     $clip = GeneratedClip::factory()->create(['status' => 'published']);
     $this->actingAs($user)
-        ->post("/admin/clips/{$clip->id}/approve")
+        ->post("/painel/clips/{$clip->id}/approve")
         ->assertRedirect();
     expect($clip->refresh()->status)->toBe('published');
 });
@@ -31,7 +31,7 @@ it('rejects a clip via internal API and shows exit code result', function () {
     Http::fake(['*/internal/reject-clip' => Http::response(['exit_code' => 0], 200)]);
 
     $this->actingAs($user)
-        ->post("/admin/clips/{$clip->id}/reject")
+        ->post("/painel/clips/{$clip->id}/reject")
         ->assertRedirect();
     Http::assertSent(function ($request) use ($clip) {
         return str_contains($request->url(), '/internal/reject-clip')
@@ -45,6 +45,6 @@ it('propagates rejeitar exit_code=1 as a validation error notification', functio
     Http::fake(['*/internal/reject-clip' => Http::response(['exit_code' => 1], 200)]);
 
     $this->actingAs($user)
-        ->post("/admin/clips/{$clip->id}/reject")
+        ->post("/painel/clips/{$clip->id}/reject")
         ->assertSessionHas('error');
 });

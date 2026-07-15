@@ -19,7 +19,7 @@ it('creates a source_channel via internal API resolve', function () {
 
     $countBefore = SourceChannel::query()->count();
     $this->actingAs($user)
-        ->post('/admin/source-channels', [
+        ->post('/painel/canais-fonte', [
             'url' => 'https://youtube.com/@teste',
             'target_niche' => 'futebol',
         ])
@@ -37,7 +37,7 @@ it('shows an error when yt-dlp resolution fails and does not insert a row', func
 
     $countBefore = SourceChannel::query()->count();
     $this->actingAs($user)
-        ->post('/admin/source-channels', [
+        ->post('/painel/canais-fonte', [
             'url' => 'https://not-a-channel',
             'target_niche' => 'futebol',
         ])
@@ -50,7 +50,7 @@ it('toggles blacklisted without editing the queue', function () {
     $user = User::factory()->create();
     $channel = SourceChannel::factory()->create(['blacklisted' => false]);
     $this->actingAs($user)
-        ->patch("/admin/source-channels/{$channel->id}", ['blacklisted' => true])
+        ->put("/painel/canais-fonte/{$channel->id}", ['blacklisted' => true])
         ->assertRedirect();
     expect($channel->refresh()->blacklisted)->toBeTrue();
 });

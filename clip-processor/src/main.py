@@ -33,7 +33,7 @@ except ModuleNotFoundError:
 
         def start(self):
             return None
-from src.pipeline_runner import run_pipeline_once, run_publish_only
+from src.pipeline_runner import run_pipeline_once, run_publish_only, run_ingest_cycle
 from src.db import get_db_connection, recover_stuck_downloads
 from src import ttl_worker
 from src.ttl_worker import run_ttl_once
@@ -56,19 +56,22 @@ def shutdown(signum, frame):
     scheduler.shutdown(wait=False)
 
 
+# Ingestão (RSS/download/AI): repõe a janela de download ativo (DOWNLOAD_WINDOW_*
+# em pipeline_runner.py) a cada 20min — substitui o antigo ciclo de 6h. Cadência
+# maior faz vaga aberta (vídeo excluído no painel, ou publicação concluída) ser
+# reposta rápido, em vez de esperar até 6h pelo próximo vídeo.
 scheduler.add_job(
-    run_pipeline_once,
+    run_ingest_cycle,
     'interval',
-    hours=6,
-    id='pipeline_cycle',
+    minutes=20,
+    id='ingest_cycle',
     coalesce=True,
     max_instances=1,
-    misfire_grace_time=1800,
+    misfire_grace_time=900,
 )
 
-# Publica clips já aprovados isoladamente, bem mais frequente que o ciclo
-# completo (6h) — evita represar a fila esperando o próximo ciclo cheio
-# quando a cota diária reseta ou libera espaço.
+# Publica clips já aprovados isoladamente, mesma cadência do ingest — evita
+# represar a fila esperando quando a cota diária reseta ou libera espaço.
 scheduler.add_job(
     run_publish_only,
     'interval',
@@ -96,7 +99,7 @@ signal.signal(signal.SIGTERM, shutdown)
 signal.signal(signal.SIGINT, shutdown)
 
 if __name__ == '__main__':
-    log('[ACQU] Daemon iniciado — ciclo completo a cada 6 horas')
+    log('[ACQU] Daemon iniciado — ingestão + publish a cada 20 minutos')
     log(f'[ACQU] MYSQL_HOST: {os.environ.get("MYSQL_HOST", "não configurado")}')
     log(f'[ACQU] REDIS_HOST: {os.environ.get("REDIS_HOST", "não configurado")}')
     log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "private")}')
@@ -118,9 +121,9 @@ if __name__ == '__main__':
     threading.Thread(target=_start_internal_api, daemon=True, name='internal-api').start()
     log('[ACQU] Sidecar HTTP interno iniciado em 0.0.0.0:8090 (thread daemon)')
 
-    # Executar imediatamente na inicialização (não esperar 6h)
+    # Executar imediatamente na inicialização (não esperar o primeiro tick de 20min)
     log('[ACQU] Executando ciclo inicial...')
     run_pipeline_once()
 
-    log('[ACQU] Scheduler iniciado — próximo ciclo em 6 horas')
+    log('[ACQU] Scheduler iniciado — próximo ciclo (ingest + publish) em 20 minutos')
     scheduler.start()

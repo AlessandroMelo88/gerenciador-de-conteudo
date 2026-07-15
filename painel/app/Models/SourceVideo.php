@@ -22,6 +22,10 @@ class SourceVideo extends Model
         'local_path',
     ];
 
+    protected $casts = [
+        'published_at' => 'datetime',
+    ];
+
     public function sourceChannel()
     {
         return $this->belongsTo(SourceChannel::class, 'channel_id');
