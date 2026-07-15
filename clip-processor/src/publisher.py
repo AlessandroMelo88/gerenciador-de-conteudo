@@ -101,7 +101,7 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
         cur.execute(
             'SELECT gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, '
-            'sv.local_path AS source_local_path, '
+            'sv.local_path AS source_local_path, sv.format AS format, '
             'sc.id AS source_channel_id, sc.channel_handle, sc.channel_name '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
@@ -145,10 +145,15 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
 
     for clip in clips:
         clip_id = clip['id']
+        clip_format = clip.get('format') or 'curto'
 
-        if not quota_manager.can_upload(now=now):
+        if not quota_manager.has_capacity(now=now):
             _log(f'Clip {clip_id} mantido {current_status} por quota/janela')
             break
+
+        if not quota_manager.can_upload(now=now, format=clip_format):
+            _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por cota de formato')
+            continue
 
         _log(f'Próximo clip {current_status}: id={clip_id}')
 
@@ -159,7 +164,7 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
         try:
             youtube_video_id = uploader.upload_clip(clip)
             _mark_clip_published(conn, clip_id, youtube_video_id)
-            quota_manager.record_upload(now=now)
+            quota_manager.record_upload(now=now, format=clip_format)
             _maybe_finalize_source_video(conn, clip['source_video_id'], clip.get('source_local_path'))
             published_count += 1
             _log(f'Clip {clip_id} publicado no YouTube: {youtube_video_id}')
@@ -180,9 +185,10 @@ def _publish_one(conn, clip, uploader, quota_manager, now) -> int:
     """Publica um único clip. Retorna 1 se publicado, 0 caso contrário."""
     current_status = _publishable_status()
     clip_id = clip['id']
+    clip_format = clip.get('format') or 'curto'
 
-    if not quota_manager.can_upload(now=now):
-        _log(f'Clip {clip_id} mantido {current_status} por quota/janela')
+    if not quota_manager.can_upload(now=now, format=clip_format):
+        _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por quota/janela')
         return 0
 
     _log(f'Próximo clip {current_status}: id={clip_id}')
@@ -194,7 +200,7 @@ def _publish_one(conn, clip, uploader, quota_manager, now) -> int:
     try:
         youtube_video_id = uploader.upload_clip(clip)
         _mark_clip_published(conn, clip_id, youtube_video_id)
-        quota_manager.record_upload(now=now)
+        quota_manager.record_upload(now=now, format=clip_format)
         _maybe_finalize_source_video(conn, clip['source_video_id'], clip.get('source_local_path'))
         _log(f'Clip {clip_id} publicado no YouTube: {youtube_video_id}')
         notify('upload_published', {
@@ -215,7 +221,8 @@ def _fetch_pending_clips(conn) -> list[dict]:
         cur.execute(
             'SELECT '
             'gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
-            'gc.title, gc.description, gc.tags, sv.local_path AS source_local_path '
+            'gc.title, gc.description, gc.tags, sv.local_path AS source_local_path, '
+            'sv.format AS format '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'WHERE gc.status = %s '

@@ -73,6 +73,96 @@ class ClipQueueWidget extends Widget
         };
     }
 
+    /**
+     * Reenvia um clip 'failed' para reprocessamento: volta pra 'pending_cut' se o
+     * corte nunca terminou (clip_path vazio), ou pro status publicável (approved/
+     * pending, conforme MANUAL_APPROVAL_REQUIRED) se o corte existe e só o upload falhou.
+     */
+    public function reprocessar(int $id): void
+    {
+        $clip = GeneratedClip::find($id);
+
+        if (! $clip || $clip->status !== 'failed') {
+            Notification::make()->title('Clip não está mais em falha')->warning()->send();
+
+            return;
+        }
+
+        $manualApproval = filter_var(env('MANUAL_APPROVAL_REQUIRED', false), FILTER_VALIDATE_BOOLEAN);
+        $newStatus = $clip->clip_path ? ($manualApproval ? 'approved' : 'pending') : 'pending_cut';
+
+        $affected = GeneratedClip::query()
+            ->where('id', $id)
+            ->where('status', 'failed')
+            ->update(['status' => $newStatus, 'upload_error' => null]);
+
+        if ($affected === 0) {
+            Notification::make()->title('Clip não está mais em falha')->warning()->send();
+
+            return;
+        }
+
+        Notification::make()->title("Clip #{$id} reenviado para reprocessamento")->success()->send();
+    }
+
+    /** IDs marcados via checkbox nas tabs "Fila de aprovação" e "Na fila". */
+    public array $selected = [];
+
+    public function toggleSelectAll(string $tab): void
+    {
+        $ids = match ($tab) {
+            'pending' => $this->getViewData()['pendingClips']->pluck('id')->all(),
+            'queued' => $this->getViewData()['queuedClips']->pluck('id')->all(),
+            default => [],
+        };
+
+        $this->selected = array_intersect($this->selected, $ids) === $this->selected && count($this->selected) === count($ids)
+            ? []
+            : $ids;
+    }
+
+    public function aprovarSelecionados(): void
+    {
+        if (empty($this->selected)) {
+            return;
+        }
+
+        $affected = GeneratedClip::query()
+            ->whereIn('id', $this->selected)
+            ->where('status', 'pending')
+            ->update(['status' => 'approved']);
+
+        $this->selected = [];
+        Notification::make()->title("{$affected} clip(s) aprovado(s)")->success()->send();
+    }
+
+    public function rejeitarSelecionados(): void
+    {
+        if (empty($this->selected)) {
+            return;
+        }
+
+        $client = app(ClipProcessorClient::class);
+        $ok = 0;
+        $fail = 0;
+
+        foreach ($this->selected as $id) {
+            try {
+                $exit = $client->rejectClip((int) $id);
+                $exit === 0 ? $ok++ : $fail++;
+            } catch (RuntimeException) {
+                $fail++;
+            }
+        }
+
+        $this->selected = [];
+
+        Notification::make()
+            ->title("{$ok} clip(s) rejeitado(s)".($fail ? ", {$fail} falharam" : ''))
+            ->color($fail ? 'warning' : 'success')
+            ->send();
+    }
+
     protected function getViewData(): array
     {
         return [

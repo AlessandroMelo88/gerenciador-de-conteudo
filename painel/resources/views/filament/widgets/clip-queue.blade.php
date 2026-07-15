@@ -38,10 +38,41 @@
                         icon="heroicon-o-check-circle"
                     />
                 @else
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                        <x-filament::button
+                            wire:click="toggleSelectAll('pending')"
+                            color="gray"
+                            size="xs"
+                            outlined
+                        >
+                            Marcar/desmarcar todos
+                        </x-filament::button>
+                        <x-filament::button
+                            wire:click="aprovarSelecionados"
+                            wire:confirm="Aprovar {{ count($selected) }} clip(s) selecionado(s)?"
+                            wire:loading.attr="disabled"
+                            color="success"
+                            size="xs"
+                            :disabled="empty($selected)"
+                        >
+                            Aprovar selecionados ({{ count($selected) }})
+                        </x-filament::button>
+                        <x-filament::button
+                            wire:click="rejeitarSelecionados"
+                            wire:confirm="Rejeitar {{ count($selected) }} clip(s) selecionado(s)? Os MP4s serão removidos."
+                            wire:loading.attr="disabled"
+                            color="danger"
+                            size="xs"
+                            :disabled="empty($selected)"
+                        >
+                            Rejeitar selecionados ({{ count($selected) }})
+                        </x-filament::button>
+                    </div>
                     <div style="overflow-x:auto">
                         <table style="width:100%;font-size:0.75rem;border-collapse:collapse">
                             <thead>
                                 <tr>
+                                    <th style="padding:6px 10px"></th>
                                     <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">ID</th>
                                     <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Título</th>
                                     <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Vídeo fonte</th>
@@ -56,6 +87,9 @@
                             <tbody>
                                 @foreach ($pendingClips as $clip)
                                     <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                                        <td style="padding:10px 10px">
+                                            <input type="checkbox" wire:model="selected" value="{{ $clip->id }}" />
+                                        </td>
                                         <td style="padding:10px 10px;color:#9ca3af;white-space:nowrap">{{ $clip->id }}</td>
                                         <td style="padding:10px 10px;max-width:220px" x-data="{ previewOpen: false }">
                                             <span title="{{ $clip->title }}" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e5e7eb">
@@ -132,10 +166,31 @@
                     <x-filament::callout color="info" icon="heroicon-o-information-circle" style="margin-bottom:1rem">
                         Publica automaticamente em ordem (mais antigo primeiro), respeitando o limite diário de uploads. Se não fizer nada, a fila segue sozinha. Use "Rejeitar" só se a notícia ficou velha/irrelevante.
                     </x-filament::callout>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                        <x-filament::button
+                            wire:click="toggleSelectAll('queued')"
+                            color="gray"
+                            size="xs"
+                            outlined
+                        >
+                            Marcar/desmarcar todos
+                        </x-filament::button>
+                        <x-filament::button
+                            wire:click="rejeitarSelecionados"
+                            wire:confirm="Rejeitar {{ count($selected) }} clip(s) selecionado(s)? Os MP4s serão removidos."
+                            wire:loading.attr="disabled"
+                            color="danger"
+                            size="xs"
+                            :disabled="empty($selected)"
+                        >
+                            Rejeitar selecionados ({{ count($selected) }})
+                        </x-filament::button>
+                    </div>
                     <div style="overflow-x:auto">
                         <table style="width:100%;font-size:0.75rem;border-collapse:collapse">
                             <thead>
                                 <tr>
+                                    <th style="padding:6px 10px"></th>
                                     <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Pos.</th>
                                     <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">ID</th>
                                     <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Título</th>
@@ -152,6 +207,9 @@
                             <tbody>
                                 @foreach ($queuedClips as $index => $clip)
                                     <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                                        <td style="padding:10px 10px">
+                                            <input type="checkbox" wire:model="selected" value="{{ $clip->id }}" />
+                                        </td>
                                         <td style="padding:10px 10px;color:#9ca3af;white-space:nowrap">#{{ $index + 1 }}</td>
                                         <td style="padding:10px 10px;color:#9ca3af;white-space:nowrap">{{ $clip->id }}</td>
                                         <td style="padding:10px 10px;max-width:220px" x-data="{ previewOpen: false }">
@@ -228,6 +286,7 @@
                                     <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Título</th>
                                     <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Destino</th>
                                     <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Quando</th>
+                                    <th style="padding:6px 10px;text-align:left;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b7280">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -238,9 +297,26 @@
                                             <span title="{{ $clip->title }}" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e5e7eb">
                                                 {{ str($clip->title)->limit(40) }}
                                             </span>
+                                            @if ($clip->upload_error)
+                                                <span title="{{ $clip->upload_error }}" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f87171;font-size:0.68rem;margin-top:2px">
+                                                    {{ str($clip->upload_error)->limit(50) }}
+                                                </span>
+                                            @endif
                                         </td>
                                         <td style="padding:10px 10px;color:#9ca3af;white-space:nowrap">{{ $clip->destinationChannel?->name }}</td>
                                         <td style="padding:10px 10px;color:#9ca3af;white-space:nowrap">{{ $clip->updated_at?->diffForHumans() }}</td>
+                                        <td style="padding:10px 10px;white-space:nowrap">
+                                            <x-filament::button
+                                                wire:click="reprocessar({{ $clip->id }})"
+                                                wire:confirm="Reenviar clip #{{ $clip->id }} para reprocessamento?"
+                                                wire:loading.attr="disabled"
+                                                color="warning"
+                                                size="xs"
+                                                outlined
+                                            >
+                                                Reprocessar
+                                            </x-filament::button>
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
