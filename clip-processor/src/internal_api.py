@@ -6,6 +6,7 @@ Endpoints:
   - POST /internal/reject-clip          {clip_id}          -> {exit_code}
   - POST /internal/process-url          {url}              -> {exit_code}
   - POST /internal/delete-source-video  {source_video_id}  -> {deleted, freed_bytes}
+  - POST /internal/transcribe           {url}              -> {job_id}
 
 Auth: header X-Internal-Token verificado contra CLIP_PROCESSOR_INTERNAL_TOKEN.
 Rede: bind 0.0.0.0:8090 dentro do container `clip-processor`, rede docker `internal`
@@ -21,6 +22,7 @@ from flask import Flask, jsonify, request
 from src.db import get_db_connection
 from src.processar import main as processar_main
 from src.rejeitar import rejeitar
+from src.transcription_job import start_transcription_job
 
 INTERNAL_TOKEN = os.environ.get('CLIP_PROCESSOR_INTERNAL_TOKEN')
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
@@ -282,3 +284,18 @@ def _route_delete_source_video():
     except RuntimeError as e:
         return jsonify(error=str(e)), 422
     return jsonify(result), 200
+
+
+@app.post('/internal/transcribe')
+def _route_transcribe():
+    if not _check_auth():
+        return jsonify(error='unauthorized'), 401
+    payload = request.get_json(silent=True) or {}
+    url = payload.get('url')
+    if not url:
+        return jsonify(error='missing url'), 400
+    try:
+        job_id = start_transcription_job(url)
+    except Exception as e:  # noqa: BLE001
+        return jsonify(error=str(e)), 500
+    return jsonify(job_id=job_id), 200
