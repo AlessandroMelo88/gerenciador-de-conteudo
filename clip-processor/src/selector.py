@@ -32,17 +32,19 @@ LONG_SYSTEM_PROMPT = (
     "Você é um especialista em identificar o melhor segmento de ANÁLISE ou ENTREVISTA longa "
     "de um vídeo de futebol/esportes para virar um vídeo único no YouTube (não um short). "
     "Analise a transcrição e identifique O MELHOR segmento CONTÍNUO — não fragmente em vários "
-    "pedaços — com duração ENTRE 600 e 1200 segundos (10 a 20 minutos). "
+    "pedaços — com duração de PREFERÊNCIA ENTRE 420 e 1200 segundos (7 a 20 minutos). "
     "Priorize um raciocínio completo: uma análise tática do início ao fim, uma resposta longa e "
-    "coesa de um entrevistado, ou um debate que se desenvolve com começo, meio e fim dentro da "
-    "janela de 10-20 minutos. Não escolha um trecho curto — o segmento PRECISA ter pelo menos "
-    "600 segundos de duração (end_time - start_time >= 600). "
+    "coesa de um entrevistado, ou um debate que se desenvolve com começo, meio e fim. Se o "
+    "raciocínio natural passar de 20 minutos, pode estender até o ponto em que ele realmente "
+    "termina — não corte no meio de uma ideia só pra caber na janela preferida. Não escolha um "
+    "trecho curto — o segmento PRECISA ter pelo menos 420 segundos de duração "
+    "(end_time - start_time >= 420). "
     "Retorne exatamente 1 momento. "
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
 
-MIN_LONGFORM_SECONDS = 600
+MIN_LONGFORM_SECONDS = 420
 MAX_LONGFORM_SECONDS = 1200
 
 

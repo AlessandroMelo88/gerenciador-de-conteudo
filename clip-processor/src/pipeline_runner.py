@@ -44,7 +44,8 @@ def _select_pending_videos(db_conn) -> list:
     """Seleciona vídeos pendentes pra repor a janela de download ativo.
 
     Para cada formato: conta quantos vídeos já ocupam a janela (local_path
-    setado), calcula o déficit até o teto (DOWNLOAD_WINDOW_LONGO/CURTO) e busca
+    setado E status ainda em andamento — linha morta com arquivo em disco não
+    ocupa slot), calcula o déficit até o teto (DOWNLOAD_WINDOW_LONGO/CURTO) e busca
     só esse tanto, restrito a published_at de hoje ou ontem (FRESHNESS_DAYS),
     ordenado por published_at DESC (notícia mais recente primeiro). Se um
     formato já está na janela cheia, não baixa nada dele nesta rodada — não
@@ -56,7 +57,9 @@ def _select_pending_videos(db_conn) -> list:
     for fmt, window in (('longo', DOWNLOAD_WINDOW_LONGO), ('curto', DOWNLOAD_WINDOW_CURTO)):
         with db_conn.cursor() as cur:
             cur.execute(
-                'SELECT COUNT(*) AS c FROM source_videos WHERE format=%s AND local_path IS NOT NULL',
+                'SELECT COUNT(*) AS c FROM source_videos '
+                'WHERE format=%s AND local_path IS NOT NULL '
+                "AND status IN ('downloading', 'downloaded', 'selecting')",
                 (fmt,),
             )
             occupied = cur.fetchone()['c']
