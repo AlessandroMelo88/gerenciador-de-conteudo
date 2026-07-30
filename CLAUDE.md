@@ -87,3 +87,58 @@ O raw de um vídeo ainda é necessário se algum clip dele está em `pending_cut
 `recover_stuck_downloads` (`src/db.py:112`) só devolve `downloading` → `pending`. Não existe
 recuperação para `selecting`, `cutting` ou `publishing` — o que trava nesses estados fica preso
 para sempre e segura o arquivo em disco. Foi a causa do acúmulo que lotou o SSD.
+
+---
+
+## Reset de fila / limpar Redis — o que cada coisa faz
+
+Incidente 27/07/2026: nada subia desde 24/07. Cadeia: HD 99% cheio → MySQL caiu
+(`Can't connect to MySQL server ... Errno 111` em loop) → pipeline travou → clip ficou preso em
+`publishing` (estado sem recuperação, ver acima). Destravar exigiu: liberar disco, subir MySQL,
+apagar o clip travado e purgar o backlog.
+
+**A fila NÃO mora no Redis.** Fila = MySQL (`source_videos`, `generated_clips`). O Redis guarda só:
+
+- chaves `video:<id>` (TTL 30 dias) — marca "vídeo já visto" pra dedup;
+- contador de quota diária `youtube_uploads:<data>` (e `:<canal>` / `:<formato>`).
+
+Consequência que morde: **apagar as chaves `video:*` faz os vídeos deletados voltarem** no próximo
+poll RSS (deixam de estar "vistos"). Para purgar de vez, apagar as linhas do MySQL e **manter** as
+chaves dedup. Nunca `FLUSHALL` achando que "reseta a fila" — isso ressuscita todo o backlog e zera
+a quota junto.
+
+**Contador de quota travado ≠ fila travada.** Se o problema for só "não sobe mais hoje", conferir
+`youtube_uploads:<hoje>` no Redis; resetar só essa chave, não o dedup.
+
+**Filtro de frescor no download:** `pipeline_runner.py` (`FRESHNESS_DAYS=1`) só baixa `pending` com
+`published_at` de hoje/ontem. Vídeo pendente mais velho que isso nunca baixa — fica em `pending`
+pra sempre sem ser lixo de verdade. Considerar isso antes de classificar `pending` antigo como
+backlog descartável.
+
+---
+
+## "Vídeos duplicados na fila" — na verdade título duplicado
+
+`ANTHROPIC_API_KEY` vazio (config normal de operação, ver acima) fazia `metadata_generator.py`
+falhar sempre e cair no fallback burro: título = título bruto do vídeo original. Como o seletor
+tira até 3 momentos por vídeo, os 3 clips saíam com título idêntico — parecia vídeo duplicado na
+fila de aprovação, mas eram clips diferentes (trechos diferentes) do mesmo vídeo.
+
+Fix (27/07/2026): `metadata_generator.py` ganhou o mesmo fallback Groq que `selector.py` já usava
+(`_select_via_groq`). Ordem agora: Anthropic → Groq → título bruto só se as duas falharem.
+Qualquer novo caminho de IA nesse pipeline devia nascer com fallback Groq de cara — não replicar
+esse buraco em outro lugar.
+
+**Editar código do clip-processor exige rebuild + restart** — não há bind mount pro `src/`, a
+imagem embute o código no build. `docker compose build clip-processor && docker compose up -d
+clip-processor` (isolado, não sobe mysql/redis nem outros projetos).
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

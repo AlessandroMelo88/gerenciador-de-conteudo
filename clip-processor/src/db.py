@@ -6,6 +6,7 @@ Exporta:
   - update_status(conn, video_id, status, local_path=None): atualiza status de vídeo
   - insert_video(conn, video_id, channel_id, title, published_at): insere vídeo novo
   - recover_stuck_downloads(conn): redefine vídeos presos em 'downloading' para 'pending'
+  - recover_stuck_selecting(conn): redefine vídeos presos em 'selecting' para 'downloaded'
 
 Convenções:
   - Quem chama é responsável por fechar a conexão (não fechar dentro das funções)
@@ -131,4 +132,42 @@ def recover_stuck_downloads(conn):
         _log(f'recover_stuck_downloads: {affected} vídeo(s) redefinido(s) para pending')
     except pymysql.OperationalError as exc:
         _log(f'AVISO: falha ao recuperar downloads presos: {exc}')
+        raise
+
+
+# Horas sem progresso antes de considerar um 'selecting' travado.
+SELECTING_STUCK_HOURS = 2
+
+
+def recover_stuck_selecting(conn):
+    """Devolve vídeos presos em 'selecting' para 'downloaded' (reprocessa a IA).
+
+    'selecting' não tinha recuperação: um vídeo que travasse na etapa de IA
+    (queda do MySQL, container morto no meio) ficava preso pra sempre segurando
+    um slot da janela de download — com as duas janelas cheias de linha morta,
+    o pipeline parava de baixar qualquer coisa.
+
+    Só considera travado o que não recebe update há SELECTING_STUCK_HOURS, pra
+    não atropelar seleção legitimamente em curso. O arquivo já está em disco,
+    então volta pra 'downloaded' e não pra 'pending' — não rebaixa à toa.
+
+    Args:
+        conn: conexão pymysql ativa
+    """
+    sql = (
+        "UPDATE source_videos "
+        "SET status='downloaded' "
+        "WHERE status='selecting' "
+        "AND local_path IS NOT NULL "
+        "AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)"
+    )
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (SELECTING_STUCK_HOURS,))
+            affected = cur.rowcount
+        conn.commit()
+        _log(f'recover_stuck_selecting: {affected} vídeo(s) redefinido(s) para downloaded')
+    except pymysql.OperationalError as exc:
+        _log(f'AVISO: falha ao recuperar seleções presas: {exc}')
         raise

@@ -47,3 +47,6 @@ venv/
 Thumbs.db
 .claude/
 .cursor/
+
+# graphify
+graphify-out/cost.json

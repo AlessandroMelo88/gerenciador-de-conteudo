@@ -34,7 +34,7 @@ except ModuleNotFoundError:
         def start(self):
             return None
 from src.pipeline_runner import run_pipeline_once, run_publish_only, run_ingest_cycle
-from src.db import get_db_connection, recover_stuck_downloads
+from src.db import get_db_connection, recover_stuck_downloads, recover_stuck_selecting
 from src import ttl_worker
 from src.ttl_worker import run_ttl_once
 from src.internal_api import app as _internal_app
@@ -106,10 +106,13 @@ if __name__ == '__main__':
     log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
     log(f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)')
 
-    # Recovery: vídeos presos em 'downloading' voltam para 'pending'
+    # Recovery: vídeos presos em 'downloading' voltam para 'pending' e os
+    # presos em 'selecting' voltam para 'downloaded' (senão seguram slot da
+    # janela de download pra sempre e o pipeline para de baixar).
     try:
         conn = get_db_connection()
         recover_stuck_downloads(conn)
+        recover_stuck_selecting(conn)
         conn.close()
     except Exception as e:
         log(f'[ACQU] Aviso: recovery on startup falhou — {e}')
