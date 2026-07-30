@@ -232,6 +232,15 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-03T01:02:16.494Z
-Stopped at: Completed 09-bot-telegram-no-laravel-09-02-PLAN.md
+Last session: 2026-07-30T00:00:00.000Z
+Stopped at: Completed quick/1-adicionar-sess-o-de-transcri-o-local-no-/1-PLAN.md
 Resume file: None
+
+### Quick Tasks Log
+
+- [2026-07-30] Quick Task 1: "Transcrição Local" — sessão no painel para transcrever URL do
+  YouTube via whisper-cpp local (thread de background no clip-processor), progresso persistido
+  em `transcription_jobs` (MySQL), isolada do pipeline principal. Dockerfile do clip-processor
+  ganhou `curl` (necessário para `download-ggml-model.sh`) e build do whisper.cpp (binário
+  `whisper-cli`, modelo `ggml-small.bin`). Ver
+  `.planning/quick/1-adicionar-sess-o-de-transcri-o-local-no-/1-SUMMARY.md`.
