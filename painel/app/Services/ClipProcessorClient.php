@@ -130,4 +130,26 @@ class ClipProcessorClient
             'freed_bytes' => (int) $response->json('freed_bytes', 0),
         ];
     }
+
+    /**
+     * Inicia uma transcrição local (whisper-cpp) de uma URL do YouTube no clip-processor.
+     * Timeout curto porque o endpoint só cria o job e dispara a thread de background —
+     * não espera o whisper terminar.
+     *
+     * @return array{job_id: int}
+     *
+     * @throws RuntimeException em erro HTTP.
+     */
+    public function transcribe(string $url): array
+    {
+        $response = Http::timeout(15)
+            ->withHeader('X-Internal-Token', (string) $this->token)
+            ->post($this->baseUrl.'/internal/transcribe', ['url' => $url]);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Erro ao iniciar transcrição: HTTP '.$response->status());
+        }
+
+        return ['job_id' => (int) $response->json('job_id', 0)];
+    }
 }
