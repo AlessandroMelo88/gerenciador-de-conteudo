@@ -10,6 +10,7 @@ use App\Http\Controllers\SourceChannelController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SourceVideoController;
 use App\Http\Controllers\TelegramWebhookController;
+use App\Http\Controllers\TranscriptionController;
 use App\Models\GeneratedClip;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -65,6 +66,10 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/painel/processar-video', [ProcessVideoController::class, 'show'])->name('process-video.show');
     Route::post('/painel/processar-video', [ProcessVideoController::class, 'store']);
+
+    Route::get('/painel/transcricoes', [TranscriptionController::class, 'index'])->name('transcriptions.index');
+    Route::post('/painel/transcricoes', [TranscriptionController::class, 'store']);
+    Route::get('/painel/transcricoes/{job}/download', [TranscriptionController::class, 'download'])->name('transcriptions.download');
 
     Route::get('/painel/documentacao', [DocumentationController::class, 'show'])->name('documentation.show');
 
