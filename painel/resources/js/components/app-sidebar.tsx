@@ -13,6 +13,7 @@ import {
     SidebarRail,
 } from '@/components/ui/sidebar';
 import {
+    AudioLinesIcon,
     ClapperboardIcon,
     LayoutDashboardIcon,
     LinkIcon,
@@ -35,6 +36,7 @@ const navItems: NavItem[] = [
     { title: 'Canais Fonte', url: '/painel/canais-fonte', icon: RadioTowerIcon },
     { title: 'Vídeos', url: '/painel/videos', icon: ClapperboardIcon },
     { title: 'Processar Vídeo', url: '/painel/processar-video', icon: LinkIcon },
+    { title: 'Transcrição Local', url: '/painel/transcricoes', icon: AudioLinesIcon },
     { title: 'Documentação', url: '/painel/documentacao', icon: BookOpenIcon },
 ];
 
