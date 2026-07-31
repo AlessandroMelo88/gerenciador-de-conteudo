@@ -25,9 +25,9 @@
     "semantic_hash": "7209b62b96cfd84fbb12f89a4836a7a5"
   },
   "clip-processor/src/internal_api.py": {
-    "mtime": 1785445324.1462593,
-    "ast_hash": "945627be2010cc3c42c6d955342b588d",
-    "semantic_hash": ""
+    "mtime": 1783983548.56963,
+    "ast_hash": "856690a9e87f2bd549bc967c1c68d9d7",
+    "semantic_hash": "856690a9e87f2bd549bc967c1c68d9d7"
   },
   "clip-processor/src/main.py": {
     "mtime": 1785350773.5953064,
@@ -340,9 +340,9 @@
     "semantic_hash": "51888a81612a32b2b74b12f4147f3833"
   },
   "painel/app/Services/ClipProcessorClient.php": {
-    "mtime": 1785445228.696242,
-    "ast_hash": "d438e50a5d94bce821c3444bf32f56e8",
-    "semantic_hash": ""
+    "mtime": 1783962873.001427,
+    "ast_hash": "639c88c2461d65dd7bd438e61dcf124d",
+    "semantic_hash": "639c88c2461d65dd7bd438e61dcf124d"
   },
   "painel/app/Services/TelegramHttpClientHandler.php": {
     "mtime": 1783037330.4337435,
@@ -530,9 +530,9 @@
     "semantic_hash": "a330b2fcacbcb9547caa902b28a5619b"
   },
   "painel/resources/js/components/app-sidebar.tsx": {
-    "mtime": 1785446233.6396627,
-    "ast_hash": "2b27bfff16a9f86a2fc0d44147c7b682",
-    "semantic_hash": ""
+    "mtime": 1784139625.864798,
+    "ast_hash": "000b48e6b787ac296aa2e3629a3e2b34",
+    "semantic_hash": "000b48e6b787ac296aa2e3629a3e2b34"
   },
   "painel/resources/js/components/clip-queue-tabs.tsx": {
     "mtime": 1784138836.8803706,
@@ -820,9 +820,9 @@
     "semantic_hash": "b0b6afcdfbf9d54f1791f6168c0fb22c"
   },
   "painel/routes/web.php": {
-    "mtime": 1785446227.6847775,
-    "ast_hash": "a05360a22a2b0d5fd9bbcd382e2849a0",
-    "semantic_hash": ""
+    "mtime": 1784141265.113693,
+    "ast_hash": "5a513f4e6ba711a97efa9e529a71a010",
+    "semantic_hash": "5a513f4e6ba711a97efa9e529a71a010"
   },
   "painel/tests/Feature/AuthGuardTest.php": {
     "mtime": 1784139989.9400814,
@@ -950,9 +950,9 @@
     "semantic_hash": "236f16c64000c2e629625ac0cc13351f"
   },
   ".planning/STATE.md": {
-    "mtime": 1785446342.1350396,
-    "ast_hash": "66049db8c8410521cf311dc807fdad56",
-    "semantic_hash": ""
+    "mtime": 1783648571.259939,
+    "ast_hash": "7b9ffe677040272b7fe9111c102f0400",
+    "semantic_hash": "7b9ffe677040272b7fe9111c102f0400"
   },
   ".planning/phases/01-infraestrutura-base/01-01-PLAN.md": {
     "mtime": 1781713355.5376923,
@@ -1658,55 +1658,5 @@
     "mtime": 1782143538.4785185,
     "ast_hash": "353b7e14b1b737ba02e2950267c9fd8c",
     "semantic_hash": "353b7e14b1b737ba02e2950267c9fd8c"
-  },
-  "clip-processor/src/transcription_job.py": {
-    "mtime": 1785445313.412585,
-    "ast_hash": "b12e1f129a207f1afe94dc541e0eeb32",
-    "semantic_hash": ""
-  },
-  "clip-processor/tests/test_transcription_job.py": {
-    "mtime": 1785445269.1838593,
-    "ast_hash": "5bc0f2d5623fb0488d4ed4cbf8131d92",
-    "semantic_hash": ""
-  },
-  "painel/app/Http/Controllers/TranscriptionController.php": {
-    "mtime": 1785446222.945144,
-    "ast_hash": "dc1537c3f909d3166f9e7b4bf826688f",
-    "semantic_hash": ""
-  },
-  "painel/app/Models/TranscriptionJob.php": {
-    "mtime": 1785445223.3759694,
-    "ast_hash": "07888df72cd1fa3dd497a5bf8bdc36a4",
-    "semantic_hash": ""
-  },
-  "painel/database/migrations/2026_07_30_000000_create_transcription_jobs_table.php": {
-    "mtime": 1785445222.686076,
-    "ast_hash": "7fcf122e2d8aec68983bd3e6f4e702cf",
-    "semantic_hash": ""
-  },
-  "painel/resources/js/components/ui/progress.tsx": {
-    "mtime": 1785446212.296256,
-    "ast_hash": "4d877d59af8b7195ee6a785c1a5835d2",
-    "semantic_hash": ""
-  },
-  "painel/resources/js/pages/TranscricaoLocal.tsx": {
-    "mtime": 1785446252.308847,
-    "ast_hash": "1ea42a26258be7f81aca26842122a826",
-    "semantic_hash": ""
-  },
-  ".planning/quick/1-adicionar-sess-o-de-transcri-o-local-no-/1-PLAN.md": {
-    "mtime": 1785445170.4640298,
-    "ast_hash": "6a19ca1e07b5f9ae33d27b184ab1f022",
-    "semantic_hash": ""
-  },
-  ".planning/quick/1-adicionar-sess-o-de-transcri-o-local-no-/1-SUMMARY.md": {
-    "mtime": 1785446331.3406823,
-    "ast_hash": "cade9ac20fd497bd0c4f0f61f3cb86d5",
-    "semantic_hash": ""
-  },
-  "clip-processor/requirements.txt": {
-    "mtime": 1782932364.6631095,
-    "ast_hash": "bd7561bbed982c2f12e1e3bd2b057aad",
-    "semantic_hash": ""
   }
 }

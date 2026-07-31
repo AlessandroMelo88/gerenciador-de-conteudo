@@ -14,7 +14,9 @@ LIMITAÇÃO DOCUMENTADA: whisper-cpp não expõe progresso incremental fácil de
 via stdout/stderr entre versões — usamos milestones grosseiros de progresso (10% ao
 iniciar download, 50% ao iniciar transcrição, 100% ao terminar), não % real do whisper.
 """
+import math
 import os
+import re
 import subprocess
 import threading
 
@@ -25,6 +27,16 @@ TRANSCRIPTS_DIR = os.path.join(VIDEOS_DIR, 'transcripts')
 
 WHISPER_BIN = os.environ.get('WHISPER_CPP_BIN', '/opt/whisper.cpp/build/bin/whisper-cli')
 WHISPER_MODEL = os.environ.get('WHISPER_MODEL_PATH', '/opt/whisper.cpp/models/ggml-small.bin')
+
+# Acima desse tanto de áudio, quebra em pedaços pro whisper-cpp não estourar o
+# timeout de 1800s por chamada (vídeo de 112min travou inteiro numa passada só).
+# Nunca mais que 3 pedaços — pedido explícito do operador, mesmo que cada pedaço
+# ainda fique longo pra vídeos muito extensos.
+CHUNK_THRESHOLD_SECONDS = 1500
+MAX_CHUNKS = 3
+WHISPER_TIMEOUT_SECONDS = 3600
+
+SRT_TIME_RE = re.compile(r'(\d\d):(\d\d):(\d\d),(\d\d\d)')
 
 
 def create_transcription_job(conn, youtube_url: str) -> int:
@@ -87,22 +99,124 @@ def _download_audio(job_id, youtube_url: str) -> str:
     return f'{TRANSCRIPTS_DIR}/{job_id}_audio.wav'
 
 
-def _run_whisper(job_id, audio_path: str) -> str:
-    """Roda whisper-cpp local sobre o wav baixado, gerando um .srt em TRANSCRIPTS_DIR.
+def _audio_duration_seconds(audio_path: str) -> float:
+    result = subprocess.run(
+        [
+            'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1', audio_path,
+        ],
+        check=True, capture_output=True, timeout=60, text=True,
+    )
+    return float(result.stdout.strip())
 
-    O whisper-cpp com `-osrt -of <prefix>` gera `<prefix>.srt`.
+
+def _split_audio(job_id, audio_path: str, num_chunks: int, duration: float) -> list[str]:
+    """Divide o wav em `num_chunks` pedaços de duração igual via ffmpeg (recorte por tempo,
+    sem recodificar). Retorna os paths dos pedaços, na ordem.
+    """
+    chunk_duration = duration / num_chunks
+    chunk_paths = []
+    for i in range(num_chunks):
+        start = i * chunk_duration
+        chunk_path = f'{TRANSCRIPTS_DIR}/{job_id}_part{i}.wav'
+        subprocess.run(
+            [
+                'ffmpeg', '-y', '-ss', str(start), '-i', audio_path,
+                '-t', str(chunk_duration), '-c', 'copy', chunk_path,
+            ],
+            check=True, capture_output=True, timeout=300,
+        )
+        chunk_paths.append(chunk_path)
+    return chunk_paths
+
+
+def _run_whisper_on(audio_path: str, out_prefix: str) -> str:
+    """Roda whisper-cpp local sobre um wav, gerando `<out_prefix>.srt`.
 
     Raises:
         subprocess.CalledProcessError: whisper-cpp falhou (check=True).
+        subprocess.TimeoutExpired: passou de WHISPER_TIMEOUT_SECONDS.
     """
     subprocess.run(
         [
             WHISPER_BIN, '-m', WHISPER_MODEL, '-f', audio_path,
-            '-l', 'pt', '-osrt', '-of', f'{TRANSCRIPTS_DIR}/{job_id}',
+            '-l', 'pt', '-osrt', '-of', out_prefix,
         ],
-        check=True, capture_output=True, timeout=1800,
+        check=True, capture_output=True, timeout=WHISPER_TIMEOUT_SECONDS,
     )
-    return f'{TRANSCRIPTS_DIR}/{job_id}.srt'
+    return f'{out_prefix}.srt'
+
+
+def _shift_srt_timestamps(srt_text: str, offset_seconds: float) -> str:
+    """Soma `offset_seconds` a cada timestamp de um bloco .srt (não renumera — quem
+    concatena os blocos cuida da renumeração sequencial).
+    """
+    def _shift(match):
+        h, m, s, ms = (int(g) for g in match.groups())
+        total_ms = ((h * 3600 + m * 60 + s) * 1000 + ms) + round(offset_seconds * 1000)
+        h, rem = divmod(total_ms, 3600_000)
+        m, rem = divmod(rem, 60_000)
+        s, ms = divmod(rem, 1000)
+        return f'{h:02d}:{m:02d}:{s:02d},{ms:03d}'
+
+    return SRT_TIME_RE.sub(_shift, srt_text)
+
+
+def _merge_srt_chunks(chunk_srt_paths: list[str], chunk_duration: float, final_path: str) -> None:
+    """Concatena os .srt de cada pedaço, deslocando os timestamps pelo offset acumulado
+    (índice do pedaço * duração do pedaço) e renumerando os blocos sequencialmente.
+    """
+    merged_blocks = []
+    next_index = 1
+    for i, srt_path in enumerate(chunk_srt_paths):
+        with open(srt_path, encoding='utf-8') as f:
+            text = f.read()
+        shifted = _shift_srt_timestamps(text, offset_seconds=i * chunk_duration)
+        for block in re.split(r'\n\s*\n', shifted.strip()):
+            lines = block.split('\n')
+            if len(lines) < 2:
+                continue
+            lines[0] = str(next_index)
+            next_index += 1
+            merged_blocks.append('\n'.join(lines))
+
+    with open(final_path, 'w', encoding='utf-8') as f:
+        f.write('\n\n'.join(merged_blocks) + '\n')
+
+
+def _run_whisper(job_id, audio_path: str) -> str:
+    """Roda whisper-cpp sobre o áudio baixado, gerando `<job_id>.srt` em TRANSCRIPTS_DIR.
+
+    Áudio curto (<= CHUNK_THRESHOLD_SECONDS): passada única, igual antes.
+    Áudio longo: quebra em até MAX_CHUNKS pedaços (ffmpeg, recorte sem recodificar),
+    roda whisper-cpp em cada um (timeout maior por pedaço), e funde os .srt com
+    timestamps ajustados — evita o timeout de 1800s que vídeo inteiro longo batia.
+    Pedaços intermediários (.wav e .srt) são apagados ao final, sobra só o .srt final.
+    """
+    duration = _audio_duration_seconds(audio_path)
+    final_srt = f'{TRANSCRIPTS_DIR}/{job_id}.srt'
+
+    if duration <= CHUNK_THRESHOLD_SECONDS:
+        return _run_whisper_on(audio_path, f'{TRANSCRIPTS_DIR}/{job_id}')
+
+    num_chunks = min(MAX_CHUNKS, math.ceil(duration / CHUNK_THRESHOLD_SECONDS))
+    chunk_duration = duration / num_chunks
+    chunk_wavs = _split_audio(job_id, audio_path, num_chunks, duration)
+
+    chunk_srts = []
+    try:
+        for i, chunk_wav in enumerate(chunk_wavs):
+            chunk_srts.append(_run_whisper_on(chunk_wav, f'{TRANSCRIPTS_DIR}/{job_id}_part{i}'))
+        _merge_srt_chunks(chunk_srts, chunk_duration, final_srt)
+    finally:
+        for path in chunk_wavs + chunk_srts:
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+
+    return final_srt
 
 
 def process_transcription_job(job_id: int) -> None:
