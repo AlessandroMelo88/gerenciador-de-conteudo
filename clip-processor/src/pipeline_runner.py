@@ -71,8 +71,11 @@ def _select_pending_videos(db_conn) -> list:
         with db_conn.cursor() as cur:
             cur.execute(
                 "SELECT youtube_video_id FROM source_videos "
-                "WHERE status = 'pending' AND format = %s AND DATE(published_at) >= %s "
-                'ORDER BY published_at DESC LIMIT %s',
+                "WHERE status = 'pending' AND paused = 0 AND format = %s "
+                "AND DATE(published_at) >= %s "
+                'ORDER BY priority DESC, '
+                'queue_position IS NULL, queue_position ASC, '
+                'published_at DESC LIMIT %s',
                 (fmt, cutoff_date, deficit),
             )
             result.extend(row['youtube_video_id'] for row in cur.fetchall())
@@ -85,6 +88,17 @@ def _download_pending_videos(db_conn) -> None:
     pending = _select_pending_videos(db_conn)
 
     for video_id in pending:
+        # Pausa pode ter sido aplicada entre a seleção e o início do download.
+        with db_conn.cursor() as cur:
+            cur.execute(
+                'SELECT paused FROM source_videos WHERE youtube_video_id = %s',
+                (video_id,),
+            )
+            row = cur.fetchone()
+        if row and row.get('paused'):
+            _log(f'Download pulado (pausado): {video_id}')
+            continue
+
         _log(f'Baixando vídeo: {video_id}')
         update_status(db_conn, video_id, 'downloading')
         success = download_video(video_id)
@@ -93,8 +107,18 @@ def _download_pending_videos(db_conn) -> None:
             update_status(db_conn, video_id, 'downloaded', local_path=local_path)
             _log(f'Download OK: {video_id}')
         else:
-            update_status(db_conn, video_id, 'failed')
-            _log(f'Download FALHOU: {video_id}')
+            with db_conn.cursor() as cur:
+                cur.execute(
+                    'SELECT paused FROM source_videos WHERE youtube_video_id = %s',
+                    (video_id,),
+                )
+                paused_row = cur.fetchone()
+            if paused_row and paused_row.get('paused'):
+                update_status(db_conn, video_id, 'pending')
+                _log(f'Download abortado por pause — volta pra pending: {video_id}')
+            else:
+                update_status(db_conn, video_id, 'failed')
+                _log(f'Download FALHOU: {video_id}')
 
 
 def run_pipeline_once(db_conn=None, redis_client=None):

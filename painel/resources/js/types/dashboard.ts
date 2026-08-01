@@ -33,6 +33,11 @@ export type ActiveWindowVideo = {
     title: string;
     format: ClipFormat;
     status: string;
+    paused: boolean;
+    priority: number;
+    queuePosition: number | null;
+    processing: boolean;
+    canDelete: boolean;
     sourceChannelName: string | null;
     publishedAt: string | null;
     score: number | null;

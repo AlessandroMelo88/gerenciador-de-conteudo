@@ -1,11 +1,9 @@
 import { Head, usePage } from '@inertiajs/react';
+import { SparklesIcon } from 'lucide-react';
 
-import { AppSidebar } from '@/components/app-sidebar';
-import { SiteHeader } from '@/components/site-header';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { SparklesIcon } from 'lucide-react';
+import { AppShell } from '@/layouts/app-shell';
 
 type PageProps = {
     auth: { user: { name: string; email: string } | null };
@@ -25,11 +23,12 @@ export default function Documentation() {
     return (
         <>
             <Head title="Documentação" />
-            <SidebarProvider>
-                <AppSidebar user={props.auth.user} />
-                <SidebarInset>
-                    <SiteHeader title="Documentação do Painel" />
-                    <div className="flex flex-1 flex-col gap-6 p-4">
+            <AppShell
+                title="Documentação do Painel"
+                user={props.auth.user}
+                description="Como o pipeline funciona e o que cada tela do painel faz."
+                withToaster={false}
+            >
                         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
                             <div className="mb-2 flex items-center gap-2 font-medium text-amber-200">
                                 <SparklesIcon className="size-4" />
@@ -222,9 +221,7 @@ export default function Documentation() {
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>
-                    </div>
-                </SidebarInset>
-            </SidebarProvider>
+            </AppShell>
         </>
     );
 }

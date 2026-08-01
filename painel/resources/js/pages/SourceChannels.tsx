@@ -1,9 +1,6 @@
 import { useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 
-import { AppSidebar } from '@/components/app-sidebar';
-import { SiteHeader } from '@/components/site-header';
-import { PageHeader } from '@/components/page-header';
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -22,7 +18,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Toaster } from '@/components/ui/sonner';
+import { AppShell } from '@/layouts/app-shell';
 
 type SourceChannel = {
     id: number;
@@ -107,95 +103,88 @@ export default function SourceChannels() {
     return (
         <>
             <Head title="Canais Fonte" />
-            <Toaster />
-            <SidebarProvider>
-                <AppSidebar user={auth.user} />
-                <SidebarInset>
-                    <SiteHeader title="Canais Fonte" />
-                    <div className="flex flex-1 flex-col gap-4 p-4">
-                        <PageHeader
-                            description="Canais do YouTube que o robô monitora pra encontrar conteúdo bruto. Formato curto/longo é decidido automaticamente pela duração do vídeo, não por canal."
-                            actions={<CreateChannelDialog niches={niches} />}
-                        />
+            <AppShell
+                title="Canais Fonte"
+                user={auth.user}
+                description="Canais do YouTube que o robô monitora pra encontrar conteúdo bruto. Formato curto/longo é decidido automaticamente pela duração do vídeo, não por canal."
+                actions={<CreateChannelDialog niches={niches} />}
+            >
+                <Tabs
+                    value={activeTab}
+                    onValueChange={(tab) => router.get('/painel/canais-fonte', { tab }, { preserveState: true })}
+                >
+                    <TabsList>
+                        <TabsTrigger value="todos">Todos</TabsTrigger>
+                        {niches.map((n) => (
+                            <TabsTrigger key={n.slug} value={n.slug}>
+                                {n.label}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+                </Tabs>
 
-                        <Tabs
-                            value={activeTab}
-                            onValueChange={(tab) => router.get('/painel/canais-fonte', { tab }, { preserveState: true })}
-                        >
-                            <TabsList>
-                                <TabsTrigger value="todos">Todos</TabsTrigger>
-                                {niches.map((n) => (
-                                    <TabsTrigger key={n.slug} value={n.slug}>
-                                        {n.label}
-                                    </TabsTrigger>
-                                ))}
-                            </TabsList>
-                        </Tabs>
-
-                        <div className="overflow-x-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nome</TableHead>
-                                        <TableHead>Handle</TableHead>
-                                        <TableHead>Nicho</TableHead>
-                                        <TableHead>Ativo</TableHead>
-                                        <TableHead>Blacklisted</TableHead>
-                                        <TableHead>Criado</TableHead>
-                                        <TableHead>Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {channels.map((c) => (
-                                        <TableRow key={c.id}>
-                                            <TableCell>{c.channelName}</TableCell>
-                                            <TableCell className="text-muted-foreground">{c.channelHandle ?? '—'}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary">{c.targetNiche}</Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Switch
-                                                    checked={c.active}
-                                                    onCheckedChange={(v) =>
-                                                        router.put(
-                                                            `/painel/canais-fonte/${c.id}`,
-                                                            { active: v },
-                                                            { preserveScroll: true },
-                                                        )
-                                                    }
-                                                />
-                                            </TableCell>
-                                            <TableCell title="Afeta apenas novos vídeos. Para purgar a fila use SQL manual.">
-                                                <Switch
-                                                    checked={c.blacklisted}
-                                                    onCheckedChange={(v) =>
-                                                        router.put(
-                                                            `/painel/canais-fonte/${c.id}`,
-                                                            { blacklisted: v },
-                                                            { preserveScroll: true },
-                                                        )
-                                                    }
-                                                />
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground">{c.createdAt ?? '—'}</TableCell>
-                                            <TableCell>
-                                                <ConfirmButton
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    description={`Apagar o canal-fonte "${c.channelName}"? Essa ação não pode ser desfeita.`}
-                                                    onConfirm={() => router.delete(`/painel/canais-fonte/${c.id}`)}
-                                                >
-                                                    Apagar
-                                                </ConfirmButton>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </div>
-                </SidebarInset>
-            </SidebarProvider>
+                <div className="overflow-x-auto rounded-lg border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>Handle</TableHead>
+                                <TableHead>Nicho</TableHead>
+                                <TableHead>Ativo</TableHead>
+                                <TableHead>Blacklisted</TableHead>
+                                <TableHead>Criado</TableHead>
+                                <TableHead>Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {channels.map((c) => (
+                                <TableRow key={c.id}>
+                                    <TableCell>{c.channelName}</TableCell>
+                                    <TableCell className="text-muted-foreground">{c.channelHandle ?? '—'}</TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">{c.targetNiche}</Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Switch
+                                            checked={c.active}
+                                            onCheckedChange={(v) =>
+                                                router.put(
+                                                    `/painel/canais-fonte/${c.id}`,
+                                                    { active: v },
+                                                    { preserveScroll: true },
+                                                )
+                                            }
+                                        />
+                                    </TableCell>
+                                    <TableCell title="Afeta apenas novos vídeos. Para purgar a fila use SQL manual.">
+                                        <Switch
+                                            checked={c.blacklisted}
+                                            onCheckedChange={(v) =>
+                                                router.put(
+                                                    `/painel/canais-fonte/${c.id}`,
+                                                    { blacklisted: v },
+                                                    { preserveScroll: true },
+                                                )
+                                            }
+                                        />
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">{c.createdAt ?? '—'}</TableCell>
+                                    <TableCell>
+                                        <ConfirmButton
+                                            variant="destructive"
+                                            size="sm"
+                                            description={`Apagar o canal-fonte "${c.channelName}"? Essa ação não pode ser desfeita.`}
+                                            onConfirm={() => router.delete(`/painel/canais-fonte/${c.id}`)}
+                                        >
+                                            Apagar
+                                        </ConfirmButton>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </AppShell>
         </>
     );
 }

@@ -31,7 +31,11 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/painel/clips/{clip}/reprocess', [DashboardController::class, 'reprocess'])->name('dashboard.clips.reprocess');
     Route::post('/painel/clips/bulk-approve', [DashboardController::class, 'bulkApprove'])->name('dashboard.clips.bulk-approve');
     Route::post('/painel/clips/bulk-reject', [DashboardController::class, 'bulkReject'])->name('dashboard.clips.bulk-reject');
+    Route::post('/painel/videos/reorder', [DashboardController::class, 'reorderVideos'])->name('dashboard.videos.reorder');
     Route::post('/painel/videos/{video}/delete', [DashboardController::class, 'deleteVideo'])->name('dashboard.videos.delete');
+    Route::post('/painel/videos/{video}/pause', [DashboardController::class, 'pauseVideo'])->name('dashboard.videos.pause');
+    Route::post('/painel/videos/{video}/resume', [DashboardController::class, 'resumeVideo'])->name('dashboard.videos.resume');
+    Route::post('/painel/videos/{video}/prioritize', [DashboardController::class, 'prioritizeVideo'])->name('dashboard.videos.prioritize');
 
     // Preview leve do clip cortado direto no dashboard (checar legenda/qualidade
     // antes de aprovar) — serve o .mp4 já compartilhado via volume com o

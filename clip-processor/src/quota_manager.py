@@ -22,11 +22,11 @@ UPLOAD_WINDOW_END = UPLOAD_WINDOW_END_HOUR
 class QuotaManager:
     """Controla uploads diarios do YouTube por data local de Sao_Paulo.
 
-    Reserva de formato (MAX_LONGO_UPLOADS_PER_DAY): teto separado só para
-    'longo', consumindo a mesma cota total — evita que vídeos longos (menos
-    visualização, mas contam horas de exibição) monopolizem os poucos slots
-    diários às custas de shorts (mais alcance/inscritos). 'curto' não tem teto
-    próprio, só o total.
+    MAX_LONGO_UPLOADS_PER_DAY:
+      - teto de uploads 'longo' no dia;
+      - quando ainda há longo publishable na fila, reserva esses slots na cota
+        total (curto só usa total − slots_longo_ainda_não_usados). Sem longo
+        na fila, a reserva some e curto pode usar o total.
     """
 
     def __init__(
@@ -56,15 +56,31 @@ class QuotaManager:
         current_count = int(self.redis_client.get(self._key(now)) or 0)
         return current_count < self.max_uploads_per_day
 
-    def can_upload(self, now: datetime | None = None, format: str = 'curto') -> bool:
-        """Retorna True se horario e quota (total + formato) permitirem upload."""
+    def can_upload(
+        self,
+        now: datetime | None = None,
+        format: str = 'curto',
+        *,
+        longo_waiting: bool = False,
+    ) -> bool:
+        """Retorna True se horario e quota (total + formato/reserva) permitirem upload."""
         now = self._local_now(now)
         if not self.has_capacity(now=now):
             return False
 
+        current_count = int(self.redis_client.get(self._key(now)) or 0)
+        longo_count = int(self.redis_client.get(self._format_key(now, 'longo')) or 0)
+
         if format == 'longo':
-            longo_count = int(self.redis_client.get(self._format_key(now, 'longo')) or 0)
             if longo_count >= self.max_longo_per_day:
+                return False
+            return True
+
+        # Curto: se há longo publishable, não come os slots reservados pra ele.
+        if longo_waiting and self.max_longo_per_day > 0:
+            reserved = max(0, self.max_longo_per_day - longo_count)
+            curto_ceiling = self.max_uploads_per_day - reserved
+            if current_count >= curto_ceiling:
                 return False
 
         return True

@@ -39,7 +39,8 @@ LONG_SYSTEM_PROMPT = (
     "termina — não corte no meio de uma ideia só pra caber na janela preferida. Não escolha um "
     "trecho curto — o segmento PRECISA ter pelo menos 420 segundos de duração "
     "(end_time - start_time >= 420). "
-    "Retorne exatamente 1 momento. "
+    "Retorne exatamente 1 momento, com score de 1 a 10 "
+    "(10 = análise excelente pra virar vídeo, 1 = sem valor). "
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
@@ -52,10 +53,28 @@ def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [AI] {msg}', flush=True)
 
 
+def _normalize_scores(moments: list[dict]) -> list[dict]:
+    """Converte scores 0–1 (comum no Groq) para escala 0–10 do pipeline."""
+    if not moments:
+        return moments
+    try:
+        scores = [float(m.get('score', 0) or 0) for m in moments]
+    except (TypeError, ValueError):
+        return moments
+    if scores and max(scores) <= 1.0:
+        _log('[SELECTOR] Scores em escala 0–1 detectados — normalizando ×10')
+        for moment in moments:
+            try:
+                moment['score'] = float(moment.get('score', 0) or 0) * 10
+            except (TypeError, ValueError):
+                moment['score'] = 0
+    return moments
+
+
 def _parse_moments(raw_text: str) -> list[dict]:
     """Parse JSON text → lista de dicts de momentos."""
     data = json.loads(raw_text)
-    return data.get('moments', [])
+    return _normalize_scores(data.get('moments', []))
 
 
 def _select_via_anthropic_client(client, transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -> list[dict]:

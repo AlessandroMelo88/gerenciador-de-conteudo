@@ -83,25 +83,26 @@ def delete_source_video_file(source_video_id: int) -> dict:
 
     Não mexe no status do vídeo nem nos generated_clips — é só limpeza de disco,
     disparada manualmente pelo operador via painel (Vídeos > Apagar arquivo).
-    Recusa apagar se o vídeo está em 'downloading' ou 'cutting' agora (arquivo em uso).
+    Recusa apagar se o vídeo está em 'downloading'/'cutting' ou se clips ainda
+    precisam do bruto (pending_cut/cutting).
 
     Raises:
         RuntimeError: vídeo não existe, ou está em uso no momento.
     """
+    from src.queue_controls import can_delete_raw
+
     conn = get_db_connection()
     try:
+        ok, reason = can_delete_raw(conn, source_video_id)
+        if not ok:
+            raise RuntimeError(reason)
+
         with conn.cursor() as cur:
             cur.execute(
-                'SELECT id, status, local_path FROM source_videos WHERE id = %s',
+                'SELECT id, local_path FROM source_videos WHERE id = %s',
                 (source_video_id,),
             )
             row = cur.fetchone()
-
-        if not row:
-            raise RuntimeError('source_video não encontrado')
-
-        if row['status'] in ('downloading', 'cutting'):
-            raise RuntimeError(f"vídeo em uso agora (status={row['status']}) — tente novamente em instantes")
 
         local_path = row['local_path']
         freed_bytes = 0
@@ -299,3 +300,63 @@ def _route_transcribe():
     except Exception as e:  # noqa: BLE001
         return jsonify(error=str(e)), 500
     return jsonify(job_id=job_id), 200
+
+
+@app.post('/internal/videos/<int:source_video_id>/pause')
+def _route_pause_video(source_video_id: int):
+    if not _check_auth():
+        return jsonify(error='unauthorized'), 401
+    from src.queue_controls import pause_video
+
+    try:
+        return jsonify(pause_video(source_video_id)), 200
+    except RuntimeError as e:
+        return jsonify(error=str(e)), 422
+    except Exception as e:  # noqa: BLE001
+        return jsonify(error=str(e)), 500
+
+
+@app.post('/internal/videos/<int:source_video_id>/resume')
+def _route_resume_video(source_video_id: int):
+    if not _check_auth():
+        return jsonify(error='unauthorized'), 401
+    from src.queue_controls import resume_video
+
+    try:
+        return jsonify(resume_video(source_video_id)), 200
+    except RuntimeError as e:
+        return jsonify(error=str(e)), 422
+    except Exception as e:  # noqa: BLE001
+        return jsonify(error=str(e)), 500
+
+
+@app.post('/internal/videos/reorder')
+def _route_reorder_videos():
+    if not _check_auth():
+        return jsonify(error='unauthorized'), 401
+    from src.queue_controls import reorder_videos
+
+    payload = request.get_json(silent=True) or {}
+    ids = payload.get('ids')
+    if not isinstance(ids, list) or not ids:
+        return jsonify(error='missing ids'), 400
+    try:
+        return jsonify(reorder_videos([int(i) for i in ids])), 200
+    except RuntimeError as e:
+        return jsonify(error=str(e)), 422
+    except Exception as e:  # noqa: BLE001
+        return jsonify(error=str(e)), 500
+
+
+@app.post('/internal/videos/<int:source_video_id>/prioritize')
+def _route_prioritize_video(source_video_id: int):
+    if not _check_auth():
+        return jsonify(error='unauthorized'), 401
+    from src.queue_controls import prioritize_video
+
+    try:
+        return jsonify(prioritize_video(source_video_id)), 200
+    except RuntimeError as e:
+        return jsonify(error=str(e)), 422
+    except Exception as e:  # noqa: BLE001
+        return jsonify(error=str(e)), 500

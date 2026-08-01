@@ -53,25 +53,42 @@ class DashboardController extends Controller
      */
     private function activeWindowData(): array
     {
+        $processing = ['downloading', 'transcribing', 'selecting'];
+
         return SourceVideo::query()
             ->whereNotNull('local_path')
             ->with(['sourceChannel', 'generatedClips'])
             ->get()
             ->sortBy([
-                // score null (ainda sem clip gerado) é ruído — manda pro fim, não pro topo
+                // Processando agora no topo; depois ordem DnD / prioridade / score baixo
+                [fn (SourceVideo $video) => in_array($video->status, $processing, true) ? 0 : 1, 'asc'],
+                [fn (SourceVideo $video) => $video->paused ? 1 : 0, 'asc'],
+                [fn (SourceVideo $video) => -((int) ($video->priority ?? 0)), 'asc'],
+                [fn (SourceVideo $video) => $video->queue_position ?? 9999, 'asc'],
                 [fn (SourceVideo $video) => $video->generatedClips->max('score') ?? 999, 'asc'],
                 [fn (SourceVideo $video) => $video->published_at, 'asc'],
             ])
-            ->map(fn (SourceVideo $video) => [
-                'id' => $video->id,
-                'title' => $video->title,
-                'format' => $video->format,
-                'status' => $video->status,
-                'sourceChannelName' => $video->sourceChannel?->channel_name,
-                'publishedAt' => $video->published_at?->diffForHumans(),
-                'score' => $video->generatedClips->max('score'),
-                'clipCount' => $video->generatedClips->count(),
-            ])
+            ->map(function (SourceVideo $video) use ($processing) {
+                $needsRaw = $video->generatedClips
+                    ->whereIn('status', ['pending_cut', 'cutting'])
+                    ->isNotEmpty();
+
+                return [
+                    'id' => $video->id,
+                    'title' => $video->title,
+                    'format' => $video->format,
+                    'status' => $video->status,
+                    'paused' => (bool) $video->paused,
+                    'priority' => (int) ($video->priority ?? 0),
+                    'queuePosition' => $video->queue_position,
+                    'processing' => in_array($video->status, $processing, true),
+                    'canDelete' => ! in_array($video->status, ['downloading', 'cutting'], true) && ! $needsRaw,
+                    'sourceChannelName' => $video->sourceChannel?->channel_name,
+                    'publishedAt' => $video->published_at?->diffForHumans(),
+                    'score' => $video->generatedClips->max('score'),
+                    'clipCount' => $video->generatedClips->count(),
+                ];
+            })
             ->values()
             ->all();
     }
@@ -232,6 +249,55 @@ class DashboardController extends Controller
         $mb = round($result['freed_bytes'] / 1024 / 1024, 1);
 
         return back()->with('success', "Vídeo #{$video->id} apagado ({$mb} MB liberados)");
+    }
+
+    public function pauseVideo(SourceVideo $video, ClipProcessorClient $client): RedirectResponse
+    {
+        try {
+            $client->pauseVideo($video->id);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Vídeo #{$video->id} pausado");
+    }
+
+    public function resumeVideo(SourceVideo $video, ClipProcessorClient $client): RedirectResponse
+    {
+        try {
+            $client->resumeVideo($video->id);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Vídeo #{$video->id} retomado");
+    }
+
+    public function prioritizeVideo(SourceVideo $video, ClipProcessorClient $client): RedirectResponse
+    {
+        try {
+            $client->prioritizeVideo($video->id);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', "Vídeo #{$video->id} priorizado");
+    }
+
+    public function reorderVideos(Request $request, ClipProcessorClient $client): RedirectResponse
+    {
+        $ids = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ])['ids'];
+
+        try {
+            $client->reorderVideos($ids);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Ordem da janela atualizada');
     }
 
     public function bulkReject(Request $request, ClipProcessorClient $client): RedirectResponse

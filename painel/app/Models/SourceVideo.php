@@ -20,10 +20,16 @@ class SourceVideo extends Model
         'published_at',
         'status',
         'local_path',
+        'priority',
+        'paused',
+        'queue_position',
     ];
 
     protected $casts = [
         'published_at' => 'datetime',
+        'paused' => 'boolean',
+        'priority' => 'integer',
+        'queue_position' => 'integer',
     ];
 
     public function sourceChannel()

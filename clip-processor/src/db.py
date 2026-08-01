@@ -151,23 +151,40 @@ def recover_stuck_selecting(conn):
     não atropelar seleção legitimamente em curso. O arquivo já está em disco,
     então volta pra 'downloaded' e não pra 'pending' — não rebaixa à toa.
 
+    Também libera 'selecting' sem nenhum clip gerado (IA devolveu 0 momentos
+    válidos e o status ficou preso) — esses não precisam esperar 2h.
+
     Args:
         conn: conexão pymysql ativa
     """
-    sql = (
+    sql_stuck = (
         "UPDATE source_videos "
         "SET status='downloaded' "
         "WHERE status='selecting' "
         "AND local_path IS NOT NULL "
         "AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)"
     )
+    sql_empty = (
+        "UPDATE source_videos sv "
+        "SET sv.status='downloaded' "
+        "WHERE sv.status='selecting' "
+        "AND sv.local_path IS NOT NULL "
+        "AND NOT EXISTS ("
+        "  SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id"
+        ")"
+    )
 
     try:
         with conn.cursor() as cur:
-            cur.execute(sql, (SELECTING_STUCK_HOURS,))
-            affected = cur.rowcount
+            cur.execute(sql_stuck, (SELECTING_STUCK_HOURS,))
+            stuck = cur.rowcount
+            cur.execute(sql_empty)
+            empty = cur.rowcount
         conn.commit()
-        _log(f'recover_stuck_selecting: {affected} vídeo(s) redefinido(s) para downloaded')
+        _log(
+            f'recover_stuck_selecting: {stuck} travado(s) + {empty} sem clip '
+            f'redefinido(s) para downloaded'
+        )
     except pymysql.OperationalError as exc:
         _log(f'AVISO: falha ao recuperar seleções presas: {exc}')
         raise
