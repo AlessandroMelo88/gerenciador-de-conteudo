@@ -61,8 +61,11 @@ def publish_pending_clips(
         ch_uploader = uploader or YouTubeUploader(channel_slug=dest['slug'])
         ch_quota = quota_manager or QuotaManager(redis_client, channel_id=dest['youtube_channel_id'])
         clips = _fetch_pending_clips_for_channel(conn, dest['id'])
+        remaining = list(clips)
 
-        for clip in clips:
+        while remaining:
+            clip = remaining[0]
+            longo_waiting = _has_longo_waiting(remaining)
             credit_handle = resolve_credit_handle(clip.get('channel_handle'), clip.get('channel_name'))
             if dest.get('credit_template') and credit_handle:
                 clip = dict(clip)  # não mutar original
@@ -71,7 +74,14 @@ def publish_pending_clips(
                     dest['credit_template'],
                     credit_handle,
                 )
-            total += _publish_one(conn, clip, ch_uploader, ch_quota, now)
+            published = _publish_one(
+                conn, clip, ch_uploader, ch_quota, now, longo_waiting=longo_waiting,
+            )
+            remaining.pop(0)
+            total += published
+            # Sem capacidade total, o resto do canal espera o próximo ciclo.
+            if published == 0 and not ch_quota.has_capacity(now=now):
+                break
 
     return total
 
@@ -138,24 +148,33 @@ def _round_robin_by_source_channel(clips: list[dict]) -> list[dict]:
     return result
 
 
+def _has_longo_waiting(clips: list[dict]) -> bool:
+    return any((c.get('format') or 'curto') == 'longo' for c in clips)
+
+
 def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
     """Publica uma sequência de clips com um uploader/quota_manager dado."""
     current_status = _publishable_status()
     published_count = 0
+    remaining = list(clips)
 
-    for clip in clips:
+    while remaining:
+        clip = remaining[0]
         clip_id = clip['id']
         clip_format = clip.get('format') or 'curto'
+        longo_waiting = _has_longo_waiting(remaining)
 
         if not quota_manager.has_capacity(now=now):
             _log(f'Clip {clip_id} mantido {current_status} por quota/janela')
             break
 
-        if not quota_manager.can_upload(now=now, format=clip_format):
+        if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting):
             _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por cota de formato')
+            remaining.pop(0)
             continue
 
         _log(f'Próximo clip {current_status}: id={clip_id}')
+        remaining.pop(0)
 
         if not _transition_to_publishing(conn, clip_id):
             _log(f'Clip {clip_id} pulado: status mudou durante seleção')
@@ -181,13 +200,13 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
     return published_count
 
 
-def _publish_one(conn, clip, uploader, quota_manager, now) -> int:
+def _publish_one(conn, clip, uploader, quota_manager, now, *, longo_waiting: bool = False) -> int:
     """Publica um único clip. Retorna 1 se publicado, 0 caso contrário."""
     current_status = _publishable_status()
     clip_id = clip['id']
     clip_format = clip.get('format') or 'curto'
 
-    if not quota_manager.can_upload(now=now, format=clip_format):
+    if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting):
         _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por quota/janela')
         return 0
 

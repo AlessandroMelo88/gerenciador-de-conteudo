@@ -183,3 +183,27 @@ class TestQuotaManagerMultiCanal:
 
         assert qm_a.can_upload(now=dt_sp(20)) is False
         assert qm_b.can_upload(now=dt_sp(20)) is True
+
+
+class TestLongoReservation:
+    def test_curto_blocked_when_longo_waiting_and_slots_reserved(self):
+        """Com MAX=5 / LONGO=2 e 3 uploads, curto bloqueia se ainda há longo na fila."""
+        r = MagicMock()
+        # total=3, longo=0 → reserva 2 → teto curto = 3
+        r.get.side_effect = lambda key: '3' if not key.endswith(':longo') else '0'
+        qm = QuotaManager(r, max_uploads_per_day=5, max_longo_per_day=2)
+        assert qm.can_upload(now=dt_sp(20), format='curto', longo_waiting=True) is False
+        assert qm.can_upload(now=dt_sp(20), format='longo', longo_waiting=True) is True
+
+    def test_curto_unblocked_when_no_longo_waiting(self):
+        """Sem longo na fila, curto pode usar o restante da cota total."""
+        r = MagicMock()
+        r.get.side_effect = lambda key: '3' if not key.endswith(':longo') else '0'
+        qm = QuotaManager(r, max_uploads_per_day=5, max_longo_per_day=2)
+        assert qm.can_upload(now=dt_sp(20), format='curto', longo_waiting=False) is True
+
+    def test_normalize_scores_via_parse(self):
+        from src.selector import _parse_moments
+
+        moments = _parse_moments('{"moments":[{"start_time":0,"end_time":500,"score":0.95,"reason":"x"}]}')
+        assert moments[0]['score'] == pytest.approx(9.5)

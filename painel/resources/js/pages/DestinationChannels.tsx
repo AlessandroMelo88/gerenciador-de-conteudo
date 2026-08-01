@@ -2,9 +2,6 @@ import { useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 
-import { AppSidebar } from '@/components/app-sidebar';
-import { SiteHeader } from '@/components/site-header';
-import { PageHeader } from '@/components/page-header';
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Switch } from '@/components/ui/switch';
 import {
     Table,
@@ -23,7 +19,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { Toaster } from '@/components/ui/sonner';
+import { AppShell } from '@/layouts/app-shell';
 
 type DestinationChannel = {
     id: number;
@@ -216,107 +212,98 @@ export default function DestinationChannels() {
     return (
         <>
             <Head title="Canais Destino" />
-            <Toaster />
-            <SidebarProvider>
-                <AppSidebar user={auth.user} />
-                <SidebarInset>
-                    <SiteHeader title="Canais Destino" />
-                    <div className="flex flex-1 flex-col gap-4 p-4">
-                        <PageHeader
-                            description="Canais do YouTube onde os clips são publicados."
-                            actions={
-                                <ChannelDialog
-                                    niches={niches}
-                                    trigger={<Button>Novo Canal Destino</Button>}
-                                />
-                            }
-                        />
-                        <div className="overflow-x-auto rounded-lg border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Slug</TableHead>
-                                        <TableHead>Nome</TableHead>
-                                        <TableHead>Nicho</TableHead>
-                                        <TableHead>OAuth</TableHead>
-                                        <TableHead>Ativo</TableHead>
-                                        <TableHead>YT Channel ID</TableHead>
-                                        <TableHead>Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {channels.map((c) => (
-                                        <TableRow key={c.id}>
-                                            <TableCell>{c.slug}</TableCell>
-                                            <TableCell>{c.name}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary">{c.niche}</Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant={
-                                                        c.oauthStatus === 'authorized'
-                                                            ? 'default'
-                                                            : c.oauthStatus === 'expired'
-                                                              ? 'destructive'
-                                                              : 'secondary'
-                                                    }
-                                                >
-                                                    {OAUTH_LABEL[c.oauthStatus]}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Switch
-                                                    checked={c.active}
-                                                    onCheckedChange={(v) =>
-                                                        router.put(
-                                                            `/painel/canais-destino/${c.id}`,
-                                                            { active: v },
-                                                            { preserveScroll: true },
-                                                        )
-                                                    }
-                                                />
-                                            </TableCell>
-                                            <TableCell
-                                                className="cursor-pointer font-mono text-xs text-muted-foreground"
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(c.youtubeChannelId).catch(() => {});
-                                                    toast.success('Copiado');
-                                                }}
+            <AppShell
+                title="Canais Destino"
+                user={auth.user}
+                description="Canais do YouTube onde os clips são publicados."
+                actions={
+                    <ChannelDialog niches={niches} trigger={<Button>Novo Canal Destino</Button>} />
+                }
+            >
+                <div className="overflow-x-auto rounded-lg border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Slug</TableHead>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>Nicho</TableHead>
+                                <TableHead>OAuth</TableHead>
+                                <TableHead>Ativo</TableHead>
+                                <TableHead>YT Channel ID</TableHead>
+                                <TableHead>Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {channels.map((c) => (
+                                <TableRow key={c.id}>
+                                    <TableCell>{c.slug}</TableCell>
+                                    <TableCell>{c.name}</TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">{c.niche}</Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge
+                                            variant={
+                                                c.oauthStatus === 'authorized'
+                                                    ? 'default'
+                                                    : c.oauthStatus === 'expired'
+                                                      ? 'destructive'
+                                                      : 'secondary'
+                                            }
+                                        >
+                                            {OAUTH_LABEL[c.oauthStatus]}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Switch
+                                            checked={c.active}
+                                            onCheckedChange={(v) =>
+                                                router.put(
+                                                    `/painel/canais-destino/${c.id}`,
+                                                    { active: v },
+                                                    { preserveScroll: true },
+                                                )
+                                            }
+                                        />
+                                    </TableCell>
+                                    <TableCell
+                                        className="cursor-pointer font-mono text-xs text-muted-foreground"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(c.youtubeChannelId).catch(() => {});
+                                            toast.success('Copiado');
+                                        }}
+                                    >
+                                        {c.youtubeChannelId}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex gap-2">
+                                            <ChannelDialog
+                                                channel={c}
+                                                niches={niches}
+                                                trigger={
+                                                    <Button variant="outline" size="sm">
+                                                        Editar
+                                                    </Button>
+                                                }
+                                            />
+                                            <ConfirmButton
+                                                variant="destructive"
+                                                size="sm"
+                                                description={`Apagar o canal-destino "${c.name}"? Essa ação não pode ser desfeita.`}
+                                                onConfirm={() =>
+                                                    router.delete(`/painel/canais-destino/${c.id}`)
+                                                }
                                             >
-                                                {c.youtubeChannelId}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex gap-2">
-                                                    <ChannelDialog
-                                                        channel={c}
-                                                        niches={niches}
-                                                        trigger={
-                                                            <Button variant="outline" size="sm">
-                                                                Editar
-                                                            </Button>
-                                                        }
-                                                    />
-                                                    <ConfirmButton
-                                                        variant="destructive"
-                                                        size="sm"
-                                                        description={`Apagar o canal-destino "${c.name}"? Essa ação não pode ser desfeita.`}
-                                                        onConfirm={() =>
-                                                            router.delete(`/painel/canais-destino/${c.id}`)
-                                                        }
-                                                    >
-                                                        Apagar
-                                                    </ConfirmButton>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </div>
-                </SidebarInset>
-            </SidebarProvider>
+                                                Apagar
+                                            </ConfirmButton>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </AppShell>
         </>
     );
 }

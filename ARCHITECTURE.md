@@ -127,7 +127,7 @@ Cada etapa roda em `try/except` isolado que loga e dispara `notify('pipeline_fai
 
 - Chave Redis `youtube_uploads:{channel_id}:{data}`, mais um contador `:longo`. Data em `America/Sao_Paulo`, TTL até a meia-noite local.
 - `MAX_UPLOADS_PER_DAY` é **clampado em [0, 6]** — existe um teto rígido de 6 uploads/dia por canal no código, independente da env var.
-- `MAX_LONGO_UPLOADS_PER_DAY` reserva parte da cota para o formato `longo`; `curto` não tem teto próprio, só o total.
+- `MAX_LONGO_UPLOADS_PER_DAY` é teto de uploads `longo` e, enquanto houver longo publishable na fila, reserva esses slots na cota total (curto só usa `total − slots_longo_ainda_não_usados`). Sem longo na fila, a reserva some.
 - **Janela horária: 19h–22h (SP)**, com bypass total via `UPLOAD_WINDOW_BYPASS=true`.
 - **Round-robin por canal FONTE** (`_round_robin_by_source_channel`): os clips saem em `created_at ASC`, mas são intercalados por canal de origem. Sem isso, uma leva represada de um único canal monopolizaria a cota por dias.
 - Roteamento fonte → destino é por **nicho**: `source_channels.target_niche` casa com `destination_channels.niche`.

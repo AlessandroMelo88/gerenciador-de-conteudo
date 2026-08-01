@@ -105,12 +105,23 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
         anthropic_client: cliente Anthropic (None = produção, injetado = testes)
     """
     try:
+        from src.queue_controls import is_paused
+
+        if is_paused(conn, youtube_video_id=video_id):
+            _log(f'[AI] Pulando {video_id} — pausado')
+            return
+
         # Transcrição
         update_status(conn, video_id, 'transcribing')
         transcript = transcribe_video(video_id, local_path, groq_client=groq_client)
         if transcript is None:
             _log(f'[AI] Transcrição falhou para {video_id} — marcando como failed')
             update_status(conn, video_id, 'failed')
+            return
+
+        if is_paused(conn, youtube_video_id=video_id):
+            _log(f'[AI] {video_id} pausado após transcrição — não seleciona')
+            update_status(conn, video_id, 'downloaded')
             return
 
         save_transcript(conn, video_id, transcript)
@@ -131,6 +142,10 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
         moments = select_moments(transcript, anthropic_client=anthropic_client, fmt=fmt)
         inserted = insert_selected_moments(conn, source_video_id, video_id, moments)
         _log(f'[AI] Pipeline concluído para {video_id}: {inserted} momento(s) inserido(s) em generated_clips')
+        if inserted == 0:
+            # Sem clip válido o status 'selecting' segurava a janela pra sempre.
+            _log(f'[AI] Nenhum momento válido para {video_id} — marcando failed e liberando janela')
+            update_status(conn, video_id, 'failed')
 
     except Exception as exc:
         _log(f'[AI] ERRO no pipeline de IA para {video_id}: {exc}')
@@ -143,7 +158,11 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
 def _process_pending_clips(conn) -> None:
     """Processa clips com status pending_cut sem abortar o poll por falha isolada."""
     with conn.cursor() as cur:
-        cur.execute("SELECT id FROM generated_clips WHERE status = 'pending_cut'")
+        cur.execute(
+            "SELECT gc.id FROM generated_clips gc "
+            "JOIN source_videos sv ON sv.id = gc.source_video_id "
+            "WHERE gc.status = 'pending_cut' AND sv.paused = 0"
+        )
         rows = cur.fetchall()
 
     for row in rows:
@@ -244,7 +263,8 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
             with db_conn.cursor() as cur:
                 cur.execute(
                     "SELECT youtube_video_id, local_path FROM source_videos "
-                    "WHERE status = 'downloaded' AND local_path IS NOT NULL"
+                    "WHERE status = 'downloaded' AND local_path IS NOT NULL AND paused = 0 "
+                    "ORDER BY priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC"
                 )
                 downloaded_videos = cur.fetchall()
 

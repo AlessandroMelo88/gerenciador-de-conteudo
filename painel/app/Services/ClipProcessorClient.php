@@ -152,4 +152,55 @@ class ClipProcessorClient
 
         return ['job_id' => (int) $response->json('job_id', 0)];
     }
+
+    public function pauseVideo(int $sourceVideoId): array
+    {
+        return $this->queueAction("/internal/videos/{$sourceVideoId}/pause");
+    }
+
+    public function resumeVideo(int $sourceVideoId): array
+    {
+        return $this->queueAction("/internal/videos/{$sourceVideoId}/resume");
+    }
+
+    public function prioritizeVideo(int $sourceVideoId): array
+    {
+        return $this->queueAction("/internal/videos/{$sourceVideoId}/prioritize");
+    }
+
+    /** @param  list<int>  $ids */
+    public function reorderVideos(array $ids): array
+    {
+        $response = Http::timeout(15)
+            ->withHeader('X-Internal-Token', (string) $this->token)
+            ->post($this->baseUrl.'/internal/videos/reorder', ['ids' => array_values($ids)]);
+
+        if ($response->status() === 422) {
+            throw new RuntimeException((string) $response->json('error', 'Não consegui reordenar.'));
+        }
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Erro ao reordenar vídeos: HTTP '.$response->status());
+        }
+
+        return $response->json() ?? [];
+    }
+
+    /** @return array<string, mixed> */
+    private function queueAction(string $path): array
+    {
+        $response = Http::timeout(15)
+            ->withHeader('X-Internal-Token', (string) $this->token)
+            ->post($this->baseUrl.$path);
+
+        if ($response->status() === 422) {
+            throw new RuntimeException((string) $response->json('error', 'Ação de fila rejeitada.'));
+        }
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Erro na fila do clip-processor: HTTP '.$response->status());
+        }
+
+        return $response->json() ?? [];
+    }
 }

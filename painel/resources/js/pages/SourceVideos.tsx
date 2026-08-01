@@ -2,9 +2,6 @@ import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 
-import { AppSidebar } from '@/components/app-sidebar';
-import { SiteHeader } from '@/components/site-header';
-import { PageHeader } from '@/components/page-header';
 import { ConfirmButton } from '@/components/confirm-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,7 +23,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -37,7 +33,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Toaster } from '@/components/ui/sonner';
+import { AppShell } from '@/layouts/app-shell';
 
 type SourceVideoRow = {
     id: number;
@@ -166,17 +162,12 @@ export default function SourceVideos() {
     return (
         <>
             <Head title="Vídeos" />
-            <Toaster />
-            <SidebarProvider>
-                <AppSidebar user={auth.user} />
-                <SidebarInset>
-                    <SiteHeader title="Vídeos" />
-                    <div className="flex flex-1 flex-col gap-4 p-4">
-                        <PageHeader
-                            description={`Lista de todo vídeo bruto (fonte) já baixado ou tentado pelo pipeline — não são os clips finais, são a matéria-prima. ${videos.total} vídeo(s).`}
-                            actions={<PurgeOldDialog />}
-                        />
-
+            <AppShell
+                title="Vídeos"
+                user={auth.user}
+                description={`Lista de todo vídeo bruto (fonte) já baixado ou tentado pelo pipeline — não são os clips finais, são a matéria-prima. ${videos.total} vídeo(s).`}
+                actions={<PurgeOldDialog />}
+            >
                         <Tabs
                             value={filters.tab}
                             onValueChange={(tab) => applyFilters({ tab }, filters)}
@@ -384,9 +375,7 @@ export default function SourceVideos() {
                                 </Button>
                             </div>
                         </div>
-                    </div>
-                </SidebarInset>
-            </SidebarProvider>
+            </AppShell>
         </>
     );
 }

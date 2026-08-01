@@ -560,8 +560,8 @@
     "semantic_hash": "9b31482bd2a53a2e5eefb516d853a520"
   },
   "painel/resources/js/components/overview-cards.tsx": {
-    "mtime": 1785597938.5385857,
-    "ast_hash": "d44ed0729a534586cc00d59d5709ea40",
+    "mtime": 1785595981.3616552,
+    "ast_hash": "2613260f2531afd58578134dea9930c0",
     "semantic_hash": ""
   },
   "painel/resources/js/components/page-header.tsx": {

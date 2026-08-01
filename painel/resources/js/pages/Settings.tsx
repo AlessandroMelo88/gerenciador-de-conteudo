@@ -2,15 +2,12 @@ import { useEffect } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 
-import { AppSidebar } from '@/components/app-sidebar';
-import { SiteHeader } from '@/components/site-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Toaster } from '@/components/ui/sonner';
+import { AppShell } from '@/layouts/app-shell';
 
 type PageProps = {
     auth: { user: { name: string; email: string } | null };
@@ -96,31 +93,24 @@ export default function Settings() {
     return (
         <>
             <Head title="Configurações" />
-            <Toaster />
-            <SidebarProvider>
-                <AppSidebar user={auth.user} />
-                <SidebarInset>
-                    <SiteHeader title="Configurações" />
-                    <div className="flex flex-1 flex-col gap-4 p-4">
-                        <Tabs defaultValue="senha">
-                            <TabsList>
-                                <TabsTrigger value="senha">Resetar senha</TabsTrigger>
-                                <TabsTrigger value="perfil">Perfil</TabsTrigger>
-                                <TabsTrigger value="redes">Redes</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="senha" className="mt-4">
-                                <PasswordTab />
-                            </TabsContent>
-                            <TabsContent value="perfil" className="mt-4">
-                                <PlaceholderTab label="Perfil" />
-                            </TabsContent>
-                            <TabsContent value="redes" className="mt-4">
-                                <PlaceholderTab label="Redes" />
-                            </TabsContent>
-                        </Tabs>
-                    </div>
-                </SidebarInset>
-            </SidebarProvider>
+            <AppShell title="Configurações" user={auth.user}>
+                <Tabs defaultValue="senha">
+                    <TabsList>
+                        <TabsTrigger value="senha">Resetar senha</TabsTrigger>
+                        <TabsTrigger value="perfil">Perfil</TabsTrigger>
+                        <TabsTrigger value="redes">Redes</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="senha" className="mt-4">
+                        <PasswordTab />
+                    </TabsContent>
+                    <TabsContent value="perfil" className="mt-4">
+                        <PlaceholderTab label="Perfil" />
+                    </TabsContent>
+                    <TabsContent value="redes" className="mt-4">
+                        <PlaceholderTab label="Redes" />
+                    </TabsContent>
+                </Tabs>
+            </AppShell>
         </>
     );
 }
