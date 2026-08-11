@@ -1,5 +1,9 @@
 # Canal de Cortes — instruções de trabalho
 
+**Comece por `Docs/README.md`** — é o índice: estado atual, backlog de bugs com status, plano de
+migração para a Oracle e referência de cada serviço. Toda conversa nova abre por ali; status de
+tarefa mora nesses arquivos, não no histórico de conversa.
+
 Arquitetura as-built: `ARCHITECTURE.md`. O painel é Inertia.js + React 19 + shadcn UI desde `dca6e44`.
 
 **Isolamento:** o `docker-compose.yml` da raiz `wordpress/` é compartilhado com outros projetos

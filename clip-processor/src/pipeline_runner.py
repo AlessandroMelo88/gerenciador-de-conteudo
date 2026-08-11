@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import redis as redis_lib
 
 from src.db import get_db_connection, update_status
-from src.downloader import download_video
+from src.downloader import cleanup_stale_downloads, download_video
 from src.publisher import publish_pending_clips
 from src.rss_poller import poll_all_channels
 from src.telegram_notifier import notify
@@ -85,6 +85,11 @@ def _select_pending_videos(db_conn) -> list:
 
 def _download_pending_videos(db_conn) -> None:
     """Baixa vídeos com status 'pending', um por vez, atualizando status no DB."""
+    # Antes de ocupar disco novo, devolve o que ficou preso em download morto —
+    # o disk guard de 2GB do downloader mede o disco real, então órfão não
+    # limpo vira bloqueio de download.
+    cleanup_stale_downloads()
+
     pending = _select_pending_videos(db_conn)
 
     for video_id in pending:
