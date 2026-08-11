@@ -3,6 +3,7 @@ downloader.py — Download de vídeos YouTube via yt-dlp com disk guard e retry.
 
 Exporta:
   - download_video(video_id, output_path=None) -> bool
+  - cleanup_stale_downloads(max_age_hours=STALE_AFTER_HOURS) -> dict
 
 Comportamento:
   - Verifica espaço em disco (mínimo 2GB) antes de baixar
@@ -10,10 +11,12 @@ Comportamento:
   - Tenta até 3 vezes para erros transientes
   - Retorna False imediatamente para erros permanentes (private, removed, unavailable, geo)
   - Aborta se o vídeo foi pausado via painel (progress_hook + check entre retries)
-  - Limpa arquivos .part após cada falha
+  - Limpa artefatos de download incompleto após cada falha e varre os órfãos de
+    crash (processo morto sem passar pelo except) a cada ciclo do pipeline
 """
 import glob
 import os
+import re
 import shutil
 import time
 from datetime import datetime
@@ -27,6 +30,21 @@ VIDEOS_DIR = '/app/videos'
 MIN_FREE_BYTES = 2 * 1024 ** 3  # 2 GB
 PERMANENT_ERRORS = ('private', 'removed', 'unavailable', 'geo')
 
+# Sufixos de trabalho do yt-dlp. Nenhum deles é artefato final — o download
+# bem-sucedido sempre termina em `<video_id>.mp4` sem sufixo intermediário.
+#   .part / .part-FragN.part → download em andamento (ou morto)
+#   .ytdl                    → estado do downloader fragmentado (DASH)
+#   .fNNN.mp4 / .fNNN.webm   → streams de vídeo/áudio separados, pré-merge
+#   .temp.mp4                → saída do merge, antes do rename final
+_WORK_ARTIFACT_RE = re.compile(
+    r'(\.part(-Frag\d+\.part)?|\.ytdl|\.temp\.(mp4|mkv|webm)|\.f\d+\.(mp4|webm|m4a))$'
+)
+
+# Um download de 720p leva minutos, não horas. Passou disso sem terminar, o
+# processo que o segurava morreu — o yt-dlp não retoma esses arquivos em ciclo
+# novo (outtmpl é reescrito do zero), então ficariam no disco pra sempre.
+STALE_AFTER_HOURS = 6
+
 
 def _log(msg: str) -> None:
     """Loga mensagem com timestamp para stdout."""
@@ -34,14 +52,69 @@ def _log(msg: str) -> None:
 
 
 def _cleanup_partial(path: str) -> None:
-    """Deleta arquivos .part gerados por download incompleto."""
-    part_files = glob.glob(path + '*.part')
-    for part_file in part_files:
+    """Deleta artefatos de trabalho do yt-dlp gerados por download incompleto.
+
+    O glob é sobre o prefixo sem extensão (`/app/videos/<video_id>`), não sobre
+    `output_path`: os streams separados entram como `<video_id>.f298.mp4.part`,
+    ou seja, com sufixo ANTES do `.mp4`. Globar `output_path + '*.part'` só
+    pegava `<video_id>.mp4.part` e deixava todo o resto no disco.
+    """
+    prefix = path[:-4] if path.endswith('.mp4') else path
+    for candidate in glob.glob(glob.escape(prefix) + '.*'):
+        if not _WORK_ARTIFACT_RE.search(candidate):
+            continue
         try:
-            os.remove(part_file)
-            _log(f'Arquivo parcial removido: {part_file}')
+            os.remove(candidate)
+            _log(f'Arquivo parcial removido: {candidate}')
         except OSError as exc:
-            _log(f'AVISO: falha ao remover {part_file}: {exc}')
+            _log(f'AVISO: falha ao remover {candidate}: {exc}')
+
+
+def cleanup_stale_downloads(max_age_hours: int = STALE_AFTER_HOURS, videos_dir: str = VIDEOS_DIR) -> dict:
+    """Remove artefatos de download parados há mais de `max_age_hours`.
+
+    Rede de segurança pro caso em que `_cleanup_partial` nunca roda: container
+    morto, OOM, MySQL fora do ar derrubando o processo. Aí o `except` não
+    executa e o `.part` de 1.4GB fica órfão indefinidamente.
+
+    Só olha o primeiro nível de `videos_dir` (clips/ e thumbnails/ têm outro
+    ciclo de vida) e só toca em nomes que casam com `_WORK_ARTIFACT_RE` — um
+    `<video_id>.mp4` completo nunca casa, então não há risco de apagar raw vivo.
+
+    Returns:
+        dict com removed (contagem) e freed_bytes.
+    """
+    cutoff = time.time() - max_age_hours * 3600
+    removed = 0
+    freed_bytes = 0
+
+    try:
+        entries = os.listdir(videos_dir)
+    except OSError as exc:
+        _log(f'AVISO: não consegui listar {videos_dir}: {exc}')
+        return {'removed': 0, 'freed_bytes': 0}
+
+    for name in entries:
+        if not _WORK_ARTIFACT_RE.search(name):
+            continue
+        path = os.path.join(videos_dir, name)
+        try:
+            stat = os.stat(path)
+            if not os.path.isfile(path) or stat.st_mtime > cutoff:
+                continue
+            size = stat.st_size
+            os.remove(path)
+        except OSError as exc:
+            _log(f'AVISO: falha ao remover órfão {path}: {exc}')
+            continue
+        removed += 1
+        freed_bytes += size
+        _log(f'Órfão de download removido: {name} ({size / 1024 ** 2:.0f} MB)')
+
+    if removed:
+        _log(f'Limpeza de órfãos: {removed} arquivo(s), {freed_bytes / 1024 ** 3:.2f} GB liberados')
+
+    return {'removed': removed, 'freed_bytes': freed_bytes}
 
 
 def download_video(video_id: str, output_path: str = None) -> bool:
