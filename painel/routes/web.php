@@ -32,6 +32,7 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/painel/clips/bulk-approve', [DashboardController::class, 'bulkApprove'])->name('dashboard.clips.bulk-approve');
     Route::post('/painel/clips/bulk-reject', [DashboardController::class, 'bulkReject'])->name('dashboard.clips.bulk-reject');
     Route::post('/painel/videos/reorder', [DashboardController::class, 'reorderVideos'])->name('dashboard.videos.reorder');
+    Route::post('/painel/videos/bulk-delete', [DashboardController::class, 'bulkDeleteVideos'])->name('dashboard.videos.bulk-delete');
     Route::post('/painel/videos/{video}/delete', [DashboardController::class, 'deleteVideo'])->name('dashboard.videos.delete');
     Route::post('/painel/videos/{video}/pause', [DashboardController::class, 'pauseVideo'])->name('dashboard.videos.pause');
     Route::post('/painel/videos/{video}/resume', [DashboardController::class, 'resumeVideo'])->name('dashboard.videos.resume');

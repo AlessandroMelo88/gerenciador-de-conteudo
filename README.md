@@ -7,7 +7,7 @@ Pipeline automatizado que monitora canais de futebol no YouTube, corta os melhor
 O sistema é composto por dois serviços principais rodando em Docker:
 
 - **`clip-processor`** (Python) — daemon que roda o pipeline completo: monitora RSS dos canais fonte, baixa vídeos novos, transcreve com Whisper (via Groq), seleciona os melhores momentos com IA (Claude, com fallback para Groq/LLaMA), corta os clips, queima legenda, aplica marca d'água e publica no YouTube respeitando uma cota diária de uploads.
-- **`painel`** (Laravel + Filament) — painel administrativo web onde o operador acompanha e controla o pipeline: aprova/rejeita clips, cadastra canais fonte e destino, processa vídeos manualmente e limpa vídeos antigos do disco/banco.
+- **`painel`** (Laravel + Inertia.js + React + shadcn UI) — painel administrativo web onde o operador acompanha e controla o pipeline: aprova/rejeita clips, cadastra canais fonte e destino, processa vídeos manualmente e limpa vídeos antigos do disco/banco.
 
 Os dois se comunicam por um sidecar HTTP interno (`clip-processor`, porta 8090, sem exposição no host) — o painel nunca acessa o banco/disco do pipeline diretamente para ações de escrita, sempre via essa API interna autenticada por token compartilhado.
 
@@ -24,7 +24,7 @@ Os dois se comunicam por um sidecar HTTP interno (`clip-processor`, porta 8090, 
 9. **Publicação** — respeitando a cota diária de uploads por canal-destino (`MAX_UPLOADS_PER_DAY`) e uma janela de horário (19h–22h), os clips aprovados são publicados no YouTube em ordem justa entre os canais fonte (round-robin), para que um canal com muitos vídeos represados não monopolize a cota por dias seguidos.
 10. **Créditos** — a descrição do clip publicado inclui automaticamente crédito ao canal fonte (`@handle`), quando configurado.
 
-## O painel (Filament)
+## O painel (Inertia.js + React + shadcn UI)
 
 - **Dashboard** — fila de aprovação, fila aguardando cota diária, últimas falhas e o consumo de cota de uploads do dia por canal-destino.
 - **Canais Destino** — canais do YouTube onde os clips são publicados (nome, nicho, OAuth, template de créditos).
@@ -36,7 +36,7 @@ Os dois se comunicam por um sidecar HTTP interno (`clip-processor`, porta 8090, 
 ## Stack técnica
 
 - **clip-processor**: Python, APScheduler (agendamento), yt-dlp (download/metadados), Whisper via Groq (transcrição), Anthropic Claude (seleção de momentos + metadata), FFmpeg (corte/legenda/watermark), PyMySQL, Redis (deduplicação + cota diária + cache de sessão do pipeline).
-- **painel**: Laravel, Filament (admin panel), MySQL.
+- **painel**: Laravel, Inertia.js, React, Tailwind CSS, shadcn UI, MySQL.
 - **Infraestrutura**: Docker Compose (MySQL, Redis, painel PHP/Nginx, clip-processor), rede interna dedicada para o sidecar HTTP entre painel e clip-processor.
 
 ## Configuração

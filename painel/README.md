@@ -1,6 +1,6 @@
 # Painel Canal de Cortes
 
-Interface web (Laravel 13 + Filament 5) para o operador do pipeline Canal de Cortes:
+Interface web (Laravel 12 + Inertia.js + React 19 + Tailwind CSS + shadcn UI) para o operador do pipeline Canal de Cortes:
 - Gerenciar canais-fonte (RSS) e canais-destino (YouTube).
 - Ver dashboard em tempo real do pipeline (uploads, cota, falhas).
 - Aprovar/rejeitar clips gerados pela IA — mesmo efeito de `/aprovar` e `/rejeitar` no Telegram.

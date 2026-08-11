@@ -26,7 +26,7 @@ type NavItem = {
     title: string;
     url: string;
     icon: React.ElementType;
-    /** Rotas fora do SPA Inertia (Filament/Livewire) precisam de <a> normal, não <Link>. */
+    /** Rotas fora do SPA Inertia precisam de <a> normal, não <Link>. */
     external?: boolean;
 };
 
