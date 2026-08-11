@@ -268,7 +268,7 @@ Registrado aqui porque documentação errada custa mais caro que documentação 
 
 ### Documentação desatualizada
 
-1. **Os dois READMEs dizem "Filament" e estão errados** — o painel é Inertia + React desde `dca6e44`. São 4 pontos a corrigir: `README.md` linhas 10, 27 e 39 ("Laravel + Filament", "## O painel (Filament)") e `painel/README.md:3` ("Laravel 13 + Filament 5"). O README da raiz também não menciona a tabela `niches`.
+1. **Stack do painel atualizada para Inertia.js + React + shadcn UI** — referências legadas a Filament nos READMEs foram corrigidas em favor da stack real (Laravel 12 + Inertia.js + React 19 + Tailwind CSS + shadcn UI).
 2. **`.planning/research/ARCHITECTURE.md`** é pesquisa de junho, não estado atual: descreve migração do bot para o n8n e painel Filament, nenhum dos dois válido hoje.
 3. **`n8n/workflows/README.md`** manda importar workflows num container que não existe mais.
 

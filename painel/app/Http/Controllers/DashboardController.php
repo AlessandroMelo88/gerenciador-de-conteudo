@@ -234,6 +234,49 @@ class DashboardController extends Controller
         return back()->with('success', "{$affected} clip(s) aprovado(s)");
     }
 
+    public function bulkDeleteVideos(Request $request, ClipProcessorClient $client): RedirectResponse
+    {
+        $ids = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ])['ids'];
+
+        $freedBytes = 0;
+        $failures = 0;
+        $skipped = 0;
+
+        $videos = SourceVideo::with('generatedClips')->whereIn('id', $ids)->get();
+
+        foreach ($videos as $video) {
+            $needsRaw = $video->generatedClips
+                ->whereIn('status', ['pending_cut', 'cutting'])
+                ->isNotEmpty();
+
+            $canDelete = ! in_array($video->status, ['downloading', 'cutting'], true) && ! $needsRaw;
+
+            if (! $canDelete || blank($video->local_path)) {
+                $skipped++;
+
+                continue;
+            }
+
+            try {
+                $result = $client->deleteSourceVideo($video->id);
+                $freedBytes += $result['freed_bytes'] ?? 0;
+            } catch (RuntimeException) {
+                $failures++;
+            }
+        }
+
+        $mb = round($freedBytes / 1024 / 1024, 1);
+        $extra = collect([
+            $failures > 0 ? "{$failures} arquivo(s) não puderam ser apagados." : null,
+            $skipped > 0 ? "{$skipped} em uso ou sem arquivo local (ignorados)." : null,
+        ])->filter()->implode(' ');
+
+        return back()->with('success', trim("{$mb} MB liberados. {$extra}"));
+    }
+
     /**
      * Apaga o arquivo bruto (.mp4) de um vídeo fonte pra liberar espaço/vaga na
      * janela de download. Não mexe nos clips já cortados a partir dele.

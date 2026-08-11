@@ -161,7 +161,7 @@ Fonte de verdade dos selects do painel; seeda `futebol` e `podcast`.
 **Estado:** sistema funcional e em operação; pipeline automático da descoberta ao upload, com painel de observação/correção. Diretório `videos/` já tem ~130 subitens (uso real).
 
 ### Documentação desatualizada
-- Ambos os READMEs (`README.md`, `painel/README.md`) ainda dizem "Filament" — **errado** desde `dca6e44` (painel é Inertia + React). `README.md` também não menciona a tabela `niches`.
+- Stack nos READMEs (`README.md`, `painel/README.md`) atualizada para **Inertia.js + React 19 + shadcn UI**.
 - `.planning/research/ARCHITECTURE.md` é pesquisa de junho/2026 (planeja migração do bot para n8n e painel Filament — nenhum válido hoje). **Não usar como referência do estado atual.**
 - `n8n/workflows/README.md` manda importar workflows num container que não existe mais.
 

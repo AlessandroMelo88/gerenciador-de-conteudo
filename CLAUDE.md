@@ -1,7 +1,6 @@
 # Canal de Cortes — instruções de trabalho
 
-Arquitetura as-built: `ARCHITECTURE.md`. Os dois `README.md` estão desatualizados (dizem "Filament";
-o painel é Inertia + React desde `dca6e44`).
+Arquitetura as-built: `ARCHITECTURE.md`. O painel é Inertia.js + React 19 + shadcn UI desde `dca6e44`.
 
 **Isolamento:** o `docker-compose.yml` da raiz `wordpress/` é compartilhado com outros projetos
 (kelnab, feeb, placebeads, riodelux, gringo). Mexer **apenas** no serviço `clip-processor` e nos

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { router } from '@inertiajs/react';
+import { toast } from 'sonner';
 import {
     DndContext,
     KeyboardSensor,
@@ -21,6 +22,7 @@ import { GripVerticalIcon, PauseIcon, PlayIcon, ArrowUpIcon } from 'lucide-react
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmButton } from '@/components/confirm-button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -53,8 +55,29 @@ function ScoreBadge({ score }: { score: number | null }) {
     return <Badge variant={score >= 7 ? 'default' : 'destructive'}>{score}</Badge>;
 }
 
-function postAction(url: string) {
-    router.post(url, {}, { preserveScroll: true });
+function useSelection() {
+    const [selected, setSelected] = useState<number[]>([]);
+
+    const toggle = (id: number) =>
+        setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+    const toggleAll = (ids: number[]) =>
+        setSelected((prev) => (prev.length === ids.length ? [] : ids));
+
+    const clear = () => setSelected([]);
+
+    return { selected, toggle, toggleAll, clear };
+}
+
+function postAction(url: string, data: Record<string, unknown> = {}) {
+    router.post(url, data, {
+        preserveScroll: true,
+        onSuccess: (page) => {
+            const flash = page.props.flash as { success?: string | null; error?: string | null };
+            if (flash?.success) toast.success(flash.success);
+            if (flash?.error) toast.error(flash.error);
+        },
+    });
 }
 
 function VideoActions({ video }: { video: ActiveWindowVideo }) {
@@ -105,9 +128,27 @@ function VideoActions({ video }: { video: ActiveWindowVideo }) {
     );
 }
 
-function VideoCells({ video, dragHandle }: { video: ActiveWindowVideo; dragHandle?: ReactNode }) {
+function VideoCells({
+    video,
+    isSelected,
+    onToggleSelect,
+    dragHandle,
+}: {
+    video: ActiveWindowVideo;
+    isSelected: boolean;
+    onToggleSelect: () => void;
+    dragHandle?: ReactNode;
+}) {
     return (
         <>
+            <TableCell className="w-8">
+                <Checkbox
+                    checked={isSelected}
+                    disabled={!video.canDelete}
+                    onCheckedChange={onToggleSelect}
+                    title={!video.canDelete ? 'Arquivo em uso ou clips ainda precisam do bruto' : undefined}
+                />
+            </TableCell>
             <TableCell className="w-8">{dragHandle}</TableCell>
             <TableCell className="max-w-[280px] truncate" title={video.title}>
                 <span className="flex items-center gap-2">
@@ -148,7 +189,15 @@ function VideoCells({ video, dragHandle }: { video: ActiveWindowVideo; dragHandl
     );
 }
 
-function SortableRow({ video }: { video: ActiveWindowVideo }) {
+function SortableRow({
+    video,
+    isSelected,
+    onToggleSelect,
+}: {
+    video: ActiveWindowVideo;
+    isSelected: boolean;
+    onToggleSelect: () => void;
+}) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: video.id,
     });
@@ -161,6 +210,8 @@ function SortableRow({ video }: { video: ActiveWindowVideo }) {
         >
             <VideoCells
                 video={video}
+                isSelected={isSelected}
+                onToggleSelect={onToggleSelect}
                 dragHandle={
                     <button
                         type="button"
@@ -181,10 +232,14 @@ function VideoTable({
     videos,
     sortable,
     onReorder,
+    selected,
+    onToggleSelect,
 }: {
     videos: ActiveWindowVideo[];
     sortable?: boolean;
     onReorder?: (ids: number[]) => void;
+    selected: number[];
+    onToggleSelect: (id: number) => void;
 }) {
     const [items, setItems] = useState(videos);
     useEffect(() => setItems(videos), [videos]);
@@ -208,6 +263,7 @@ function VideoTable({
     const header = (
         <TableHeader>
             <TableRow>
+                <TableHead className="w-8" />
                 <TableHead className="w-8" />
                 <TableHead>Título</TableHead>
                 <TableHead>Canal</TableHead>
@@ -235,7 +291,12 @@ function VideoTable({
                                     video.paused && 'opacity-70',
                                 )}
                             >
-                                <VideoCells video={video} dragHandle={<span className="inline-block w-4" />} />
+                                <VideoCells
+                                    video={video}
+                                    isSelected={selected.includes(video.id)}
+                                    onToggleSelect={() => onToggleSelect(video.id)}
+                                    dragHandle={<span className="inline-block w-4" />}
+                                />
                             </TableRow>
                         ))}
                     </TableBody>
@@ -252,7 +313,12 @@ function VideoTable({
                     <SortableContext items={items.map((v) => v.id)} strategy={verticalListSortingStrategy}>
                         <TableBody>
                             {items.map((video) => (
-                                <SortableRow key={video.id} video={video} />
+                                <SortableRow
+                                    key={video.id}
+                                    video={video}
+                                    isSelected={selected.includes(video.id)}
+                                    onToggleSelect={() => onToggleSelect(video.id)}
+                                />
                             ))}
                         </TableBody>
                     </SortableContext>
@@ -263,10 +329,12 @@ function VideoTable({
 }
 
 export function ActiveWindowTable({ videos }: { videos: ActiveWindowVideo[] }) {
+    const { selected, toggle, toggleAll, clear } = useSelection();
     const curtoCount = videos.filter((v) => v.format === 'curto').length;
     const longoCount = videos.filter((v) => v.format === 'longo').length;
     const processing = useMemo(() => videos.filter((v) => v.processing && !v.paused), [videos]);
     const idle = useMemo(() => videos.filter((v) => !v.processing || v.paused), [videos]);
+    const deletableIds = useMemo(() => videos.filter((v) => v.canDelete).map((v) => v.id), [videos]);
 
     useEffect(() => {
         if (videos.length === 0) return;
@@ -304,6 +372,24 @@ export function ActiveWindowTable({ videos }: { videos: ActiveWindowVideo[] }) {
                 ciclo.
             </p>
 
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => toggleAll(deletableIds)}>
+                    Marcar/desmarcar todos
+                </Button>
+                <ConfirmButton
+                    variant="destructive"
+                    size="sm"
+                    disabled={selected.length === 0}
+                    description={`Apagar o arquivo bruto de ${selected.length} vídeo(s) selecionado(s)? Os clips já cortados NÃO são afetados; libera vagas na janela.`}
+                    onConfirm={() => {
+                        postAction('/painel/videos/bulk-delete', { ids: selected });
+                        clear();
+                    }}
+                >
+                    Apagar selecionados ({selected.length})
+                </ConfirmButton>
+            </div>
+
             <Tabs key={defaultTab} defaultValue={defaultTab}>
                 <TabsList>
                     <TabsTrigger value="processing">Processando agora {processing.length}</TabsTrigger>
@@ -316,7 +402,11 @@ export function ActiveWindowTable({ videos }: { videos: ActiveWindowVideo[] }) {
                             Nenhum vídeo processando agora.
                         </p>
                     ) : (
-                        <VideoTable videos={processing} />
+                        <VideoTable
+                            videos={processing}
+                            selected={selected}
+                            onToggleSelect={toggle}
+                        />
                     )}
                 </TabsContent>
 
@@ -326,7 +416,13 @@ export function ActiveWindowTable({ videos }: { videos: ActiveWindowVideo[] }) {
                             Todos os vídeos da janela estão em processamento.
                         </p>
                     ) : (
-                        <VideoTable videos={idle} sortable onReorder={persistReorder} />
+                        <VideoTable
+                            videos={idle}
+                            sortable
+                            onReorder={persistReorder}
+                            selected={selected}
+                            onToggleSelect={toggle}
+                        />
                     )}
                 </TabsContent>
             </Tabs>
