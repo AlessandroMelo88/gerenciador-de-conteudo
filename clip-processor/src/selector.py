@@ -15,7 +15,8 @@ from datetime import datetime
 SYSTEM_PROMPT = (
     "Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos. "
     "Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, "
-    "de 15 segundos a 3 minutos — reações rápidas, tiradas, frases de efeito. "
+    "de PREFERÊNCIA entre 15 segundos e 3 minutos (end_time - start_time >= 15 e <= 180 segundos) — reações rápidas, tiradas, frases de efeito. "
+    "NUNCA selecione segmentos com duração inferior a 15 segundos. "
     "Para futebol: priorize análise tática, debate acalorado, reação a gol, revelação de bastidores. "
     "Para podcasts: priorize discussão intensa, revelação importante, momento de conflito ou humor. "
     "Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente "
@@ -44,6 +45,9 @@ LONG_SYSTEM_PROMPT = (
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
+
+MIN_SHORTFORM_SECONDS = 15
+MAX_SHORTFORM_SECONDS = 180
 
 MIN_LONGFORM_SECONDS = 420
 MAX_LONGFORM_SECONDS = 1200
@@ -152,6 +156,23 @@ def _enforce_longform_duration(moments: list[dict], transcript_duration: float) 
     return adjusted
 
 
+def _filter_shortform_duration(moments: list[dict]) -> list[dict]:
+    """Descarta momentos do formato 'curto' com duração inferior a MIN_SHORTFORM_SECONDS (15s)
+    ou superior a MAX_SHORTFORM_SECONDS (180s).
+    """
+    valid = []
+    for m in moments:
+        duration = float(m.get('end_time', 0)) - float(m.get('start_time', 0))
+        if duration < MIN_SHORTFORM_SECONDS:
+            _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que o mínimo ({MIN_SHORTFORM_SECONDS}s)')
+            continue
+        if duration > MAX_SHORTFORM_SECONDS:
+            _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s maior que o máximo ({MAX_SHORTFORM_SECONDS}s)')
+            continue
+        valid.append(m)
+    return valid
+
+
 def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto') -> list[dict]:
     """Analisa transcrição e retorna momentos selecionados via IA.
 
@@ -200,6 +221,8 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto') 
         result = _remove_overlaps(moments, max_count=max_moments)
         if is_longo:
             result = _enforce_longform_duration(result, transcript_duration)
+        else:
+            result = _filter_shortform_duration(result)
         return result
 
     # Caminho de testes: cliente injetado diretamente
