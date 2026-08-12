@@ -21,9 +21,9 @@ SAMPLE_TRANSCRIPT = {
 }
 
 SAMPLE_MOMENTS = [
-    {'start_time': 0.0, 'end_time': 360.0, 'score': 9, 'reason': 'Análise tática profunda'},
-    {'start_time': 400.0, 'end_time': 700.0, 'score': 8, 'reason': 'Debate acalorado'},
-    {'start_time': 800.0, 'end_time': 1100.0, 'score': 7, 'reason': 'Revelação de bastidores'},
+    {'start_time': 0.0, 'end_time': 60.0, 'score': 9, 'reason': 'Análise tática profunda'},
+    {'start_time': 100.0, 'end_time': 160.0, 'score': 8, 'reason': 'Debate acalorado'},
+    {'start_time': 200.0, 'end_time': 245.0, 'score': 7, 'reason': 'Revelação de bastidores'},
 ]
 
 
@@ -62,6 +62,24 @@ class TestSelectMoments:
         kwargs = call_args.kwargs if hasattr(call_args, 'kwargs') else call_args[1]
         user_content = kwargs['messages'][0]['content']
         assert '[0s-60s]' in user_content or '[0s-' in user_content
+
+    def test_shortform_under_15s_discarded(self, sample_video_id):
+        """Vídeos com menos de 15s (ex: 3s) devem ser descartados no modo curto."""
+        mock_anthropic = MagicMock()
+        short_moments = [
+            {'start_time': 10.0, 'end_time': 13.0, 'score': 9, 'reason': 'Corte irrelevante de 3s'},
+            {'start_time': 20.0, 'end_time': 25.0, 'score': 8, 'reason': 'Corte irrelevante de 5s'},
+            {'start_time': 50.0, 'end_time': 70.0, 'score': 9, 'reason': 'Corte válido de 20s'},
+        ]
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text=json.dumps({'moments': short_moments}))]
+        mock_anthropic.messages.create.return_value = mock_response
+
+        result = select_moments(SAMPLE_TRANSCRIPT, anthropic_client=mock_anthropic, fmt='curto')
+
+        assert len(result) == 1
+        assert result[0]['start_time'] == 50.0
+        assert result[0]['end_time'] == 70.0
 
 
 class TestInsertMoments:

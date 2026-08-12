@@ -79,17 +79,15 @@ def reject_clip(clip_id: int) -> int:
 
 
 def delete_source_video_file(source_video_id: int) -> dict:
-    """Apaga o arquivo bruto (.mp4) de um source_video e zera local_path no banco.
+    """Apaga o arquivo bruto (.mp4), clips gerados (videos/clips/), thumbnails e arquivos parciais de um source_video.
 
-    Não mexe no status do vídeo nem nos generated_clips — é só limpeza de disco,
-    disparada manualmente pelo operador via painel (Vídeos > Apagar arquivo).
-    Recusa apagar se o vídeo está em 'downloading'/'cutting' ou se clips ainda
-    precisam do bruto (pending_cut/cutting).
+    Realiza deleção em cascata no disco para liberar 100% do espaço associado ao vídeo.
+    Recusa apagar se o vídeo estiver ativamente em download ou corte no momento.
 
     Raises:
-        RuntimeError: vídeo não existe, ou está em uso no momento.
+        RuntimeError: vídeo não existe ou está em uso no momento.
     """
-    from src.queue_controls import can_delete_raw
+    from src.queue_controls import _cleanup_partial, can_delete_raw
 
     conn = get_db_connection()
     try:
@@ -99,16 +97,60 @@ def delete_source_video_file(source_video_id: int) -> dict:
 
         with conn.cursor() as cur:
             cur.execute(
-                'SELECT id, local_path FROM source_videos WHERE id = %s',
+                'SELECT id, youtube_video_id, local_path, transcript_path FROM source_videos WHERE id = %s',
                 (source_video_id,),
             )
             row = cur.fetchone()
 
-        local_path = row['local_path']
+        if not row:
+            raise RuntimeError('source_video não encontrado')
+
         freed_bytes = 0
+
+        # 1. Apagar clips gerados em disco (videos/clips/ e videos/thumbnails/)
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT id, clip_path, thumbnail_path FROM generated_clips WHERE source_video_id = %s',
+                (source_video_id,),
+            )
+            clips = cur.fetchall() or []
+
+        for clip in clips:
+            clip_path = clip.get('clip_path')
+            if clip_path:
+                prefix = clip_path[:-4] if clip_path.endswith('.mp4') else clip_path
+                for candidate in (clip_path, f'{prefix}_raw.mp4', f'{prefix}_subtitled.mp4'):
+                    if os.path.exists(candidate):
+                        freed_bytes += os.path.getsize(candidate)
+                        os.remove(candidate)
+
+            thumb_path = clip.get('thumbnail_path')
+            if thumb_path and os.path.exists(thumb_path):
+                freed_bytes += os.path.getsize(thumb_path)
+                os.remove(thumb_path)
+
+        with conn.cursor() as cur:
+            cur.execute(
+                'UPDATE generated_clips SET clip_path = NULL, thumbnail_path = NULL WHERE source_video_id = %s',
+                (source_video_id,),
+            )
+
+        # 2. Apagar vídeo bruto
+        local_path = row.get('local_path')
         if local_path and os.path.exists(local_path):
-            freed_bytes = os.path.getsize(local_path)
+            freed_bytes += os.path.getsize(local_path)
             os.remove(local_path)
+
+        # 3. Apagar transcrição
+        transcript_path = row.get('transcript_path')
+        if transcript_path and os.path.exists(transcript_path):
+            freed_bytes += os.path.getsize(transcript_path)
+            os.remove(transcript_path)
+
+        # 4. Apagar eventuais arquivos temporários de download (.part, .ytdl)
+        yt_id = row.get('youtube_video_id')
+        if yt_id:
+            _cleanup_partial(yt_id)
 
         with conn.cursor() as cur:
             cur.execute(

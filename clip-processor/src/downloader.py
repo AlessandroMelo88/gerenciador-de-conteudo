@@ -40,10 +40,9 @@ _WORK_ARTIFACT_RE = re.compile(
     r'(\.part(-Frag\d+\.part)?|\.ytdl|\.temp\.(mp4|mkv|webm)|\.f\d+\.(mp4|webm|m4a))$'
 )
 
-# Um download de 720p leva minutos, não horas. Passou disso sem terminar, o
-# processo que o segurava morreu — o yt-dlp não retoma esses arquivos em ciclo
-# novo (outtmpl é reescrito do zero), então ficariam no disco pra sempre.
-STALE_AFTER_HOURS = 6
+# Um download de 720p leva minutos, não horas. Passou de 1 hora sem terminar,
+# o processo que o segurava morreu ou foi abortado — limpa pra liberar disco.
+STALE_AFTER_HOURS = 1
 
 
 def _log(msg: str) -> None:

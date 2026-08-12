@@ -31,8 +31,8 @@ def _log(msg: str) -> None:
 # tamanho do backlog. Repõe só o déficit (janela - ocupação atual) a cada rodada,
 # então vaga aberta (por publicação concluída ou por exclusão manual no painel)
 # é reposta na rodada seguinte, mantendo a janela sempre perto de cheia.
-DOWNLOAD_WINDOW_CURTO = 6
-DOWNLOAD_WINDOW_LONGO = 4
+DOWNLOAD_WINDOW_CURTO = int(os.environ.get('DOWNLOAD_WINDOW_CURTO', 6))
+DOWNLOAD_WINDOW_LONGO = int(os.environ.get('DOWNLOAD_WINDOW_LONGO', 4))
 
 # Só entra na janela vídeo publicado há no máximo esse tanto de dias — mesmo
 # com vaga livre e backlog represado, notícia velha nunca é baixada; evita
@@ -43,13 +43,12 @@ FRESHNESS_DAYS = 1
 def _select_pending_videos(db_conn) -> list:
     """Seleciona vídeos pendentes pra repor a janela de download ativo.
 
-    Para cada formato: conta quantos vídeos já ocupam a janela (local_path
-    setado E status ainda em andamento — linha morta com arquivo em disco não
-    ocupa slot), calcula o déficit até o teto (DOWNLOAD_WINDOW_LONGO/CURTO) e busca
-    só esse tanto, restrito a published_at de hoje ou ontem (FRESHNESS_DAYS),
-    ordenado por published_at DESC (notícia mais recente primeiro). Se um
-    formato já está na janela cheia, não baixa nada dele nesta rodada — não
-    puxa do outro formato pra completar.
+    Para cada formato: conta quantos vídeos já ocupam a janela (com arquivo bruto
+    em disco, status em processamento ativo ou clips pendentes/aprovados que ainda
+    estão sendo trabalhados), calcula o déficit até o teto (DOWNLOAD_WINDOW_LONGO/CURTO)
+    e busca só esse tanto, restrito a published_at de hoje ou ontem (FRESHNESS_DAYS),
+    ordenado por prioridade e publicado_at DESC. Se um formato já está na janela
+    cheia, não baixa nada dele nesta rodada.
     """
     cutoff_date = (datetime.now(SAO_PAULO_TZ) - timedelta(days=FRESHNESS_DAYS)).date()
 
@@ -57,9 +56,13 @@ def _select_pending_videos(db_conn) -> list:
     for fmt, window in (('longo', DOWNLOAD_WINDOW_LONGO), ('curto', DOWNLOAD_WINDOW_CURTO)):
         with db_conn.cursor() as cur:
             cur.execute(
-                'SELECT COUNT(*) AS c FROM source_videos '
-                'WHERE format=%s AND local_path IS NOT NULL '
-                "AND status IN ('downloading', 'downloaded', 'selecting')",
+                'SELECT COUNT(DISTINCT sv.id) AS c FROM source_videos sv '
+                'LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id '
+                'WHERE sv.format = %s AND ('
+                '  sv.local_path IS NOT NULL '
+                "  OR sv.status IN ('downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing') "
+                "  OR (gc.id IS NOT NULL AND gc.status IN ('pending_cut', 'pending', 'cutting', 'approved'))"
+                ')',
                 (fmt,),
             )
             occupied = cur.fetchone()['c']

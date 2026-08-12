@@ -329,9 +329,41 @@ def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: 
         return
 
     if source_local_path and os.path.exists(source_local_path):
-        os.remove(source_local_path)
+        try:
+            os.remove(source_local_path)
+        except OSError:
+            pass
+
+    # Apagar arquivos dos clips e thumbnails do disco ao finalizar o vídeo fonte
+    with conn.cursor() as cur:
+        cur.execute(
+            'SELECT clip_path, thumbnail_path FROM generated_clips WHERE source_video_id = %s',
+            (source_video_id,),
+        )
+        clips = cur.fetchall() or []
+
+    for clip in clips:
+        clip_path = clip.get('clip_path')
+        if clip_path:
+            prefix = clip_path[:-4] if clip_path.endswith('.mp4') else clip_path
+            for candidate in (clip_path, f'{prefix}_raw.mp4', f'{prefix}_subtitled.mp4'):
+                if os.path.exists(candidate):
+                    try:
+                        os.remove(candidate)
+                    except OSError:
+                        pass
+        thumb_path = clip.get('thumbnail_path')
+        if thumb_path and os.path.exists(thumb_path):
+            try:
+                os.remove(thumb_path)
+            except OSError:
+                pass
 
     with conn.cursor() as cur:
+        cur.execute(
+            'UPDATE generated_clips SET clip_path = NULL, thumbnail_path = NULL WHERE source_video_id = %s',
+            (source_video_id,),
+        )
         cur.execute(
             "UPDATE source_videos SET status='published', local_path=NULL WHERE id=%s",
             (source_video_id,),
