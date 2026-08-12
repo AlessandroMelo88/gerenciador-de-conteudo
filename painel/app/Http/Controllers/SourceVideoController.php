@@ -97,7 +97,60 @@ class SourceVideoController extends Controller
                 'per_page' => $perPage,
             ],
             'statusOptions' => self::STATUS_LABEL,
+            'storage' => $this->storageMetrics(),
+            'downloadWindow' => $this->downloadWindowMetrics(),
         ]);
+    }
+
+    private function storageMetrics(): array
+    {
+        $path = config('filesystems.disks.clips-videos.root') ?: storage_path('app/clips-videos');
+        $freeBytes = @disk_free_space($path);
+        $totalBytes = @disk_total_space($path);
+
+        if ($freeBytes === false || $totalBytes === false || $totalBytes <= 0) {
+            return [
+                'freeGb' => 0,
+                'totalGb' => 0,
+                'usedGb' => 0,
+                'usedPercentage' => 0,
+                'status' => 'unknown',
+            ];
+        }
+
+        $usedBytes = $totalBytes - $freeBytes;
+        $usedPercentage = round(($usedBytes / $totalBytes) * 100, 1);
+
+        return [
+            'freeGb' => round($freeBytes / 1024 / 1024 / 1024, 1),
+            'totalGb' => round($totalBytes / 1024 / 1024 / 1024, 1),
+            'usedGb' => round($usedBytes / 1024 / 1024 / 1024, 1),
+            'usedPercentage' => $usedPercentage,
+            'status' => $usedPercentage >= 90 ? 'critical' : ($usedPercentage >= 80 ? 'warning' : 'ok'),
+        ];
+    }
+
+    private function downloadWindowMetrics(): array
+    {
+        $activeVideos = SourceVideo::whereNotNull('local_path')
+            ->orWhereIn('status', ['downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing'])
+            ->get();
+
+        $curtoCount = $activeVideos->where('format', 'curto')->count();
+        $longoCount = $activeVideos->where('format', 'longo')->count();
+        $total = $activeVideos->count();
+        $processingCount = $activeVideos->whereIn('status', ['downloading', 'transcribing', 'selecting', 'cutting'])->count();
+
+        return [
+            'total' => $total,
+            'cap' => 10,
+            'curtoCount' => $curtoCount,
+            'curtoCap' => 6,
+            'longoCount' => $longoCount,
+            'longoCap' => 4,
+            'processingCount' => $processingCount,
+        ];
+    }
     }
 
     private function payload(SourceVideo $video): array
@@ -109,6 +162,9 @@ class SourceVideoController extends Controller
             default => 'Em uso',
         };
 
+        $canDelete = ! in_array($video->status, ['downloading', 'cutting'], true)
+            && $video->em_andamento_count === 0;
+
         return [
             'id' => $video->id,
             'title' => $video->title,
@@ -117,6 +173,7 @@ class SourceVideoController extends Controller
             'statusLabel' => self::STATUS_LABEL[$video->status] ?? $video->status,
             'youtubeVideoId' => $video->youtube_video_id,
             'hasLocalFile' => filled($video->local_path),
+            'canDelete' => $canDelete,
             'uso' => $uso,
             'publishedAt' => $video->published_at?->format('d/m/Y H:i'),
             'updatedAt' => $video->updated_at?->diffForHumans(),
@@ -131,9 +188,9 @@ class SourceVideoController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        $mb = round($result['freed_bytes'] / 1024 / 1024, 1);
+        $mb = round(($result['freed_bytes'] ?? 0) / 1024 / 1024, 1);
 
-        return back()->with('success', "Arquivo apagado ({$mb} MB liberados)");
+        return back()->with('success', "Arquivos apagados ({$mb} MB liberados)");
     }
 
     public function bulkDeleteFiles(Request $request, ClipProcessorClient $client): RedirectResponse
@@ -143,28 +200,18 @@ class SourceVideoController extends Controller
 
         $freedBytes = 0;
         $failures = 0;
-        $skipped = 0;
 
         foreach ($videos as $video) {
-            if (blank($video->local_path)) {
-                $skipped++;
-
-                continue;
-            }
-
             try {
                 $result = $client->deleteSourceVideo($video->id);
-                $freedBytes += $result['freed_bytes'];
+                $freedBytes += $result['freed_bytes'] ?? 0;
             } catch (RuntimeException) {
                 $failures++;
             }
         }
 
         $mb = round($freedBytes / 1024 / 1024, 1);
-        $extra = collect([
-            $failures > 0 ? "{$failures} arquivo(s) não puderam ser apagados." : null,
-            $skipped > 0 ? "{$skipped} já não tinham arquivo local (ignorados)." : null,
-        ])->filter()->implode(' ');
+        $extra = $failures > 0 ? "{$failures} vídeo(s) não puderam ser apagados." : '';
 
         return back()->with('success', trim("{$mb} MB liberados. {$extra}"));
     }
