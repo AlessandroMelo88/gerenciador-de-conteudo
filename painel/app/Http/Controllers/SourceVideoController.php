@@ -151,7 +151,6 @@ class SourceVideoController extends Controller
             'processingCount' => $processingCount,
         ];
     }
-    }
 
     private function payload(SourceVideo $video): array
     {

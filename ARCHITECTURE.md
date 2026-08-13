@@ -1,6 +1,8 @@
 # Arquitetura — Canal de Cortes
 
-> **Escopo:** este documento descreve o sistema **como ele é hoje** (as-built), verificado lendo o código em 15/07/2026 no commit `dca6e44`.
+> **Escopo:** este documento descreve o sistema **como ele é hoje** (as-built). Verificado lendo o código em 15/07/2026 no commit `dca6e44`; correções pontuais de formato, fallback de metadata, scheduler e limpeza de disco aplicadas em 13/08/2026.
+>
+> **Detalhe por subsistema vive em [`Docs/`](Docs/README.md)** — este arquivo é a visão geral; pipeline, download, transcrição, seleção por IA, corte, publicação, banco, estados e runbook têm documento próprio lá. Comece pelo [`Docs/README.md`](Docs/README.md).
 > Não confundir com `.planning/research/ARCHITECTURE.md`, que é um documento de **pesquisa de junho/2026**: ele planeja um futuro que em parte não aconteceu (migração do bot para o n8n, painel em Filament) e não deve ser usado como referência do estado atual.
 >
 > **Para quem vai ler isso primeiro (inclusive IA):** comece pelas seções 1 a 3. A seção 10 lista as divergências conhecidas entre a documentação antiga e o código — leia antes de confiar no `README.md`.
@@ -13,8 +15,14 @@ Pipeline automatizado que monitora canais de futebol no YouTube, corta os melhor
 
 Dois formatos de saída, decididos automaticamente pela duração do vídeo original:
 
-- **`curto`** — vídeo fonte < 10 min. Vira até 3 shorts verticais (1080x1920), de 15 s a 3 min cada.
-- **`longo`** — vídeo fonte ≥ 10 min. Vira **um único** corte horizontal contínuo de 10 a 20 min.
+- **`curto`** — vídeo fonte < 7 min. Vira até 3 shorts verticais (1080x1920), de 30 s a 3 min cada.
+- **`longo`** — vídeo fonte ≥ 7 min. Vira **um único** corte horizontal contínuo de 7 a 20 min.
+
+O limiar é `MIN_LONGFORM_SECONDS = 420` ([`selector.py:61`](clip-processor/src/selector.py#L61)), usado
+tanto na detecção de formato quanto na validação da duração do corte longo. `MIN_SHORTFORM_SECONDS`
+subiu de 15 s para **30 s** em 13/08/2026 ([`selector.py:58`](clip-processor/src/selector.py#L58)): em
+15 s não se fecha um raciocínio, e o prompt do modo curto foi reescrito junto — mudar a constante
+sozinha faz o modelo entregar 30 s picados só para bater a régua.
 
 ---
 
@@ -94,8 +102,13 @@ APScheduler (`BlockingScheduler`, timezone `America/Sao_Paulo`), configurado em 
 | `ingest_cycle` | `run_ingest_cycle` | **20 min** |
 | `publish_cycle` | `run_publish_only` | **20 min** |
 | `clip_pending_ttl` | `run_ttl_once` | 1 h |
+| `state_recovery` | `run_recovery_once` | **30 min** |
 
 Todos com `coalesce=True, max_instances=1, misfire_grace_time=900`.
+
+> O `state_recovery` foi adicionado em 13/08/2026. Antes, o recovery de estado preso rodava **só no
+> boot** — o que travasse depois do container subir ficava preso até o próximo restart. Detalhe em
+> [`Docs/ESTADOS-E-TRANSICOES.md`](Docs/ESTADOS-E-TRANSICOES.md).
 
 > **Ingestão e publicação são jobs separados.** O ciclo completo (`run_pipeline_once`) só roda no boot; não está mais agendado. O `ingest_cycle` (commit `dca6e44`) existe para que uma vaga aberta na janela de download — porque um vídeo foi excluído no painel ou uma publicação concluiu — seja reposta em ~20 min em vez de esperar o ciclo antigo de 6 h.
 
@@ -104,7 +117,7 @@ Todos com `coalesce=True, max_instances=1, misfire_grace_time=900`.
 1. **Descoberta** — `poll_all_channels` varre o RSS de cada `source_channel` ativo e não-blacklistado. Por entrada: dedup (Redis `SET NX`, TTL 30 dias, com fallback para MySQL) → filtro de título (bloqueia keywords de aposta/cassino) → detecção de formato (yt-dlp metadata; falha ⇒ assume `curto`) → `INSERT status='pending'`.
 2. **Download** — janela fixa **por formato**, que não se canibaliza: até 6 `curto` e 4 `longo` **ocupando disco simultaneamente**. Baixa só o déficit. Só considera vídeos publicados nas últimas 24 h (`FRESHNESS_DAYS = 1`), ordenados por `published_at DESC` — a notícia mais recente ganha, não a descoberta mais antiga. yt-dlp 720p, 3 tentativas, aborta se restarem < 2 GB de disco.
 3. **Transcrição** — Groq Whisper (`whisper-large-v3-turbo`, pt). Arquivo > 24 MB é convertido para MP3 antes.
-4. **Seleção de momentos** — Claude Haiku escolhe os trechos com score 0–10. Prompt e truncagem variam por formato (`longo`: 1 segmento, 600–1200 s, 20k chars de transcrição; `curto`: até 3 momentos, 8k chars).
+4. **Seleção de momentos** — Claude Haiku escolhe os trechos com score 0–10. Prompt e truncagem variam por formato (`longo`: 1 segmento, 420–1200 s; `curto`: até 3 momentos, 30–180 s). Ver [`Docs/SISTEMA-IA-SELECAO.md`](Docs/SISTEMA-IA-SELECAO.md).
 5. **Corte e pós-produção** — FFmpeg: corta → gera SRT → queima legenda → marca d'água → thumbnail. `curto` recebe crop 1080x1920; `longo` preserva o horizontal (`scale=-2:1080`).
 6. **Metadata** — Claude Haiku gera título, descrição e tags a partir da transcrição do trecho.
 7. **Publicação** — respeitando cota, janela horária e round-robin (ver 4.2).
@@ -118,7 +131,7 @@ Cada etapa roda em `try/except` isolado que loga e dispara `notify('pipeline_fai
 | Chamada | Fallback |
 |---|---|
 | Seleção de momentos (Claude) | **Groq LLaMA `llama-3.3-70b-versatile`.** Sem `ANTHROPIC_API_KEY`, vai direto no Groq. Groq falhando também ⇒ nenhum momento. |
-| Metadata (Claude) | **Determinístico, sem IA:** título = título do vídeo original, descrição = `reason` da seleção, tags fixas. Não cai para o Groq. |
+| Metadata (Claude) | **Groq LLaMA `llama-3.3-70b-versatile`** (adicionado em 27/07/2026). Só se as duas IAs falharem cai no determinístico: título = título do vídeo original, descrição = `reason` da seleção, tags fixas. |
 | Transcrição (Groq Whisper) | **Nenhum.** Falhou ⇒ vídeo marcado `failed`. |
 | Dedup (Redis) | `SELECT` no MySQL. |
 | Cota (Redis) | **Nenhum.** Redis fora ⇒ publicação para. |
@@ -132,7 +145,7 @@ Cada etapa roda em `try/except` isolado que loga e dispara `notify('pipeline_fai
 - **Round-robin por canal FONTE** (`_round_robin_by_source_channel`): os clips saem em `created_at ASC`, mas são intercalados por canal de origem. Sem isso, uma leva represada de um único canal monopolizaria a cota por dias.
 - Roteamento fonte → destino é por **nicho**: `source_channels.target_niche` casa com `destination_channels.niche`.
 - Guard de corrida com a rejeição: `_transition_to_publishing` só avança se o `UPDATE ... WHERE status=?` afetar alguma linha.
-- Quando um vídeo fonte não tem mais nenhum clip em estado não-terminal e ao menos um publicou, o `.mp4` bruto é apagado do disco e o vídeo vira `published` com `local_path=NULL`.
+- Quando um vídeo fonte não tem mais nenhum clip em estado não-terminal e ao menos um publicou, `_maybe_finalize_source_video` apaga do disco o `.mp4` bruto **e**, de cada clip, o MP4 final, o `_raw.mp4`, o `_subtitled.mp4` e a thumbnail; zera `clip_path`/`thumbnail_path` e marca o vídeo `published` com `local_path=NULL`. A cascata de clips é de 12/08/2026 (commit `5009112`).
 
 ### 4.3 OAuth do YouTube
 
@@ -141,6 +154,10 @@ Um token por canal-destino, em `/app/youtube/token-{slug}.json`, gerado pelo CLI
 ---
 
 ## 5. Máquina de estados
+
+> Versão completa, com quem escreve cada transição, diagramas Mermaid e a tabela do que **tem e não tem
+> recuperação automática**, em [`Docs/ESTADOS-E-TRANSICOES.md`](Docs/ESTADOS-E-TRANSICOES.md). O resumo
+> abaixo é suficiente para orientação, não para operar.
 
 ### `source_videos.status`
 

@@ -10,7 +10,13 @@ Exports esperados:
 
 RED state: imports falham pois src/db.py ainda não existe.
 """
-from src.db import update_status, insert_video, recover_stuck_downloads
+from src.db import (
+    SELECTING_STUCK_HOURS,
+    insert_video,
+    recover_stuck_downloads,
+    recover_stuck_selecting,
+    update_status,
+)
 
 
 class TestUpdateStatus:
@@ -46,6 +52,17 @@ class TestUpdateStatus:
         assert local_path in params
         assert 'downloaded' in params
 
+    def test_clear_local_path_sets_null(self, mock_db_conn):
+        """clear_local_path=True deve gravar local_path=NULL (libera vaga da janela)."""
+        update_status(mock_db_conn, video_id='xyz999', status='failed', clear_local_path=True)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        sql_call = mock_cursor.execute.call_args[0][0]
+        assert 'local_path=NULL' in sql_call.replace(' = ', '=')
+
+        params = mock_cursor.execute.call_args[0][1]
+        assert params == ('failed', 'xyz999')
+
 
 class TestRecoverStuckDownloads:
 
@@ -61,6 +78,45 @@ class TestRecoverStuckDownloads:
         assert 'UPDATE' in sql_call.upper()
         assert 'pending' in sql_call.lower() or 'pending' in str(mock_cursor.execute.call_args)
         assert 'downloading' in sql_call.lower() or 'downloading' in str(mock_cursor.execute.call_args)
+
+
+class TestRecoverStuckSelecting:
+
+    def test_selecting_sem_arquivo_vai_para_failed(self, mock_db_conn):
+        """'selecting' com local_path NULL precisa de saída própria.
+
+        As duas queries originais exigem `local_path IS NOT NULL`, então registro
+        que teve o arquivo limpo por fora ficava preso pra sempre — nenhum
+        restart alcançava. Sem raw em disco não há seleção pra reprocessar, então
+        o destino é 'failed'.
+        """
+        recover_stuck_selecting(mock_db_conn)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        executed = [call[0][0] for call in mock_cursor.execute.call_args_list]
+
+        no_file_sql = [
+            sql for sql in executed
+            if 'local_path IS NULL' in sql and "status='failed'" in sql
+        ]
+        assert len(no_file_sql) == 1, 'falta a query de selecting sem arquivo'
+
+        # Respeita a mesma carência das demais — não atropela seleção em curso.
+        sql = no_file_sql[0]
+        assert 'updated_at' in sql
+        idx = executed.index(sql)
+        assert mock_cursor.execute.call_args_list[idx][0][1] == (SELECTING_STUCK_HOURS,)
+
+    def test_nao_toca_em_selecting_com_arquivo_no_caminho_sem_arquivo(self, mock_db_conn):
+        """A query de 'sem arquivo' não pode capturar quem ainda tem o raw."""
+        recover_stuck_selecting(mock_db_conn)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        for call in mock_cursor.execute.call_args_list:
+            sql = call[0][0]
+            if "status='failed'" in sql:
+                assert 'local_path IS NULL' in sql
+                assert 'local_path IS NOT NULL' not in sql
 
 
 class TestInsertVideo:

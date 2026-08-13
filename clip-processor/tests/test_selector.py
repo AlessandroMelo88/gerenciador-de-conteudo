@@ -63,13 +63,18 @@ class TestSelectMoments:
         user_content = kwargs['messages'][0]['content']
         assert '[0s-60s]' in user_content or '[0s-' in user_content
 
-    def test_shortform_under_15s_discarded(self, sample_video_id):
-        """Vídeos com menos de 15s (ex: 3s) devem ser descartados no modo curto."""
+    def test_shortform_under_30s_discarded(self, sample_video_id):
+        """Momentos abaixo de MIN_SHORTFORM_SECONDS (30s) são descartados no modo curto.
+
+        Régua subiu de 15s para 30s: em 3-4s não há assunto, e mesmo 20s não fecha
+        raciocínio — o de 20s aqui existe justamente pra travar a regressão.
+        """
         mock_anthropic = MagicMock()
         short_moments = [
             {'start_time': 10.0, 'end_time': 13.0, 'score': 9, 'reason': 'Corte irrelevante de 3s'},
             {'start_time': 20.0, 'end_time': 25.0, 'score': 8, 'reason': 'Corte irrelevante de 5s'},
-            {'start_time': 50.0, 'end_time': 70.0, 'score': 9, 'reason': 'Corte válido de 20s'},
+            {'start_time': 50.0, 'end_time': 70.0, 'score': 9, 'reason': 'Curto demais: 20s'},
+            {'start_time': 100.0, 'end_time': 140.0, 'score': 9, 'reason': 'Corte válido de 40s'},
         ]
         mock_response = MagicMock()
         mock_response.content = [MagicMock(text=json.dumps({'moments': short_moments}))]
@@ -78,8 +83,8 @@ class TestSelectMoments:
         result = select_moments(SAMPLE_TRANSCRIPT, anthropic_client=mock_anthropic, fmt='curto')
 
         assert len(result) == 1
-        assert result[0]['start_time'] == 50.0
-        assert result[0]['end_time'] == 70.0
+        assert result[0]['start_time'] == 100.0
+        assert result[0]['end_time'] == 140.0
 
 
 class TestInsertMoments:
