@@ -1,8 +1,9 @@
 # Sistema — `painel/`
 
 Referência de rotas, controllers e páginas. Visão conceitual em [`../ARCHITECTURE.md`](../ARCHITECTURE.md) seções 3 e 7.
+O lado Python da fronteira está em [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md).
 
-Última atualização: **11/08/2026**
+Última atualização: **13/08/2026**
 
 ---
 
@@ -49,9 +50,18 @@ Todas em `routes/web.php`. Grupo `['web','auth']` salvo indicação.
 
 | Método | Rota | Faz |
 |---|---|---|
-| GET | `/painel/videos` | Listagem filtrável (tabs ativos/falharam/todos, filtro "seguro apagar", busca, data) |
+| GET | `/painel/videos` | Listagem filtrável (tabs ativos/falharam/todos, filtro "seguro apagar", busca, data) + cards de métrica |
 | POST | `/painel/videos/{video}/delete-file` · `/bulk-delete-files` | Apaga arquivo via sidecar |
 | POST | `/painel/videos/purge-old` | **Única ação que apaga linha do banco**, por data |
+
+Desde 12/08/2026 (commit `2af0657`) a página recebe dois blocos de métrica montados no controller
+(`storageMetrics` e `downloadWindowMetrics` em `SourceVideoController`), renderizados por
+`video-summary-cards.tsx`: espaço livre/usado/total em GB e % de uso do volume de vídeos, mais a
+ocupação da janela de download. A limpeza por data ganhou atalhos de período.
+
+O espaço vem de `disk_free_space` sobre o disco `clips-videos` — é o **disco do host**, o mesmo que o
+disk guard de 2 GB do downloader mede. Número alto ali é o sintoma que precede o pipeline parar de
+baixar.
 
 ### Canais
 

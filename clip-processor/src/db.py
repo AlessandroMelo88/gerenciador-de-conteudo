@@ -54,16 +54,30 @@ def get_db_connection():
     return conn
 
 
-def update_status(conn, video_id, status, local_path=None):
+def update_status(conn, video_id, status, local_path=None, clear_local_path=False):
     """Atualiza o status de um vídeo na tabela source_videos.
+
+    `local_path=None` significa "não mexe na coluna" (compatibilidade com as
+    chamadas antigas), então zerar a coluna precisa de um sinal próprio:
+    `clear_local_path=True` grava NULL. Sem isso não havia como desocupar a
+    janela de download — que conta `local_path IS NOT NULL` —, e vídeo com
+    download falho segurava vaga pra sempre.
 
     Args:
         conn: conexão pymysql ativa
         video_id: youtube_video_id do vídeo a atualizar
         status: novo status (ex: 'downloading', 'downloaded', 'failed')
         local_path: caminho local do arquivo (opcional, usado quando status='downloaded')
+        clear_local_path: se True, seta local_path=NULL (ignora `local_path`)
     """
-    if local_path is not None:
+    if clear_local_path:
+        sql = (
+            'UPDATE source_videos '
+            'SET status=%s, local_path=NULL '
+            'WHERE youtube_video_id=%s'
+        )
+        params = (status, video_id)
+    elif local_path is not None:
         sql = (
             'UPDATE source_videos '
             'SET status=%s, local_path=%s '
@@ -154,6 +168,15 @@ def recover_stuck_selecting(conn):
     Também libera 'selecting' sem nenhum clip gerado (IA devolveu 0 momentos
     válidos e o status ficou preso) — esses não precisam esperar 2h.
 
+    Terceiro caso: 'selecting' com local_path NULL. A limpeza de disco
+    (`delete_source_video_file` e a purga de vídeos antigos no internal_api)
+    zera `local_path` sem tocar em `status`, então o registro fica preso num
+    estado que as duas queries acima nunca alcançam — elas exigem
+    `local_path IS NOT NULL`, e nenhum restart resolve. Sem o raw em disco não
+    existe seleção pra reprocessar, então vai para 'failed': é o estado honesto
+    (o insumo não existe mais) e libera a vaga da janela. O registro continua no
+    banco, com os clips que já tiverem sido gerados.
+
     Args:
         conn: conexão pymysql ativa
     """
@@ -174,16 +197,26 @@ def recover_stuck_selecting(conn):
         ")"
     )
 
+    sql_no_file = (
+        "UPDATE source_videos "
+        "SET status='failed' "
+        "WHERE status='selecting' "
+        "AND local_path IS NULL "
+        "AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)"
+    )
+
     try:
         with conn.cursor() as cur:
             cur.execute(sql_stuck, (SELECTING_STUCK_HOURS,))
             stuck = cur.rowcount
             cur.execute(sql_empty)
             empty = cur.rowcount
+            cur.execute(sql_no_file, (SELECTING_STUCK_HOURS,))
+            no_file = cur.rowcount
         conn.commit()
         _log(
             f'recover_stuck_selecting: {stuck} travado(s) + {empty} sem clip '
-            f'redefinido(s) para downloaded'
+            f'redefinido(s) para downloaded, {no_file} sem arquivo para failed'
         )
     except pymysql.OperationalError as exc:
         _log(f'AVISO: falha ao recuperar seleções presas: {exc}')

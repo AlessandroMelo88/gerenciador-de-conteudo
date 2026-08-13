@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch, call
 from src.pipeline_runner import (
     run_pipeline_once,
     run_ingest_cycle,
+    _discard_failed_download,
     _download_pending_videos,
     _select_pending_videos,
     DOWNLOAD_WINDOW_CURTO,
@@ -218,8 +219,20 @@ class TestSelectPendingVideos:
 
 class TestDownloadPendingVideos:
     def _make_cursor_with_side_effect(self, fetchone_results, fetchall_results):
+        """Cursor fake cujo fetchone cai num default depois da lista informada.
+
+        Os testes passam só as contagens da janela; as consultas auxiliares do
+        loop (checagem de `paused` e de clips que ainda precisam do raw) caem no
+        default `{'paused': 0, 'c': 0}` — assim adicionar uma query nova ao
+        caminho de download não estoura StopIteration em todos os testes.
+        """
+        pending = list(fetchone_results)
+
+        def _fetchone():
+            return pending.pop(0) if pending else {'paused': 0, 'c': 0}
+
         cur = MagicMock()
-        cur.fetchone.side_effect = fetchone_results
+        cur.fetchone.side_effect = _fetchone
         cur.fetchall.side_effect = fetchall_results
         cur.__enter__ = lambda s: s
         cur.__exit__ = MagicMock(return_value=False)
@@ -243,7 +256,7 @@ class TestDownloadPendingVideos:
                                   local_path='/app/videos/abc123.mp4')
 
     def test_failed_download_updates_status_to_failed(self):
-        """Download falho deve atualizar status para failed."""
+        """Download falho deve marcar failed já limpando local_path (libera a vaga)."""
         mock_conn = MagicMock()
         cur = self._make_cursor_with_side_effect(
             fetchone_results=[{'c': 0}, {'c': 0}],
@@ -255,7 +268,7 @@ class TestDownloadPendingVideos:
              patch('src.pipeline_runner.update_status') as mock_upd:
             _download_pending_videos(mock_conn)
 
-        mock_upd.assert_any_call(mock_conn, 'xyz999', 'failed')
+        mock_upd.assert_any_call(mock_conn, 'xyz999', 'failed', clear_local_path=True)
 
     def test_no_pending_videos_does_nothing(self):
         """Sem vídeos pending, não deve chamar download_video."""
@@ -320,6 +333,82 @@ class TestDownloadPendingVideos:
         assert job is not None, 'Job ingest_cycle não encontrado no scheduler'
         assert job.coalesce is True, 'coalesce deve ser True'
         assert job.max_instances == 1, 'max_instances deve ser 1'
+
+
+class TestDiscardFailedDownload:
+    """Download falho não pode deixar arquivo em disco nem local_path preenchido.
+
+    A janela de download conta `local_path IS NOT NULL`, então 'failed' com a
+    coluna suja ocupava vaga pra sempre e travava o pipeline inteiro.
+    """
+
+    def _make_conn(self, clips_need_raw=0):
+        cur = MagicMock()
+        cur.fetchone.side_effect = lambda: {'paused': 0, 'c': clips_need_raw}
+        cur.__enter__ = lambda s: s
+        cur.__exit__ = MagicMock(return_value=False)
+        conn = MagicMock()
+        conn.cursor.return_value = cur
+        return conn
+
+    def test_removes_raw_file_and_clears_local_path(self, tmp_path):
+        """Arquivo parcial em disco é apagado ANTES do UPDATE, e local_path vira NULL."""
+        raw = tmp_path / 'xyz999.mp4'
+        raw.write_bytes(b'parcial')
+        part = tmp_path / 'xyz999.mp4.part'
+        part.write_bytes(b'frag')
+        conn = self._make_conn()
+
+        seen_on_update = {}
+
+        def fake_update(*args, **kwargs):
+            seen_on_update['file_existed'] = raw.exists()
+
+        with patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)), \
+             patch('src.pipeline_runner.update_status', side_effect=fake_update) as mock_upd:
+            _discard_failed_download(conn, 'xyz999')
+
+        assert not raw.exists(), 'raw deveria ter sido apagado'
+        assert not part.exists(), 'artefato .part deveria ter sido apagado'
+        assert seen_on_update['file_existed'] is False, 'apagar disco vem antes do UPDATE'
+        mock_upd.assert_called_once_with(conn, 'xyz999', 'failed', clear_local_path=True)
+
+    def test_missing_file_still_clears_local_path(self, tmp_path):
+        """Sem arquivo em disco (falha antes de escrever nada), segue e limpa a coluna."""
+        conn = self._make_conn()
+
+        with patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)), \
+             patch('src.pipeline_runner.update_status') as mock_upd:
+            _discard_failed_download(conn, 'nada404')
+
+        mock_upd.assert_called_once_with(conn, 'nada404', 'failed', clear_local_path=True)
+
+    def test_keeps_local_path_when_file_removal_fails(self, tmp_path):
+        """Se o arquivo sobrevive à remoção, não limpa local_path — banco não divergir do disco."""
+        raw = tmp_path / 'trava01.mp4'
+        raw.write_bytes(b'preso')
+        conn = self._make_conn()
+
+        with patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)), \
+             patch('src.pipeline_runner._cleanup_partial'), \
+             patch('src.pipeline_runner.update_status') as mock_upd:
+            _discard_failed_download(conn, 'trava01')
+
+        assert raw.exists()
+        mock_upd.assert_called_once_with(conn, 'trava01', 'failed')
+
+    def test_preserves_raw_when_clips_still_need_it(self, tmp_path):
+        """Clip em pending_cut/cutting ainda lê o raw — não apaga nem zera local_path."""
+        raw = tmp_path / 'vivo123.mp4'
+        raw.write_bytes(b'necessario')
+        conn = self._make_conn(clips_need_raw=1)
+
+        with patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)), \
+             patch('src.pipeline_runner.update_status') as mock_upd:
+            _discard_failed_download(conn, 'vivo123')
+
+        assert raw.exists(), 'raw de clip em corte não pode ser apagado'
+        mock_upd.assert_called_once_with(conn, 'vivo123', 'failed')
 
 
 class TestRunIngestCycle:

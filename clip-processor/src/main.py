@@ -48,6 +48,32 @@ def _start_internal_api():
     _internal_app.run(host='0.0.0.0', port=8090, use_reloader=False, debug=False)
 
 
+def run_recovery_once():
+    """Roda os recoveries de estado preso. Agendado, não só no boot.
+
+    Enquanto isso existia apenas no bloco de startup, tudo que travasse depois
+    do container subir ficava preso até o próximo restart — na prática, dias.
+    Também cobre a janela do erro `Errno 111` (clip-processor sobe antes do
+    MySQL): o recovery de boot morre no except e antes ninguém tentava de novo.
+
+    Falha é logada e engolida de propósito — recovery é manutenção oportunista,
+    não pode derrubar o scheduler.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        recover_stuck_downloads(conn)
+        recover_stuck_selecting(conn)
+    except Exception as e:
+        log(f'[ACQU] Aviso: recovery periódico falhou — {e}')
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
 scheduler = BlockingScheduler(timezone='America/Sao_Paulo')
 
 
@@ -95,6 +121,19 @@ scheduler.add_job(
     misfire_grace_time=900,
 )
 
+# Recovery de estados presos a cada 30min. Cadência menor que
+# SELECTING_STUCK_HOURS (2h) pra pegar o travamento logo depois de ele passar do
+# limite, em vez de esperar o próximo restart do container.
+scheduler.add_job(
+    run_recovery_once,
+    'interval',
+    minutes=30,
+    id='state_recovery',
+    coalesce=True,
+    max_instances=1,
+    misfire_grace_time=900,
+)
+
 signal.signal(signal.SIGTERM, shutdown)
 signal.signal(signal.SIGINT, shutdown)
 
@@ -109,13 +148,9 @@ if __name__ == '__main__':
     # Recovery: vídeos presos em 'downloading' voltam para 'pending' e os
     # presos em 'selecting' voltam para 'downloaded' (senão seguram slot da
     # janela de download pra sempre e o pipeline para de baixar).
-    try:
-        conn = get_db_connection()
-        recover_stuck_downloads(conn)
-        recover_stuck_selecting(conn)
-        conn.close()
-    except Exception as e:
-        log(f'[ACQU] Aviso: recovery on startup falhou — {e}')
+    # Mesma rotina do job de 30min — se falhar aqui (MySQL ainda subindo), o
+    # próximo tick agendado cobre, sem depender de restart.
+    run_recovery_once()
 
     # Sidecar HTTP interno consumido pelo painel Laravel (Phase 8).
     # Thread daemon → morre com o processo principal. Iniciado ANTES do ciclo

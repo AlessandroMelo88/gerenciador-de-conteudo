@@ -10,7 +10,8 @@ from zoneinfo import ZoneInfo
 import redis as redis_lib
 
 from src.db import get_db_connection, update_status
-from src.downloader import cleanup_stale_downloads, download_video
+from src.downloader import VIDEOS_DIR, cleanup_stale_downloads, download_video
+from src.queue_controls import _CLIP_STATUSES_NEED_RAW, _cleanup_partial
 from src.publisher import publish_pending_clips
 from src.rss_poller import poll_all_channels
 from src.telegram_notifier import notify
@@ -86,6 +87,63 @@ def _select_pending_videos(db_conn) -> list:
     return result
 
 
+def _clips_need_raw(db_conn, video_id: str) -> bool:
+    """Diz se algum clip desse vídeo ainda precisa do arquivo bruto em disco.
+
+    `process_clip` lê o .mp4 original na hora de cortar, então clip em
+    'pending_cut'/'cutting' segura o raw. O guard do sidecar
+    (`can_delete_raw`) só olha `source_videos.status`, que nunca recebe
+    'cutting' — aqui a checagem é direto em `generated_clips.status`.
+    """
+    placeholders = ', '.join(['%s'] * len(_CLIP_STATUSES_NEED_RAW))
+    with db_conn.cursor() as cur:
+        cur.execute(
+            'SELECT COUNT(*) AS c FROM generated_clips gc '
+            'JOIN source_videos sv ON sv.id = gc.source_video_id '
+            f'WHERE sv.youtube_video_id = %s AND gc.status IN ({placeholders})',
+            (video_id, *_CLIP_STATUSES_NEED_RAW),
+        )
+        row = cur.fetchone()
+    return bool(row and row.get('c'))
+
+
+def _discard_failed_download(db_conn, video_id: str) -> None:
+    """Marca o download como 'failed' e libera a vaga que ele ocupava na janela.
+
+    Antes só rodava `update_status(..., 'failed')`: o .mp4 meio baixado ficava no
+    disco e `local_path` continuava preenchido, então a contagem da janela
+    (`local_path IS NOT NULL`) considerava o vídeo ocupando slot PARA SEMPRE —
+    com 58 'failed' acumulados o déficit virou 0 e o pipeline parou de baixar.
+
+    Ordem obrigatória (CLAUDE.md, operações destrutivas item 2): apaga o arquivo
+    em disco primeiro, com caminho absoluto, confere que ele realmente saiu e só
+    então zera `local_path`. Se a remoção falhar, mantém `local_path` — banco e
+    disco divergentes são pior que uma vaga presa.
+    """
+    if _clips_need_raw(db_conn, video_id):
+        # Caso raro (falha de re-download com clips já gerados): o raw ainda é
+        # insumo do corte, então não apaga nem zera a coluna.
+        update_status(db_conn, video_id, 'failed')
+        _log(f'Download FALHOU: {video_id} — raw preservado (clips em pending_cut/cutting)')
+        return
+
+    raw_path = f'{VIDEOS_DIR}/{video_id}.mp4'
+    # Reaproveita o cleanup do queue_controls: apaga <id>.mp4, .part e .ytdl com
+    # caminho absoluto, tolerando arquivo inexistente e logando OSError.
+    _cleanup_partial(video_id, videos_dir=VIDEOS_DIR)
+
+    if os.path.exists(raw_path):
+        update_status(db_conn, video_id, 'failed')
+        _log(
+            f'Download FALHOU: {video_id} — AVISO: {raw_path} ainda existe, '
+            'local_path mantido pra não divergir de disco'
+        )
+        return
+
+    update_status(db_conn, video_id, 'failed', clear_local_path=True)
+    _log(f'Download FALHOU: {video_id} — arquivo removido e local_path limpo')
+
+
 def _download_pending_videos(db_conn) -> None:
     """Baixa vídeos com status 'pending', um por vez, atualizando status no DB."""
     # Antes de ocupar disco novo, devolve o que ficou preso em download morto —
@@ -111,7 +169,7 @@ def _download_pending_videos(db_conn) -> None:
         update_status(db_conn, video_id, 'downloading')
         success = download_video(video_id)
         if success:
-            local_path = f'/app/videos/{video_id}.mp4'
+            local_path = f'{VIDEOS_DIR}/{video_id}.mp4'
             update_status(db_conn, video_id, 'downloaded', local_path=local_path)
             _log(f'Download OK: {video_id}')
         else:
@@ -125,8 +183,7 @@ def _download_pending_videos(db_conn) -> None:
                 update_status(db_conn, video_id, 'pending')
                 _log(f'Download abortado por pause — volta pra pending: {video_id}')
             else:
-                update_status(db_conn, video_id, 'failed')
-                _log(f'Download FALHOU: {video_id}')
+                _discard_failed_download(db_conn, video_id)
 
 
 def run_pipeline_once(db_conn=None, redis_client=None):

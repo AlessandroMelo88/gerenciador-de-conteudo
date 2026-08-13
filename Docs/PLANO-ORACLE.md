@@ -3,7 +3,7 @@
 **Objetivo:** tirar o pipeline do SSD da máquina local e deixar na máquina só o código de desenvolvimento.
 **Restrição inegociável:** custo R$ 0. Nenhuma cobrança no cartão, em nenhum cenário.
 
-Status geral: **NÃO INICIADO** · Última atualização: **11/08/2026**
+Status geral: **NÃO INICIADO** (fase 1, pré-requisitos de código, em andamento) · Última atualização: **13/08/2026**
 
 ---
 
@@ -99,16 +99,25 @@ Marcar o checkbox ao concluir. Cada fase termina com uma verificação objetiva.
 
 **Verificação:** `Cost Analysis` do mês corrente em US$ 0,00 e orçamento ativo.
 
-### Fase 1 — Corrigir os vazamentos antes de migrar  ⬜ NÃO INICIADA
+### Fase 1 — Corrigir os vazamentos antes de migrar  🟡 EM ANDAMENTO (12–13/08/2026)
 
 Migrar sem isso só transfere o problema: em ritmo normal, 8.5 GB de `_raw` a cada poucas semanas enche 150 GB do mesmo jeito.
 
-- [ ] Bug 2 — apagar `<clip_id>_raw.mp4` após o clip final existir ([`BUGS.md`](BUGS.md#2))
-- [ ] Bug 5 — mesma varredura para `_subtitled.mp4`
-- [ ] Bug 4 — recuperação para `cutting` e `publishing` no boot
+- [x] Bug 2 — `<clip_id>_raw.mp4` apagado na finalização do vídeo fonte (12/08/2026, commit `5009112`)
+- [x] Bug 5 — mesma varredura para `_subtitled.mp4` (12/08/2026)
+- [x] Bug 9 — download falho apaga o arquivo e zera `local_path` (13/08/2026)
+- [x] Bug 4, parte 1 — `recover_stuck_selecting` agora roda a cada 30 min e trata `local_path IS NULL` (13/08/2026)
+- [ ] Bug 4, parte 2 — recuperação para `cutting`, `publishing` e `transcribing` ([`BUGS.md`](BUGS.md#4-parcial--estados-sem-recuperação-automática-seguram-arquivo-em-disco))
+- [ ] Bug 11 — container não honra SIGTERM; todo restart pode criar estado preso novo
+- [ ] Bug 10 — reconciliar os 287 `clip_path` que apontam para arquivo inexistente
+- [ ] Limpeza retroativa do resíduo de `_raw`/`_subtitled` anterior a 12/08/2026
 - [ ] Rebuild e validação local: `docker compose build clip-processor && docker compose up -d clip-processor`
 
 **Verificação:** um ciclo completo de corte sem deixar `_raw`/`_subtitled` para trás.
+
+Os bugs 4 e 11 são os que mais importam para a migração: numa instância de 2 OCPU o corte é mais lento,
+a janela de tempo para o processo morrer no meio de um `cutting` cresce, e sem recuperação automática
+cada ocorrência segura arquivo em 150 GB dedicados em vez de 228 GB compartilhados.
 
 ### Fase 2 — Provisionar a instância  ⬜ NÃO INICIADA
 
