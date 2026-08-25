@@ -6,7 +6,11 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
     curl \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://deno.land/install.sh | sh
+ENV PATH="/root/.deno/bin:${PATH}"
 
 # whisper-cpp local — Transcrição Local do painel (não usado pelo pipeline principal,
 # que continua na Groq Whisper API via transcriber.py)

@@ -104,12 +104,12 @@ def _generate_via_anthropic(clip_context: dict, anthropic_client) -> dict:
 
 
 def _generate_via_groq(clip_context: dict) -> dict:
-    """Gera metadata via Groq LLaMA 3.3-70b (fallback sempre disponível)."""
+    """Gera metadata via Groq (fallback sempre disponível)."""
     from groq import Groq
     client = Groq()
-    _log('Fallback: gerando metadata via Groq LLaMA 3.3-70b')
+    _log('Fallback: gerando metadata via Groq LLM')
     response = client.chat.completions.create(
-        model='llama-3.3-70b-versatile',
+        model='openai/gpt-oss-120b',
         messages=[
             {'role': 'system', 'content': SYSTEM_PROMPT},
             {'role': 'user', 'content': _build_prompt(clip_context)},

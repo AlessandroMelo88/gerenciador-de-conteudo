@@ -23,14 +23,9 @@ SYSTEM_PROMPT = (
     "Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos. "
     "Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, "
     "de PREFERÊNCIA entre 30 segundos e 3 minutos (end_time - start_time >= 30 e <= 180 segundos). "
-    "NUNCA selecione segmentos com duração inferior a 30 segundos. "
-    "O segmento precisa ter ASSUNTO COMPLETO: começo, meio e fim de um mesmo raciocínio — a fala "
-    "que introduz o tema, o desenvolvimento e o desfecho ou a conclusão. Em 3 ou 4 segundos não "
-    "existe assunto nenhum; um grito de gol, uma interjeição ou uma frase solta fora de contexto "
-    "NÃO servem. Se o raciocínio interessante começa antes do trecho que você escolheria, comece "
-    "o segmento onde o tema é introduzido, mesmo que isso o deixe mais longo. "
-    "Para futebol: priorize análise tática, debate acalorado, revelação de bastidores e o COMENTÁRIO "
-    "sobre um gol (a leitura do que aconteceu) — nunca o instante da narração do gol isolado. "
+    "Para vídeos curtos (Shorts com duração total menor que 30s), selecione o segmento do vídeo completo. "
+    "O segmento precisa ter ASSUNTO COMPLETO: começo, meio e fim de um mesmo raciocínio. "
+    "Para futebol: priorize análise tática, debate acalorado, revelação de bastidores e o COMENTÁRIO sobre um gol. "
     "Para podcasts: priorize discussão intensa, revelação importante, momento de conflito ou humor. "
     "Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente "
     "(10 = viral garantido, 1 = sem valor). "
@@ -109,12 +104,12 @@ def _select_via_anthropic_client(client, transcript_text: str, system_prompt: st
 
 
 def _select_via_groq(transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -> list[dict]:
-    """Seleciona momentos via Groq LLaMA 3.3-70b (fallback sempre disponível)."""
+    """Seleciona momentos via Groq (fallback sempre disponível)."""
     from groq import Groq
     client = Groq()
-    _log('[SELECTOR] Usando Groq LLaMA 3.3-70b')
+    _log('[SELECTOR] Usando Groq LLM')
     response = client.chat.completions.create(
-        model='llama-3.3-70b-versatile',
+        model='openai/gpt-oss-120b',
         messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': transcript_text},
@@ -172,18 +167,19 @@ def _enforce_longform_duration(moments: list[dict], transcript_duration: float) 
     return adjusted
 
 
-def _filter_shortform_duration(moments: list[dict]) -> list[dict]:
-    """Descarta momentos do formato 'curto' com duração inferior a MIN_SHORTFORM_SECONDS (30s)
+def _filter_shortform_duration(moments: list[dict], transcript_duration: float = None) -> list[dict]:
+    """Descarta momentos do formato 'curto' com duração inferior ao mínimo aceitável
     ou superior a MAX_SHORTFORM_SECONDS (180s).
-
-    Descarta em vez de esticar (ao contrário de `_enforce_longform_duration`): trecho
-    de 3s esticado pra 30s não vira assunto, só pega 27s de contexto aleatório em volta.
     """
     valid = []
+    min_required = MIN_SHORTFORM_SECONDS
+    if transcript_duration and transcript_duration > 5:
+        min_required = min(MIN_SHORTFORM_SECONDS, transcript_duration - 0.5)
+
     for m in moments:
         duration = float(m.get('end_time', 0)) - float(m.get('start_time', 0))
-        if duration < MIN_SHORTFORM_SECONDS:
-            _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que o mínimo ({MIN_SHORTFORM_SECONDS}s)')
+        if duration < min_required:
+            _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que o mínimo ({min_required:.1f}s)')
             continue
         if duration > MAX_SHORTFORM_SECONDS:
             _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s maior que o máximo ({MAX_SHORTFORM_SECONDS}s)')
@@ -199,7 +195,7 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto') 
       - Se anthropic_client injetado (testes): usa diretamente, sem fallback.
       - Senão, tenta em ordem:
           1. Anthropic Claude Haiku  (ANTHROPIC_API_KEY configurada e com crédito)
-          2. Groq LLaMA 3.3-70b     (GROQ_API_KEY — sempre disponível como fallback)
+          2. Groq                    (GROQ_API_KEY — sempre disponível como fallback)
 
     Args:
         transcript: dict com {'video_id', 'text', 'segments'} — output de transcribe_video()
@@ -215,14 +211,14 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto') 
     max_moments = 1 if is_longo else 3
 
     lines = []
+    transcript_duration = 0.0
     for seg in transcript.get('segments', []):
         start = int(seg['start'])
         end = int(seg['end'])
-        lines.append(f'[{start}s-{end}s] {seg["text"]}')
+        if end > transcript_duration:
+            transcript_duration = float(end)
+        lines.append(f'[{start:02d}:{start%60:02d}-{end:02d}:{end%60:02d}] {seg["text"]}')
     transcript_text = '\n'.join(lines)
-
-    segments = transcript.get('segments', [])
-    transcript_duration = float(segments[-1]['end']) if segments else 0.0
 
     # Groq free tier: ~12k TPM. Modo curto trunca bem cedo (~8k chars); modo longo
     # precisa "ver" o vídeo inteiro pra achar um segmento de 7-20min, então usa
