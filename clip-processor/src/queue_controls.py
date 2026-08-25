@@ -170,13 +170,10 @@ def can_delete_raw(conn, source_video_id: int) -> tuple[bool, str]:
 
 
 def _cleanup_partial(youtube_video_id: str, videos_dir: str = '/app/videos') -> None:
-    """Apaga o raw e os temporários de download de um vídeo (best-effort).
-
-    `videos_dir` existe só pra quem já tem o diretório em mão (e pros testes);
-    o default segue o caminho de produção dentro do container.
-    """
-    base = f'{videos_dir}/{youtube_video_id}'
-    for path in (f'{base}.mp4', f'{base}.mp4.part', f'{base}.mp4.ytdl'):
+    """Apaga o raw e os temporários de download de um vídeo (best-effort)."""
+    import glob
+    pattern = f'{videos_dir}/{youtube_video_id}*'
+    for path in glob.glob(pattern):
         if os.path.exists(path):
             try:
                 os.remove(path)

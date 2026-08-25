@@ -230,7 +230,7 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             os.rename(subtitled_path, final_clip_path)
 
         duration = max(float(clip['end_time']) - float(clip['start_time']), 1.0)
-        extract_thumbnail(final_clip_path, thumbnail_path, at_seconds=duration / 2)
+        extract_thumbnail(final_clip_path, thumbnail_path, at_seconds=1.0)
 
         with conn.cursor() as cur:
             cur.execute(

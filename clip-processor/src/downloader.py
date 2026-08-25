@@ -157,6 +157,7 @@ def download_video(video_id: str, output_path: str = None) -> bool:
         'no_color': True,
         'noprogress': True,
         'progress_hooks': [_abort_if_paused],
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
     }
 
     for attempt in range(1, 4):
