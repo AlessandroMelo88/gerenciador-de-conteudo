@@ -1,4 +1,6 @@
 # hadolint — lint dos Dockerfiles (clip-processor/Dockerfile, docker/php, docker/nginx)
+# Só warning+ reprova; info/style (ex.: DL3015 --no-install-recommends) ficam como sugestão.
+failure-threshold: warning
 ignored:
   - DL3008  # apt-get sem versão fixa: imagens base já são fixadas por tag
   - DL3013  # pip install sem versão fixa: versões vêm de requirements.txt
