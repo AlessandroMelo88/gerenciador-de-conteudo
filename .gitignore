@@ -7,6 +7,9 @@
 painel/.env
 painel/.env.*
 !painel/.env.example
+*.pem
+*.p12
+auth.json
 
 # YouTube OAuth (tokens e client secrets)
 youtube/token*.json
@@ -20,19 +23,27 @@ youtube/old_client_secret.json
 videos/*
 !videos/.gitkeep
 *.part
+*.ytdl
+*.temp.mp4
 
-# Backups locais — manter apenas o marcador; dados não entram no Git
-backups/mysql/*.sql.gz
-backups/mysql/*.sql.gz.sha256
+# Dumps e backups de banco — nunca no Git. Usar backups/mysql + scripts/*-mysql.sh
+backups/*
+!backups/mysql/
+backups/mysql/*
+!backups/mysql/.gitkeep
+backup*.sql
+*.sql.gz
+*.sql.gz.sha256
+*.dump
 
 # Modelos Whisper (download local, muito pesados)
 whisper/models/
 
-# Dados persistentes do n8n
+# Dados persistentes do n8n (serviço desativado, mantido por histórico)
 n8n/data/
 
 # ============================================================
-# Python
+# Python (clip-processor)
 # ============================================================
 __pycache__/
 *.py[cod]
@@ -40,17 +51,64 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
-*.egg-info/
-.mypy_cache/
 .ruff_cache/
+.mypy_cache/
+*.egg-info/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+clip-processor/build/
+clip-processor/dist/
+
+# ============================================================
+# PHP / Laravel (painel) — complementa painel/.gitignore
+# ============================================================
+painel/vendor/
+painel/.phpunit.result.cache
+painel/.phpunit.cache/
+painel/storage/logs/*.log
+painel/storage/pail
+painel/phpstan-baseline-local.neon
+
+# ============================================================
+# Node / frontend
+# ============================================================
+node_modules/
+painel/public/build/
+painel/public/hot
+.eslintcache
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# ============================================================
+# Logs e temporários
+# ============================================================
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+.cache/
 
 # ============================================================
 # Sistema operacional / IDE
 # ============================================================
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
 .claude/
 .cursor/
+.codex/
 
-# graphify
+# ============================================================
+# Ferramentas
+# ============================================================
+# graphify: o grafo (graph.json, GRAPH_REPORT.md) é versionado; cache e custo não
 graphify-out/cost.json
+graphify-out/cache/
+# Docker Compose local
+docker-compose.override.yml
+compose.override.yml
