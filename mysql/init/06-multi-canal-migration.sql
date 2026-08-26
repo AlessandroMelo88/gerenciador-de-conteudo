@@ -137,8 +137,8 @@ DEALLOCATE PREPARE stmt;
 
 INSERT IGNORE INTO destination_channels (slug, name, niche, youtube_channel_id, credit_template, active)
 VALUES
-  ('futebol-em-cortes', 'Futebol em Cortes', 'futebol', 'UC_PLACEHOLDER_FUTEBOL', 'Créditos: @{channel_handle}', TRUE),
-  ('podcast-cortes',    'Podcast Cortes',     'podcast', 'UC_PLACEHOLDER_PODCAST',  'Créditos: @{channel_handle}', TRUE);
+  ('futebol-em-cortes', 'Futebol em Cortes', 'futebol', 'UC_PLACEHOLDER_FUTEBOL', 'Créditos: @{channel_handle}', FALSE),
+  ('podcast-cortes',    'Podcast Cortes',     'podcast', 'UC_PLACEHOLDER_PODCAST',  'Créditos: @{channel_handle}', FALSE);
 
 -- =============================================================================
 -- Seção 5: UPDATE source_channels com target_niche padrão e blacklist inicial
