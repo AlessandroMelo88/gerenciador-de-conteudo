@@ -28,23 +28,24 @@ sozinha faz o modelo entregar 30 s picados só para bater a régua.
 
 ## 2. Topologia
 
-O `docker-compose.yml` fica **um nível acima** deste projeto, em `/server/wordpress/`, e é **compartilhado com outros projetos** (kelnab, feeb, placebeads, riodelux, gringo). O `.env` que o compose lê é o da raiz `wordpress/` — **não** o `canaldecortes/.env`.
+O `docker-compose.yml` fica na **raiz deste repositório** e foi configurado como um projeto Compose isolado. Ele usa a rede e os volumes próprios do projeto, não define `container_name`, não publica MySQL/Redis no host e não reutiliza mounts de outros Compose. O `.env` lido pelo Compose é o `.env` da raiz deste repositório.
 
 | Serviço | Dono | Portas no host | Papel para o Canal de Cortes |
 |---|---|---|---|
 | `clip-processor` | **exclusivo** | **nenhuma** | Daemon Python: todo o pipeline + sidecar HTTP interno na 8090 |
-| `nginx` | compartilhado | 80 | Serve o vhost `canaldecortes.local` |
-| `php` | compartilhado | — (9000 interno) | PHP-FPM que roda o painel Laravel |
-| `mysql:8.4` | compartilhado | 3306 | Hospeda o database `clips_automation` |
-| `redis:alpine` | compartilhado | 6379 | Dedup + cota diária (db 0 = pipeline, db 1 = painel) |
+| `nginx` | exclusivo | `8088 → 80` | Serve o painel Laravel |
+| `php` | exclusivo | — (9000 interno) | PHP-FPM que roda o painel Laravel |
+| `mysql:8.4` | exclusivo | — (3306 interno) | Hospeda o database `clips_automation` em volume nomeado |
+| `mysql-backup` | exclusivo, perfil `backup` | — | Gera dump diário compactado e checksum |
+| `redis:7-alpine` | exclusivo | — (6379 interno) | Dedup + cota diária (db 0 = pipeline, db 1 = painel) |
 
-`postgres`, `minio` e `minio-init` pertencem a outros projetos e não têm relação com este.
+Este projeto não depende de PostgreSQL, MinIO ou serviços de outros Compose.
 
-**Serviços mortos, mantidos comentados no compose apenas por histórico:** `n8n` e `cloudflared`. O n8n foi substituído pelo APScheduler dentro do `clip-processor` (ciclo do pipeline) e pelo `Schedule::call()` do Laravel (`painel/routes/console.php:17-27`, resumo diário 18h BRT). O workflow em `n8n/workflows/` está com `"active": false` e o SQLite dele não é escrito desde 17/jun.
+**Serviços opcionais ou históricos:** `mysql-backup` só é ativado pelo perfil `backup`; `n8n` e `cloudflared` foram substituídos pelo APScheduler dentro do `clip-processor` e pelo scheduler do Laravel. O workflow em `n8n/workflows/` está com `"active": false`.
 
 ### Acesso HTTP
 
-Não existe rota `/painel` no nginx — `/painel` é apenas o caminho no filesystem dos containers. O acesso é por **vhost**: `canaldecortes.local` → `docker/nginx/canaldecortes.conf` → root `/var/www/html/painel/public` → `fastcgi_pass php:9000`.
+Não existe rota `/painel` no nginx — `/painel` é apenas o caminho no filesystem dos containers. O acesso local é por `http://localhost:8088` → `docker/nginx/canaldecortes.conf` → root `/var/www/html/painel/public` → `fastcgi_pass php:9000`.
 
 ---
 
@@ -85,7 +86,7 @@ Flask em `0.0.0.0:8090`, thread daemon, **sem porta publicada** — só alcanç�
 | `/internal/delete-source-video` | `{source_video_id}` | `{deleted, freed_bytes}` |
 | `/internal/purge-old-videos` | `{before_date}` | `{deleted_rows, freed_bytes}` |
 
-Não há rota de health check.
+`GET /health` no sidecar responde `{"status":"ok"}` e é usado pelo healthcheck do container. As rotas operacionais continuam sem porta publicada e protegidas pelo token interno.
 
 O caminho inverso é `telegram_notifier.py` → `POST /internal/pipeline-event` no painel, com o **mesmo token**. Eventos: `upload_published`, `pipeline_failure`, `clip_ttl_warning`, `daily_summary`. É best-effort: falha ali nunca propaga para o pipeline.
 
@@ -188,7 +189,7 @@ pending_cut → cutting → pending ──► publishing → published
 
 ## 6. Schema (`clips_automation`)
 
-**As tabelas do pipeline não são geridas por migrations do Laravel.** Elas nascem de SQL bruto em `mysql/init/01..07`, aplicado **manualmente** via `docker exec`. O painel apenas as mapeia com Eloquent e `$table` explícito.
+**As tabelas do pipeline não são geridas por migrations do Laravel.** Elas nascem de SQL bruto em `mysql/init/01..07`, aplicado automaticamente pelo entrypoint oficial do MySQL quando o volume `mysql_data` é criado. O painel apenas as mapeia com Eloquent e `$table` explícito. Backups são gerados pelo serviço opcional `mysql-backup` em `backups/mysql/`; a restauração exige confirmação explícita pelo script de operação.
 
 Consequências práticas:
 - `php artisan migrate:fresh` **não** reconstrói o schema do pipeline.

@@ -47,12 +47,61 @@ Copie `.env.example` para `.env` na raiz do projeto e preencha as chaves necess�
 - `GROQ_API_KEY` — transcrição de áudio (Whisper) e fallback de seleção de momentos.
 - `CLIPS_DB_PASSWORD` — senha do usuário MySQL do pipeline.
 - `CLIP_PROCESSOR_INTERNAL_TOKEN` — token compartilhado entre o painel e o sidecar HTTP interno do clip-processor (mesmo valor nos dois lados).
+- `PIPELINE_ENABLED` — deixe `false` no primeiro boot; passe para `true` somente depois de configurar as chaves de IA e o OAuth do canal de destino.
 - Variáveis opcionais (Telegram, Cloudflare Tunnel, TTL de clips pendentes, cota diária de uploads) — ver comentários em `.env.example`.
 
-## Rodando localmente
+## Rodando localmente (Compose isolado)
+
+O Compose deste repositório usa o projeto `canaldecortes`, a porta `8088`, volumes próprios e a rede padrão gerenciada pelo Compose. Não define `container_name`, não publica MySQL/Redis no host e não reutiliza mounts de outros projetos.
+
+Na primeira execução:
 
 ```bash
-docker compose up -d --build
+cp .env.example .env
+cp painel/.env.example painel/.env
+# Preencha CLIPS_DB_PASSWORD, MYSQL_ROOT_PASSWORD, APP_KEY e o token interno
+# antes de subir (os valores devem ser longos e aleatórios).
+docker compose up -d --build mysql redis
+docker compose run --rm panel-init
+docker compose up -d php queue scheduler nginx clip-processor
 ```
 
-O painel fica disponível via Nginx (ver `docker/nginx_conf`); o `clip-processor` roda como daemon em background, sem porta exposta ao host.
+O painel fica em [http://localhost:8088](http://localhost:8088). O serviço `clip-processor` sobe com o sidecar HTTP disponível, mas o pipeline permanece pausado enquanto `PIPELINE_ENABLED=false`.
+
+Depois de configurar `GROQ_API_KEY`/`ANTHROPIC_API_KEY`, colocar o `client_secret.json` em `youtube/` e concluir o OAuth, habilite o processamento:
+
+```bash
+sed -i '' 's/^PIPELINE_ENABLED=.*/PIPELINE_ENABLED=true/' .env
+docker compose up -d --force-recreate clip-processor
+```
+
+Comandos úteis:
+
+```bash
+docker compose ps
+docker compose logs -f nginx php clip-processor
+docker compose exec php php artisan migrate:status
+```
+
+## Proteção dos dados
+
+O banco atual é **MySQL 8.4**, não PostgreSQL. Não troque para SQLite neste stack: o painel Laravel, o worker Python e a fila fazem escritas concorrentes; SQLite é mais adequado para processo único e pode gerar bloqueios (`database is locked`) nesse cenário. A segurança dos dados vem de volume persistente, backup verificável e cópia fora do disco principal.
+
+O backup diário fica no serviço opcional `mysql-backup`, com retenção padrão de 30 dias:
+
+```bash
+docker compose --profile backup up -d mysql-backup
+./scripts/backup-mysql.sh
+```
+
+O backup manual gera `backups/mysql/*.sql.gz` e um arquivo `.sha256`. Por padrão ele fica no mesmo diretório do projeto; para proteger contra falha do disco, configure `MYSQL_BACKUP_DIR` em `.env` para outro disco ou armazenamento sincronizado e reinicie o serviço de backup. Os backups entram no `.gitignore` e não são enviados ao Git.
+
+Para restaurar, pare o processamento antes e confirme explicitamente a operação:
+
+```bash
+docker compose stop clip-processor queue scheduler
+CONFIRM_RESTORE=I_UNDERSTAND ./scripts/restore-mysql.sh ./backups/mysql/SEU_BACKUP.sql.gz
+docker compose start queue scheduler clip-processor
+```
+
+Não use `docker compose down -v`: isso remove os volumes nomeados do MySQL e do Redis.

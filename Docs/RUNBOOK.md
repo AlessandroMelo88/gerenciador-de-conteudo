@@ -11,11 +11,9 @@ Verificado em **13/08/2026**.
 
 ## Convenções
 
-- Todos os comandos rodam de `/Users/alessandrobm1/develop/server/wordpress/` (onde vive o
-  `docker-compose.yml`), **não** de `canaldecortes/`.
-- O `docker-compose.yml` é **compartilhado** com kelnab, feeb, placebeads, riodelux e gringo. Mexer
-  apenas no serviço `clip-processor`. **Nunca** `docker compose down` sem nome de serviço.
-- O `.env` que o compose lê é o da **raiz `wordpress/`**.
+- Todos os comandos rodam da raiz deste repositório, onde vivem `docker-compose.yml` e `.env`.
+- O Compose é **isolado** deste projeto: volumes, rede e serviços têm escopo próprio. Não use `container_name` nem publique MySQL/Redis no host para tentar integrá-lo a outro Compose.
+- **Nunca** use `docker compose down -v` em uma instalação com dados: isso remove os volumes nomeados.
 
 ---
 
@@ -243,14 +241,39 @@ Ao montar `manter.txt`, extrair o **id** (prefixo numérico antes de `.` ou `_`)
 
 ---
 
-## Backup antes de DELETE em massa
+## Backup e restauração
+
+O projeto usa MySQL 8.4 com volume nomeado `mysql_data`. O serviço de backup faz um dump consistente
+sem travar as tabelas (`--single-transaction`), comprime em gzip, grava checksum SHA-256 e mantém,
+por padrão, 30 dias de arquivos.
 
 ```bash
-docker exec mysql mysqldump -uroot -p"$P" clips_automation source_videos generated_clips > backup_$(date +%Y%m%d_%H%M).sql
+# manter a rotina diária ligada
+docker compose --profile backup up -d mysql-backup
+
+# gerar e verificar um backup imediatamente
+./scripts/backup-mysql.sh
+latest="$(find backups/mysql -name 'clips_automation_*.sql.gz' -type f -print | sort | tail -n 1)"
+gzip -t "$latest"
+(cd backups/mysql && sha256sum -c "$(basename -- "${latest}.sha256")")
+```
+
+`MYSQL_BACKUP_DIR` aponta, por padrão, para `./backups/mysql`. Para proteção contra perda do disco
+principal, aponte essa variável para outro disco ou armazenamento sincronizado e recrie o serviço.
+Backup no mesmo disco protege contra exclusão acidental e corrupção lógica, mas não contra falha
+física do disco ou perda da máquina.
+
+Para restaurar, primeiro pare o pipeline e confirme explicitamente. O script valida gzip e checksum
+antes de enviar o dump ao MySQL:
+
+```bash
+docker compose stop clip-processor queue scheduler
+CONFIRM_RESTORE=I_UNDERSTAND ./scripts/restore-mysql.sh ./backups/mysql/SEU_BACKUP.sql.gz
+docker compose start queue scheduler clip-processor
 ```
 
 As FKs **não** têm `ON DELETE CASCADE`: apagar `source_videos` com clips vinculados falha por FK.
-Ordem correta: **clips primeiro, depois vídeos**.
+Ordem correta: **clips primeiro, depois vídeos**. Faça o backup antes de qualquer DELETE em massa.
 
 ---
 
