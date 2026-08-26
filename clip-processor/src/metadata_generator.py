@@ -25,6 +25,8 @@ from src.fact_check_prompt import METADATA_FACT_CHECK_INSTRUCTION
 THUMBNAIL_TEXT_MAX_CHARS = 64
 THUMBNAIL_TEXT_MIN_WORDS = 2
 THUMBNAIL_TEXT_MAX_WORDS = 10
+TITLE_MAX_CHARS = 100
+FORBIDDEN_TITLE_LABEL_RE = re.compile(r'\b(?:video\s+longo|long\s+video|shorts?|cortes?|\d+\s*s)\b')
 
 METADATA_EDITORIAL_INSTRUCTION = (
     'REGRAS EDITORIAIS OBRIGATÓRIAS: crie um título editorial novo, específico e atraente, '
@@ -35,8 +37,11 @@ METADATA_EDITORIAL_INSTRUCTION = (
     'trecho. A descrição deve ser completa e boa para SEO, em PT-BR, com contexto, assunto, '
     'argumentos e conclusão do trecho, explicando claramente por que ele é relevante; não apenas '
     'repita o título ou o motivo do corte. Use somente informações presentes na transcrição e no '
-    'contexto fornecido, sem inventar fatos. Não inclua uma linha de créditos: ela será acrescentada '
-    'pelo sistema. Nunca escreva dois sinais "@" consecutivos.'
+    'contexto fornecido, sem inventar fatos. Nunca inclua rótulos genéricos de formato ou duração '
+    'no título, como "Vídeo longo", "Video longo", "Shorts", "corte" ou "30s": isso desperdiça '
+    'palavras que devem vender o assunto. Não diga que o vídeo é longo; use esse espaço para a '
+    'revelação, conflito ou pergunta que faz a pessoa querer assistir até o fim. Não inclua uma '
+    'linha de créditos: ela será acrescentada pelo sistema. Nunca escreva dois sinais "@" consecutivos.'
 )
 
 SYSTEM_PROMPT = (
@@ -229,6 +234,12 @@ def _is_original_source_title(title: str, clip_context: dict) -> bool:
     return bool(source_title) and _editorial_text_key(title) == _editorial_text_key(source_title)
 
 
+def _contains_forbidden_title_label(title: str) -> bool:
+    """Detecta rótulos de formato que não agregam informação ao título."""
+    normalized = _normalize_for_match(title)
+    return bool(FORBIDDEN_TITLE_LABEL_RE.search(normalized))
+
+
 def _normalize_metadata(metadata: dict, clip_context: dict | None = None) -> dict:
     """Valida e normaliza title, description e tags retornados pela IA."""
     context = clip_context or {}
@@ -239,8 +250,10 @@ def _normalize_metadata(metadata: dict, clip_context: dict | None = None) -> dic
 
     if not title:
         raise ValueError('A IA não retornou um título para SEO')
-    if len(title) > 100:
-        raise ValueError('O título retornado pela IA excede 100 caracteres')
+    if len(title) > TITLE_MAX_CHARS:
+        raise ValueError(f'O título retornado pela IA excede {TITLE_MAX_CHARS} caracteres')
+    if _contains_forbidden_title_label(title):
+        raise ValueError('O título retornado pela IA contém um rótulo genérico de formato')
     if _is_original_source_title(title, context):
         raise ValueError('A IA repetiu o título original em vez de criar um título editorial')
     if not description:

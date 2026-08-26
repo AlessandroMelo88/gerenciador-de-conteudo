@@ -57,6 +57,47 @@ class TestMetadataGenerator:
                 },
             )
 
+    @pytest.mark.parametrize(
+        'title',
+        [
+            'Claude Code grátis pra sempre | Vídeo longo',
+            'Claude Code grátis pra sempre | VIDEO LONGO',
+            'Long video: como usar várias contas free tier',
+            'O debate decisivo do clássico | Corte',
+            'Neymar surpreende em 30s',
+            'A análise definitiva para Shorts',
+        ],
+    )
+    def test_generic_long_video_label_is_rejected(self, title):
+        with pytest.raises(ValueError, match='rótulo genérico de formato'):
+            _normalize_metadata(
+                {
+                    'title': title,
+                    'description': 'Descrição contextualizada.',
+                    'tags': ['tecnologia'],
+                },
+                {**SAMPLE_CONTEXT, 'format': 'longo'},
+            )
+
+    def test_prompt_forbids_format_labels_and_wasted_title_words(self):
+        prompt = _build_prompt({**SAMPLE_CONTEXT, 'format': 'longo'})
+
+        assert 'Vídeo longo' in prompt
+        assert 'desperdiça palavras' in prompt
+        assert 'vender o assunto' in prompt
+
+    def test_specific_long_title_is_allowed(self):
+        metadata = _normalize_metadata(
+            {
+                'title': 'Claude Code sem pagar? O esquema de várias contas free tier',
+                'description': 'Descrição contextualizada.',
+                'tags': ['tecnologia'],
+            },
+            {**SAMPLE_CONTEXT, 'format': 'longo'},
+        )
+
+        assert metadata['title'] == 'Claude Code sem pagar? O esquema de várias contas free tier'
+
     def test_missing_metadata_fails_without_fallback(self):
         with pytest.raises(ValueError, match='não retornou um título'):
             _normalize_metadata({'title': '', 'description': '', 'tags': []}, SAMPLE_CONTEXT)
