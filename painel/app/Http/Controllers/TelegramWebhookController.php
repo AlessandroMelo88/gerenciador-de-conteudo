@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Redis;
 use Telegram\Bot\Laravel\Facades\Telegram;
+use Telegram\Bot\Objects\Update;
 
 class TelegramWebhookController extends Controller
 {
@@ -24,16 +26,16 @@ class TelegramWebhookController extends Controller
                 $updateData['message']['entities'] = [[
                     'offset' => 0,
                     'length' => $end,
-                    'type'   => 'bot_command',
+                    'type' => 'bot_command',
                 ]];
             }
         }
 
         // SDK v3.x usa magic __get com snake_case para acessar propriedades.
-        $update = new \Telegram\Bot\Objects\Update($updateData);
+        $update = new Update($updateData);
 
         // 1) Allowlist — silencioso se chat_id não autorizado
-        $chatId  = $update->message?->chat?->id;
+        $chatId = $update->message?->chat?->id;
         $allowed = (string) config('telegram.bots.mybot.chat_id_allowed');
         if ($chatId && (string) $chatId !== $allowed) {
             return response('ok');
@@ -44,7 +46,7 @@ class TelegramWebhookController extends Controller
         // Internamente constrói [$flag, $expireResolution => $expireTTL] para phpredis.
         $updateId = $update->updateId;
         if ($updateId) {
-            $key   = "tg:dedup:{$updateId}";
+            $key = "tg:dedup:{$updateId}";
             $isNew = Redis::connection('default')->set($key, '1', 'EX', 300, 'NX');
             if (! $isNew) {
                 return response('ok');
@@ -57,7 +59,7 @@ class TelegramWebhookController extends Controller
         return response('ok');
     }
 
-    public function pipelineEvent(Request $request): \Illuminate\Http\JsonResponse
+    public function pipelineEvent(Request $request): JsonResponse
     {
         // Auth: mesmo X-Internal-Token do ClipProcessorClient (Phase 8)
         $token = config('services.clip_processor.token');
@@ -65,20 +67,20 @@ class TelegramWebhookController extends Controller
             return response()->json(['error' => 'unauthorized'], 401);
         }
 
-        $event   = $request->input('event');
+        $event = $request->input('event');
         $payload = $request->input('payload', []);
 
         $text = match ($event) {
             'upload_published' => "Upload publicado: {$payload['title']} — {$payload['youtube_url']}",
             'pipeline_failure' => "Falha crítica [{$payload['stage']}]: {$payload['error_msg']}",
             'clip_ttl_warning' => "Clip #{$payload['clip_id']} expira em {$payload['expires_in_hours']}h: {$payload['title']}",
-            'daily_summary'    => $payload['text'] ?? 'Resumo diário: sem clips pendentes.',
-            default            => "Evento desconhecido: {$event}",
+            'daily_summary' => $payload['text'] ?? 'Resumo diário: sem clips pendentes.',
+            default => "Evento desconhecido: {$event}",
         };
 
         Telegram::sendMessage([
             'chat_id' => config('telegram.bots.mybot.chat_id_allowed'),
-            'text'    => $text,
+            'text' => $text,
         ]);
 
         return response()->json(['ok' => true]);

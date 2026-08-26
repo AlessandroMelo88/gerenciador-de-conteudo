@@ -13,7 +13,7 @@ beforeEach(function () {
 
 it('POST /internal/pipeline-event without token returns 401', function () {
     $this->postJson('/internal/pipeline-event', [
-        'event'   => 'upload_published',
+        'event' => 'upload_published',
         'payload' => [],
     ])->assertStatus(401);
 });
@@ -22,17 +22,16 @@ it('POST /internal/pipeline-event upload_published sends Telegram message with t
     $token = config('services.clip_processor.token');
 
     $this->postJson('/internal/pipeline-event', [
-        'event'   => 'upload_published',
+        'event' => 'upload_published',
         'payload' => [
-            'title'       => 'Gol do Brasil',
+            'title' => 'Gol do Brasil',
             'youtube_url' => 'https://youtube.com/watch?v=abc',
         ],
     ], ['X-Internal-Token' => $token])
         ->assertStatus(200)
         ->assertJson(['ok' => true]);
 
-    Http::assertSent(fn ($req) =>
-        str_contains($req->url(), 'api.telegram.org') &&
+    Http::assertSent(fn ($req) => str_contains($req->url(), 'api.telegram.org') &&
         str_contains($req['text'] ?? '', 'Gol do Brasil')
     );
 });
@@ -41,13 +40,12 @@ it('POST /internal/pipeline-event pipeline_failure sends message with stage', fu
     $token = config('services.clip_processor.token');
 
     $this->postJson('/internal/pipeline-event', [
-        'event'   => 'pipeline_failure',
+        'event' => 'pipeline_failure',
         'payload' => ['stage' => 'cutting', 'error_msg' => 'ffmpeg crashed'],
     ], ['X-Internal-Token' => $token])
         ->assertStatus(200);
 
-    Http::assertSent(fn ($req) =>
-        str_contains($req->url(), 'api.telegram.org') &&
+    Http::assertSent(fn ($req) => str_contains($req->url(), 'api.telegram.org') &&
         str_contains($req['text'] ?? '', 'cutting')
     );
 });
@@ -56,13 +54,12 @@ it('POST /internal/pipeline-event daily_summary sends the summary text', functio
     $token = config('services.clip_processor.token');
 
     $this->postJson('/internal/pipeline-event', [
-        'event'   => 'daily_summary',
+        'event' => 'daily_summary',
         'payload' => ['text' => 'Resumo: 3 clips aguardando.'],
     ], ['X-Internal-Token' => $token])
         ->assertStatus(200);
 
-    Http::assertSent(fn ($req) =>
-        str_contains($req->url(), 'api.telegram.org') &&
+    Http::assertSent(fn ($req) => str_contains($req->url(), 'api.telegram.org') &&
         str_contains($req['text'] ?? '', 'Resumo')
     );
 });

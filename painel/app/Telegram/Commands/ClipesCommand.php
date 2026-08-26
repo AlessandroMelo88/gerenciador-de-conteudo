@@ -7,7 +7,8 @@ use Telegram\Bot\Commands\Command;
 
 class ClipesCommand extends Command
 {
-    protected string $name        = 'clipes';
+    protected string $name = 'clipes';
+
     protected string $description = 'Lista clips aguardando aprovação';
 
     public function handle(): void

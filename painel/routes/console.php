@@ -1,13 +1,14 @@
 <?php
 
 use App\Models\GeneratedClip;
+use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 use Telegram\Bot\Laravel\Facades\Telegram;
 
 // Comando legado
 Artisan::command('inspire', function () {
-    $this->comment(\Illuminate\Foundation\Inspiring::quote());
+    $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
 /**
@@ -22,6 +23,6 @@ Schedule::call(function () {
 
     Telegram::sendMessage([
         'chat_id' => config('telegram.bots.mybot.chat_id_allowed'),
-        'text'    => "Resumo diário: {$pending} clip(s) aguardando aprovação.",
+        'text' => "Resumo diário: {$pending} clip(s) aguardando aprovação.",
     ]);
 })->dailyAt('18:00')->timezone('America/Sao_Paulo');

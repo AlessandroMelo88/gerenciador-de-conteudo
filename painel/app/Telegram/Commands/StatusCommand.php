@@ -8,7 +8,8 @@ use Telegram\Bot\Commands\Command;
 
 class StatusCommand extends Command
 {
-    protected string $name        = 'status';
+    protected string $name = 'status';
+
     protected string $description = 'Mostra status do pipeline';
 
     public function handle(): void

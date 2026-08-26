@@ -13,12 +13,12 @@ function fakeTgUpdate(int $updateId = 1, int|string $chatId = 5760918317, string
 {
     return [
         'update_id' => $updateId,
-        'message'   => [
+        'message' => [
             'message_id' => 100,
-            'from'       => ['id' => (int) $chatId, 'first_name' => 'Test'],
-            'chat'       => ['id' => (int) $chatId, 'type' => 'private'],
-            'text'       => $text,
-            'date'       => time(),
+            'from' => ['id' => (int) $chatId, 'first_name' => 'Test'],
+            'chat' => ['id' => (int) $chatId, 'type' => 'private'],
+            'text' => $text,
+            'date' => time(),
         ],
     ];
 }

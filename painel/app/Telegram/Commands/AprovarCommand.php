@@ -7,9 +7,11 @@ use Telegram\Bot\Commands\Command;
 
 class AprovarCommand extends Command
 {
-    protected string $name        = 'aprovar';
+    protected string $name = 'aprovar';
+
     protected string $description = 'Aprova um clip para publicação';
-    protected string $pattern     = '{clip_id}';
+
+    protected string $pattern = '{clip_id}';
 
     public function handle(): void
     {

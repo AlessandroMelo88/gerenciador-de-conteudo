@@ -31,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
         // habilitando Http::assertSent() e Http::assertSentCount() nos Feature tests.
         $this->app->extend(BotsManager::class, function (BotsManager $manager, $app) {
             $config = config('telegram');
-            $config['http_client_handler'] = new TelegramHttpClientHandler();
+            $config['http_client_handler'] = new TelegramHttpClientHandler;
 
             return (new BotsManager($config))->setContainer($app);
         });

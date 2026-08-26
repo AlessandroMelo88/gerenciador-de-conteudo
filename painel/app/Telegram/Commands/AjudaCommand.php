@@ -6,7 +6,8 @@ use Telegram\Bot\Commands\Command;
 
 class AjudaCommand extends Command
 {
-    protected string $name        = 'ajuda';
+    protected string $name = 'ajuda';
+
     protected string $description = 'Lista os comandos disponíveis';
 
     public function handle(): void
