@@ -13,7 +13,7 @@ export function SiteHeader({
     actions?: ReactNode;
 }) {
     return (
-        <header className="flex shrink-0 flex-col gap-2 border-b px-4 py-3 transition-[width,height] ease-linear lg:px-6 group-has-data-[collapsible=icon]/sidebar-wrapper:h-auto">
+        <header className="flex shrink-0 flex-col gap-2 border-b px-4 py-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-auto lg:px-6">
             <div className="flex w-full items-center gap-1 lg:gap-2">
                 <SidebarTrigger className="-ml-1" />
                 <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />

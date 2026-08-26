@@ -10,14 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { AppShell } from '@/layouts/app-shell';
 
@@ -151,7 +144,7 @@ function ChannelDialog({
                                 PNG com fundo transparente, aplicado automaticamente no canto superior direito de todo
                                 vídeo cortado deste canal. Isso NÃO é o ícone/capa do canal no YouTube — a API do
                                 YouTube não permite trocar ícone/capa por código, isso só dá pra fazer manualmente em
-                                studio.youtube.com. {channel?.hasWatermark && '(já tem uma marca d\'água salva)'}
+                                studio.youtube.com. {channel?.hasWatermark && "(já tem uma marca d'água salva)"}
                             </p>
                         </Field>
                     )}
@@ -160,13 +153,15 @@ function ChannelDialog({
                             <FieldLabel>Autorização OAuth</FieldLabel>
                             <p className="text-xs text-muted-foreground">
                                 Não dá pra autorizar com 1 clique pelo painel: o YouTube exige que <em>você mesmo</em>{' '}
-                                faça login na sua conta Google e aprove o acesso — isso roda por um comando
-                                interativo no terminal, uma vez por canal.
+                                faça login na sua conta Google e aprove o acesso — isso roda por um comando interativo
+                                no terminal, uma vez por canal.
                             </p>
                             <ol className="list-decimal pl-5 text-xs text-muted-foreground">
                                 <li>Abra um terminal no servidor e rode o comando abaixo</li>
                                 <li>Abra a URL impressa no navegador, faça login e autorize</li>
-                                <li>Cole de volta no terminal a URL completa para onde o navegador tentou redirecionar</li>
+                                <li>
+                                    Cole de volta no terminal a URL completa para onde o navegador tentou redirecionar
+                                </li>
                             </ol>
                             <CopyCommand slug={channel!.slug} />
                         </Field>
@@ -216,9 +211,7 @@ export default function DestinationChannels() {
                 title="Canais Destino"
                 user={auth.user}
                 description="Canais do YouTube onde os clips são publicados."
-                actions={
-                    <ChannelDialog niches={niches} trigger={<Button>Novo Canal Destino</Button>} />
-                }
+                actions={<ChannelDialog niches={niches} trigger={<Button>Novo Canal Destino</Button>} />}
             >
                 <div className="overflow-x-auto rounded-lg border">
                     <Table>
@@ -290,9 +283,7 @@ export default function DestinationChannels() {
                                                 variant="destructive"
                                                 size="sm"
                                                 description={`Apagar o canal-destino "${c.name}"? Essa ação não pode ser desfeita.`}
-                                                onConfirm={() =>
-                                                    router.delete(`/painel/canais-destino/${c.id}`)
-                                                }
+                                                onConfirm={() => router.delete(`/painel/canais-destino/${c.id}`)}
                                             >
                                                 Apagar
                                             </ConfirmButton>

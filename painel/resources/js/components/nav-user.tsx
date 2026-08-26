@@ -1,9 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 
-import {
-    Avatar,
-    AvatarFallback,
-} from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -12,12 +9,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    useSidebar,
-} from '@/components/ui/sidebar';
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
 import { ChevronsUpDownIcon, LogOutIcon, SettingsIcon } from 'lucide-react';
 
 export function NavUser({ user }: { user: { name: string; email: string } | null }) {

@@ -3,14 +3,7 @@ import { router } from '@inertiajs/react';
 import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -67,7 +60,12 @@ export function NicheCombobox({
         <>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between font-normal">
+                    <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={open}
+                        className="w-full justify-between font-normal"
+                    >
                         {selected ? selected.label : 'Selecione um nicho…'}
                         <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
                     </Button>
@@ -88,7 +86,10 @@ export function NicheCombobox({
                                         }}
                                     >
                                         <CheckIcon
-                                            className={cn('mr-2 size-4', value === niche.slug ? 'opacity-100' : 'opacity-0')}
+                                            className={cn(
+                                                'mr-2 size-4',
+                                                value === niche.slug ? 'opacity-100' : 'opacity-0',
+                                            )}
                                         />
                                         {niche.label}
                                     </CommandItem>

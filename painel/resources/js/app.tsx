@@ -11,10 +11,7 @@ createInertiaApp({
         // resolvePageComponent<T> tipa `pages` como Record<string, Promise<T> | (() => Promise<T>)>,
         // mas o glob real produz módulos `{ default: Component }` — incompatibilidade conhecida
         // entre @inertiajs/react e laravel-vite-plugin/inertia-helpers, sem impacto em runtime.
-        resolvePageComponent(
-            `./pages/${name}.tsx`,
-            import.meta.glob('./pages/**/*.tsx'),
-        ) as Promise<ResolvedComponent>,
+        resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')) as Promise<ResolvedComponent>,
     setup({ el, App, props }) {
         if (!el) return;
         createRoot(el).render(

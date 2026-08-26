@@ -32,46 +32,50 @@ export function VideoSummaryCards({
     if (!storage || !downloadWindow) return null;
 
     return (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mb-6 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs dark:*:data-[slot=card]:bg-card">
+        <div className="mb-6 grid grid-cols-1 gap-3 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs md:grid-cols-2 dark:*:data-[slot=card]:bg-card">
             <Card size="sm">
                 <CardHeader className="gap-1">
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                             <HardDriveIcon className="h-4 w-4" />
-                            <CardDescription className="text-xs font-medium">Armazenamento em Disco (HD)</CardDescription>
+                            <CardDescription className="text-xs font-medium">
+                                Armazenamento em Disco (HD)
+                            </CardDescription>
                         </div>
                         <Badge
                             variant={
                                 storage.status === 'critical'
                                     ? 'destructive'
                                     : storage.status === 'warning'
-                                    ? 'secondary'
-                                    : 'outline'
+                                      ? 'secondary'
+                                      : 'outline'
                             }
                             className="shrink-0 text-[10px]"
                         >
                             {storage.status === 'critical'
                                 ? 'Crítico'
                                 : storage.status === 'warning'
-                                ? 'Quase Cheio'
-                                : 'Ok'}
+                                  ? 'Quase Cheio'
+                                  : 'Ok'}
                         </Badge>
                     </div>
-                    <CardTitle className="text-2xl font-semibold tabular-nums tracking-tight">
+                    <CardTitle className="text-2xl font-semibold tracking-tight tabular-nums">
                         {storage.freeGb} GB <span className="text-sm font-normal text-muted-foreground">livres</span>
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0 space-y-1.5">
+                <CardContent className="space-y-1.5 pt-0">
                     <Progress
                         value={storage.usedPercentage}
                         className={cn(
                             'h-1.5',
                             storage.status === 'critical' && '*:data-[slot=progress-indicator]:bg-destructive',
-                            storage.status === 'warning' && '*:data-[slot=progress-indicator]:bg-amber-500'
+                            storage.status === 'warning' && '*:data-[slot=progress-indicator]:bg-amber-500',
                         )}
                     />
                     <div className="flex justify-between text-[11px] text-muted-foreground tabular-nums">
-                        <span>Usado: {storage.usedGb} GB ({storage.usedPercentage}%)</span>
+                        <span>
+                            Usado: {storage.usedGb} GB ({storage.usedPercentage}%)
+                        </span>
                         <span>Total: {storage.totalGb} GB</span>
                     </div>
                 </CardContent>
@@ -82,7 +86,9 @@ export function VideoSummaryCards({
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5 text-muted-foreground">
                             <DownloadIcon className="h-4 w-4" />
-                            <CardDescription className="text-xs font-medium">Janela de Processamento Ativa</CardDescription>
+                            <CardDescription className="text-xs font-medium">
+                                Janela de Processamento Ativa
+                            </CardDescription>
                         </div>
                         <Badge
                             variant={downloadWindow.processingCount > 0 ? 'default' : 'outline'}
@@ -93,13 +99,15 @@ export function VideoSummaryCards({
                                 : 'Janela com vaga'}
                         </Badge>
                     </div>
-                    <CardTitle className="text-2xl font-semibold tabular-nums tracking-tight">
+                    <CardTitle className="text-2xl font-semibold tracking-tight tabular-nums">
                         {downloadWindow.total}
-                        <span className="text-sm font-normal text-muted-foreground">/{downloadWindow.cap} vídeos ativos</span>
+                        <span className="text-sm font-normal text-muted-foreground">
+                            /{downloadWindow.cap} vídeos ativos
+                        </span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                    <p className="text-xs text-muted-foreground tabular-nums flex items-center gap-1">
+                    <p className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
                         <LayersIcon className="h-3 w-3 text-muted-foreground/70" />
                         curto {downloadWindow.curtoCount}/{downloadWindow.curtoCap}
                         <span className="mx-1.5 text-border">·</span>

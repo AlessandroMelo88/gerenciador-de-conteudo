@@ -56,7 +56,7 @@ export function OverviewCards({
     ).length;
 
     return (
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs dark:*:data-[slot=card]:bg-card">
+        <div className="grid grid-cols-2 gap-2 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs lg:grid-cols-4 dark:*:data-[slot=card]:bg-card">
             {quota.length === 0 && (
                 <Card size="sm">
                     <CardHeader className="gap-0.5">
@@ -87,7 +87,7 @@ export function OverviewCards({
                                     {tone === 'full' ? 'Cheia' : tone === 'warn' ? 'Quase' : 'Ok'}
                                 </Badge>
                             </div>
-                            <CardTitle className="text-xl font-semibold tabular-nums tracking-tight">
+                            <CardTitle className="text-xl font-semibold tracking-tight tabular-nums">
                                 {channel.count}
                                 <span className="text-sm font-normal text-muted-foreground">/{channel.limit}</span>
                             </CardTitle>
@@ -114,7 +114,7 @@ export function OverviewCards({
                             {processingCount > 0 ? `${processingCount} proc.` : 'Ociosa'}
                         </Badge>
                     </div>
-                    <CardTitle className="text-xl font-semibold tabular-nums tracking-tight">
+                    <CardTitle className="text-xl font-semibold tracking-tight tabular-nums">
                         {windowTotal}
                         <span className="text-sm font-normal text-muted-foreground">/{windowCap}</span>
                     </CardTitle>
@@ -137,7 +137,7 @@ export function OverviewCards({
                             {longoShare}% longo
                         </Badge>
                     </div>
-                    <CardTitle className="text-xl font-semibold tabular-nums tracking-tight">
+                    <CardTitle className="text-xl font-semibold tracking-tight tabular-nums">
                         {totalPublished}
                     </CardTitle>
                 </CardHeader>
@@ -157,9 +157,7 @@ export function OverviewCards({
                             {totalBacklog > 200 ? 'Alto' : 'Fila'}
                         </Badge>
                     </div>
-                    <CardTitle className="text-xl font-semibold tabular-nums tracking-tight">
-                        {totalBacklog}
-                    </CardTitle>
+                    <CardTitle className="text-xl font-semibold tracking-tight tabular-nums">{totalBacklog}</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
                     <FormatSplit curto={overview.backlogCurto} longo={overview.backlogLongo} />

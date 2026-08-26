@@ -26,14 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmButton } from '@/components/confirm-button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { ActiveWindowVideo } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 
@@ -62,8 +55,7 @@ function useSelection() {
     const toggle = (id: number) =>
         setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-    const toggleAll = (ids: number[]) =>
-        setSelected((prev) => (prev.length === ids.length ? [] : ids));
+    const toggleAll = (ids: number[]) => setSelected((prev) => (prev.length === ids.length ? [] : ids));
 
     const clear = () => setSelected([]);
 
@@ -85,29 +77,17 @@ function VideoActions({ video }: { video: ActiveWindowVideo }) {
     return (
         <div className="flex flex-wrap items-center gap-1">
             {video.paused ? (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => postAction(`/painel/videos/${video.id}/resume`)}
-                >
+                <Button variant="outline" size="sm" onClick={() => postAction(`/painel/videos/${video.id}/resume`)}>
                     <PlayIcon className="size-3.5" />
                     Retomar
                 </Button>
             ) : (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => postAction(`/painel/videos/${video.id}/pause`)}
-                >
+                <Button variant="outline" size="sm" onClick={() => postAction(`/painel/videos/${video.id}/pause`)}>
                     <PauseIcon className="size-3.5" />
                     Pausar
                 </Button>
             )}
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={() => postAction(`/painel/videos/${video.id}/prioritize`)}
-            >
+            <Button variant="outline" size="sm" onClick={() => postAction(`/painel/videos/${video.id}/prioritize`)}>
                 <ArrowUpIcon className="size-3.5" />
                 Priorizar
             </Button>
@@ -121,7 +101,12 @@ function VideoActions({ video }: { video: ActiveWindowVideo }) {
                     Apagar
                 </ConfirmButton>
             ) : (
-                <Button variant="destructive" size="sm" disabled title="Arquivo em uso ou clips ainda precisam do bruto">
+                <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled
+                    title="Arquivo em uso ou clips ainda precisam do bruto"
+                >
                     Apagar
                 </Button>
             )}
@@ -287,10 +272,7 @@ function VideoTable({
                         {items.map((video) => (
                             <TableRow
                                 key={video.id}
-                                className={cn(
-                                    video.processing && 'bg-primary/5',
-                                    video.paused && 'opacity-70',
-                                )}
+                                className={cn(video.processing && 'bg-primary/5', video.paused && 'opacity-70')}
                             >
                                 <VideoCells
                                     video={video}
@@ -356,11 +338,7 @@ export function ActiveWindowTable({ videos }: { videos: ActiveWindowVideo[] }) {
     function persistReorder(ids: number[]) {
         // Mantém processando no topo da ordem persistida juntos com ociosos.
         const processingIds = processing.map((v) => v.id);
-        router.post(
-            '/painel/videos/reorder',
-            { ids: [...processingIds, ...ids] },
-            { preserveScroll: true },
-        );
+        router.post('/painel/videos/reorder', { ids: [...processingIds, ...ids] }, { preserveScroll: true });
     }
 
     const defaultTab = processing.length > 0 ? 'processing' : 'idle';
@@ -368,9 +346,8 @@ export function ActiveWindowTable({ videos }: { videos: ActiveWindowVideo[] }) {
     return (
         <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-                {videos.length} vídeo(s) com arquivo em disco agora ({curtoCount} curto / {longoCount} longo).
-                Arraste pra reordenar a fila ociosa; pause para segurar; priorizar sobe na seleção do próximo
-                ciclo.
+                {videos.length} vídeo(s) com arquivo em disco agora ({curtoCount} curto / {longoCount} longo). Arraste
+                pra reordenar a fila ociosa; pause para segurar; priorizar sobe na seleção do próximo ciclo.
             </p>
 
             <div className="flex items-center gap-2">
@@ -403,11 +380,7 @@ export function ActiveWindowTable({ videos }: { videos: ActiveWindowVideo[] }) {
                             Nenhum vídeo processando agora.
                         </p>
                     ) : (
-                        <VideoTable
-                            videos={processing}
-                            selected={selected}
-                            onToggleSelect={toggle}
-                        />
+                        <VideoTable videos={processing} selected={selected} onToggleSelect={toggle} />
                     )}
                 </TabsContent>
 

@@ -81,8 +81,8 @@ export default function ProcessVideo() {
                                     onChange={(e) => setData('urls', e.target.value)}
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    Cole um ou mais links de vídeos do YouTube, um por linha. Cada vídeo entra na
-                                    fila normal do pipeline no formato escolhido acima.
+                                    Cole um ou mais links de vídeos do YouTube, um por linha. Cada vídeo entra na fila
+                                    normal do pipeline no formato escolhido acima.
                                 </p>
                             </Field>
                             <div>

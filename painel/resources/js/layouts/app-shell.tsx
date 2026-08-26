@@ -24,14 +24,7 @@ const shellStyle = {
  * Shell único do painel: sidebar inset + header customizável por página.
  * Cada page passa title/description/actions; o padding do conteúdo é uniforme.
  */
-export function AppShell({
-    title,
-    user,
-    description,
-    actions,
-    children,
-    withToaster = true,
-}: AppShellProps) {
+export function AppShell({ title, user, description, actions, children, withToaster = true }: AppShellProps) {
     return (
         <SidebarProvider style={shellStyle}>
             {withToaster && <Toaster />}

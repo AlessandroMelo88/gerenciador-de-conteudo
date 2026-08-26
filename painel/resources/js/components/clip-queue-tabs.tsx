@@ -7,14 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmButton } from '@/components/confirm-button';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ClipRow } from '@/types/dashboard';
 
@@ -30,7 +23,9 @@ function post(url: string, data: Record<string, FormDataConvertible | number[]> 
 }
 
 function FormatBadge({ format }: { format: ClipRow['format'] }) {
-    return <Badge variant={format === 'longo' ? 'default' : 'secondary'}>{format === 'longo' ? 'Longo' : 'Curto'}</Badge>;
+    return (
+        <Badge variant={format === 'longo' ? 'default' : 'secondary'}>{format === 'longo' ? 'Longo' : 'Curto'}</Badge>
+    );
 }
 
 function TitleCell({ clip }: { clip: ClipRow }) {
@@ -48,15 +43,17 @@ function TitleCell({ clip }: { clip: ClipRow }) {
             >
                 {open ? 'Ocultar clip' : 'Ver clip'}
             </button>
-            {open && (
-                <video controls preload="metadata" className="mt-1.5 w-[200px] rounded" src={clip.previewUrl} />
-            )}
+            {open && <video controls preload="metadata" className="mt-1.5 w-[200px] rounded" src={clip.previewUrl} />}
         </div>
     );
 }
 
 function EmptyState({ message }: { message: string }) {
-    return <div className="flex items-center justify-center rounded-lg border border-dashed py-12 text-sm text-muted-foreground">{message}</div>;
+    return (
+        <div className="flex items-center justify-center rounded-lg border border-dashed py-12 text-sm text-muted-foreground">
+            {message}
+        </div>
+    );
 }
 
 function useSelection() {
@@ -65,8 +62,7 @@ function useSelection() {
     const toggle = (id: number) =>
         setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-    const toggleAll = (ids: number[]) =>
-        setSelected((prev) => (prev.length === ids.length ? [] : ids));
+    const toggleAll = (ids: number[]) => setSelected((prev) => (prev.length === ids.length ? [] : ids));
 
     const clear = () => setSelected([]);
 
@@ -130,13 +126,19 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                         {clips.map((clip) => (
                             <TableRow key={clip.id}>
                                 <TableCell>
-                                    <Checkbox checked={selected.includes(clip.id)} onCheckedChange={() => toggle(clip.id)} />
+                                    <Checkbox
+                                        checked={selected.includes(clip.id)}
+                                        onCheckedChange={() => toggle(clip.id)}
+                                    />
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">{clip.id}</TableCell>
                                 <TableCell>
                                     <TitleCell clip={clip} />
                                 </TableCell>
-                                <TableCell className="max-w-[140px] truncate text-muted-foreground" title={clip.sourceVideoTitle ?? ''}>
+                                <TableCell
+                                    className="max-w-[140px] truncate text-muted-foreground"
+                                    title={clip.sourceVideoTitle ?? ''}
+                                >
                                     {clip.sourceVideoTitle ?? '—'}
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">{clip.trecho}</TableCell>
@@ -144,7 +146,9 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                 <TableCell>
                                     <FormatBadge format={clip.format} />
                                 </TableCell>
-                                <TableCell className="text-muted-foreground">{clip.destinationChannelName ?? '—'}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                    {clip.destinationChannelName ?? '—'}
+                                </TableCell>
                                 <TableCell>
                                     <Badge variant="outline">{clip.score ?? '—'}</Badge>
                                 </TableCell>
@@ -186,8 +190,8 @@ function QueuedTable({ clips }: { clips: ClipRow[] }) {
     return (
         <div>
             <p className="mb-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-200">
-                Publica automaticamente em ordem (mais antigo primeiro), respeitando o limite diário de uploads. Se
-                não fizer nada, a fila segue sozinha. Use &quot;Rejeitar&quot; só se a notícia ficou velha/irrelevante.
+                Publica automaticamente em ordem (mais antigo primeiro), respeitando o limite diário de uploads. Se não
+                fizer nada, a fila segue sozinha. Use &quot;Rejeitar&quot; só se a notícia ficou velha/irrelevante.
             </p>
             <div className="mb-3 flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => toggleAll(ids)}>
@@ -228,14 +232,20 @@ function QueuedTable({ clips }: { clips: ClipRow[] }) {
                         {clips.map((clip, index) => (
                             <TableRow key={clip.id}>
                                 <TableCell>
-                                    <Checkbox checked={selected.includes(clip.id)} onCheckedChange={() => toggle(clip.id)} />
+                                    <Checkbox
+                                        checked={selected.includes(clip.id)}
+                                        onCheckedChange={() => toggle(clip.id)}
+                                    />
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">#{index + 1}</TableCell>
                                 <TableCell className="text-muted-foreground">{clip.id}</TableCell>
                                 <TableCell>
                                     <TitleCell clip={clip} />
                                 </TableCell>
-                                <TableCell className="max-w-[140px] truncate text-muted-foreground" title={clip.sourceVideoTitle ?? ''}>
+                                <TableCell
+                                    className="max-w-[140px] truncate text-muted-foreground"
+                                    title={clip.sourceVideoTitle ?? ''}
+                                >
                                     {clip.sourceVideoTitle ?? '—'}
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">{clip.trecho}</TableCell>
@@ -243,7 +253,9 @@ function QueuedTable({ clips }: { clips: ClipRow[] }) {
                                 <TableCell>
                                     <FormatBadge format={clip.format} />
                                 </TableCell>
-                                <TableCell className="text-muted-foreground">{clip.destinationChannelName ?? '—'}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                    {clip.destinationChannelName ?? '—'}
+                                </TableCell>
                                 <TableCell>
                                     <Badge variant="outline">{clip.score ?? '—'}</Badge>
                                 </TableCell>
@@ -305,7 +317,9 @@ function FailuresTable({ clips, failedSourceVideoCount }: { clips: ClipRow[]; fa
                                         </span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-muted-foreground">{clip.destinationChannelName ?? '—'}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                    {clip.destinationChannelName ?? '—'}
+                                </TableCell>
                                 <TableCell className="text-muted-foreground">{clip.updatedAt}</TableCell>
                                 <TableCell>
                                     <ConfirmButton
