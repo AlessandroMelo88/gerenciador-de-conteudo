@@ -18,8 +18,6 @@ if [[ -f "$ROOT_DIR/.env" ]]; then
   set +a
 fi
 
-DB_HOST="${CLIPS_DB_HOST:-mysql}"
-DB_PORT="${CLIPS_DB_PORT:-3306}"
 DB_USER="${CLIPS_DB_USER:-clips_user}"
 DB_PASS="${CLIPS_DB_PASSWORD:-}"
 DB_NAME="${CLIPS_DB_NAME:-clips_automation}"
