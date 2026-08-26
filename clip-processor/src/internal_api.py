@@ -154,7 +154,9 @@ def delete_source_video_file(source_video_id: int) -> dict:
 
         with conn.cursor() as cur:
             cur.execute(
-                'UPDATE source_videos SET local_path = NULL WHERE id = %s',
+                "UPDATE source_videos SET local_path = NULL, "
+                "status = CASE WHEN status IN ('selecting', 'downloaded', 'transcribing', 'downloading') THEN 'failed' ELSE status END "
+                "WHERE id = %s",
                 (source_video_id,),
             )
         conn.commit()

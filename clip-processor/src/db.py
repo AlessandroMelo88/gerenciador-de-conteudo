@@ -161,37 +161,28 @@ def recover_stuck_selecting(conn):
     um slot da janela de download — com as duas janelas cheias de linha morta,
     o pipeline parava de baixar qualquer coisa.
 
-    Só considera travado o que não recebe update há SELECTING_STUCK_HOURS, pra
-    não atropelar seleção legitimamente em curso. O arquivo já está em disco,
-    então volta pra 'downloaded' e não pra 'pending' — não rebaixa à toa.
-
-    Também libera 'selecting' sem nenhum clip gerado (IA devolveu 0 momentos
-    válidos e o status ficou preso) — esses não precisam esperar 2h.
+    Só considera travado o que não recebe update há SELECTING_STUCK_HOURS E NÃO
+    possui clips gerados em generated_clips. Vídeos que já possuem clips gerados
+    NÃO devem ser resetados para 'downloaded', pois isso causa reprocessamento
+    em loop e duplicação de clips caso o operador fique sem aprovar/postar.
 
     Terceiro caso: 'selecting' com local_path NULL. A limpeza de disco
     (`delete_source_video_file` e a purga de vídeos antigos no internal_api)
     zera `local_path` sem tocar em `status`, então o registro fica preso num
-    estado que as duas queries acima nunca alcançam — elas exigem
-    `local_path IS NOT NULL`, e nenhum restart resolve. Sem o raw em disco não
-    existe seleção pra reprocessar, então vai para 'failed': é o estado honesto
-    (o insumo não existe mais) e libera a vaga da janela. O registro continua no
-    banco, com os clips que já tiverem sido gerados.
+    estado que a query com `local_path IS NOT NULL` nunca alcança. Sem o raw em
+    disco não existe seleção pra reprocessar, então vai para 'failed': é o estado
+    honesto (o insumo não existe mais) e libera a vaga da janela. O registro
+    continua no banco, com os clips que já tiverem sido gerados.
 
     Args:
         conn: conexão pymysql ativa
     """
     sql_stuck = (
-        "UPDATE source_videos "
-        "SET status='downloaded' "
-        "WHERE status='selecting' "
-        "AND local_path IS NOT NULL "
-        "AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)"
-    )
-    sql_empty = (
         "UPDATE source_videos sv "
         "SET sv.status='downloaded' "
         "WHERE sv.status='selecting' "
         "AND sv.local_path IS NOT NULL "
+        "AND sv.updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR) "
         "AND NOT EXISTS ("
         "  SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id"
         ")"
@@ -209,15 +200,14 @@ def recover_stuck_selecting(conn):
         with conn.cursor() as cur:
             cur.execute(sql_stuck, (SELECTING_STUCK_HOURS,))
             stuck = cur.rowcount
-            cur.execute(sql_empty)
-            empty = cur.rowcount
             cur.execute(sql_no_file, (SELECTING_STUCK_HOURS,))
             no_file = cur.rowcount
         conn.commit()
         _log(
-            f'recover_stuck_selecting: {stuck} travado(s) + {empty} sem clip '
+            f'recover_stuck_selecting: {stuck} travado(s) sem clip '
             f'redefinido(s) para downloaded, {no_file} sem arquivo para failed'
         )
     except pymysql.OperationalError as exc:
         _log(f'AVISO: falha ao recuperar seleções presas: {exc}')
         raise
+

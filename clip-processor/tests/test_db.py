@@ -118,6 +118,23 @@ class TestRecoverStuckSelecting:
                 assert 'local_path IS NULL' in sql
                 assert 'local_path IS NOT NULL' not in sql
 
+    def test_stuck_selecting_com_arquivo_exige_not_exists_clips(self, mock_db_conn):
+        """Vídeos com clips já gerados não podem voltar para downloaded (evita duplicação)."""
+        recover_stuck_selecting(mock_db_conn)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        executed = [call[0][0] for call in mock_cursor.execute.call_args_list]
+
+        stuck_sql = [
+            sql for sql in executed
+            if "status='downloaded'" in sql.replace(' ', '') or "status='downloaded'" in sql
+        ]
+        assert len(stuck_sql) == 1, 'deve haver 1 query de recuperação para downloaded'
+        assert 'NOT EXISTS' in stuck_sql[0]
+        assert 'generated_clips' in stuck_sql[0]
+        assert 'local_path IS NOT NULL' in stuck_sql[0]
+
+
 
 class TestInsertVideo:
 
