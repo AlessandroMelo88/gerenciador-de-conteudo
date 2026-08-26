@@ -1,0 +1,1 @@
+**Mídia de pós-produção configurável** — a aba de configurações permite cadastrar intros, encerramentos e músicas por canal/formato; o worker escolhe a combinação mais específica, alterna assets equivalentes e aplica a identidade automaticamente antes da thumbnail.

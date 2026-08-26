@@ -43,7 +43,7 @@ horizontal de 7 a 20 min).
 | [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md) | Descoberta via RSS, dedup, filtro de título, detecção de formato, janela de download por formato, filtro de frescor, disk guard, limpeza de órfãos |
 | [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | Groq Whisper no pipeline (sem fallback) e a Transcrição Local com whisper.cpp, que é uma feature separada |
 | [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) | Seleção de cortes por IA: prompts por formato, score, limites de duração, Claude Haiku → fallback Groq LLaMA 3.3-70b |
-| [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg: corte por formato, geração e queima de legenda, marca d'água, thumbnail, e quais artefatos sobram em disco |
+| [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg: corte por formato, legendas, intros/encerramentos/músicas configuráveis, marca d'água, thumbnail e artefatos em disco |
 | [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md) | Quem é publicável, roteamento por nicho, round-robin, cota diária (teto rígido de 6), janela 19h–22h, OAuth por canal, TTL de clip |
 | [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | As 10 rotas do sidecar HTTP 8090, auth fail-closed, controles de fila (pause/resume/reorder/prioritize), rejeição de clip, eventos para o Telegram |
 | [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, por que não são migrations do Laravel, ausência de `ON DELETE CASCADE`, divergência banco × disco |

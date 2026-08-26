@@ -75,7 +75,10 @@ baixar.
 |---|---|---|
 | `/painel/processar-video` | `ProcessVideoController` | Enfileira URL manual |
 | `/painel/transcricoes` | `TranscriptionController` | Transcrição local (whisper.cpp); `/download` baixa o resultado |
-| `/painel/configuracoes` | `SettingsController` | Reset de senha (exige 8 chars — o comando Artisan exige 10) |
+| `/painel/configuracoes` | `SettingsController` | Biblioteca de mídia (intro, encerramento e música), status da configuração e atualização de senha |
+| `POST /painel/configuracoes/midia` | `MediaAssetController` | Upload de asset com escopo por canal/formato |
+| `PATCH /painel/configuracoes/midia/{mediaAsset}` | `MediaAssetController` | Ativa, pausa ou ajusta o escopo/prioridade do asset |
+| `DELETE /painel/configuracoes/midia/{mediaAsset}` | `MediaAssetController` | Apaga o arquivo do disk `branding` e o registro |
 | `/painel/documentacao` | `DocumentationController` | Ajuda estática |
 | `/painel/clips/{clip}/preview` | closure | Serve o MP4 do clip para o `<video>` da fila |
 

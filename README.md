@@ -18,7 +18,7 @@ Os dois se comunicam por um sidecar HTTP interno (`clip-processor`, porta 8090, 
 3. **Download** — a cada ciclo, o pipeline baixa até 2 vídeos `longo` + 3 `curto` pendentes (por padrão), priorizando sempre a notícia mais recente (`published_at DESC`), não a ordem de descoberta.
 4. **Transcrição** — o áudio é transcrito via Whisper (Groq).
 5. **Seleção de momentos** — a IA (Claude, com fallback Groq/LLaMA) escolhe os melhores trechos do vídeo, com uma pontuação (score) de 0 a 10; abaixo de um limiar, o momento é descartado.
-6. **Corte e pós-produção** — cada momento vira um clip: corte via FFmpeg, legenda queimada (SRT → libass), marca d'água do canal-destino (se configurada) e thumbnail.
+6. **Corte e pós-produção** — cada momento vira um clip: Shorts são convertidos para vertical e recebem legenda queimada (SRT → libass); vídeos longos permanecem horizontais e seguem sem legenda. O worker escolhe intro, encerramento e música na biblioteca configurada por canal/formato, aplica a marca d'água do canal-destino quando existir e gera a thumbnail.
 7. **Metadata** — título, descrição e tags são gerados por IA (Claude) a partir da transcrição do trecho; se a IA falhar (ex.: chave de API ausente/inválida), cai no fallback e usa o título bruto do vídeo original.
 8. **Aprovação** — por padrão o clip vai direto para `pending` (100% automático); pode ser configurado para exigir aprovação manual via painel ou Telegram antes de publicar.
 9. **Publicação** — respeitando a cota diária de uploads por canal-destino (`MAX_UPLOADS_PER_DAY`) e uma janela de horário (19h–22h), os clips aprovados são publicados no YouTube em ordem justa entre os canais fonte (round-robin), para que um canal com muitos vídeos represados não monopolize a cota por dias seguidos.
@@ -28,6 +28,7 @@ Os dois se comunicam por um sidecar HTTP interno (`clip-processor`, porta 8090, 
 
 - **Dashboard** — fila de aprovação, fila aguardando cota diária, últimas falhas e o consumo de cota de uploads do dia por canal-destino.
 - **Canais Destino** — canais do YouTube onde os clips são publicados (nome, nicho, OAuth, template de créditos).
+- **Configurações** — biblioteca de intros, encerramentos e músicas, com escopo global ou por canal/formato; o painel sinaliza quando a identidade mínima ainda não foi configurada.
 - **Canais Fonte** — canais monitorados via RSS (ativo/blacklisted, nicho, handle).
 - **Vídeos** — todo vídeo bruto já baixado/tentado, com filtro por status e data de publicação, e uma ferramenta de limpeza que apaga do banco vídeos antigos nunca processados e libera do disco o arquivo bruto de vídeos que já geraram clip e não precisam mais dele.
 - **Processar Vídeo** — envio manual de uma URL específica do YouTube pro pipeline, fora do monitoramento automático.

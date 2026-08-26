@@ -103,6 +103,30 @@ Nos dois últimos casos o clip sai **sem marca d'água e sem erro** — nada no 
 
 ---
 
+## Mídia configurável
+
+O operador cadastra a biblioteca em **Configurações → Mídia do canal**. Cada item pode ser uma
+`intro`, um `outro` (encerramento) ou uma `music`, com upload no disk `branding`, que é compartilhado
+com o worker em `/app/branding`. O registro guarda o caminho relativo, portanto o banco não depende
+do nome original do arquivo.
+
+Cada asset pode ser:
+
+- **Global** ou vinculado a um canal-destino;
+- válido para todos os formatos, somente `curto` ou somente `longo`;
+- ativado/desativado sem apagar o arquivo;
+- priorizado para desempate. Assets com o mesmo escopo e prioridade são alternados pelo id do clip.
+
+A resolução segue a ordem `canal + formato` → `canal` → `formato` → `global`. Se nenhum item ativo
+for encontrado, ou se o arquivo não estiver no volume compartilhado, o clip segue sem essa mídia. Uma
+falha de FFmpeg na composição também preserva o clip já cortado e apenas registra um aviso.
+
+Intros e encerramentos de imagem recebem a duração configurada (3 segundos por padrão); vídeos
+respeitam a própria duração. A música é repetida até o fim do clip e misturada em volume independente
+(0,12 por padrão), sem substituir a fala original.
+
+---
+
 ## Thumbnail
 
 `extract_thumbnail` ([`:137`](../clip-processor/src/video_processor.py#L137)): um frame, `-q:v 2`,
