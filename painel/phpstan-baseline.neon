@@ -1,0 +1,523 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$youtube_channel_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$clip_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$destinationChannel\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$end_time\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$score\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$sourceVideo\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$start_time\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$upload_error\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$format\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$generatedClips\.$#'
+			identifier: property.notFound
+			count: 5
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$local_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$paused\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$published_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$queue_position\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$sourceChannel\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 5
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
+			identifier: larastan.noEnvCallsOutsideOfConfig
+			count: 2
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Offset ''freed_bytes'' on array\{deleted\: bool, freed_bytes\: int\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\DestinationChannel\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\SourceVideo\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,App\\Models\\SourceVideo\>\:\:sortBy\(\) expects array\<array\{string, ''asc''\|''desc''\|SortDirection\}\|\(callable\(App\\Models\\SourceVideo, App\\Models\\SourceVideo\)\: mixed\)\|\(callable\(App\\Models\\SourceVideo, int\)\: mixed\)\|string\>\|\(callable\(App\\Models\\SourceVideo, int\)\: mixed\)\|int\|string, array\{array\{Closure\(App\\Models\\SourceVideo\)\: \(0\|1\), ''asc''\}, array\{Closure\(App\\Models\\SourceVideo\)\: \(0\|1\), ''asc''\}, array\{Closure\(App\\Models\\SourceVideo\)\: int, ''asc''\}, array\{Closure\(App\\Models\\SourceVideo\)\: mixed, ''asc''\}, array\{Closure\(App\\Models\\SourceVideo\)\: mixed, ''asc''\}, array\{Closure\(App\\Models\\SourceVideo\)\: mixed, ''asc''\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Relation ''destinationChannel'' is not found in App\\Models\\GeneratedClip model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Relation ''generatedClips'' is not found in App\\Models\\SourceVideo model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Relation ''sourceChannel'' is not found in App\\Models\\SourceVideo model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Relation ''sourceVideo'' is not found in App\\Models\\GeneratedClip model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>format" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DestinationChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$credit_template\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DestinationChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DestinationChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$niche\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DestinationChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/DestinationChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$youtube_channel_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DestinationChannelController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\DestinationChannel\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/DestinationChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceChannel\:\:\$active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceChannel\:\:\$blacklisted\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceChannel\:\:\$channel_handle\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceChannel\:\:\$channel_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceChannel\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceChannel\:\:\$target_niche\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceChannelController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\SourceChannel\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/SourceChannelController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$em_andamento_count\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$local_path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$publicados_count\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$published_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$sourceChannel\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$total_clips_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$youtube_video_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Offset ''freed_bytes'' on array\{deleted\: bool, freed_bytes\: int\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Relation ''generatedClips'' is not found in App\\Models\\SourceVideo model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Relation ''sourceChannel'' is not found in App\\Models\\SourceVideo model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Method Redis\:\:set\(\) invoked with 5 parameters, 2\-3 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: app/Http/Controllers/TelegramWebhookController.php
+
+		-
+			message: '#^Parameter \#3 \$options of method Redis\:\:set\(\) expects array\|int, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/TelegramWebhookController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$oauth_expired_flag\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/DestinationChannel.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/DestinationChannel.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<int\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: app/Services/ClipProcessorClient.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Telegram/Commands/ClipesCommand.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Telegram/Commands/ClipesCommand.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/AuthGuardTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:post\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/AuthGuardTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 5
+			path: tests/Feature/ClipApprovalActionTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: tests/Feature/ClipApprovalActionTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Feature/ClipApprovalActionTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:artisan\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/CreatePainelUserCommandTest.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$niche\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/DestinationChannelResourceTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/DestinationChannelResourceTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/InertiaDashboardTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/InertiaDashboardTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:postJson\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Feature/PipelineEventTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:artisan\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/ResetPainelPasswordCommandTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$blacklisted\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/SourceChannelResourceTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/SourceChannelResourceTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Feature/SourceChannelResourceTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 4
+			path: tests/Feature/TelegramCommandsTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: tests/Feature/TelegramCommandsTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:postJson\(\)\.$#'
+			identifier: method.notFound
+			count: 7
+			path: tests/Feature/TelegramCommandsTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:postJson\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Feature/TelegramWebhookTest.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DestinationChannel\:\:\$oauth_expired_flag\.$#'
+			identifier: property.notFound
+			count: 3
+			path: tests/Unit/DestinationChannelOauthStatusTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Unit/ExampleTest.php
