@@ -217,7 +217,7 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto') 
         end = int(seg['end'])
         if end > transcript_duration:
             transcript_duration = float(end)
-        lines.append(f'[{start:02d}:{start%60:02d}-{end:02d}:{end%60:02d}] {seg["text"]}')
+        lines.append(f'[{start}s-{end}s] {seg["text"]}')
     transcript_text = '\n'.join(lines)
 
     # Groq free tier: ~12k TPM. Modo curto trunca bem cedo (~8k chars); modo longo
