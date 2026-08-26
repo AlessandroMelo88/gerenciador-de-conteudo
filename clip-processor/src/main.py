@@ -40,6 +40,13 @@ from src.ttl_worker import run_ttl_once
 from src.internal_api import app as _internal_app
 
 
+def pipeline_enabled() -> bool:
+    """Permite manter o sidecar disponível sem iniciar ingestão/publicação."""
+    return os.environ.get('PIPELINE_ENABLED', 'true').strip().lower() in {
+        '1', 'true', 'yes', 'on',
+    }
+
+
 def log(msg: str):
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] {msg}', flush=True)
 
@@ -74,6 +81,20 @@ def run_recovery_once():
                 pass
 
 
+def run_ingest_if_enabled():
+    if not pipeline_enabled():
+        log('[ACQU] Ingestão pausada por PIPELINE_ENABLED=false')
+        return
+    run_ingest_cycle()
+
+
+def run_publish_if_enabled():
+    if not pipeline_enabled():
+        log('[ACQU] Publicação pausada por PIPELINE_ENABLED=false')
+        return
+    run_publish_only()
+
+
 scheduler = BlockingScheduler(timezone='America/Sao_Paulo')
 
 
@@ -87,7 +108,7 @@ def shutdown(signum, frame):
 # maior faz vaga aberta (vídeo excluído no painel, ou publicação concluída) ser
 # reposta rápido, em vez de esperar até 6h pelo próximo vídeo.
 scheduler.add_job(
-    run_ingest_cycle,
+    run_ingest_if_enabled,
     'interval',
     minutes=20,
     id='ingest_cycle',
@@ -99,7 +120,7 @@ scheduler.add_job(
 # Publica clips já aprovados isoladamente, mesma cadência do ingest — evita
 # represar a fila esperando quando a cota diária reseta ou libera espaço.
 scheduler.add_job(
-    run_publish_only,
+    run_publish_if_enabled,
     'interval',
     minutes=20,
     id='publish_cycle',
@@ -141,6 +162,7 @@ if __name__ == '__main__':
     log('[ACQU] Daemon iniciado — ingestão + publish a cada 20 minutos')
     log(f'[ACQU] MYSQL_HOST: {os.environ.get("MYSQL_HOST", "não configurado")}')
     log(f'[ACQU] REDIS_HOST: {os.environ.get("REDIS_HOST", "não configurado")}')
+    log(f'[ACQU] PIPELINE_ENABLED: {pipeline_enabled()}')
     log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "private")}')
     log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
     log(f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)')
@@ -160,8 +182,11 @@ if __name__ == '__main__':
     log('[ACQU] Sidecar HTTP interno iniciado em 0.0.0.0:8090 (thread daemon)')
 
     # Executar imediatamente na inicialização (não esperar o primeiro tick de 20min)
-    log('[ACQU] Executando ciclo inicial...')
-    run_pipeline_once()
+    if pipeline_enabled():
+        log('[ACQU] Executando ciclo inicial...')
+        run_pipeline_once()
+    else:
+        log('[ACQU] Ciclo inicial pausado — sidecar HTTP continua disponível')
 
     log('[ACQU] Scheduler iniciado — próximo ciclo (ingest + publish) em 20 minutos')
     scheduler.start()
