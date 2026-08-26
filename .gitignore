@@ -21,6 +21,10 @@ videos/*
 !videos/.gitkeep
 *.part
 
+# Backups locais — manter apenas o marcador; dados não entram no Git
+backups/mysql/*.sql.gz
+backups/mysql/*.sql.gz.sha256
+
 # Modelos Whisper (download local, muito pesados)
 whisper/models/
 
