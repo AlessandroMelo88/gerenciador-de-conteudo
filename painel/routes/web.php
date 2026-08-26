@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DestinationChannelController;
 use App\Http\Controllers\DocumentationController;
+use App\Http\Controllers\MediaAssetController;
 use App\Http\Controllers\NicheController;
 use App\Http\Controllers\ProcessVideoController;
 use App\Http\Controllers\SettingsController;
@@ -80,6 +81,9 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/painel/configuracoes', [SettingsController::class, 'show'])->name('settings.show');
     Route::put('/painel/configuracoes/senha', [SettingsController::class, 'updatePassword'])->name('settings.password');
+    Route::post('/painel/configuracoes/midia', [MediaAssetController::class, 'store'])->name('settings.media.store');
+    Route::patch('/painel/configuracoes/midia/{mediaAsset}', [MediaAssetController::class, 'update'])->name('settings.media.update');
+    Route::delete('/painel/configuracoes/midia/{mediaAsset}', [MediaAssetController::class, 'destroy'])->name('settings.media.destroy');
 });
 
 // URL raiz = o painel (decisão CONTEXT.md: "canaldecortes.local raiz, sem

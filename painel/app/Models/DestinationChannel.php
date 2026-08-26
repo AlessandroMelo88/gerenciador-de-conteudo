@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DestinationChannel extends Model
 {
@@ -27,6 +28,12 @@ class DestinationChannel extends Model
         'active' => 'bool',
         'oauth_expired_flag' => 'bool',
     ];
+
+    /** @return HasMany<MediaAsset, $this> */
+    public function mediaAssets(): HasMany
+    {
+        return $this->hasMany(MediaAsset::class, 'destination_channel_id');
+    }
 
     /**
      * Contrato (definido em 08-VALIDATION.md / tests/Unit/DestinationChannelOauthStatusTest.php):
