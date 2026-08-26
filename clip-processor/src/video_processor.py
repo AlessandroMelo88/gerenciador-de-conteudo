@@ -20,6 +20,8 @@ import os
 import subprocess
 from datetime import datetime
 
+from src.media_assets import resolve_media_assets
+from src.media_composer import compose_media
 from src.metadata_generator import generate_metadata, update_clip_metadata
 
 VIDEOS_DIR = '/app/videos'
@@ -234,6 +236,7 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
         subtitled_path = os.path.join(CLIPS_DIR, f'{clip_id}_subtitled.mp4')
         final_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}.mp4')
         thumbnail_path = os.path.join(THUMBNAILS_DIR, f'{clip_id}.jpg')
+        video_format = clip.get('format') or 'curto'
 
         cut_clip(
             clip['local_path'],
@@ -261,6 +264,31 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
         else:
             # Sem canal-destino: renomear arquivo legendado para path final
             os.rename(subtitled_path, final_clip_path)
+
+        # A biblioteca de mídia é opcional. Quando configurada, o worker escolhe
+        # o asset mais específico para canal/formato e mantém o clip original se
+        # uma mídia estiver indisponível ou falhar no FFmpeg.
+        media_assets = resolve_media_assets(
+            conn,
+            destination_channel_id=clip.get('destination_channel_id'),
+            video_format=video_format,
+            clip_id=clip_id,
+        )
+        if media_assets:
+            branded_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}_branded.mp4')
+            try:
+                composed_path = compose_media(
+                    final_clip_path,
+                    branded_clip_path,
+                    video_format,
+                    media_assets,
+                )
+                if composed_path != final_clip_path:
+                    os.replace(composed_path, final_clip_path)
+            except Exception as exc:
+                _log(f'Clip {clip_id}: mídia configurada não aplicada — {exc}')
+                if os.path.exists(branded_clip_path):
+                    os.remove(branded_clip_path)
 
         max(float(clip['end_time']) - float(clip['start_time']), 1.0)
         extract_thumbnail(final_clip_path, thumbnail_path, at_seconds=1.0)
@@ -295,9 +323,12 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
             'SELECT '
             'gc.id, gc.source_video_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
             'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path, sv.format, '
-            'dc.slug AS destination_channel_slug '
+            'sc.target_niche, '
+            'dc.id AS destination_channel_id, dc.slug AS destination_channel_slug, '
+            'dc.niche AS destination_niche '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
+            'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
             'LEFT JOIN destination_channels dc ON dc.id = gc.destination_channel_id '
             'WHERE gc.id = %s',
             (clip_id,),
@@ -330,6 +361,8 @@ def _build_clip_context(clip: dict, transcript: dict) -> dict:
         'score': clip.get('score'),
         'start_time': start_time,
         'end_time': end_time,
+        'format': clip.get('format') or 'curto',
+        'niche': clip.get('destination_niche') or clip.get('target_niche') or '',
         'transcript_excerpt': ' '.join(line for line in excerpt_lines if line),
     }
 

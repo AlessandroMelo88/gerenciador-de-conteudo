@@ -124,6 +124,60 @@ class TestVideoProcessor:
         execute_calls = [str(call) for call in cursor.execute.call_args_list]
         assert any('failed' in call for call in execute_calls)
 
+    def test_process_clip_applies_configured_media_after_watermark(
+        self, tmp_path, mock_db_conn, mocker
+    ):
+        transcript_path = tmp_path / 'transcript.json'
+        transcript_path.write_text(json.dumps(SAMPLE_TRANSCRIPT), encoding='utf-8')
+
+        clip_row = {
+            'id': 30,
+            'source_video_id': 1,
+            'destination_channel_id': 4,
+            'youtube_video_id': 'vid004dddddd',
+            'source_title': 'Debate com identidade',
+            'local_path': '/app/videos/source.mp4',
+            'transcript_path': str(transcript_path),
+            'start_time': 100.0,
+            'end_time': 220.0,
+            'score': 9,
+            'reason': 'Contexto completo',
+            'format': 'curto',
+            'destination_channel_slug': None,
+        }
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = clip_row
+
+        mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/30_raw.mp4')
+        mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/30.srt')
+        mocker.patch(
+            'src.video_processor.burn_subtitles', return_value='/app/clips/30_subtitled.mp4'
+        )
+        mocker.patch('src.video_processor.os.rename')
+        assets = {'intro': {'absolute_path': '/app/branding/intro.mp4'}}
+        mocker.patch('src.video_processor.resolve_media_assets', return_value=assets)
+        compose = mocker.patch(
+            'src.video_processor.compose_media', return_value='/app/videos/clips/30_branded.mp4'
+        )
+        replace = mocker.patch('src.video_processor.os.replace')
+        mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/30.jpg')
+        mocker.patch(
+            'src.video_processor.generate_metadata',
+            return_value={'title': 'Titulo', 'description': 'Desc', 'tags': []},
+        )
+        mocker.patch('src.video_processor.update_clip_metadata')
+
+        assert process_clip(mock_db_conn, 30) is True
+        compose.assert_called_once_with(
+            '/app/videos/clips/30.mp4',
+            '/app/videos/clips/30_branded.mp4',
+            'curto',
+            assets,
+        )
+        replace.assert_called_once_with(
+            '/app/videos/clips/30_branded.mp4', '/app/videos/clips/30.mp4'
+        )
+
 
 class TestSubtitles:
     def test_srt_contains_shifted_segment_times(self, tmp_path):
