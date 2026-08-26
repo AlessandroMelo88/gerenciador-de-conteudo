@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { RequestPayload } from '@inertiajs/core';
 import { router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import {
@@ -69,7 +70,7 @@ function useSelection() {
     return { selected, toggle, toggleAll, clear };
 }
 
-function postAction(url: string, data: Record<string, unknown> = {}) {
+function postAction(url: string, data: RequestPayload = {}) {
     router.post(url, data, {
         preserveScroll: true,
         onSuccess: (page) => {
