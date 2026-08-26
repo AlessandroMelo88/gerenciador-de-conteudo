@@ -1,0 +1,1 @@
+**Backup diário do MySQL** — serviço `mysql-backup` (perfil `backup`) com dump `--single-transaction` em gzip + SHA-256 e retenção configurável; `scripts/backup-mysql.sh` para execução única e `scripts/restore-mysql.sh` guardado por `CONFIRM_RESTORE=I_UNDERSTAND`

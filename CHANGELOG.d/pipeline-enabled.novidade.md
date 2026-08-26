@@ -1,0 +1,1 @@
+**`PIPELINE_ENABLED` e `GET /health`** — flag que mantém o sidecar HTTP de pé com ingestão/publicação pausadas (subir o stack antes das chaves de IA e do OAuth) e rota de health usada pelo healthcheck do container

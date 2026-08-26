@@ -1,0 +1,1 @@
+**Ruff + mypy no clip-processor** — `pyproject.toml` com lint (E/W/F/I/B/UP/C4/SIM/RUF), formatter (aspas simples, 100 colunas), mypy informativo e pytest; `requirements-dev.txt`; base de código formatada (exceto os módulos em migração de banco, pendentes)

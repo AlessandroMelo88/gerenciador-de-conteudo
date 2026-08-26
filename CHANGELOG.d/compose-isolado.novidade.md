@@ -1,0 +1,1 @@
+**Compose isolado** — `docker-compose.yml` próprio do projeto (mysql 8.4, redis 7, php-fpm + queue + scheduler, nginx em `:8088`, clip-processor com healthcheck) no lugar do compose compartilhado de `wordpress/`; `panel-init` roda migrate e cria o operador no primeiro boot

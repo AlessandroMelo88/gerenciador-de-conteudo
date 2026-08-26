@@ -1,0 +1,1 @@
+**Pint + PHPStan + Prettier + oxlint no painel** — Pint preset laravel (`pint.json`), Larastan nível 5 com baseline de 87 erros (`phpstan-baseline.neon`), Prettier com plugins tailwind/organize-imports, oxlint (react-hooks, jsx-a11y, import) e scripts `npm run typecheck|lint|format|check`

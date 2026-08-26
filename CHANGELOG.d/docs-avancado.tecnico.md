@@ -1,0 +1,1 @@
+**Docs avançado** — `Docs/DESENVOLVIMENTO.md` (setup, ferramentas, políticas de baseline), `Docs/TODO-REFATORACAO.md` (auditoria Python/PHP/React com `arquivo:linha`), `Docs/ADR/` (decisões registradas), `CONTRIBUTING.md` e `CHANGELOG.d/` com `scripts/changelog.py`
