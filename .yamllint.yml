@@ -1,0 +1,25 @@
+# yamllint — usado pelo pre-commit e pelo CI (make lint-yaml)
+extends: default
+
+ignore: |
+  node_modules/
+  vendor/
+  painel/node_modules/
+  painel/vendor/
+  postgres/
+  graphify-out/
+  .planning/
+
+rules:
+  line-length:
+    max: 140
+    allow-non-breakable-inline-mappings: true
+  document-start: disable
+  truthy:
+    allowed-values: ["true", "false", "on", "off"]
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  indentation:
+    spaces: 2
+    indent-sequences: consistent

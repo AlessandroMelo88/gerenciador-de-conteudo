@@ -1,0 +1,154 @@
+# CI — espelha `make ci` mais os testes PHP (que exigem MySQL + Redis).
+# Detalhes de cada ferramenta: Docs/DESENVOLVIMENTO.md
+name: CI
+
+on:
+  push:
+    branches: [master, develop, "release/**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: clip-processor · ruff + pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clip-processor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: clip-processor/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check . --output-format=github
+      - run: ruff format --check .
+      - run: pytest -q -p no:cacheprovider
+
+  php-static:
+    name: painel · pint + phpstan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: painel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, intl, bcmath, pdo_mysql, redis, zip
+          coverage: none
+          tools: composer:v2
+      - uses: actions/cache@v4
+        with:
+          path: painel/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('painel/composer.lock') }}
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: vendor/bin/pint --test
+      - run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress --error-format=github
+
+  php-tests:
+    name: painel · pest (mysql + redis)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: painel
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: clips_automation
+          MYSQL_USER: clips_user
+          MYSQL_PASSWORD: secret
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: clips_automation
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      CLIP_PROCESSOR_INTERNAL_TOKEN: ci-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, intl, bcmath, pdo_mysql, redis, zip
+          coverage: none
+          tools: composer:v2
+      - uses: actions/cache@v4
+        with:
+          path: painel/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('painel/composer.lock') }}
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Aplica o schema do pipeline (mysql/init/*.sql, mesma ordem do entrypoint)
+        run: |
+          for f in ../mysql/init/*.sql; do
+            echo "== $f"
+            mysql --protocol=TCP -h127.0.0.1 -uroot -proot clips_automation < "$f"
+          done
+      - run: cp .env.example .env && php artisan key:generate --force
+      - run: php artisan migrate --force --no-interaction
+      - run: php artisan test
+
+  frontend:
+    name: painel · tsc + oxlint + prettier + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: painel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: painel/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run build
+
+  infra:
+    name: infra · shellcheck + hadolint + yamllint + compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q shellcheck
+      - run: shellcheck -S warning scripts/*.sh manual-workflow/*.sh docker/php/bootstrap-panel
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+          config: .hadolint.yaml
+      - run: pip install yamllint && yamllint -c .yamllint.yml .
+      - name: docker compose config
+        env:
+          CLIPS_DB_PASSWORD: ci
+          MYSQL_ROOT_PASSWORD: ci
+        run: cp .env.example .env && cp painel/.env.example painel/.env && docker compose config -q

@@ -1,0 +1,8 @@
+# hadolint — lint dos Dockerfiles (clip-processor/Dockerfile, docker/php, docker/nginx)
+ignored:
+  - DL3008  # apt-get sem versão fixa: imagens base já são fixadas por tag
+  - DL3013  # pip install sem versão fixa: versões vêm de requirements.txt
+  - DL3042  # pip --no-cache-dir já é usado onde importa
+  - DL4006  # set -o pipefail: os RUN com pipe são de instalação única
+trustedRegistries:
+  - docker.io

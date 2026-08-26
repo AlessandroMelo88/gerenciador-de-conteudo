@@ -1,0 +1,97 @@
+# pre-commit — hooks locais de qualidade.
+#   pip install pre-commit && pre-commit install --install-hooks   (ou `make hooks`)
+#   pre-commit run --all-files        # roda tudo uma vez
+#   pre-commit autoupdate             # atualiza as versões dos hooks
+# Os hooks do painel usam o vendor/ e o node_modules/ locais (composer install, npm ci).
+minimum_pre_commit_version: "3.5.0"
+default_install_hook_types: [pre-commit, pre-push]
+
+exclude: |
+  (?x)^(
+    graphify-out/|
+    \.planning/|
+    painel/vendor/|
+    painel/node_modules/|
+    painel/public/build/|
+    backups/|
+    videos/
+  )
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: detect-private-key
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^clip-processor/
+      - id: ruff-format
+        files: ^clip-processor/
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: [-S, warning]
+        files: (\.sh$|^docker/php/bootstrap-panel$)
+        types: [text]
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-c, .yamllint.yml]
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        files: (^|/)Dockerfile$
+
+  - repo: local
+    hooks:
+      - id: pint
+        name: laravel pint
+        entry: bash -c 'cd painel && vendor/bin/pint --test "${@#painel/}"' --
+        language: system
+        files: ^painel/.*\.php$
+        exclude: ^painel/(vendor|storage|bootstrap/cache)/
+      - id: prettier
+        name: prettier (painel/resources)
+        entry: bash -c 'cd painel && npx prettier --check "${@#painel/}"' --
+        language: system
+        files: ^painel/resources/.*\.(ts|tsx|css)$
+      - id: oxlint
+        name: oxlint (painel/resources/js)
+        entry: bash -c 'cd painel && npx oxlint "${@#painel/}"' --
+        language: system
+        files: ^painel/resources/js/.*\.(ts|tsx)$
+      - id: tsc
+        name: tsc --noEmit (painel)
+        entry: bash -c 'cd painel && npx tsc --noEmit'
+        language: system
+        files: ^painel/(resources/js/.*\.(ts|tsx)|tsconfig\.json)$
+        pass_filenames: false
+        stages: [pre-push]
+      - id: phpstan
+        name: phpstan (painel)
+        entry: bash -c 'cd painel && vendor/bin/phpstan analyse --memory-limit=1G --no-progress'
+        language: system
+        files: ^painel/.*\.php$
+        pass_filenames: false
+        stages: [pre-push]
