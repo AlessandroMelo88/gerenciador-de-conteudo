@@ -1,0 +1,1 @@
+**Transição suave e vídeo relacionado** — a composição aplica crossfade curto entre intro, conteúdo e encerramento; o card reservado usa o próximo vídeo disponível e a publicação sempre acrescenta seu link ao final da descrição.

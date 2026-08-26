@@ -18,7 +18,7 @@ Confusão que já causou mal-entendido aqui:
 
 | Nome | O que é | Usado no projeto? |
 |---|---|---|
-| **Groq** | Empresa de inferência (hardware LPU). Serve modelos abertos — LLaMA, Whisper — via API compatível com OpenAI. Tem free tier. | **Sim.** É quem responde hoje, tanto na seleção quanto na transcrição. |
+| **Groq** | Empresa de inferência (hardware LPU). Serve modelos abertos — LLaMA, Whisper — via API compatível com OpenAI. Tem free tier. | **Sim.** É quem responde hoje na seleção e é fallback da transcrição. |
 | **Grok** | Modelo de linguagem da xAI (Elon Musk). | **Não.** Não existe nenhuma referência a xAI/Grok no código. |
 
 Quando este documento diz "Groq", é a empresa de inferência rodando **LLaMA 3.3-70b da Meta**.
@@ -56,7 +56,7 @@ Se a key da Anthropic fosse preenchida e falhasse (crédito zerado, rede), a lin
 | `model` | `llama-3.3-70b-versatile` | Modelo de 70B parâmetros, contexto de 128k mas TPM limitado no free tier |
 | `response_format` | `{'type': 'json_object'}` | Modo JSON forçado — o modelo não consegue devolver prosa solta |
 | `temperature` | `0.3` | Baixa. Seleção quase determinística: rodar duas vezes tende a dar os mesmos momentos |
-| `max_tokens` | `2048` | Teto da **resposta**, não da entrada |
+| `max_tokens` | `768` curto / `2048` longo | Teto da **resposta**, não da entrada; o longo precisa de mais espaço para raciocínio antes do JSON |
 
 ### Custo e o limite que dita o truncamento
 
@@ -85,11 +85,13 @@ pipeline nasce com fallback Groq**, não só o seletor.
 
 ## 2. Os prompts, na íntegra
 
-Copiados literalmente do código. São o que efetivamente vai no campo `system` da chamada.
+Copiados literalmente do código. São o que efetivamente vai no campo `system` da chamada. Os quatro
+prompts de seleção compartilham `CONTENT_SELECTION_RULES`, que instrui a IA a detectar semanticamente
+os blocos comerciais e inferir os limites completos de cada assunto em cada transcrição.
 
 ### `SYSTEM_PROMPT` — formato **curto** (shorts)
 
-[`selector.py:15-32`](../clip-processor/src/selector.py#L15) · **reescrito em 13/08/2026**
+[`selector.py:22-53`](../clip-processor/src/selector.py#L22) · **reescrito em 13/08/2026**
 
 ```text
 Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos.
@@ -104,15 +106,35 @@ o segmento onde o tema é introduzido, mesmo que isso o deixe mais longo.
 Para futebol: priorize análise tática, debate acalorado, revelação de bastidores e o COMENTÁRIO
 sobre um gol (a leitura do que aconteceu) — nunca o instante da narração do gol isolado.
 Para podcasts: priorize discussão intensa, revelação importante, momento de conflito ou humor.
+REGRA OBRIGATÓRIA — ANÁLISE AUTÔNOMA DA TRANSCRIÇÃO: leia e interprete todas as linhas com timestamps
+da transcrição fornecida antes de escolher qualquer momento. Execute este processo para cada vídeo, sem
+assumir posição, duração ou estrutura padrão. Primeiro, mapeie mentalmente os intervalos comerciais;
+depois, mapeie os assuntos editoriais completos; por fim, escolha e valide os melhores candidatos.
+Para PUBLICIDADE, detecte semanticamente anúncios, propaganda, patrocínio, merchandising, product
+placement, oferta, cupom, código promocional, chamada comercial, link/QR code de venda ou qualquer CTA
+de marca. Infira pelos timestamps o início e o fim exatos de cada bloco comercial, incluindo a transição
+de entrada e saída, e exclua o bloco inteiro — nunca apenas uma frase. NÃO use posição fixa, horário fixo
+ou duração fixa, nem suponha que a propaganda esteja sempre no começo: cada vídeo pode ter publicidade em
+pontos e durações diferentes. Uma menção editorial a uma marca não é publicidade se não houver promoção,
+venda ou chamada comercial. Nenhum momento pode sobrepor publicidade, nem por poucos segundos.
+Para o ASSUNTO COMPLETO, encontre um único raciocínio com começo, meio e fim: introdução/contexto,
+desenvolvimento e conclusão. Infira os limites naturais deste assunto: comece quando a ideia é apresentada,
+incluindo a pergunta ou o setup necessário, e termine somente depois da resposta, desfecho ou conclusão,
+em uma pausa clara ou troca de assunto. NUNCA corte no meio de uma palavra, frase, fala, resposta,
+pergunta, explicação, história, piada ou raciocínio, nem em conjunções ou preposições ("mas", "porque",
+"então", "apesar de"). Não force a duração preferida cortando um assunto: se ele não couber completo e
+sem publicidade, descarte-o e procure outro. Se não houver segmento editorial completo e seguro, retorne
+{"moments": []}. Se aparecer o marcador [... trecho intermediário omitido ...], trate a lacuna como
+desconhecida e não crie um momento que atravesse essa lacuna.
 Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente
 (10 = viral garantido, 1 = sem valor).
 Responda APENAS com JSON válido, sem texto adicional:
-{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}
+{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>", "fake_news": "<positivo|negativo|inconclusivo>"}]}
 ```
 
 ### `LONG_SYSTEM_PROMPT` — formato **longo** (vídeo horizontal)
 
-[`selector.py:38-53`](../clip-processor/src/selector.py#L38)
+[`selector.py:59-75`](../clip-processor/src/selector.py#L59)
 
 ```text
 Você é um especialista em identificar o melhor segmento de ANÁLISE ou ENTREVISTA longa
@@ -125,10 +147,30 @@ raciocínio natural passar de 20 minutos, pode estender até o ponto em que ele 
 termina — não corte no meio de uma ideia só pra caber na janela preferida. Não escolha um
 trecho curto — o segmento PRECISA ter pelo menos 420 segundos de duração
 (end_time - start_time >= 420).
+REGRA OBRIGATÓRIA — ANÁLISE AUTÔNOMA DA TRANSCRIÇÃO: leia e interprete todas as linhas com timestamps
+da transcrição fornecida antes de escolher qualquer momento. Execute este processo para cada vídeo, sem
+assumir posição, duração ou estrutura padrão. Primeiro, mapeie mentalmente os intervalos comerciais;
+depois, mapeie os assuntos editoriais completos; por fim, escolha e valide os melhores candidatos.
+Para PUBLICIDADE, detecte semanticamente anúncios, propaganda, patrocínio, merchandising, product
+placement, oferta, cupom, código promocional, chamada comercial, link/QR code de venda ou qualquer CTA
+de marca. Infira pelos timestamps o início e o fim exatos de cada bloco comercial, incluindo a transição
+de entrada e saída, e exclua o bloco inteiro — nunca apenas uma frase. NÃO use posição fixa, horário fixo
+ou duração fixa, nem suponha que a propaganda esteja sempre no começo: cada vídeo pode ter publicidade em
+pontos e durações diferentes. Uma menção editorial a uma marca não é publicidade se não houver promoção,
+venda ou chamada comercial. Nenhum momento pode sobrepor publicidade, nem por poucos segundos.
+Para o ASSUNTO COMPLETO, encontre um único raciocínio com começo, meio e fim: introdução/contexto,
+desenvolvimento e conclusão. Infira os limites naturais deste assunto: comece quando a ideia é apresentada,
+incluindo a pergunta ou o setup necessário, e termine somente depois da resposta, desfecho ou conclusão,
+em uma pausa clara ou troca de assunto. NUNCA corte no meio de uma palavra, frase, fala, resposta,
+pergunta, explicação, história, piada ou raciocínio, nem em conjunções ou preposições ("mas", "porque",
+"então", "apesar de"). Não force a duração preferida cortando um assunto: se ele não couber completo e
+sem publicidade, descarte-o e procure outro. Se não houver segmento editorial completo e seguro, retorne
+{"moments": []}. Se aparecer o marcador [... trecho intermediário omitido ...], trate a lacuna como
+desconhecida e não crie um momento que atravesse essa lacuna.
 Retorne exatamente 1 momento, com score de 1 a 10
 (10 = análise excelente pra virar vídeo, 1 = sem valor).
 Responda APENAS com JSON válido, sem texto adicional:
-{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}
+{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>", "fake_news": "<positivo|negativo|inconclusivo>"}]}
 ```
 
 **Por que dois prompts e não um com parâmetro:** comentário em [`selector.py:34-37`](../clip-processor/src/selector.py#L34)
@@ -139,6 +181,19 @@ longo funcionar.
 O prompt de **metadados** (título/descrição/tags) é um terceiro, curto, em
 [`metadata_generator.py:18-24`](../clip-processor/src/metadata_generator.py#L18) — não influencia a
 escolha do trecho, só o texto que acompanha o upload.
+
+### Verificação de fatos
+
+Todos os prompts de seleção e metadata exigem pesquisa na internet quando a transcrição contém
+fatos ou outras informações verificáveis. O resultado deve ser rotulado como `positivo` quando houver
+evidência de informação falsa, enganosa ou descontextualizada, `negativo` quando fontes confiáveis a
+corroborarem e `inconclusivo` quando não houver evidência suficiente ou a ferramenta web não estiver
+disponível. A seleção termina o campo `reason` com o rótulo; a geração de metadata repete o veredito
+no final da descrição. O modelo não deve inventar fontes nem afirmar que pesquisou sem acesso à web.
+
+Os prompts equivalentes do nicho de Tecnologia/Filosofia Hacker (`HACKER_LIBERTARIO_PROMPT` e
+`HACKER_LIBERTARIO_LONG_PROMPT`) recebem exatamente o mesmo `CONTENT_SELECTION_RULES`; portanto as
+restrições valem tanto para vídeos quanto para Shorts, independentemente do nicho.
 
 ---
 
@@ -154,6 +209,10 @@ do prompt.
 | `momentos virais` | Enquadra a tarefa: o modelo busca o que gera reação, não o que é informativo |
 | `futebol e podcasts esportivos` | Define o domínio. Vídeo fora disso (game, política) é avaliado com régua errada |
 | `ASSUNTO COMPLETO: começo, meio e fim de um mesmo raciocínio` | **O termo mais importante do prompt hoje.** É o que impede o modelo de recortar frase solta |
+| `detecte semanticamente` + `infira pelos timestamps` | Faz a IA localizar o início e o fim de cada anúncio conforme o conteúdo real do vídeo |
+| `NÃO use posição fixa, horário fixo ou duração fixa` | Impede que uma abertura comercial de um vídeo vire regra para os demais |
+| `Nenhum momento pode sobrepor publicidade` | Exclui o bloco comercial inteiro, inclusive alguns segundos de transição |
+| `introdução, desenvolvimento e conclusão` + `NUNCA corte...` | Obriga início e fim naturais; se o assunto estiver incompleto, o modelo deve descartar o momento |
 | `a fala que introduz o tema, o desenvolvimento e o desfecho ou a conclusão` | Detalha o critério anterior em três partes concretas — o modelo tende a obedecer melhor lista explícita que adjetivo |
 | `Em 3 ou 4 segundos não existe assunto nenhum` | Bloqueio negativo direto contra o comportamento observado antes da mudança |
 | `um grito de gol, uma interjeição ou uma frase solta fora de contexto NÃO servem` | Enumera os três padrões ruins que apareciam de fato na fila |
@@ -213,7 +272,7 @@ código em [`selector.py:55-57`](../clip-processor/src/selector.py#L55).
 
 ## 4. Regras de duração
 
-Quatro constantes, [`selector.py:58-62`](../clip-processor/src/selector.py#L58):
+As regras de duração e contexto ficam em constantes no `selector.py`:
 
 | Constante | Valor atual | Linha | Significado |
 |---|---|---|---|
@@ -221,6 +280,15 @@ Quatro constantes, [`selector.py:58-62`](../clip-processor/src/selector.py#L58):
 | `MAX_SHORTFORM_SECONDS` | **180** | [`:59`](../clip-processor/src/selector.py#L59) | Teto do curto. Acima disso, momento é **descartado** |
 | `MIN_LONGFORM_SECONDS` | **420** | [`:61`](../clip-processor/src/selector.py#L61) | Piso do longo. Abaixo disso, o segmento é **esticado** |
 | `MAX_LONGFORM_SECONDS` | **1200** | [`:62`](../clip-processor/src/selector.py#L62) | Teto do longo, aplicado ao esticar |
+
+Para evitar que o longo comece no meio da introdução ou termine na primeira frase da conclusão, o
+selector também completa as bordas com segmentos da transcrição. Ele recua até 12 s (ou até o início
+da fala) e avança até uma pausa de pelo menos 2,5 s, limitado a 180 s de extensão e ao teto de 20 min.
+
+Não existe uma constante de tempo para publicidade. O `CONTENT_SELECTION_RULES`, enviado aos quatro
+prompts de seleção, instrui a IA a encontrar os blocos comerciais pelos sinais semânticos da transcrição
+e a inferir seus timestamps em cada vídeo. Assim, anúncios no começo, no meio ou no fim são tratados da
+mesma forma, sem transformar o intervalo de um vídeo em regra para os outros.
 
 `MIN_LONGFORM_SECONDS` tem um **segundo uso**, fora da seleção: `rss_poller._detect_format()`
 ([`rss_poller.py:54`](../clip-processor/src/rss_poller.py#L54)) classifica o vídeo fonte como `longo`
@@ -261,13 +329,13 @@ escasso e a vizinhança é confiável.
 
 ```mermaid
 flowchart TD
-    A["source_videos<br/>status=downloaded<br/>format=curto|longo"] --> B["transcribe_video()<br/>transcriber.py:51<br/>Groq Whisper large-v3-turbo, pt"]
+    A["source_videos<br/>status=downloaded<br/>format=curto|longo"] --> B["transcribe_video()<br/>legendas YouTube → Groq fallback"]
     B --> C["transcript dict<br/>{video_id, text, segments}"]
     C --> D["select_moments(transcript, fmt)<br/>selector.py:188"]
     D --> E["Formata segmentos<br/>'[Ns-Ns] texto' por linha<br/>selector.py:210-215"]
     E --> F{"fmt == 'longo'?"}
     F -->|curto| G1["trunca em 8000 chars<br/>max_moments = 1..3<br/>SYSTEM_PROMPT"]
-    F -->|longo| G2["trunca em 20000 chars<br/>max_moments = 1<br/>LONG_SYSTEM_PROMPT"]
+    F -->|longo| G2["trunca em 18000 chars mantendo começo e fim<br/>max_moments = 1<br/>LONG_SYSTEM_PROMPT"]
     G1 --> H{"transcript vazio?"}
     G2 --> H
     H -->|sim| Z["return []"]
@@ -293,9 +361,10 @@ flowchart TD
 ### Passo a passo
 
 **1. Transcrição.** `transcriber.transcribe_video()`
-([`transcriber.py:51`](../clip-processor/src/transcriber.py#L51)) manda o áudio para **Groq Whisper
-`whisper-large-v3-turbo`**, idioma `pt`. Converte para MP3 se o arquivo passar de 24 MB. **Não tem
-fallback** — se falhar, o vídeo vira `failed` e nunca chega no seletor. Retorna
+([`transcriber.py:174`](../clip-processor/src/transcriber.py#L174)) tenta primeiro legendas manuais e
+automáticas do YouTube em português, sem reenviar o áudio. Se não houver legenda utilizável, manda o
+áudio para **Groq Whisper `whisper-large-v3-turbo`**, idioma `pt`, convertendo para MP3 quando o
+arquivo passa de 24 MB. Se ambos falharem, o vídeo vira `failed` e nunca chega no seletor. Retorna
 `{'video_id', 'text', 'segments'}`, onde cada segmento tem `start`, `end`, `text`.
 
 **2. Formatação para o prompt.** [`selector.py:210-215`](../clip-processor/src/selector.py#L210) —
@@ -319,9 +388,11 @@ como limite superior.
 | Formato | `MAX_CHARS` | Consequência |
 |---|---|---|
 | curto | **8000** | ≈ 15–25 min de fala. Num podcast de 1h30, **a IA só vê o começo do vídeo** — todo momento bom da segunda metade é invisível |
-| longo | **20000** | Teto bem maior porque o modo longo precisa varrer o vídeo para achar um bloco de 7–20 min. Ainda assim trunca em vídeos muito longos |
+| longo | **14000** | Janela compatível com o TPM do Groq quando combinada com `max_tokens=2048`; preserva o começo e o fim, separados por um marcador explícito |
 
-Corte é bruto (`transcript_text[:MAX_CHARS]`), no meio da linha se preciso. Loga
+No curto, o limite ainda é aplicado diretamente ao texto. No longo, o limite preserva a cabeça da
+transcrição (onde costuma estar a introdução) e os últimos 3000 caracteres da janela (onde pode estar
+a conclusão), com o marcador `[... trecho intermediário omitido ...]` entre eles. O processo loga
 `[SELECTOR] Transcrição truncada para N chars (original maior)`.
 
 **5. Chamada ao modelo** — cadeia da seção 1.
@@ -361,8 +432,9 @@ longo** ([`selector.py:208`](../clip-processor/src/selector.py#L208)).
 ([`rss_poller.py:147-149`](../clip-processor/src/rss_poller.py#L147)) — sem isso o status ficava em
 `selecting` (estado **sem recuperação automática**) segurando a janela de download para sempre.
 
-**11. Daí em diante** o clip é do `video_processor.process_clip()` — corte FFmpeg, legendas,
-thumbnail — e o título/descrição vêm do `metadata_generator` (mesma cadeia de IA, seção 1).
+**11. Daí em diante** o clip é do `video_processor.process_clip()` — corte FFmpeg, pós-produção
+específica do formato (legendas somente no curto) e thumbnail — e o título/descrição vêm do
+`metadata_generator` (mesma cadeia de IA, seção 1).
 
 ---
 
@@ -388,9 +460,10 @@ Como `fmt` propaga dentro de `select_moments` ([`selector.py:206-208`](../clip-p
 |---|---|---|
 | `system_prompt` | `SYSTEM_PROMPT` | `LONG_SYSTEM_PROMPT` |
 | `max_moments` | 3 | 1 |
-| `MAX_CHARS` | 8000 | 20000 |
+| `MAX_CHARS` | 8000 | 14000 (cabeça + cauda); o resultado também é limitado à duração real da transcrição e revalidado para manter no mínimo 420s |
 | pós-processamento | `_filter_shortform_duration` (descarta) | `_enforce_longform_duration` (estica) |
 | corte no FFmpeg | crop 1080x1920 (9:16) | `scale=-2:1080` (horizontal) |
+| legendas queimadas | sim | não |
 
 Qualquer string diferente de `'longo'` cai no ramo curto (`is_longo = fmt == 'longo'`) — não há
 validação nem erro.
@@ -415,11 +488,11 @@ Tudo o que governa a seleção está **hard-coded em `selector.py`**:
 código no build. Então **qualquer** alteração acima, inclusive trocar uma palavra do prompt, exige:
 
 ```bash
-cd /Users/alessandrobm1/develop/server/wordpress/canaldecortes/..   # raiz wordpress/, onde está o compose
+cd /caminho/para/gerenciador-de-conteudo   # raiz deste repositório, onde está o compose
 docker compose build clip-processor && docker compose up -d clip-processor
 ```
 
-Isolado ao serviço `clip-processor` — não sobe mysql, redis nem os outros projetos do compose
+Isolado ao serviço `clip-processor` — não sobe postgres, redis nem os outros projetos do compose
 compartilhado.
 
 Esse atrito (rebuild de imagem para ajustar uma frase de prompt, sem poder comparar
@@ -438,7 +511,7 @@ existe, o ciclo de iteração é editar → build → restart → esperar o pró
 | 3 | **Normalização 0–1 pode inflar lixo** | [`selector.py:77`](../clip-processor/src/selector.py#L77) | Se todos os scores do lote forem ≤ 1.0 na escala correta, são multiplicados por 10 e passam o corte |
 | 4 | **Zero momentos válidos → vídeo `failed`** | [`rss_poller.py:147`](../clip-processor/src/rss_poller.py#L147) | Comportamento correto (libera a janela), mas o vídeo fica indistinguível de falha real de download/transcrição. Com o `MIN` em 30s, a taxa de `failed` tende a subir |
 | 5 | **Fallback burro de título** | [`metadata_generator.py:145`](../clip-processor/src/metadata_generator.py#L145) | Se Anthropic **e** Groq falharem, os clips do mesmo vídeo saem com título idêntico — o sintoma de "vídeo duplicado na fila". Hoje mitigado pelo degrau Groq, mas se `GROQ_API_KEY` expirar o sintoma volta |
-| 6 | **Transcrição sem fallback** | [`transcriber.py:51`](../clip-processor/src/transcriber.py#L51) | Whisper falhando = vídeo `failed`, seleção nunca roda. A IA de seleção é 100% dependente de um provider único |
+| 6 | **Legendas podem estar indisponíveis** | [`transcriber.py:174`](../clip-processor/src/transcriber.py#L174) | O pipeline tenta legenda do YouTube antes do Groq; se a legenda estiver bloqueada/ausente e o Groq também falhar, o vídeo vira `failed` |
 | 7 | **`fmt` inválido silencioso** | [`selector.py:206`](../clip-processor/src/selector.py#L206) | Qualquer valor ≠ `'longo'` vira curto sem aviso |
 | 8 | **Free tier de 12k TPM** | Groq | Vários vídeos em paralelo podem estourar o TPM; a exceção cai em `return []` → vídeo `failed`, sem retry específico |
 | 9 | **`_remove_overlaps` roda duas vezes** | [`:233`](../clip-processor/src/selector.py#L233) e [`:304`](../clip-processor/src/selector.py#L304) | A segunda chamada usa o default `max_count=3` mesmo no modo longo. Inofensivo hoje (longo já tem 1 momento), mas é uma pegadinha se `max_moments` do longo mudar |
@@ -486,11 +559,10 @@ Duas famílias distintas de descarte aparecem aqui:
 ### 4. Conferir a duração dos clips no banco
 
 ```bash
-cd /Users/alessandrobm1/develop/server/wordpress/canaldecortes
-P=$(grep '^DB_PASSWORD=' painel/.env | cut -d= -f2-)
-docker exec -i mysql mysql -uclips_user -p"$P" clips_automation -e "
+cd /caminho/do/gerenciador-de-conteudo
+docker compose exec -T postgres psql -U clips_user -d clips_automation -P pager=off -c "
 SELECT gc.id, sv.format, gc.start_time, gc.end_time,
-       ROUND(gc.end_time - gc.start_time, 1) AS dur_s,
+       ROUND((gc.end_time - gc.start_time)::numeric, 1) AS dur_s,
        gc.score, gc.status, gc.created_at
 FROM generated_clips gc
 JOIN source_videos sv ON sv.id = gc.source_video_id
@@ -504,13 +576,12 @@ nenhuma com `format='longo'` deve ter `dur_s` abaixo de 420 (o esticamento garan
 ### 5. Provar que a regra nova está valendo (antes vs. depois do rebuild)
 
 ```bash
-P=$(grep '^DB_PASSWORD=' painel/.env | cut -d= -f2-)
-docker exec -i mysql mysql -uclips_user -p"$P" clips_automation -e "
+docker compose exec -T postgres psql -U clips_user -d clips_automation -P pager=off -c "
 SELECT DATE(gc.created_at) AS dia, sv.format,
        COUNT(*) AS clips,
-       MIN(ROUND(gc.end_time - gc.start_time,1)) AS menor_dur,
-       AVG(ROUND(gc.end_time - gc.start_time,1)) AS media_dur,
-       MAX(ROUND(gc.end_time - gc.start_time,1)) AS maior_dur
+       MIN(ROUND((gc.end_time - gc.start_time)::numeric,1)) AS menor_dur,
+       AVG(ROUND((gc.end_time - gc.start_time)::numeric,1)) AS media_dur,
+       MAX(ROUND((gc.end_time - gc.start_time)::numeric,1)) AS maior_dur
 FROM generated_clips gc
 JOIN source_videos sv ON sv.id = gc.source_video_id
 WHERE gc.created_at >= NOW() - INTERVAL 14 DAY
@@ -524,10 +595,10 @@ mudança pegou.
 ### 6. Confirmar que a imagem em execução tem o prompt novo
 
 ```bash
-docker exec clip-processor python -c "from src.selector import MIN_SHORTFORM_SECONDS, SYSTEM_PROMPT; print(MIN_SHORTFORM_SECONDS); print('ASSUNTO COMPLETO' in SYSTEM_PROMPT)"
+docker exec clip-processor python -c "from src.selector import CONTENT_SELECTION_RULES, SYSTEM_PROMPT; p=CONTENT_SELECTION_RULES.casefold(); print('posição fixa' in p and 'duração fixa' in p and 'infira' in p); print('propaganda' in SYSTEM_PROMPT.casefold() and 'ASSUNTO COMPLETO' in SYSTEM_PROMPT)"
 ```
 
-Esperado: `30` e `True`. Se vier `15`/`False`, o rebuild não foi feito — o arquivo no host está
+Esperado: `True` e `True`. Se vier `False`, o rebuild não foi feito — o arquivo no host está
 mudado mas a imagem em execução continua com o código antigo. Este é **o** teste que fecha a
 diferença entre "editei" e "está valendo".
 

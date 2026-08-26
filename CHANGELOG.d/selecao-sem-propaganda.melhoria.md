@@ -1,0 +1,1 @@
+**Seleção sem propaganda e com assunto completo** — os prompts de vídeos e Shorts detectam semanticamente os blocos comerciais de cada transcrição, rejeitam publicidade em qualquer ponto e exigem início, desenvolvimento e conclusão antes de gerar um clip

@@ -1,14 +1,21 @@
 """
 test_selector.py — Testes unitários para selector.py (AI-02, AI-03).
 
-Estado inicial: RED — todos falham com NotImplementedError.
-Após implementação: GREEN.
+Os cenários cobrem seleção por formato, validação da resposta e persistência.
 """
 
 import json
 from unittest.mock import MagicMock
 
-from src.selector import insert_selected_moments, select_moments
+from src.selector import (
+    HACKER_LIBERTARIO_LONG_PROMPT,
+    HACKER_LIBERTARIO_PROMPT,
+    LONG_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+    expand_longform_context,
+    insert_selected_moments,
+    select_moments,
+)
 
 SAMPLE_TRANSCRIPT = {
     'video_id': 'dQw4w9WgXcQ',
@@ -28,6 +35,32 @@ SAMPLE_MOMENTS = [
 
 
 class TestSelectMoments:
+    def test_all_selection_prompts_detect_ads_and_complete_topics(self):
+        """Todos os formatos delegam os limites de anúncios e assuntos à IA por vídeo."""
+        prompts = (
+            SYSTEM_PROMPT,
+            LONG_SYSTEM_PROMPT,
+            HACKER_LIBERTARIO_PROMPT,
+            HACKER_LIBERTARIO_LONG_PROMPT,
+        )
+
+        for prompt in prompts:
+            normalized = prompt.casefold()
+            assert 'propaganda' in normalized
+            assert 'publicidade' in normalized
+            assert 'timestamps' in normalized
+            assert 'infira' in normalized
+            assert 'posição fixa' in normalized
+            assert 'duração fixa' in normalized
+            assert 'não atravesse essa lacuna' in normalized
+            assert 'assunto completo' in normalized
+            assert 'conclusão' in normalized
+            assert 'nunca corte' in normalized
+            assert '65s' not in normalized
+            assert 'pesquise na internet' in normalized
+            assert 'fake_news' in normalized
+            assert 'positivo' in normalized and 'negativo' in normalized
+
     def test_returns_moments_list(self, sample_video_id):
         """AI-02: select_moments() retorna lista de dicts com start_time, end_time, score, reason."""
         mock_anthropic = MagicMock()
@@ -44,6 +77,37 @@ class TestSelectMoments:
         assert 'end_time' in first
         assert 'score' in first
         assert 'reason' in first
+
+    def test_fact_check_label_is_requested_and_preserved(self, sample_video_id):
+        """Fatos recebem instrução de pesquisa e o selo é mantido no motivo do clip."""
+        mock_anthropic = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'moments': [
+                            {
+                                'start_time': 0.0,
+                                'end_time': 60.0,
+                                'score': 9,
+                                'reason': 'Afirmação sobre o jogo',
+                                'fake_news': 'positivo',
+                            }
+                        ]
+                    }
+                )
+            )
+        ]
+        mock_anthropic.messages.create.return_value = mock_response
+
+        result = select_moments(SAMPLE_TRANSCRIPT, anthropic_client=mock_anthropic)
+
+        system_prompt = mock_anthropic.messages.create.call_args.kwargs['system']
+        assert 'pesquise na internet' in system_prompt
+        assert 'positivo' in system_prompt and 'negativo' in system_prompt
+        assert result[0]['fake_news'] == 'positivo'
+        assert result[0]['reason'].endswith('Fake news: positivo')
 
     def test_transcript_formatted_with_timestamps(self, sample_video_id):
         """AI-02: O texto enviado ao Haiku inclui timestamps no formato [Ns-Ns] por segmento."""
@@ -90,6 +154,155 @@ class TestSelectMoments:
         assert len(result) == 1
         assert result[0]['start_time'] == 100.0
         assert result[0]['end_time'] == 140.0
+
+    def test_end_time_is_completed_to_nearby_transcript_boundary(self, sample_video_id):
+        """Não corta a última palavra quando a IA arredonda o fim da fala para baixo."""
+        mock_anthropic = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'moments': [
+                            {
+                                'start_time': 10.0,
+                                'end_time': 44.0,
+                                'score': 9,
+                                'reason': 'Explicação completa',
+                            }
+                        ]
+                    }
+                )
+            )
+        ]
+        mock_anthropic.messages.create.return_value = mock_response
+        transcript = {
+            'video_id': 'vid001aaaaaa',
+            'text': 'Explicação completa',
+            'segments': [{'start': 10.0, 'end': 44.96, 'text': 'A fala termina aqui.'}],
+        }
+
+        result = select_moments(transcript, anthropic_client=mock_anthropic)
+
+        assert len(result) == 1
+        assert result[0]['end_time'] == 44.96
+
+    def test_end_time_snaps_back_when_cut_enters_new_phrase(self, sample_video_id):
+        """Se o end_time pegar apenas 1-2s do início de uma nova frase, recua para o fim da anterior."""
+        mock_anthropic = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'moments': [
+                            {
+                                'start_time': 500.0,
+                                'end_time': 580.16,
+                                'score': 9,
+                                'reason': 'Análise sobre DeepSeek',
+                            }
+                        ]
+                    }
+                )
+            )
+        ]
+        mock_anthropic.messages.create.return_value = mock_response
+        transcript = {
+            'video_id': 'vid001aaaaaa',
+            'text': 'Texto',
+            'segments': [
+                {'start': 500.0, 'end': 578.08, 'text': 'Mudanças em vigor a partir do dia 17.'},
+                {
+                    'start': 578.08,
+                    'end': 585.96,
+                    'text': 'Então não vai ficar barato, apesar de...',
+                },
+            ],
+        }
+
+        result = select_moments(transcript, anthropic_client=mock_anthropic)
+
+        assert len(result) == 1
+        assert result[0]['end_time'] == 578.08
+
+    def test_longform_context_includes_intro_and_natural_closing_pause(self):
+        """O longo recua para o início da fala e avança até a pausa do assunto."""
+        moments = [
+            {
+                'start_time': 115.0,
+                'end_time': 118.0,
+                'score': 9,
+                'reason': 'Análise completa',
+            }
+        ]
+        transcript_segments = [
+            {'start': 100.0, 'end': 110.0, 'text': 'Introdução do assunto.'},
+            {'start': 110.4, 'end': 125.0, 'text': 'Desenvolvimento.'},
+            {'start': 125.5, 'end': 140.0, 'text': 'Conclusão.'},
+            {'start': 143.0, 'end': 150.0, 'text': 'Novo assunto.'},
+        ]
+
+        result = expand_longform_context(moments, transcript_segments)
+
+        assert result[0]['start_time'] == 100.0
+        assert result[0]['end_time'] == 140.0
+
+    def test_longform_context_never_moves_end_before_selected_moment(self):
+        """Uma pausa anterior não pode fazer o fechamento voltar para trás."""
+        moments = [
+            {
+                'start_time': 200.0,
+                'end_time': 245.0,
+                'score': 9,
+                'reason': 'Análise',
+            }
+        ]
+        transcript_segments = [
+            {'start': 0.0, 'end': 10.0, 'text': 'Abertura.'},
+            {'start': 200.0, 'end': 230.0, 'text': 'Desenvolvimento.'},
+            {'start': 231.0, 'end': 250.0, 'text': 'Fechamento.'},
+        ]
+
+        result = expand_longform_context(moments, transcript_segments)
+
+        assert result[0]['end_time'] == 250.0
+
+    def test_longform_clamps_hallucinated_bounds_and_keeps_minimum_duration(self):
+        """Limites além da transcrição não podem produzir um longo curto demais."""
+        mock_anthropic = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'moments': [
+                            {
+                                'start_time': 9800.0,
+                                'end_time': 10300.0,
+                                'score': 9,
+                                'reason': 'Análise longa',
+                            }
+                        ]
+                    }
+                )
+            )
+        ]
+        mock_anthropic.messages.create.return_value = mock_response
+        transcript = {
+            'video_id': 'vid001aaaaaa',
+            'text': 'Texto',
+            'segments': [
+                {'start': 0.0, 'end': 9000.0, 'text': 'Contexto.'},
+                {'start': 9000.0, 'end': 9958.279, 'text': 'Conclusão.'},
+            ],
+        }
+
+        result = select_moments(transcript, anthropic_client=mock_anthropic, fmt='longo')
+
+        assert len(result) == 1
+        assert result[0]['end_time'] <= 9958.279
+        assert result[0]['end_time'] - result[0]['start_time'] >= 420
 
 
 class TestInsertMoments:

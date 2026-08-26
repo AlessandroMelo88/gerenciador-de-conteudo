@@ -6,14 +6,15 @@ Exporta:
   - _fetch_destination_channels(conn)
   - _fetch_pending_clips_for_channel(conn, destination_channel_id)
 """
+
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.metadata_generator import append_credits, resolve_credit_handle
 from src.quota_manager import QuotaManager
+from src.related_video import append_related_video, related_video_from_clip
 from src.telegram_notifier import notify
 from src.uploader import YouTubeUploader
-
 
 NON_TERMINAL_CLIP_STATUSES = ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')
 
@@ -112,6 +113,21 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
             'SELECT gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, '
             'sv.local_path AS source_local_path, sv.format AS format, '
+            'sv.youtube_video_id AS source_youtube_video_id, '
+            '(SELECT rgc.youtube_video_id FROM generated_clips rgc '
+            "WHERE rgc.status = 'published' "
+            'AND rgc.youtube_video_id IS NOT NULL '
+            'AND rgc.id <> gc.id '
+            'AND rgc.destination_channel_id IS NOT DISTINCT FROM gc.destination_channel_id '
+            'ORDER BY rgc.published_at DESC NULLS LAST, rgc.id DESC LIMIT 1) '
+            'AS related_video_id, '
+            '(SELECT rgc.title FROM generated_clips rgc '
+            "WHERE rgc.status = 'published' "
+            'AND rgc.youtube_video_id IS NOT NULL '
+            'AND rgc.id <> gc.id '
+            'AND rgc.destination_channel_id IS NOT DISTINCT FROM gc.destination_channel_id '
+            'ORDER BY rgc.published_at DESC NULLS LAST, rgc.id DESC LIMIT 1) '
+            'AS related_video_title, '
             'sc.id AS source_channel_id, sc.channel_handle, sc.channel_name '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
@@ -181,7 +197,7 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
             continue
 
         try:
-            youtube_video_id = uploader.upload_clip(clip)
+            youtube_video_id = uploader.upload_clip(_prepare_publication_clip(clip))
             _mark_clip_published(conn, clip_id, youtube_video_id)
             quota_manager.record_upload(now=now, format=clip_format)
             _maybe_finalize_source_video(conn, clip['source_video_id'], clip.get('source_local_path'))
@@ -217,7 +233,7 @@ def _publish_one(conn, clip, uploader, quota_manager, now, *, longo_waiting: boo
         return 0
 
     try:
-        youtube_video_id = uploader.upload_clip(clip)
+        youtube_video_id = uploader.upload_clip(_prepare_publication_clip(clip))
         _mark_clip_published(conn, clip_id, youtube_video_id)
         quota_manager.record_upload(now=now, format=clip_format)
         _maybe_finalize_source_video(conn, clip['source_video_id'], clip.get('source_local_path'))
@@ -241,7 +257,21 @@ def _fetch_pending_clips(conn) -> list[dict]:
             'SELECT '
             'gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, sv.local_path AS source_local_path, '
-            'sv.format AS format '
+            'sv.format AS format, sv.youtube_video_id AS source_youtube_video_id, '
+            '(SELECT rgc.youtube_video_id FROM generated_clips rgc '
+            "WHERE rgc.status = 'published' "
+            'AND rgc.youtube_video_id IS NOT NULL '
+            'AND rgc.id <> gc.id '
+            'AND rgc.destination_channel_id IS NOT DISTINCT FROM gc.destination_channel_id '
+            'ORDER BY rgc.published_at DESC NULLS LAST, rgc.id DESC LIMIT 1) '
+            'AS related_video_id, '
+            '(SELECT rgc.title FROM generated_clips rgc '
+            "WHERE rgc.status = 'published' "
+            'AND rgc.youtube_video_id IS NOT NULL '
+            'AND rgc.id <> gc.id '
+            'AND rgc.destination_channel_id IS NOT DISTINCT FROM gc.destination_channel_id '
+            'ORDER BY rgc.published_at DESC NULLS LAST, rgc.id DESC LIMIT 1) '
+            'AS related_video_title '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'WHERE gc.status = %s '
@@ -261,6 +291,17 @@ def _ensure_publishable_files(clip: dict) -> None:
     thumbnail_path = clip.get('thumbnail_path')
     if thumbnail_path and not os.path.exists(thumbnail_path):
         raise FileNotFoundError(f'thumbnail_path not found: {thumbnail_path}')
+
+
+def _prepare_publication_clip(clip: dict) -> dict:
+    """Garante um link relacionado no final da descrição enviada ao YouTube."""
+    related_video = related_video_from_clip(clip)
+    if not related_video:
+        return clip
+
+    prepared = dict(clip)
+    prepared['description'] = append_related_video(prepared.get('description'), related_video)
+    return prepared
 
 
 def _update_clip_status(conn, clip_id: int, status: str) -> None:
@@ -295,7 +336,7 @@ def _mark_clip_published(conn, clip_id: int, youtube_video_id: str) -> None:
             'UPDATE generated_clips '
             "SET status='published', youtube_video_id=%s, published_at=%s, upload_error=NULL "
             'WHERE id=%s',
-            (youtube_video_id, datetime.now(timezone.utc), clip_id),
+            (youtube_video_id, datetime.now(UTC), clip_id),
         )
     conn.commit()
 

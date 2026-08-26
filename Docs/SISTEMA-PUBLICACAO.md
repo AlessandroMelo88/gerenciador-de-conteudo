@@ -128,6 +128,13 @@ o dedup.
 
 `YouTubeUploader.upload_clip` ([`uploader.py:86`](../clip-processor/src/uploader.py#L86)):
 
+Antes do upload, o publisher escolhe automaticamente um vídeo relacionado: o último clip publicado no
+mesmo canal-destino, com o vídeo fonte como fallback quando ainda não há histórico. O link é anexado
+ao final da descrição com o rótulo `Assista também`, sem duplicação em retries. O encerramento já foi
+preparado na etapa de vídeo para mostrar esse destino na área reservada. A Data API não oferece um
+método para criar a tela final clicável do Studio, portanto o link da descrição é o vínculo publicado
+automaticamente em todos os formatos.
+
 1. valida `clip_path` e `title`, e que a thumbnail existe se `thumbnail_path` estiver preenchido
    ([`:89`](../clip-processor/src/uploader.py#L89));
 2. `videos.insert(part='snippet,status')` com upload resumível

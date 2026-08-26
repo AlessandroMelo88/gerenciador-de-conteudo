@@ -9,9 +9,13 @@ import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
+from src.related_video import download_related_thumbnail, normalize_video_id
+
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
 DEFAULT_STILL_DURATION_SECONDS = 3
 DEFAULT_MUSIC_VOLUME = 0.12
+DEFAULT_TRANSITION_SECONDS = 0.35
+RELATED_CARD_FONT_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
 
 
 def _run_ffmpeg(command: Sequence[str]) -> None:
@@ -68,6 +72,30 @@ def _video_filter(video_format: str) -> str:
         f'pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,'
         'setsar=1,fps=30,format=yuv420p'
     )
+
+
+def _probe_duration(path: Path) -> float | None:
+    """Lê a duração do segmento já normalizado para calcular o xfade."""
+    try:
+        result = subprocess.run(
+            [
+                'ffprobe',
+                '-v',
+                'error',
+                '-show_entries',
+                'format=duration',
+                '-of',
+                'default=noprint_wrappers=1:nokey=1',
+                str(path),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        duration = float(result.stdout.strip())
+    except (OSError, ValueError, subprocess.CalledProcessError):
+        return None
+    return duration if duration > 0 else None
 
 
 def _normalize_segment(
@@ -127,27 +155,195 @@ def _concat_file_line(path: Path) -> str:
 
 
 def _concat_segments(segment_paths: Sequence[Path], list_path: Path, output_path: str) -> None:
-    list_path.write_text(
-        '\n'.join(_concat_file_line(path) for path in segment_paths) + '\n',
-        encoding='utf-8',
-    )
-    _run_ffmpeg(
+    """Une segmentos com crossfade curto e sincronizado em áudio.
+
+    O nome da função é mantido por compatibilidade com o pipeline e testes
+    existentes. Os segmentos já foram normalizados para o mesmo canvas, FPS e
+    áudio; por isso o xfade é aplicado somente nas fronteiras entre cenas.
+    """
+    if len(segment_paths) == 1:
+        shutil.copyfile(segment_paths[0], output_path)
+        return
+
+    durations = [_probe_duration(path) for path in segment_paths]
+    if any(duration is None for duration in durations):
+        # Falha no ffprobe não deve eliminar uma composição válida. O fallback
+        # preserva o comportamento anterior, com corte seco entre segmentos.
+        list_path.write_text(
+            '\n'.join(_concat_file_line(path) for path in segment_paths) + '\n',
+            encoding='utf-8',
+        )
+        _run_ffmpeg(
+            [
+                'ffmpeg',
+                '-y',
+                '-f',
+                'concat',
+                '-safe',
+                '0',
+                '-i',
+                str(list_path),
+                '-c',
+                'copy',
+                '-movflags',
+                '+faststart',
+                output_path,
+            ]
+        )
+        return
+
+    known_durations = [float(duration) for duration in durations if duration is not None]
+    transition = min(DEFAULT_TRANSITION_SECONDS, min(known_durations) / 2)
+    transition = max(0.05, transition)
+
+    filters: list[str] = []
+    for index in range(len(segment_paths)):
+        filters.append(
+            f'[{index}:v:0]settb=AVTB,format=yuv420p[v{index}];'
+            f'[{index}:a:0]aresample=48000,aformat=sample_fmts=fltp:'
+            f'sample_rates=48000:channel_layouts=stereo[a{index}]'
+        )
+
+    current_video = 'v0'
+    current_audio = 'a0'
+    composed_duration = known_durations[0]
+    for index in range(1, len(segment_paths)):
+        offset = max(0.05, composed_duration - transition)
+        next_video = f'vx{index}'
+        next_audio = f'ax{index}'
+        filters.append(
+            f'[{current_video}][v{index}]xfade=transition=fade:'
+            f'duration={transition:.3f}:offset={offset:.3f}[{next_video}]'
+        )
+        filters.append(
+            f'[{current_audio}][a{index}]acrossfade=d={transition:.3f}:c1=tri:c2=tri[{next_audio}]'
+        )
+        current_video = next_video
+        current_audio = next_audio
+        composed_duration += known_durations[index] - transition
+
+    command = ['ffmpeg', '-y']
+    for path in segment_paths:
+        command.extend(['-i', str(path)])
+    command.extend(
         [
-            'ffmpeg',
-            '-y',
-            '-f',
-            'concat',
-            '-safe',
-            '0',
-            '-i',
-            str(list_path),
-            '-c',
-            'copy',
+            '-filter_complex',
+            ';'.join(filters),
+            '-map',
+            f'[{current_video}]',
+            '-map',
+            f'[{current_audio}]',
+            '-c:v',
+            'libx264',
+            '-preset',
+            'veryfast',
+            '-crf',
+            '23',
+            '-pix_fmt',
+            'yuv420p',
+            '-c:a',
+            'aac',
+            '-b:a',
+            '192k',
             '-movflags',
             '+faststart',
             output_path,
         ]
     )
+    _run_ffmpeg(command)
+
+
+def _escape_filter_path(path: str | Path) -> str:
+    return str(path).replace('\\', '\\\\').replace(':', '\\:').replace("'", "\\'")
+
+
+def _related_card_geometry(video_format: str) -> tuple[int, int, int, int, int, int, int]:
+    """Retorna painel, miniatura e posição para as duas telas suportadas."""
+    if video_format == 'curto':
+        return 60, 1280, 960, 600, 820, 1330, 34
+    return 1340, 270, 540, 430, 420, 320, 32
+
+
+def _apply_related_video_card(
+    input_path: str,
+    output_path: str,
+    video_format: str,
+    related_video: Mapping[str, object],
+    temp_root: Path,
+) -> bool:
+    """Preenche a área reservada do encerramento com a miniatura relacionada."""
+    video_id = normalize_video_id(related_video.get('video_id'))
+    if not video_id:
+        return False
+
+    thumbnail_path = temp_root / 'related_thumbnail.jpg'
+    has_thumbnail = download_related_thumbnail(video_id, thumbnail_path)
+
+    panel_x, panel_y, panel_width, panel_height, thumb_width, thumb_y, font_size = (
+        _related_card_geometry(video_format)
+    )
+    thumb_height = round(thumb_width * 9 / 16)
+    thumb_x = panel_x + (panel_width - thumb_width) // 2
+    title_path = temp_root / 'related_title.txt'
+    title = str(related_video.get('title') or 'Vídeo relacionado')
+    title_path.write_text(' '.join(title.split())[:72], encoding='utf-8')
+
+    panel_bottom = panel_y + panel_height
+    title_y = min(panel_bottom - font_size - 18, thumb_y + thumb_height + 28)
+    filter_graph = (
+        f'[0:v]drawbox=x={panel_x}:y={panel_y}:w={panel_width}:h={panel_height}:'
+        'color=black@0.86:t=fill[panel];'
+    )
+    if has_thumbnail:
+        filter_graph += (
+            f'[1:v]scale={thumb_width}:{thumb_height}:force_original_aspect_ratio=decrease,'
+            f'pad={thumb_width}:{thumb_height}:(ow-iw)/2:(oh-ih)/2:color=black[related_thumb];'
+            f'[panel][related_thumb]overlay={thumb_x}:{thumb_y}[with_thumb];'
+        )
+        related_label = 'with_thumb'
+    else:
+        # A URL válida continua sendo apresentada mesmo se o YouTube não
+        # responder a tempo com a miniatura; a publicação ainda terá o link.
+        related_label = 'panel'
+    filter_graph += (
+        f'[{related_label}]drawtext=fontfile={_escape_filter_path(RELATED_CARD_FONT_PATH)}:'
+        f'textfile={_escape_filter_path(title_path)}:fontcolor=white:fontsize={font_size}:'
+        'box=1:boxcolor=black@0.55:boxborderw=10:'
+        f'x={panel_x + 18}:y={title_y}[v]'
+    )
+    command = ['ffmpeg', '-y', '-i', input_path]
+    if has_thumbnail:
+        command.extend(['-loop', '1', '-i', str(thumbnail_path)])
+    command.extend(
+        [
+            '-filter_complex',
+            filter_graph,
+            '-map',
+            '[v]',
+            '-map',
+            '0:a:0',
+            '-c:v',
+            'libx264',
+            '-preset',
+            'veryfast',
+            '-crf',
+            '23',
+            '-pix_fmt',
+            'yuv420p',
+            '-c:a',
+            'copy',
+            '-shortest',
+            '-movflags',
+            '+faststart',
+            output_path,
+        ]
+    )
+    try:
+        _run_ffmpeg(command)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(f'[MEDIA] Card relacionado não aplicado: {exc}', flush=True)
+        return False
+    return True
 
 
 def _mix_music(input_path: str, music_path: str, output_path: str, volume: float) -> None:
@@ -191,11 +387,19 @@ def compose_media(
     video_format: str,
     assets: Mapping[str, Mapping[str, object]],
 ) -> str:
-    """Aplica intro, encerramento e música; sem assets, mantém o caminho original."""
+    """Aplica intro, encerramento e música; sem assets, mantém o caminho original.
+
+    A música é aplicada somente ao segmento de encerramento. Assim, o trecho
+    musical fica sempre audível junto da identidade final sem encobrir a fala
+    do conteúdo principal.
+    """
+    related_video = assets.get('related_video')
     usable_assets = {
         kind: asset
         for kind, asset in assets.items()
-        if asset.get('absolute_path') and os.path.isfile(str(asset['absolute_path']))
+        if kind in {'intro', 'outro', 'music'}
+        and asset.get('absolute_path')
+        and os.path.isfile(str(asset['absolute_path']))
     }
     if not usable_assets:
         return input_path
@@ -230,20 +434,35 @@ def compose_media(
                 video_format,
                 duration_seconds=_duration(outro.get('duration_seconds')),
             )
-            segments.append(outro_path)
+
+            outro_visual_path = outro_path
+            if related_video:
+                outro_with_related_path = temp_root / 'outro_com_relacionado.mp4'
+                if _apply_related_video_card(
+                    str(outro_path),
+                    str(outro_with_related_path),
+                    video_format,
+                    related_video,
+                    temp_root,
+                ):
+                    outro_visual_path = outro_with_related_path
+
+            music = usable_assets.get('music')
+            if music:
+                outro_with_music_path = temp_root / 'outro_com_musica.mp4'
+                _mix_music(
+                    str(outro_visual_path),
+                    str(music['absolute_path']),
+                    str(outro_with_music_path),
+                    _volume(music.get('music_volume')),
+                )
+                segments.append(outro_with_music_path)
+            else:
+                segments.append(outro_visual_path)
 
         concatenated_path = temp_root / 'concatenated.mp4'
         _concat_segments(segments, temp_root / 'segments.txt', str(concatenated_path))
 
-        music = usable_assets.get('music')
-        if music:
-            _mix_music(
-                str(concatenated_path),
-                str(music['absolute_path']),
-                output_path,
-                _volume(music.get('music_volume')),
-            )
-        else:
-            shutil.copyfile(concatenated_path, output_path)
+        shutil.copyfile(concatenated_path, output_path)
 
     return output_path

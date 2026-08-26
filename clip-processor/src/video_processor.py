@@ -23,6 +23,7 @@ from datetime import datetime
 from src.media_assets import resolve_media_assets
 from src.media_composer import compose_media
 from src.metadata_generator import generate_metadata, update_clip_metadata
+from src.related_video import related_video_from_clip
 
 VIDEOS_DIR = '/app/videos'
 CLIPS_DIR = '/app/videos/clips'
@@ -274,6 +275,13 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             video_format=video_format,
             clip_id=clip_id,
         )
+        # O encerramento tem uma área reservada para o próximo vídeo. A escolha
+        # prioriza outro vídeo publicado no canal-destino e cai no vídeo fonte
+        # quando ainda não há histórico próprio.
+        related_video = related_video_from_clip(clip)
+        if related_video and 'outro' in media_assets:
+            media_assets['related_video'] = related_video
+
         if media_assets:
             branded_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}_branded.mp4')
             try:
@@ -322,10 +330,25 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
         cur.execute(
             'SELECT '
             'gc.id, gc.source_video_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
-            'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path, sv.format, '
+            'sv.youtube_video_id AS source_youtube_video_id, sv.title AS source_title, '
+            'sv.local_path, sv.transcript_path, sv.format, '
             'sc.target_niche, '
             'dc.id AS destination_channel_id, dc.slug AS destination_channel_slug, '
-            'dc.niche AS destination_niche '
+            'dc.niche AS destination_niche, '
+            '(SELECT rgc.youtube_video_id FROM generated_clips rgc '
+            "WHERE rgc.status = 'published' "
+            'AND rgc.youtube_video_id IS NOT NULL '
+            'AND rgc.id <> gc.id '
+            'AND rgc.destination_channel_id IS NOT DISTINCT FROM gc.destination_channel_id '
+            'ORDER BY rgc.published_at DESC NULLS LAST, rgc.id DESC LIMIT 1) '
+            'AS related_video_id, '
+            '(SELECT rgc.title FROM generated_clips rgc '
+            "WHERE rgc.status = 'published' "
+            'AND rgc.youtube_video_id IS NOT NULL '
+            'AND rgc.id <> gc.id '
+            'AND rgc.destination_channel_id IS NOT DISTINCT FROM gc.destination_channel_id '
+            'ORDER BY rgc.published_at DESC NULLS LAST, rgc.id DESC LIMIT 1) '
+            'AS related_video_title '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
