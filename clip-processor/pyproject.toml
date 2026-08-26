@@ -1,0 +1,72 @@
+[project]
+name = "clip-processor"
+version = "0.1.0"
+description = "Daemon do pipeline Canal de Cortes: RSS → download → transcrição → seleção por IA → corte → upload"
+requires-python = ">=3.12"
+
+# ---------------------------------------------------------------------------
+# Ruff — lint + format (substitui flake8/isort/black)
+# Rodar: ruff check . && ruff format --check .   (ou `make lint-python`)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+extend-exclude = [".venv", "venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # bugbear (bugs prováveis)
+  "UP",  # pyupgrade (sintaxe moderna)
+  "C4",  # comprehensions
+  "SIM", # simplificações
+  "RUF", # regras específicas do ruff
+]
+ignore = [
+  "E501",   # comprimento de linha fica a cargo do formatter (strings longas em prompts)
+  "RUF001", # caracteres unicode ambíguos em strings — os prompts são em pt-BR
+  "RUF002", # idem, em docstrings
+  "RUF003", # idem, em comentários
+  "SIM105", # try/except/pass explícito é preferível a contextlib.suppress aqui
+  "SIM108", # if/else explícito em vez de ternário forçado
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011", "SIM117"]
+# Código antes dos imports (REDIS_* lidos em import) — remover ao atacar o item
+# correspondente em Docs/TODO-REFATORACAO.md.
+"src/rss_poller.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.format]
+quote-style = "single"
+docstring-code-format = true
+
+# ---------------------------------------------------------------------------
+# mypy — verificação de tipos, hoje informativa (ver Docs/DESENVOLVIMENTO.md)
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+files = ["src"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+pretty = true
+
+# ---------------------------------------------------------------------------
+# pytest — mesma configuração que vivia em pytest.ini
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

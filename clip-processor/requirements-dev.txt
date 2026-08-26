@@ -1,0 +1,8 @@
+# Dependências de desenvolvimento do clip-processor (host ou CI).
+# pytest e pytest-mock continuam em requirements.txt porque a suíte também
+# roda dentro do container (docker exec clip-processor python -m pytest).
+-r requirements.txt
+ruff>=0.6
+mypy>=1.11
+types-PyMySQL
+types-requests
