@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd /var/www/html/painel
+
+php artisan migrate --force --no-interaction
+php artisan storage:link --force >/dev/null 2>&1 || true
+
+if [[ -n "${PAINEL_OPERATOR_EMAIL:-}" && -n "${PAINEL_OPERATOR_PASSWORD:-}" ]]; then
+    php artisan tinker --execute='
+$email = env("PAINEL_OPERATOR_EMAIL");
+$password = env("PAINEL_OPERATOR_PASSWORD");
+if (! \App\Models\User::where("email", $email)->exists()) {
+    \App\Models\User::create([
+        "name" => "Operador",
+        "email" => $email,
+        "password" => \Illuminate\Support\Facades\Hash::make($password),
+    ]);
+}
+'
+fi
+
+php artisan optimize:clear --no-interaction

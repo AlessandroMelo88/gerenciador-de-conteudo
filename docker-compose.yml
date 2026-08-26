@@ -1,0 +1,167 @@
+name: ${COMPOSE_PROJECT_NAME:-canaldecortes}
+
+x-panel-build: &panel-build
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+  image: canaldecortes-panel:local
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-clips_automation}
+      MYSQL_USER: ${MYSQL_USER:-clips_user}
+      MYSQL_PASSWORD: ${CLIPS_DB_PASSWORD:?CLIPS_DB_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  mysql-backup:
+    image: mysql:8.4
+    profiles: ["backup"]
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-clips_automation}
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      BACKUP_DIR: /backups
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - ${MYSQL_BACKUP_DIR:-./backups/mysql}:/backups
+      - ./scripts/mysql-backup-loop.sh:/usr/local/bin/mysql-backup-loop.sh:ro
+    command: ["/bin/bash", "/usr/local/bin/mysql-backup-loop.sh"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  panel-init:
+    <<: *panel-build
+    env_file:
+      - ./painel/.env
+    command: ["/usr/local/bin/bootstrap-panel"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: "no"
+
+  php:
+    <<: *panel-build
+    env_file:
+      - ./painel/.env
+    command: ["php-fpm", "-F"]
+    depends_on:
+      panel-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./videos:/var/www/html/videos:ro
+      - ./branding:/var/www/html/branding
+      - ./youtube:/var/www/html/youtube:ro
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm -t"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  queue:
+    <<: *panel-build
+    env_file:
+      - ./painel/.env
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90"]
+    depends_on:
+      panel-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./videos:/var/www/html/videos:ro
+      - ./branding:/var/www/html/branding
+      - ./youtube:/var/www/html/youtube:ro
+    restart: unless-stopped
+
+  scheduler:
+    <<: *panel-build
+    env_file:
+      - ./painel/.env
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      panel-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./videos:/var/www/html/videos:ro
+      - ./branding:/var/www/html/branding
+      - ./youtube:/var/www/html/youtube:ro
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    image: canaldecortes-nginx:local
+    ports:
+      - "${APP_PORT:-8088}:80"
+    depends_on:
+      php:
+        condition: service_healthy
+    restart: unless-stopped
+
+  clip-processor:
+    build:
+      context: ./clip-processor
+    image: canaldecortes-clip-processor:local
+    env_file:
+      - ./.env
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-clips_automation}
+      MYSQL_USER: ${MYSQL_USER:-clips_user}
+      MYSQL_PASSWORD: ${CLIPS_DB_PASSWORD:?CLIPS_DB_PASSWORD is required}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PIPELINE_ENABLED: ${PIPELINE_ENABLED:-true}
+      YOUTUBE_CLIENT_SECRETS: ${YOUTUBE_CLIENT_SECRETS:-/app/youtube/client_secret.json}
+      LARAVEL_NOTIFY_URL: http://nginx/internal/pipeline-event
+      LARAVEL_HOST_HEADER: canaldecortes.local
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nginx:
+        condition: service_started
+    volumes:
+      - ./videos:/app/videos
+      - ./branding:/app/branding:ro
+      - ./youtube:/app/youtube
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:

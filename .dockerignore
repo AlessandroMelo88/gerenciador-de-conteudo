@@ -1,0 +1,29 @@
+.git
+.gitignore
+.DS_Store
+
+# Segredos e credenciais locais — nunca entram nas imagens
+.env
+.env.*
+!.env.example
+painel/.env
+painel/.env.*
+!painel/.env.example
+youtube/client_secret*.json
+youtube/token-*.json
+
+# Dependências e artefatos locais
+**/node_modules
+**/vendor
+graphify-out
+backups
+backups_*.sql
+videos
+branding
+youtube
+mysql
+clip-processor
+
+# Arquivos gerados pelo Laravel/Vite
+painel/storage/logs/*.log
+painel/public/build
