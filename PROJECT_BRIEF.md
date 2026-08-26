@@ -1,6 +1,10 @@
 # PROJECT_BRIEF — Canal de Cortes
 
-> Baseado no código real (as-built), lido em 18/07/2026. Referência primária: `ARCHITECTURE.md` (doc as-built, commit `dca6e44`), `mysql/init/*.sql`, `clip-processor/src/*`, `painel/app/*`. Onde há incerteza, marcado como **(a confirmar)**.
+> **Arquivo histórico — não é fonte de verdade.** Baseado no código real (as-built), lido em
+> 18/07/2026, antes da adoção do PostgreSQL e das migrations Laravel. Para o estado atual, consulte
+> [`ARCHITECTURE.md`](ARCHITECTURE.md) e [`Docs/README.md`](Docs/README.md).
+> As referências a MySQL, n8n e Filament abaixo preservam o contexto daquela fotografia e não
+> descrevem o runtime atual.
 
 ---
 
@@ -22,7 +26,7 @@ O sistema é dividido em dois serviços com uma fronteira de responsabilidade r�
 **Pipeline (`clip-processor/`)** — Python 3.12 (`python:3.12-slim` + ffmpeg no Dockerfile):
 - Orquestração: **APScheduler** (`BlockingScheduler`, tz `America/Sao_Paulo`)
 - Aquisição: **yt-dlp**, **feedparser** (RSS)
-- IA: **anthropic** (Claude Haiku — seleção de momentos + metadata), **groq** (Whisper `whisper-large-v3-turbo` para transcrição; LLaMA `llama-3.3-70b-versatile` como fallback de seleção)
+- IA: **anthropic** (Claude Haiku — seleção de momentos + metadata + prompt dedicado da thumbnail), **groq** (Whisper `whisper-large-v3-turbo` para transcrição; LLaMA `llama-3.3-70b-versatile` como provider alternativo)
 - Vídeo: **FFmpeg** (corte, SRT, legenda queimada, watermark, thumbnail)
 - Upload: **google-api-python-client / google-auth / google-auth-oauthlib** (YouTube Data API, OAuth por canal)
 - Dados: **pymysql** (MySQL), **redis** (dedup + cota)
@@ -69,8 +73,8 @@ Todos com `coalesce=True, max_instances=1, misfire_grace_time=900`. **Ingestão 
 2. **Download** (`pipeline_runner.py`): janela por formato que não se canibaliza — até **6 `curto`** e **4 `longo`** ocupando disco simultaneamente; baixa só o déficit. Só vídeos das últimas 24h (`FRESHNESS_DAYS=1`), `published_at DESC`. yt-dlp 720p, 3 tentativas, aborta se restar < 2 GB.
 3. **Transcrição**: Groq Whisper (pt). Arquivo > 24 MB → MP3 antes.
 4. **Seleção de momentos** (`selector.py`): Claude Haiku, score 0–10. Prompt varia por formato (`longo`: 1 segmento 600–1200 s, 20k chars; `curto`: até 3 momentos, 8k chars).
-5. **Corte/pós** (`video_processor.py`): FFmpeg corta → SRT → legenda queimada → watermark → thumbnail. `curto` = crop 1080x1920; `longo` = `scale=-2:1080`.
-6. **Metadata** (`metadata_generator.py`): Claude Haiku gera título, descrição e tags.
+5. **Corte/pós** (`video_processor.py`): FFmpeg corta → SRT → legenda queimada → watermark → thumbnail com chamada textual literal. `curto` = crop 1080x1920; `longo` = `scale=-2:1080`.
+6. **Metadata e thumbnail** (`metadata_generator.py`): Claude/Groq gera título, descrição e tags; um prompt dedicado escolhe a frase literal da thumbnail. Sem chamada válida, o clip falha.
 7. **Publicação** (`publisher.py`): cota + janela horária + round-robin.
 
 > ⚠️ Nomenclatura enganosa: `rss_poller.py` também roda transcrição+seleção+corte, não só polling. Cada etapa em `try/except` isolado → `notify('pipeline_failure', ...)`; uma falha não derruba o scheduler.
@@ -177,7 +181,7 @@ Fonte de verdade dos selects do painel; seeda `futebol` e `podcast`.
 ### Armadilhas de configuração
 - **`env()` fora de config** em `DashboardController` (`MAX_UPLOADS_PER_DAY`, `MANUAL_APPROVAL_REQUIRED`): com `config:cache` ativo, `env()` retorna `null` e cai nos defaults silenciosamente — painel mostra número diferente do publisher.
 - **Drift de default do `MAX_UPLOADS_PER_DAY`:** `:-2` no serviço `php`, `:-1` no `clip-processor` (só não morde porque a var está no `.env`).
-- **`ANTHROPIC_API_KEY` vazia = falha silenciosa:** selector degrada limpo para Groq, mas `metadata_generator` instancia `anthropic.Anthropic()` sem key ⇒ exceção ⇒ **sempre** fallback determinístico (clip publicado com título bruto, sem erro visível).
+- **Provider de IA explícito:** com `ANTHROPIC_API_KEY`, metadata e thumbnail usam Claude; sem ela, usam Groq. Resposta inválida ou falha não cai em SEO determinístico: o clip fica `failed` e o erro é visível.
 - **Senha inconsistente:** `painel:create-user` exige ≥10 chars; reset pela UI (`SettingsController`) exige só 8.
 - **`destination_channels` seedados com `youtube_channel_id` placeholder** — inválidos até o operador trocar no banco.
 - `docker/nginx_conf/canaldecortes.conf` na raiz `wordpress/` tem 0 bytes (vestigial, sobrescrito pelo bind-mount).

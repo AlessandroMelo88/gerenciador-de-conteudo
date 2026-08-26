@@ -6,7 +6,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+# shellcheck source=postgres.sh
+source "$SCRIPT_DIR/postgres.sh"
 
 if [[ $# -lt 2 ]]; then
   echo "Uso: $0 <CLIP_ID> <YOUTUBE_VIDEO_ID>"
@@ -23,31 +24,15 @@ if ! [[ "$CLIP_ID" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
-# Carrega variáveis de ambiente
-if [[ -f "$ROOT_DIR/.env" ]]; then
-  set -a
-  # shellcheck source=/dev/null
-  source "$ROOT_DIR/.env"
-  set +a
+if ! [[ "$YT_VIDEO_ID" =~ ^[A-Za-z0-9_-]{11}$ ]]; then
+  echo "Erro: YOUTUBE_VIDEO_ID deve ter 11 caracteres válidos do YouTube."
+  exit 1
 fi
 
-DB_USER="${CLIPS_DB_USER:-clips_user}"
-DB_PASS="${CLIPS_DB_PASSWORD:-}"
-DB_NAME="${CLIPS_DB_NAME:-clips_automation}"
-
-mysql_exec() {
-  docker exec -i mysql mysql \
-    -h 127.0.0.1 \
-    -u "$DB_USER" \
-    -p"$DB_PASS" \
-    "$DB_NAME" \
-    --silent \
-    --skip-column-names \
-    -e "$1" 2>/dev/null
-}
-
 # Verifica se o clipe existe e está pendente
-CURRENT_STATUS=$(mysql_exec "SELECT status FROM generated_clips WHERE id = $CLIP_ID LIMIT 1;")
+CURRENT_STATUS=$(postgres_exec_vars \
+  "SELECT status FROM generated_clips WHERE id = :'clip_id' LIMIT 1;" \
+  -v "clip_id=$CLIP_ID")
 
 if [[ -z "$CURRENT_STATUS" ]]; then
   echo "Erro: Clipe #$CLIP_ID não encontrado."
@@ -56,7 +41,9 @@ fi
 
 if [[ "$CURRENT_STATUS" == "published" ]]; then
   echo "Aviso: Clipe #$CLIP_ID já está marcado como publicado."
-  EXISTING_YT=$(mysql_exec "SELECT youtube_video_id FROM generated_clips WHERE id = $CLIP_ID;")
+  EXISTING_YT=$(postgres_exec_vars \
+    "SELECT youtube_video_id FROM generated_clips WHERE id = :'clip_id';" \
+    -v "clip_id=$CLIP_ID")
   echo "  YouTube Video ID atual: $EXISTING_YT"
   read -r -p "Deseja sobrescrever? (s/N) " CONFIRM
   if [[ "${CONFIRM,,}" != "s" ]]; then
@@ -76,7 +63,9 @@ fi
 
 # Mostra o que vai ser atualizado
 echo ""
-CLIP_TITLE=$(mysql_exec "SELECT title FROM generated_clips WHERE id = $CLIP_ID;")
+CLIP_TITLE=$(postgres_exec_vars \
+  "SELECT title FROM generated_clips WHERE id = :'clip_id';" \
+  -v "clip_id=$CLIP_ID")
 echo "Confirmando publicação:"
 echo "  Clip ID:         #$CLIP_ID"
 echo "  Título:          $CLIP_TITLE"
@@ -90,28 +79,34 @@ if [[ "${CONFIRM,,}" != "s" ]]; then
 fi
 
 # Atualiza generated_clips
-mysql_exec "
+postgres_exec_vars "
   UPDATE generated_clips
   SET
     status = 'published',
-    youtube_video_id = '$YT_VIDEO_ID',
-    published_at = UTC_TIMESTAMP(),
+    youtube_video_id = :'youtube_video_id',
+    published_at = CURRENT_TIMESTAMP,
     upload_error = NULL
-  WHERE id = $CLIP_ID;"
+  WHERE id = :'clip_id';" \
+  -v "clip_id=$CLIP_ID" \
+  -v "youtube_video_id=$YT_VIDEO_ID"
 
 # Verifica se todos os clips do source_video estão em estado terminal
-SOURCE_VIDEO_ID=$(mysql_exec "SELECT source_video_id FROM generated_clips WHERE id = $CLIP_ID;")
-PENDING_CLIPS=$(mysql_exec "
+SOURCE_VIDEO_ID=$(postgres_exec_vars \
+  "SELECT source_video_id FROM generated_clips WHERE id = :'clip_id';" \
+  -v "clip_id=$CLIP_ID")
+PENDING_CLIPS=$(postgres_exec_vars "
   SELECT COUNT(*) FROM generated_clips
-  WHERE source_video_id = $SOURCE_VIDEO_ID
-    AND status NOT IN ('published', 'failed');")
+  WHERE source_video_id = :'source_video_id'
+    AND status NOT IN ('published', 'failed');" \
+  -v "source_video_id=$SOURCE_VIDEO_ID")
 
 if [[ "$PENDING_CLIPS" == "0" ]]; then
   # Todos os clips do vídeo fonte foram processados — atualiza source_videos
-  mysql_exec "
+  postgres_exec_vars "
     UPDATE source_videos
-    SET status = 'published', updated_at = UTC_TIMESTAMP()
-    WHERE id = $SOURCE_VIDEO_ID;"
+    SET status = 'published', updated_at = CURRENT_TIMESTAMP
+    WHERE id = :'source_video_id';" \
+    -v "source_video_id=$SOURCE_VIDEO_ID"
   echo ""
   echo "  Todos os clipes do vídeo fonte #$SOURCE_VIDEO_ID foram processados."
   echo "  Status do vídeo fonte atualizado para 'published'."

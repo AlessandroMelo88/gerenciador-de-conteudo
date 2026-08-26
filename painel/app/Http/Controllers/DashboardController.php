@@ -59,15 +59,17 @@ class DashboardController extends Controller
             ->whereNotNull('local_path')
             ->with(['sourceChannel', 'generatedClips'])
             ->get()
-            ->sortBy([
+            ->sortBy(function (SourceVideo $video) use ($processing): array {
                 // Processando agora no topo; depois ordem DnD / prioridade / score baixo
-                [fn (SourceVideo $video) => in_array($video->status, $processing, true) ? 0 : 1, 'asc'],
-                [fn (SourceVideo $video) => $video->paused ? 1 : 0, 'asc'],
-                [fn (SourceVideo $video) => -((int) ($video->priority ?? 0)), 'asc'],
-                [fn (SourceVideo $video) => $video->queue_position ?? 9999, 'asc'],
-                [fn (SourceVideo $video) => $video->generatedClips->max('score') ?? 999, 'asc'],
-                [fn (SourceVideo $video) => $video->published_at, 'asc'],
-            ])
+                return [
+                    in_array($video->status, $processing, true) ? 0 : 1,
+                    $video->paused ? 1 : 0,
+                    -((int) ($video->priority ?? 0)),
+                    $video->queue_position ?? 9999,
+                    $video->generatedClips->max('score') ?? 999,
+                    $video->published_at,
+                ];
+            })
             ->map(function (SourceVideo $video) use ($processing) {
                 $needsRaw = $video->generatedClips
                     ->whereIn('status', ['pending_cut', 'cutting'])
@@ -98,7 +100,7 @@ class DashboardController extends Controller
         $date = Carbon::now('America/Sao_Paulo')->format('Y-m-d');
         // min(MAX_UPLOADS_PER_DAY, 6) espelha ABSOLUTE_MAX_UPLOADS_PER_DAY em
         // clip-processor/src/quota_manager.py — mesma env var, mesmo teto.
-        $limit = min((int) env('MAX_UPLOADS_PER_DAY', 2), 6);
+        $limit = (int) config('pipeline.max_uploads_per_day', 2);
 
         return DestinationChannel::query()->where('active', true)->get()
             ->map(function (DestinationChannel $channel) use ($date, $limit) {
@@ -209,7 +211,7 @@ class DashboardController extends Controller
             return back()->with('error', 'Clip não está mais em falha');
         }
 
-        $manualApproval = filter_var(env('MANUAL_APPROVAL_REQUIRED', false), FILTER_VALIDATE_BOOLEAN);
+        $manualApproval = (bool) config('pipeline.manual_approval_required', false);
         $newStatus = $clip->clip_path ? ($manualApproval ? 'approved' : 'pending') : 'pending_cut';
 
         $affected = GeneratedClip::query()

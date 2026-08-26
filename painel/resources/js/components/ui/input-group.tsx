@@ -44,20 +44,46 @@ const inputGroupAddonVariants = cva(
 function InputGroupAddon({
     className,
     align = 'inline-start',
+    onClick,
+    onKeyDown,
+    'aria-label': ariaLabel = 'Focar campo',
     ...props
 }: React.ComponentProps<'div'> & VariantProps<typeof inputGroupAddonVariants>) {
+    const focusInput = (currentTarget: HTMLElement) => {
+        currentTarget.parentElement?.querySelector<HTMLElement>('[data-slot="input-group-control"]')?.focus();
+    };
+
+    const handleClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
+        onClick?.(event);
+        if (event.defaultPrevented || (event.target as HTMLElement).closest('button')) {
+            return;
+        }
+        focusInput(event.currentTarget);
+    };
+
+    const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+        onKeyDown?.(event);
+        if (
+            event.defaultPrevented ||
+            (event.target as HTMLElement).closest('button') ||
+            (event.key !== 'Enter' && event.key !== ' ')
+        ) {
+            return;
+        }
+        event.preventDefault();
+        focusInput(event.currentTarget);
+    };
+
     return (
         <div
-            role="group"
+            role="button"
+            tabIndex={0}
+            aria-label={ariaLabel}
             data-slot="input-group-addon"
             data-align={align}
             className={cn(inputGroupAddonVariants({ align }), className)}
-            onClick={(e) => {
-                if ((e.target as HTMLElement).closest('button')) {
-                    return;
-                }
-                e.currentTarget.parentElement?.querySelector('input')?.focus();
-            }}
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
             {...props}
         />
     );

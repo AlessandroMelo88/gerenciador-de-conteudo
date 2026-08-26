@@ -3,7 +3,7 @@
 Quem decide *o que* publicar, *quando* e *para onde*. Cobre `publisher.py`, `quota_manager.py`,
 `uploader.py`, `youtube_oauth.py` e `ttl_worker.py`.
 
-Verificado no código em **13/08/2026**.
+Verificado no código em **26/08/2026**.
 
 ---
 
@@ -117,7 +117,7 @@ Fora da janela, `has_capacity` retorna `False` e **nada publica** — o `publish
 
 ### Sem fallback de Redis
 
-Diferente do dedup, a cota **não** tem fallback para MySQL. Redis fora do ar ⇒
+Diferente do dedup, a cota **não** tem fallback para PostgreSQL. Redis fora do ar ⇒
 `self.redis_client.get(...)` levanta ⇒ a publicação para. Contador travado ≠ fila travada: se o
 sintoma é "não sobe mais hoje", conferir `youtube_uploads:<hoje>` e resetar **só** essa chave, nunca
 o dedup.
@@ -188,7 +188,7 @@ expirado. Se o refresh falhar com `RefreshError`:
 bem-sucedido limpa a flag sozinho (`_clear_expired`, [`:175`](../clip-processor/src/uploader.py#L175)).
 
 Ambos são best-effort: se o `channel_slug` for `None` (uso legado) a gravação é silenciosamente
-ignorada, e falha do MySQL só gera log.
+ignorada, e falha do PostgreSQL só gera log.
 
 ---
 

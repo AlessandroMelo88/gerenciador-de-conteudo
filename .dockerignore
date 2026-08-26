@@ -26,4 +26,8 @@ clip-processor
 
 # Arquivos gerados pelo Laravel/Vite
 painel/storage/logs/*.log
+painel/storage/framework/cache/data/*
+painel/storage/framework/sessions/*
+painel/storage/framework/views/*
+painel/bootstrap/cache/*.php
 painel/public/build

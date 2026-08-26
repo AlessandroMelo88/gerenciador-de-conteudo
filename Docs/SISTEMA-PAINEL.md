@@ -3,7 +3,7 @@
 Referência de rotas, controllers e páginas. Visão conceitual em [`../ARCHITECTURE.md`](../ARCHITECTURE.md) seções 3 e 7.
 O lado Python da fronteira está em [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md).
 
-Última atualização: **13/08/2026**
+Última atualização: **26/08/2026**
 
 ---
 
@@ -11,7 +11,7 @@ O lado Python da fronteira está em [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md).
 
 **Laravel 13 + Inertia 3 + React 19 + shadcn/ui + Tailwind 4 + Vite 8 + TypeScript.** Dark mode fixo via `class="dark"` no `<html>`.
 
-O Filament foi removido por completo no commit `dca6e44` — qualquer menção a ele em README ou nome de arquivo é resíduo. Sobrou um órfão: `app/Filament/Pages/Dashboard.php`, que estende uma classe que não existe mais no autoloader. Só não quebra porque nada o referencia; **deve ser deletado**.
+O Filament foi removido por completo no commit `dca6e44`; a stack atual não depende dele.
 
 **O painel é para observar e corrigir, não para operar.** O fluxo normal é 100% automático, da descoberta via RSS até o upload.
 
@@ -21,9 +21,9 @@ O Filament foi removido por completo no commit `dca6e44` — qualquer menção a
 
 Esta é a decisão que mais confunde quem chega agora:
 
-- Para **ler** → o painel vai direto na fonte (MySQL, Redis, disco)
+- Para **ler** → o painel vai direto na fonte (PostgreSQL, Redis, disco)
 - Para **agir sobre disco ou processo** → o painel **nunca** toca no filesystem do pipeline; chama o sidecar HTTP em `clip-processor:8090` via `ClipProcessorClient`
-- **Exceção:** transição de status simples o painel escreve direto no MySQL (ex.: `approve()` faz `UPDATE generated_clips SET status='approved'`)
+- **Exceção:** transição de status simples o painel escreve direto no PostgreSQL (ex.: `approve()` faz `UPDATE generated_clips SET status='approved'`)
 
 Isso substituiu o padrão anterior de `docker exec` / socket do Docker.
 
@@ -122,21 +122,26 @@ Guard `web` (session, driver `database`), único guard — não há Sanctum nem 
 
 ## Banco
 
-O painel mapeia com Eloquent e `$table` explícito as tabelas do pipeline, que **não são migrations do Laravel** — nascem de SQL bruto em `mysql/init/01..07`, aplicado à mão.
+O painel mapeia com Eloquent e `$table` explícito as tabelas do pipeline, que também são geridas pelas
+migrations do Laravel em `painel/database/migrations`. O `panel-init` aplica todas antes do runtime.
 
 Consequências:
-- `php artisan migrate:fresh` **não** reconstrói o schema do pipeline
-- por isso `RefreshDatabase` está desligado em `tests/Pest.php`; os testes usam `DatabaseTransactions` sobre tabelas pré-existentes
+- `php artisan migrate:fresh` reconstrói o schema do pipeline apenas em banco descartável
+- os testes usam `DatabaseTransactions` e o CI aplica as migrations em um banco descartável
 
-Única tabela de domínio do painel: `niches` (migration Laravel, seeda `futebol` e `podcast`). Não há FK ligando `source_channels.target_niche` a ela — segue VARCHAR livre.
+Tabelas de domínio do painel: `niches` (migration Laravel, seeda `futebol` e `podcast`) e `media_assets` (biblioteca de pós-produção). Não há FK ligando `source_channels.target_niche` a `niches` — segue VARCHAR livre.
 
 ---
 
 ## Armadilhas conhecidas
 
-1. **`env()` fora de config** em `DashboardController` (`MAX_UPLOADS_PER_DAY`, `MANUAL_APPROVAL_REQUIRED`). Com `config:cache` ativo, `env()` retorna `null` e cai nos defaults **em silêncio** — o painel passa a mostrar número diferente do que o publisher usa.
-2. **Drift de default:** `MAX_UPLOADS_PER_DAY` é `:-2` no serviço `php` e `:-1` no `clip-processor`. Só não morde porque a var está setada no `.env` da raiz.
-3. O `.env` que o compose lê é o da **raiz `wordpress/`**, não o `canaldecortes/.env`.
+1. `MAX_UPLOADS_PER_DAY` é limitado a 6 no painel e no worker; mudanças no teto precisam
+   atualizar os dois contratos.
+2. Os dois canais-destino semeados pela migration usam IDs do YouTube de placeholder e permanecem
+   inativos até o operador substituí-los por IDs reais.
+3. O webhook do Telegram depende de `TELEGRAM_WEBHOOK_SECRET`; sem o secret no header, a
+   requisição é rejeitada. O endpoint interno usa o mesmo princípio com
+   `CLIP_PROCESSOR_INTERNAL_TOKEN`.
 
 ---
 

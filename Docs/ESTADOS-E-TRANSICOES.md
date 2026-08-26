@@ -1,6 +1,6 @@
 # Estados e transições do pipeline
 
-Fonte de verdade da fila: **MySQL**, colunas `source_videos.status` e `generated_clips.status`.
+Fonte de verdade da fila: **PostgreSQL**, colunas `source_videos.status` e `generated_clips.status`.
 O Redis **não** guarda fila (ver [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md)).
 
 Este documento existe porque estado preso já lotou o SSD: um vídeo travado segura o `.mp4` bruto em
@@ -13,7 +13,7 @@ Verificado no código em **13/08/2026**.
 
 ## `source_videos.status`
 
-ENUM completo em [`mysql/init/01-clips-schema.sql:30`](../mysql/init/01-clips-schema.sql#L30):
+Os valores permitidos estão na migration `2026_08_26_000001_create_source_videos_table.php`:
 `pending`, `downloading`, `downloaded`, `transcribing`, `selecting`, `cutting`, `publishing`,
 `published`, `failed`.
 
@@ -46,7 +46,7 @@ stateDiagram-v2
 | `downloading` | `pending` | [`pipeline_runner.py:183`](../clip-processor/src/pipeline_runner.py#L183) | só se o vídeo foi pausado durante o download |
 | `downloading` | `failed` | [`pipeline_runner.py:110`](../clip-processor/src/pipeline_runner.py#L110) `_discard_failed_download` | apaga o arquivo e zera `local_path` |
 | `downloaded` | `transcribing` | [`rss_poller.py:115`](../clip-processor/src/rss_poller.py#L115) | |
-| `transcribing` | `failed` | [`rss_poller.py:119`](../clip-processor/src/rss_poller.py#L119) | transcrição sem fallback |
+| `transcribing` | `failed` | [`rss_poller.py:133`](../clip-processor/src/rss_poller.py#L133) | legenda do YouTube indisponível e Groq falhou |
 | `transcribing` | `downloaded` | [`rss_poller.py:124`](../clip-processor/src/rss_poller.py#L124) | pausado depois de transcrever |
 | `transcribing` | `selecting` | [`rss_poller.py:130`](../clip-processor/src/rss_poller.py#L130) | |
 | `selecting` | `failed` | [`rss_poller.py:148`](../clip-processor/src/rss_poller.py#L148) | IA devolveu 0 momentos |
@@ -69,7 +69,7 @@ Os dois estão no ENUM e `cutting` é lido como guard em
 
 ## `generated_clips.status`
 
-ENUM final em [`mysql/init/05-controle-manual-migration.sql:11`](../mysql/init/05-controle-manual-migration.sql#L11):
+Os valores finais estão na migration `2026_08_26_000003_create_generated_clips_table.php`:
 `pending_cut`, `pending`, `cutting`, `publishing`, `published`, `failed`, `approved`, `rejected`.
 Default `pending_cut`.
 
@@ -80,6 +80,7 @@ stateDiagram-v2
     cutting --> pending: corte + metadata OK
     cutting --> failed: except do process_clip
     cutting --> pending_cut: pause_video aborta o ffmpeg
+    cutting --> pending_cut: recover_cutting_on_boot (novo processo)
     pending --> approved: painel (aprovação manual)
     pending --> rejected: painel / rejeitar.py / ttl_worker
     approved --> rejected: painel / rejeitar.py
@@ -120,7 +121,7 @@ stateDiagram-v2
 rodava só no boot — o que travasse depois do container subir ficava preso até o próximo restart,
 na prática dias. Falha do recovery é logada e engolida de propósito
 ([`main.py:67`](../clip-processor/src/main.py#L67)): também cobre a janela do `Errno 111`
-(clip-processor sobe antes do MySQL), em que o recovery de boot morre no `except`.
+(clip-processor sobe antes do PostgreSQL), em que o recovery de boot morre no `except`.
 
 | Estado | Recuperação | Onde |
 |---|---|---|
@@ -129,8 +130,8 @@ na prática dias. Falha do recovery é logada e engolida de propósito
 | `source_videos.selecting`, com arquivo, sem nenhum clip gerado | ✅ → `downloaded`, imediato (não espera 2h) | [`db.py:190`](../clip-processor/src/db.py#L190) |
 | `source_videos.selecting`, `local_path IS NULL`, sem update há 2h | ✅ → `failed` | [`db.py:200`](../clip-processor/src/db.py#L200) |
 | `source_videos.transcribing` | ❌ **nenhuma** | — |
-| `generated_clips.cutting` | ❌ **nenhuma** | — |
-| `generated_clips.publishing` | ❌ **nenhuma** | — |
+| `generated_clips.cutting` | ✅ → `pending_cut`, somente no boot | [`db.py`](../clip-processor/src/db.py#L238) |
+| `generated_clips.publishing` | ⚠️ → `pending` após 15min | [`db.py`](../clip-processor/src/db.py#L214); confirme o YouTube antes |
 
 `SELECTING_STUCK_HOURS = 2` em [`db.py:153`](../clip-processor/src/db.py#L153). A cadência de 30 min
 do job é menor que isso de propósito: pega o travamento pouco depois de ele passar do limite.
@@ -145,8 +146,9 @@ libera a vaga da janela e mantém o registro no banco com os clips que já tinha
 
 ### O que fazer com o que não tem recuperação
 
-`transcribing`, `cutting` e `publishing` travados ficam presos para sempre. Diagnóstico e destrave
-manual em [`RUNBOOK.md`](RUNBOOK.md#estado-preso-sem-recuperação-automática).
+`transcribing` travado continua sem recuperação automática. `cutting` só é recuperado quando um novo
+processo sobe; `publishing` tem recovery periódico, mas exige conferência do YouTube. Diagnóstico e
+destrave manual em [`RUNBOOK.md`](RUNBOOK.md#estado-preso-sem-recuperação-automática).
 
 ---
 

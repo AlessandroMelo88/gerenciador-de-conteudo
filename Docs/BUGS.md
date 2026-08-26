@@ -4,7 +4,11 @@ Status: **FEITO** (corrigido e verificado) · **PARCIAL** (parte corrigida, part
 **ABERTO** (confirmado, não corrigido) · **SUSPEITA** (evidência parcial, falta confirmar).
 
 Numeração é estável — não renumerar ao fechar um item, outros documentos linkam por número.
-Última atualização: **13/08/2026**.
+Última atualização do snapshot: **13/08/2026**.
+
+> **Nota de estado:** este backlog é histórico e foi levantado antes da adoção do PostgreSQL e das
+> correções de qualidade de 26/08/2026. Revalide cada item contra `ARCHITECTURE.md` e
+> `Docs/README.md` antes de executar uma ação operacional.
 
 | # | Status | Título |
 |---|---|---|
@@ -124,15 +128,18 @@ thumbnail não deveria marcar o clip inteiro como `failed`.
    queries anteriores exigem `local_path IS NOT NULL`. Nenhum restart resolvia. Sem raw em disco não há
    seleção para reprocessar, então `failed` é o estado honesto e libera a vaga da janela.
 
-**O que continua ABERTO:** não existe recuperação para `generated_clips.cutting`,
-`generated_clips.publishing` nem `source_videos.transcribing`. O que trava nesses três fica preso para
-sempre e segura arquivo em disco. Foi a causa do acúmulo que lotou o SSD no incidente de 27/07/2026.
+**O que foi corrigido agora:** `recover_cutting_on_boot` ([`db.py`](../clip-processor/src/db.py)) devolve
+`generated_clips.cutting` para `pending_cut` durante o boot. Essa query é deliberadamente exclusiva do
+boot: o recovery periódico não pode reencaminhar um encode legítimo que dure mais de 30 minutos.
+
+**O que continua ABERTO:** `source_videos.transcribing` ainda não tem recuperação. `publishing` tem
+recovery periódico após 15 minutos, mas continua exigindo conferência do YouTube antes de reiniciar o
+processo, porque um upload pode ter terminado antes da atualização do banco.
 
 Agrava com o bug 11: o container morre por SIGKILL em todo `docker stop`, ou seja, pode ser morto **no
 meio** de um `cutting` ou `publishing`.
 
-**Onde corrigir:** nova query em [`db.py`](../clip-processor/src/db.py) + chamada em `run_recovery_once`.
-`publishing` precisa de cuidado extra: devolver a `pending` um clip que **já subiu** republica e
+`publishing` ainda precisa de cuidado extra: devolver a `pending` um clip que **já subiu** republica e
 duplica — checar `youtube_video_id` antes.
 
 Destrave manual em [`RUNBOOK.md`](RUNBOOK.md#estado-preso-sem-recuperação-automática).

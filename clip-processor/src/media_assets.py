@@ -13,7 +13,27 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 MEDIA_KINDS = ('intro', 'outro', 'music')
+# A pasta `assets/` é a fonte de verdade da identidade visual e da biblioteca
+# musical. O disk `branding` continua como fallback para registros antigos da
+# tabela `media_assets` e para as marcas d'água dos canais.
+ASSETS_ROOT = Path(os.environ.get('ASSETS_DIR', '/app/assets')).resolve()
+CHANNELS_ROOT = (ASSETS_ROOT / 'channels').resolve()
+AUDIO_ROOT = (ASSETS_ROOT / 'audio').resolve()
 MEDIA_ROOT = Path(os.environ.get('BRANDING_DIR', '/app/branding')).resolve()
+
+DEFAULT_STILL_DURATION_SECONDS = 3
+DEFAULT_MUSIC_VOLUME = 0.12
+MUSIC_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.ogg', '.flac', '.aac'}
+VISUAL_ASSET_NAMES = {
+    'intro': ('intro.mp4', 'intro.jpg', 'intro.jpeg', 'intro.png', 'intro.webp'),
+    'outro': (
+        'encerramento.mp4',
+        'encerramento.jpg',
+        'encerramento.jpeg',
+        'encerramento.png',
+        'encerramento.webp',
+    ),
+}
 
 
 def _log(message: str) -> None:
@@ -101,21 +121,113 @@ def _resolve_asset_path(raw_path: object) -> Path | None:
     return resolved
 
 
+def _channel_directory(channel_slug: object) -> Path | None:
+    """Retorna a pasta de um canal sem permitir escapar de ``channels``."""
+    if not channel_slug:
+        return None
+
+    slug = str(channel_slug).strip()
+    if not slug or Path(slug).name != slug or slug in {'.', '..'}:
+        return None
+
+    try:
+        channel_dir = (CHANNELS_ROOT / slug).resolve()
+        if not channel_dir.is_relative_to(CHANNELS_ROOT):
+            return None
+    except (OSError, ValueError):
+        return None
+
+    return channel_dir
+
+
+def _resolve_channel_asset(channel_slug: object, kind: str) -> Path | None:
+    channel_dir = _channel_directory(channel_slug)
+    if channel_dir is None:
+        return None
+
+    for filename in VISUAL_ASSET_NAMES.get(kind, ()):
+        candidate = channel_dir / filename
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _resolve_audio_asset(clip_id: int) -> Path | None:
+    if not AUDIO_ROOT.is_dir():
+        return None
+
+    candidates = sorted(
+        path
+        for path in AUDIO_ROOT.iterdir()
+        if path.is_file() and path.suffix.lower() in MUSIC_EXTENSIONS
+    )
+    if not candidates:
+        return None
+    return candidates[abs(int(clip_id)) % len(candidates)]
+
+
+def resolve_filesystem_media_assets(
+    *, channel_slug: str | None, video_format: str, clip_id: int
+) -> dict[str, dict[str, object]]:
+    """Resolve a identidade canônica em ``assets/channels`` e ``assets/audio``.
+
+    Dentro de cada canal, o vídeo é preferido à imagem para intro e
+    encerramento. A imagem é o fallback para canais que ainda não têm a versão
+    em vídeo. As faixas de ``audio`` são alternadas de forma determinística pelo
+    id do clip, para que a seleção seja reproduzível.
+    """
+    resolved: dict[str, dict[str, object]] = {}
+    for kind in ('intro', 'outro'):
+        path = _resolve_channel_asset(channel_slug, kind)
+        if path is None:
+            continue
+        resolved[kind] = {
+            'kind': kind,
+            'name': path.name,
+            'path': str(path.relative_to(ASSETS_ROOT)),
+            'absolute_path': str(path),
+            'duration_seconds': DEFAULT_STILL_DURATION_SECONDS,
+            'source': 'filesystem',
+        }
+
+    music_path = _resolve_audio_asset(clip_id) if video_format == 'longo' else None
+    if music_path is not None:
+        resolved['music'] = {
+            'kind': 'music',
+            'name': music_path.name,
+            'path': str(music_path.relative_to(ASSETS_ROOT)),
+            'absolute_path': str(music_path),
+            'music_volume': DEFAULT_MUSIC_VOLUME,
+            'source': 'filesystem',
+        }
+
+    return resolved
+
+
 def resolve_media_assets(
     conn,
     *,
     destination_channel_id: int | None,
     video_format: str,
     clip_id: int,
+    channel_slug: str | None = None,
 ) -> dict[str, dict[str, object]]:
     """Busca e valida intro, encerramento e música para um clip.
 
-    Falha de leitura da tabela ou arquivo ausente não interrompe a produção:
-    nesse caso o clip segue sem o asset problemático e o motivo fica no log.
+    A estrutura de arquivos por canal é preferida. A tabela ``media_assets``
+    permanece como fallback compatível com a configuração antiga do painel.
+    Falha de leitura da tabela ou arquivo ausente não interrompe a produção de
+    Shorts; o motivo fica no log.
     """
-    resolved: dict[str, dict[str, object]] = {}
+    resolved = resolve_filesystem_media_assets(
+        channel_slug=channel_slug,
+        video_format=video_format,
+        clip_id=clip_id,
+    )
 
     for kind in MEDIA_KINDS:
+        if kind in resolved:
+            continue
         try:
             with conn.cursor() as cur:
                 cur.execute(

@@ -29,7 +29,7 @@ class SourceVideoController extends Controller
     public function index(Request $request): Response
     {
         $tab = $request->query('tab', 'ativos');
-        $perPage = (int) $request->query('per_page', 100);
+        $perPage = min(max((int) $request->query('per_page', 100), 1), 100);
         $search = $request->query('search');
 
         $query = SourceVideo::query()
@@ -70,8 +70,8 @@ class SourceVideoController extends Controller
 
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhereHas('sourceChannel', fn ($q2) => $q2->where('channel_name', 'like', "%{$search}%"));
+                $q->where('title', 'ilike', "%{$search}%")
+                    ->orWhereHas('sourceChannel', fn ($q2) => $q2->where('channel_name', 'ilike', "%{$search}%"));
             });
         }
 
@@ -152,22 +152,23 @@ class SourceVideoController extends Controller
 
     private function payload(SourceVideo $video): array
     {
+        $status = (string) $video->status;
         $uso = match (true) {
-            $video->status === 'failed' => 'Falhou — pode apagar',
+            $status === 'failed' => 'Falhou — pode apagar',
             $video->total_clips_count > 0 && $video->em_andamento_count === 0 && $video->publicados_count === 0 => 'Sem uso — pode apagar',
             $video->publicados_count > 0 && $video->em_andamento_count === 0 => 'Publicado',
             default => 'Em uso',
         };
 
-        $canDelete = ! in_array($video->status, ['downloading', 'cutting'], true)
+        $canDelete = ! in_array($status, ['downloading', 'cutting'], true)
             && $video->em_andamento_count === 0;
 
         return [
             'id' => $video->id,
             'title' => $video->title,
             'channelName' => $video->sourceChannel?->channel_name,
-            'status' => $video->status,
-            'statusLabel' => self::STATUS_LABEL[$video->status] ?? $video->status,
+            'status' => $status,
+            'statusLabel' => self::STATUS_LABEL[$status],
             'youtubeVideoId' => $video->youtube_video_id,
             'hasLocalFile' => filled($video->local_path),
             'canDelete' => $canDelete,

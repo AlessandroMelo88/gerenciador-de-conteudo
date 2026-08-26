@@ -76,7 +76,7 @@ def cleanup_stale_downloads(
     """Remove artefatos de download parados há mais de `max_age_hours`.
 
     Rede de segurança pro caso em que `_cleanup_partial` nunca roda: container
-    morto, OOM, MySQL fora do ar derrubando o processo. Aí o `except` não
+    morto, OOM, PostgreSQL fora do ar derrubando o processo. Aí o `except` não
     executa e o `.part` de 1.4GB fica órfão indefinidamente.
 
     Só olha o primeiro nível de `videos_dir` (clips/ e thumbnails/ têm outro
@@ -170,6 +170,10 @@ def download_video(video_id: str, output_path: str | None = None) -> bool:
             _abort_if_paused()
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
+            if not os.path.isfile(output_path):
+                _log(f'Download sem arquivo de saída para {video_id}: {output_path}')
+                _cleanup_partial(output_path)
+                return False
             _log(f'Download concluído: {video_id} → {output_path}')
             return True
 

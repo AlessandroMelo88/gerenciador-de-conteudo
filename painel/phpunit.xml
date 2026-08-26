@@ -23,10 +23,14 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="mysql"/>
-        <env name="DB_HOST" value="mysql"/>
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_HOST" value="postgres"/>
         <env name="DB_DATABASE" value="clips_automation"/>
         <env name="DB_USERNAME" value="clips_user"/>
+        <env name="CLIP_PROCESSOR_INTERNAL_TOKEN" value="test-internal-token"/>
+        <env name="TELEGRAM_BOT_TOKEN" value="test-telegram-token" force="true"/>
+        <env name="TELEGRAM_CHAT_ID_ALLOWED" value="5760918317"/>
+        <env name="TELEGRAM_WEBHOOK_SECRET" value="test-telegram-secret"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

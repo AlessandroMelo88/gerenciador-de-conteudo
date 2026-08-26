@@ -12,6 +12,7 @@ Auth: header X-Internal-Token verificado contra CLIP_PROCESSOR_INTERNAL_TOKEN.
 Rede: bind 0.0.0.0:8090 dentro do container `clip-processor`, rede docker `internal`
       — sem publicação de porta no host.
 """
+
 import json
 import os
 import subprocess
@@ -56,10 +57,17 @@ def resolve_channel(url: str) -> dict:
     """
     result = subprocess.run(
         [
-            'yt-dlp', '--flat-playlist', '--skip-download', '--playlist-items', '1',
-            '--dump-single-json', url,
+            'yt-dlp',
+            '--flat-playlist',
+            '--skip-download',
+            '--playlist-items',
+            '1',
+            '--dump-single-json',
+            url,
         ],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or 'yt-dlp failed')
@@ -187,7 +195,7 @@ def purge_old_videos(before_date: str) -> dict:
 
     Também remove do Redis a chave de deduplicação (video:{youtube_video_id}) das
     linhas apagadas — sem isso, a chave (TTL 30 dias) continua marcando o vídeo
-    como "já visto" mesmo depois de removido do MySQL, e se o mesmo video_id
+    como "já visto" mesmo depois de removido do PostgreSQL, e se o mesmo video_id
     voltar a aparecer num feed RSS o poller nunca mais o insere.
 
     Args:
@@ -200,20 +208,20 @@ def purge_old_videos(before_date: str) -> dict:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT sv.youtube_video_id FROM source_videos sv "
-                "WHERE sv.published_at < %s "
+                'SELECT sv.youtube_video_id FROM source_videos sv '
+                'WHERE sv.published_at < %s '
                 "AND sv.status IN ('pending', 'failed', 'downloaded') "
-                "AND NOT EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id)",
+                'AND NOT EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id)',
                 (before_date,),
             )
             video_ids_to_purge = [row['youtube_video_id'] for row in cur.fetchall()]
 
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE sv FROM source_videos sv "
-                "WHERE sv.published_at < %s "
+                'DELETE FROM source_videos AS sv '
+                'WHERE sv.published_at < %s '
                 "AND sv.status IN ('pending', 'failed', 'downloaded') "
-                "AND NOT EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id)",
+                'AND NOT EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id)',
                 (before_date,),
             )
             deleted_rows = cur.rowcount
@@ -229,13 +237,13 @@ def purge_old_videos(before_date: str) -> dict:
         placeholders = ', '.join(['%s'] * len(_CLIP_STATUSES_NEED_RAW_FILE))
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT sv.id, sv.local_path FROM source_videos sv "
-                f"WHERE sv.published_at < %s AND sv.local_path IS NOT NULL "
+                f'SELECT sv.id, sv.local_path FROM source_videos sv '
+                f'WHERE sv.published_at < %s AND sv.local_path IS NOT NULL '
                 f"AND sv.status NOT IN ('downloading', 'cutting') "
-                f"AND NOT EXISTS ("
-                f"  SELECT 1 FROM generated_clips gc "
-                f"  WHERE gc.source_video_id = sv.id AND gc.status IN ({placeholders})"
-                f")",
+                f'AND NOT EXISTS ('
+                f'  SELECT 1 FROM generated_clips gc '
+                f'  WHERE gc.source_video_id = sv.id AND gc.status IN ({placeholders})'
+                f')',
                 (before_date, *_CLIP_STATUSES_NEED_RAW_FILE),
             )
             rows_with_file = cur.fetchall()
@@ -314,7 +322,7 @@ def _route_process_url():
         return jsonify(error='missing url'), 400
     try:
         exit_code = processar_main(url, fmt=fmt)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return jsonify(error=str(e)), 500
     return jsonify(exit_code=exit_code), 200
 
@@ -344,7 +352,7 @@ def _route_transcribe():
         return jsonify(error='missing url'), 400
     try:
         job_id = start_transcription_job(url)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return jsonify(error=str(e)), 500
     return jsonify(job_id=job_id), 200
 
@@ -359,7 +367,7 @@ def _route_pause_video(source_video_id: int):
         return jsonify(pause_video(source_video_id)), 200
     except RuntimeError as e:
         return jsonify(error=str(e)), 422
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return jsonify(error=str(e)), 500
 
 
@@ -373,7 +381,7 @@ def _route_resume_video(source_video_id: int):
         return jsonify(resume_video(source_video_id)), 200
     except RuntimeError as e:
         return jsonify(error=str(e)), 422
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return jsonify(error=str(e)), 500
 
 
@@ -391,7 +399,7 @@ def _route_reorder_videos():
         return jsonify(reorder_videos([int(i) for i in ids])), 200
     except RuntimeError as e:
         return jsonify(error=str(e)), 422
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return jsonify(error=str(e)), 500
 
 
@@ -405,5 +413,5 @@ def _route_prioritize_video(source_video_id: int):
         return jsonify(prioritize_video(source_video_id)), 200
     except RuntimeError as e:
         return jsonify(error=str(e)), 422
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return jsonify(error=str(e)), 500

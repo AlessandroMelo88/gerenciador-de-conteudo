@@ -26,11 +26,10 @@ videos/*
 *.ytdl
 *.temp.mp4
 
-# Dumps e backups de banco — nunca no Git. Usar backups/mysql + scripts/*-mysql.sh
+# Dumps e backups de banco — nunca no Git. Usar backups/postgres + scripts/*-postgres.sh
 backups/*
-!backups/mysql/
-backups/mysql/*
-!backups/mysql/.gitkeep
+!backups/postgres/
+!backups/postgres/.gitkeep
 backup*.sql
 *.sql.gz
 *.sql.gz.sha256

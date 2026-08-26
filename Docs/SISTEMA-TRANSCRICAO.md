@@ -5,27 +5,41 @@ Duas transcrições **independentes** convivem no mesmo container e não se fala
 | | Pipeline principal | Transcrição Local |
 |---|---|---|
 | Módulo | [`transcriber.py`](../clip-processor/src/transcriber.py) | [`transcription_job.py`](../clip-processor/src/transcription_job.py) |
-| Motor | Groq Whisper API (`whisper-large-v3-turbo`) | whisper.cpp local, modelo `ggml-small` |
-| Custo | cota da API Groq | zero |
+| Motor | Legendas do YouTube; Groq Whisper API (`whisper-large-v3-turbo`) como fallback | whisper.cpp local, modelo `ggml-small` |
+| Custo | zero quando há legenda; cota Groq no fallback | zero |
 | Entrada | `.mp4` já baixado pelo pipeline | URL colada pelo operador no painel |
 | Saída | `<id>_transcript.json` + `source_videos.transcript_path` | `.srt` + tabela `transcription_jobs` |
 | Toca `source_videos`/`generated_clips`? | sim | **não** |
 
-Verificado no código em **13/08/2026**.
+Verificado no código em **26/08/2026**.
 
 ---
 
-## Pipeline principal — Groq Whisper
+## Pipeline principal — Legendas do YouTube → Groq Whisper
 
 `transcribe_video` ([`transcriber.py:51`](../clip-processor/src/transcriber.py#L51)), chamado por
 `_process_ai_pipeline` ([`rss_poller.py:116`](../clip-processor/src/rss_poller.py#L116)).
 
 | Parâmetro | Valor | Onde |
 |---|---|---|
-| modelo | `whisper-large-v3-turbo` | [`:83`](../clip-processor/src/transcriber.py#L83) |
+| modelo de fallback | `whisper-large-v3-turbo` | [`:206`](../clip-processor/src/transcriber.py#L206) |
 | `response_format` | `verbose_json`, `timestamp_granularities=['segment']` | [`:84`](../clip-processor/src/transcriber.py#L84) |
 | idioma | `pt` fixo | [`:86`](../clip-processor/src/transcriber.py#L86) |
 | `temperature` | `0.0` | [`:87`](../clip-processor/src/transcriber.py#L87) |
+
+### Prioridade: legenda já publicada no YouTube
+
+`transcribe_video` primeiro chama `_download_youtube_transcript`. A rotina consulta o player oficial
+do YouTube sem baixar a mídia e tenta, nesta ordem, legendas publicadas manualmente e legendas
+automáticas em português (`pt-BR`, `pt`). A faixa XML/timedtext é convertida para o mesmo formato
+de segmentos temporizados consumido pelo seletor; se o player não responder, há uma segunda tentativa
+via `yt-dlp`, também sem baixar o vídeo. Quando encontra uma legenda utilizável, o Groq nem é
+instanciado — economizando cota, tempo e processamento local.
+
+### Fallback Groq
+
+Se o vídeo não expõe legenda, a legenda não pode ser baixada (por exemplo, bloqueio do YouTube) ou
+o arquivo não contém nenhum segmento válido, o pipeline continua com o Groq Whisper.
 
 ### Conversão para áudio acima de 24 MB
 
@@ -37,16 +51,15 @@ no `finally` ([`:111`](../clip-processor/src/transcriber.py#L111)).
 Vídeo de 720p com mais de ~1 minuto passa dos 24 MB, então na prática **quase todo** vídeo do
 pipeline passa pela conversão.
 
-### Sem fallback
+### Quando ambos falham
 
-`transcribe_video` retorna `None` em qualquer exceção
-([`:105`](../clip-processor/src/transcriber.py#L105)) e `_process_ai_pipeline` marca o vídeo como
-`failed` ([`rss_poller.py:119`](../clip-processor/src/rss_poller.py#L119)). **Não existe fallback**:
-Groq fora do ar ⇒ vídeo perdido para o pipeline. É o único estágio de IA sem plano B — seleção e
-metadata têm fallback Groq.
-
+Se a tentativa de legenda e o fallback Groq falharem, `transcribe_video` retorna `None` e
+`_process_ai_pipeline` marca o vídeo como `failed` ([`rss_poller.py:133`](../clip-processor/src/rss_poller.py#L133)).
 O `.mp4` bruto **permanece em disco** nesse caso, com `local_path` preenchido, ocupando vaga da
 janela de download.
+
+Legendas automáticas continuam sujeitas à disponibilidade e à qualidade do reconhecimento de voz
+do próprio YouTube; elas não são garantia para todos os vídeos.
 
 ### Formato do transcript salvo
 
@@ -107,7 +120,7 @@ em vez de virar 10 chamadas.
 
 ### Progresso
 
-Persistido em `transcription_jobs` (MySQL), nunca em memória, para sobreviver a reload da página.
+Persistido em `transcription_jobs` (PostgreSQL), nunca em memória, para sobreviver a reload da página.
 whisper.cpp não expõe progresso incremental estável entre versões, então os valores são **milestones
 grosseiros**: 10% ao iniciar o download, 50% ao iniciar a transcrição, 100% ao terminar. Não é o
 progresso real do whisper.

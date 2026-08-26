@@ -2,7 +2,7 @@
 
 Índice da documentação. **Comece por aqui em toda conversa nova.**
 
-Última atualização: **25/08/2026**
+Última atualização: **26/08/2026**
 
 ---
 
@@ -31,7 +31,7 @@ horizontal de 7 a 20 min).
 | [`BUGS.md`](BUGS.md) | Backlog com status FEITO / PARCIAL / ABERTO / SUSPEITA, evidência e onde corrigir |
 | [`DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md) | Setup do host, `make lint/format/test`, o que cada ferramenta (ruff, Pint, PHPStan, Prettier, oxlint, pre-commit, CI) verifica e bloqueia, políticas de baseline, como fechar versão |
 | [`TODO-REFATORACAO.md`](TODO-REFATORACAO.md) | Auditoria de 25/08/2026: onde o código pode ser melhor refatorado, por prioridade, com `arquivo:linha`, esforço e risco — Python, PHP e React |
-| [`ADR/`](ADR/README.md) | Registros de decisão de arquitetura (compose isolado, fila no banco, fallback de IA, schema fora das migrations, ferramentas de qualidade, motor de banco) |
+| [`ADR/`](ADR/README.md) | Registros de decisão de arquitetura (compose isolado, fila no banco, fallback de IA, schema gerido por migrations, ferramentas de qualidade, motor de banco) |
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) · [`../CHANGELOG.md`](../CHANGELOG.md) · [`../CHANGELOG.d/`](../CHANGELOG.d/README.md) | Convenções de branch/commit, release notes e fragmentos de changelog |
 
 ### Como o sistema funciona, por subsistema
@@ -41,12 +41,12 @@ horizontal de 7 a 20 min).
 | [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) | Máquina de estados de `source_videos` e `generated_clips`, quem escreve cada transição, **o que tem e o que não tem recuperação automática**, e o que ocupa vaga na janela de download |
 | [`PIPELINE-E-SCHEDULER.md`](PIPELINE-E-SCHEDULER.md) | Quais jobs rodam em que cadência, o que cada ciclo executa, por que `rss_poller` faz mais que polling, e a armadilha do rebuild |
 | [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md) | Descoberta via RSS, dedup, filtro de título, detecção de formato, janela de download por formato, filtro de frescor, disk guard, limpeza de órfãos |
-| [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | Groq Whisper no pipeline (sem fallback) e a Transcrição Local com whisper.cpp, que é uma feature separada |
+| [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | Legendas do YouTube antes do Groq Whisper e a Transcrição Local com whisper.cpp, que é uma feature separada |
 | [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) | Seleção de cortes por IA: prompts por formato, score, limites de duração, Claude Haiku → fallback Groq LLaMA 3.3-70b |
 | [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg: corte por formato, legendas, intros/encerramentos/músicas configuráveis, marca d'água, thumbnail e artefatos em disco |
 | [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md) | Quem é publicável, roteamento por nicho, round-robin, cota diária (teto rígido de 6), janela 19h–22h, OAuth por canal, TTL de clip |
 | [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | As 10 rotas do sidecar HTTP 8090, auth fail-closed, controles de fila (pause/resume/reorder/prioritize), rejeição de clip, eventos para o Telegram |
-| [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, por que não são migrations do Laravel, ausência de `ON DELETE CASCADE`, divergência banco × disco |
+| [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, migrations Laravel, ausência de `ON DELETE CASCADE`, divergência banco × disco |
 | [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | Índice módulo a módulo do daemon (21 módulos), padrões comuns de código, o que o Redis guarda, tabela de env vars |
 | [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | Rotas, controllers e páginas do Laravel/Inertia; como ler cada card do Dashboard |
 
@@ -74,17 +74,16 @@ horizontal de 7 a 20 min).
 TypeScript, desde o commit `dca6e44`. **O Filament foi removido por completo** — qualquer menção a ele
 em README, nome de arquivo ou teste é resíduo, não estado atual.
 
-**Infra:** roda 100% local em Docker, no `docker-compose.yml` da raiz `wordpress/` **compartilhado com
-outros projetos** (kelnab, feeb, placebeads, riodelux, gringo). Mexer apenas no serviço
-`clip-processor` e nos paths sob `canaldecortes/`. Migração para Oracle **não iniciada** — os
-pré-requisitos de código (fase 1) estão em andamento.
+**Infra:** roda 100% local em Docker, no `docker-compose.yml` da raiz deste repositório, com
+PostgreSQL 16, Redis, painel PHP/Nginx e `clip-processor` isolados. Migração para Oracle **não
+iniciada** — os pré-requisitos de código (fase 1) estão em andamento.
 
 **Problema que motivou a migração:** SSD de 228 GB chegou a 85% de uso e derrubou o Docker. Parte era
 volume real, parte era vazamento de arquivo.
 
-**Prazo externo em aberto:** a Oracle cortou o Always Free de 4 OCPU/24 GB para 2 OCPU/12 GB e desliga
-instâncias fora do novo limite a partir de **18/08/2026**. Se já existe instância na conta, conferir o
-shape antes dessa data — e **redimensionar, nunca terminar**.
+**Nota histórica:** a Oracle anunciou em 2026 a redução do Always Free de 4 OCPU/24 GB para
+2 OCPU/12 GB. O plano de Oracle continua não iniciado; consultar
+[`PLANO-ORACLE.md`](PLANO-ORACLE.md) antes de provisionar qualquer recurso.
 
 **Bugs:** 4 corrigidos, 1 parcial, 5 abertos, 1 suspeita. Detalhe e prioridade em
 [`BUGS.md`](BUGS.md).
@@ -98,11 +97,12 @@ shape antes dessa data — e **redimensionar, nunca terminar**.
 | Recovery de estado preso virou job periódico de 30 min, não só no boot | `main.py`, job `state_recovery` |
 | `selecting` com `local_path IS NULL` sem update há 2 h agora vai para `failed` — antes ficava preso para sempre | terceira query de `recover_stuck_selecting` em `db.py` |
 | `MIN_SHORTFORM_SECONDS` subiu de 15 s para **30 s** e o prompt do modo curto foi reescrito | `selector.py` |
+| `cutting` interrompido por restart volta para `pending_cut` no boot — o recovery periódico não toca em encodes em andamento | `recover_cutting_on_boot` em `db.py` + `run_recovery_once` em `main.py` |
 
 ### Os dois que mais doem hoje
 
-1. **Nada em `cutting`, `publishing` ou `transcribing` tem recuperação automática** — o que travar ali
-   fica preso para sempre e segura arquivo em disco (bug 4).
+1. **`transcribing` ainda não tem recuperação automática** — o que travar ali fica preso para sempre e
+   segura arquivo em disco (bug 4). `cutting` é recuperado no boot e `publishing` tem recovery periódico.
 2. **O container não honra SIGTERM:** todo `docker stop` termina em `Exited (137)` / SIGKILL porque o
    `BlockingScheduler` não retorna do `shutdown` (bug 11). Junto com o item 1, cada restart pode criar
    um estado preso novo. Por isso o [`RUNBOOK.md`](RUNBOOK.md#reiniciar-o-clip-processor-com-segurança)
@@ -118,7 +118,7 @@ shape antes dessa data — e **redimensionar, nunca terminar**.
    ```bash
    docker compose build clip-processor && docker compose up -d clip-processor
    ```
-2. **A fila não mora no Redis.** Fila = MySQL. O Redis só tem dedup, cota e idempotência de aviso.
+2. **A fila não mora no Redis.** Fila = PostgreSQL. O Redis só tem dedup, cota e idempotência de aviso.
    Apagar as chaves `video:*` **ressuscita todo o backlog** no próximo poll. Nunca `FLUSHALL`.
 3. **Ao cruzar banco × disco, filtrar pela chave, nunca pelo nome do arquivo.** `<id>.srt` e
    `<id>_raw.mp4` não estão em coluna nenhuma — comparar nomes os marca como órfãos e apaga arquivo de

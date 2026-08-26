@@ -1,4 +1,4 @@
-# CI — espelha `make ci` mais os testes PHP (que exigem MySQL + Redis).
+# CI — espelha `make ci` mais os testes PHP (que exigem PostgreSQL + Redis).
 # Detalhes de cada ferramenta: Docs/DESENVOLVIMENTO.md
 name: CI
 
@@ -31,6 +31,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check . --output-format=github
       - run: ruff format --check .
+      - run: mypy
       - run: pytest -q -p no:cacheprovider
 
   php-static:
@@ -44,7 +45,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: mbstring, intl, bcmath, pdo_mysql, redis, zip
+          extensions: mbstring, intl, bcmath, pdo_pgsql, redis, zip
           coverage: none
           tools: composer:v2
       - uses: actions/cache@v4
@@ -56,22 +57,21 @@ jobs:
       - run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress --error-format=github
 
   php-tests:
-    name: painel · pest (mysql + redis)
+    name: painel · pest (postgres + redis)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: painel
     services:
-      mysql:
-        image: mysql:8.4
+      postgres:
+        image: postgres:16-alpine
         env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: clips_automation
-          MYSQL_USER: clips_user
-          MYSQL_PASSWORD: secret
-        ports: ["3306:3306"]
+          POSTGRES_DB: clips_automation
+          POSTGRES_USER: clips_user
+          POSTGRES_PASSWORD: secret
+        ports: ["5432:5432"]
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-cmd="pg_isready -h 127.0.0.1 -U clips_user -d clips_automation"
           --health-interval=5s --health-timeout=5s --health-retries=30
       redis:
         image: redis:7-alpine
@@ -81,12 +81,12 @@ jobs:
           --health-interval=5s --health-timeout=3s --health-retries=20
     env:
       APP_ENV: testing
-      DB_CONNECTION: mysql
+      DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
-      DB_PORT: "3306"
+      DB_PORT: "5432"
       DB_DATABASE: clips_automation
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_USERNAME: clips_user
+      DB_PASSWORD: secret
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: "6379"
       CACHE_STORE: array
@@ -98,7 +98,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: mbstring, intl, bcmath, pdo_mysql, redis, zip
+          extensions: mbstring, intl, bcmath, pdo_pgsql, redis, zip
           coverage: none
           tools: composer:v2
       - uses: actions/cache@v4
@@ -106,12 +106,6 @@ jobs:
           path: painel/vendor
           key: composer-${{ runner.os }}-${{ hashFiles('painel/composer.lock') }}
       - run: composer install --no-interaction --prefer-dist --no-progress
-      - name: Aplica o schema do pipeline (mysql/init/*.sql, mesma ordem do entrypoint)
-        run: |
-          for f in ../mysql/init/*.sql; do
-            echo "== $f"
-            mysql --protocol=TCP -h127.0.0.1 -uroot -proot clips_automation < "$f"
-          done
       - run: cp .env.example .env && php artisan key:generate --force
       - run: php artisan migrate --force --no-interaction
       - run: php artisan test
@@ -150,5 +144,4 @@ jobs:
       - name: docker compose config
         env:
           CLIPS_DB_PASSWORD: ci
-          MYSQL_ROOT_PASSWORD: ci
         run: cp .env.example .env && cp painel/.env.example painel/.env && docker compose config -q

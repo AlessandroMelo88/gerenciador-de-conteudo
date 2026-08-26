@@ -1,1 +1,1 @@
-**pre-commit, Makefile e GitHub Actions** — `.pre-commit-config.yaml` (ruff, shellcheck, yamllint, hadolint, pint, prettier, oxlint, tsc/phpstan no push), `make lint|format|test|ci` e workflow `CI` com jobs python, php-static, php-tests (mysql + redis), frontend e infra
+**pre-commit, Makefile e GitHub Actions** — `.pre-commit-config.yaml` (ruff, shellcheck, yamllint, hadolint, Pint, Prettier, oxlint, TypeScript/PHPStan no push), `make lint|format|test|ci` e workflow `CI` com jobs Python, PHP, PostgreSQL/Redis, frontend e infra

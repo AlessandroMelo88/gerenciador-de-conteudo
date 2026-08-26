@@ -1,345 +1,189 @@
 # Runbook de operação
 
-Comandos do dia a dia, como diagnosticar e como reiniciar sem estragar nada.
+Comandos do dia a dia, diagnóstico e reinício seguro do stack.
 
-**Antes de qualquer operação destrutiva, ler as 7 regras de [`../CLAUDE.md`](../CLAUDE.md).** Elas não
-são teoria: cada uma nasceu de um incidente com perda de arquivo ou de log.
+**Antes de qualquer operação destrutiva, leia as 7 regras de [`../CLAUDE.md`](../CLAUDE.md).**
 
-Verificado em **13/08/2026**.
-
----
+Verificado em **26/08/2026**.
 
 ## Convenções
 
-- Todos os comandos rodam da raiz deste repositório, onde vivem `docker-compose.yml` e `.env`.
-- O Compose é **isolado** deste projeto: volumes, rede e serviços têm escopo próprio. Não use `container_name` nem publique MySQL/Redis no host para tentar integrá-lo a outro Compose.
-- **Nunca** use `docker compose down -v` em uma instalação com dados: isso remove os volumes nomeados.
+Todos os comandos partem da raiz deste repositório. O Compose é isolado, com PostgreSQL, Redis,
+PHP-FPM, Nginx e clip-processor próprios. Não use `container_name`, não publique as portas do banco
+ou Redis e nunca execute `docker compose down -v` em uma instalação com dados.
 
----
-
-## Está tudo de pé?
+## Saúde dos serviços
 
 ```bash
-docker compose ps clip-processor mysql redis
+docker compose ps postgres redis clip-processor php nginx
 docker compose logs --tail=100 clip-processor
+./scripts/validate-infra.sh
 ```
 
-Sinais de saúde no log, por tag: `[ACQU]` ingestão/download, `[AI]` transcrição/seleção,
-`[VID]` corte, `[PUB]` publicação, `[DB]`, `[QUEUE]`, `[DEDUP]`, `[NOTIFY]`.
+O `panel-init` deve terminar com sucesso antes de `php`, `queue` e `scheduler`. Ele aplica as migrations
+Laravel, inclusive as tabelas do pipeline.
 
-Um ciclo saudável loga `Ciclo de ingestão finalizado` a cada 20 min.
-
----
-
-## O container está rodando código velho?
-
-**A armadilha mais recorrente do projeto.** Não há bind mount para `src/` — a imagem embute o código
-no build. Em 13/08/2026 o container rodava código de 01/08 enquanto o host tinha commits de 12/08, e o
-comportamento observado não correspondia a nenhuma versão do código que se estava lendo.
+Para consultas rápidas no banco, use o próprio container PostgreSQL:
 
 ```bash
-# data da imagem que o container está rodando
-docker inspect clip-processor --format '{{.Created}} {{.Image}}'
-# data do último commit no host
-git -C canaldecortes log -1 --format='%ad %h %s' --date=iso
+docker compose exec -T postgres sh -c \
+  'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=ON_ERROR_STOP=1 "$@"' \
+  -- -c 'SELECT current_database(), current_user;'
 ```
 
-Divergiu ⇒ rebuild:
+## Código atualizado no clip-processor
+
+Não há bind mount para `clip-processor/src/`; a imagem embute o código no build. Depois de alterar
+Python, faça rebuild e reinicie somente o serviço:
 
 ```bash
-docker compose build clip-processor && docker compose up -d clip-processor
+docker compose build clip-processor
+docker compose up -d clip-processor
+docker compose exec -T clip-processor python -m pytest tests/ -q
 ```
 
-Conferir na dúvida se um arquivo específico dentro do container já tem a mudança:
+## Reinício seguro
+
+Antes de reiniciar, liste os estados em trânsito. O comando é somente leitura:
 
 ```bash
-docker exec clip-processor grep -n "MIN_SHORTFORM_SECONDS" /app/src/selector.py
+docker compose exec -T postgres sh -c \
+  'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=ON_ERROR_STOP=1 "$@"' \
+  -- -c "
+    SELECT status, COUNT(*) FROM generated_clips
+    WHERE status IN ('cutting', 'publishing') GROUP BY status;
+    SELECT status, COUNT(*) FROM source_videos
+    WHERE status IN ('downloading', 'transcribing') GROUP BY status;
+  "
 ```
 
-**Sempre confirmar isso antes de investigar qualquer bug de pipeline.**
-
----
-
-## Reiniciar o clip-processor com segurança
-
-O container **não honra SIGTERM**: `scheduler.shutdown` não retorna e todo `docker stop` termina em
-`Exited (137)` / SIGKILL (bug aberto, ver [`BUGS.md`](BUGS.md)). Ou seja, o processo pode morrer no
-meio de um estágio, e `cutting`/`publishing` **não têm recuperação automática**.
-
-Antes de reiniciar, ver se há trabalho em trânsito:
+Se houver `publishing`, aguarde ou confirme no YouTube antes de matar o processo: o upload pode ter
+terminado sem o banco ter sido atualizado. Se houver `cutting`, prefira aguardar; se o processo for
+reiniciado, o boot devolve esses clips para `pending_cut`. O recovery automático também cobre
+`downloading`, `selecting` e `publishing` (com a ressalva do YouTube); consulte
+[`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) para os demais estados.
 
 ```bash
-docker exec mysql mysql -uroot -p"$P" clips_automation -e "
-SELECT status, COUNT(*) FROM generated_clips
-WHERE status IN ('cutting','publishing') GROUP BY status;
-SELECT status, COUNT(*) FROM source_videos
-WHERE status IN ('downloading','transcribing') GROUP BY status;"
+docker compose up -d --force-recreate clip-processor
 ```
 
-- Tudo zero ⇒ reiniciar à vontade.
-- Tem `publishing` ⇒ **esperar**. Está no meio de um upload; matar agora deixa o clip preso para
-  sempre (e talvez publicado no YouTube com registro `failed`).
-- Tem `cutting` ⇒ preferir esperar; se não puder, anotar os ids para destravar depois.
+## Estado preso
+
+Primeiro liste e avalie o tempo sem atualização:
 
 ```bash
-docker compose up -d --force-recreate clip-processor   # ou build + up, se mudou código
+docker compose exec -T postgres sh -c \
+  'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=ON_ERROR_STOP=1 "$@"' \
+  -- -c "
+    SELECT id, status, updated_at,
+           EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - updated_at)) / 3600 AS horas
+    FROM generated_clips
+    WHERE status IN ('cutting', 'publishing')
+    ORDER BY updated_at;
+  "
 ```
 
-Reiniciar **recupera** `downloading` e `selecting` no boot, então travamento nesses dois não é motivo
-para esperar.
-
----
-
-## Estado preso sem recuperação automática
-
-`transcribing`, `generated_clips.cutting` e `generated_clips.publishing` não têm recovery — o que
-travar ali fica preso para sempre e segura arquivo em disco.
-
-Etapa 1, **listar** (nunca descobrir e alterar no mesmo comando):
-
-```bash
-docker exec mysql mysql -uroot -p"$P" clips_automation -e "
-SELECT id, status, updated_at, TIMESTAMPDIFF(HOUR, updated_at, NOW()) AS h
-FROM generated_clips WHERE status IN ('cutting','publishing') ORDER BY updated_at;"
-```
-
-Etapa 2, decidir pelo tempo parado. Sem update há horas, com o pipeline vivo nesse intervalo, é
-travamento real.
-
-| Preso em | Para onde devolver | Por quê |
+| Preso em | Ação após validar o caso | Observação |
 |---|---|---|
-| `generated_clips.cutting` | `pending_cut` | o corte recomeça do zero; o raw do vídeo fonte ainda está lá |
-| `generated_clips.publishing` | **verificar no YouTube antes** | se o vídeo subiu, devolver a `pending` republica e duplica |
-| `source_videos.transcribing` | `downloaded` | reprocessa a IA |
+| `generated_clips.cutting` | devolver a `pending_cut` | o corte recomeça; o raw precisa existir |
+| `generated_clips.publishing` | conferir o YouTube antes | evita duplicar um upload já concluído |
+| `source_videos.transcribing` | devolver a `downloaded` | reprocessa a etapa de IA |
+
+Exemplo com ID explícito, somente depois da conferência:
 
 ```bash
-# exemplo, com id explícito — nunca UPDATE sem WHERE id
-docker exec mysql mysql -uroot -p"$P" clips_automation -e "
-UPDATE generated_clips SET status='pending_cut' WHERE id=123 AND status='cutting';"
+docker compose exec -T postgres sh -c \
+  'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=ON_ERROR_STOP=1 "$@"' \
+  -- -c "UPDATE generated_clips SET status = 'pending_cut' WHERE id = 123 AND status = 'cutting';"
 ```
 
-Para `publishing`, conferir primeiro se o upload aconteceu: `SELECT youtube_video_id FROM
-generated_clips WHERE id=...`. Preenchido ⇒ o upload passou e o que falhou foi depois (provavelmente a
-thumbnail); marcar `published`, não `pending`.
+## Pipeline sem novos downloads
 
----
+Verifique, nesta ordem:
 
-## O pipeline parou de baixar
-
-Cadeia de causas em ordem de probabilidade:
-
-**1. A janela está cheia de linha morta.** A janela conta muito mais que "tem arquivo"
-(ver [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md#estados--ocupação-da-janela-de-download)):
+1. a ocupação da janela (`curto` = 6, `longo` = 4 por padrão);
+2. `failed` com `local_path` preenchido, que pode manter uma vaga ocupada;
+3. espaço livre no volume de vídeos;
+4. o filtro de frescor (`FRESHNESS_DAYS`).
 
 ```bash
-docker exec mysql mysql -uroot -p"$P" clips_automation -e "
-SELECT sv.format, COUNT(DISTINCT sv.id) AS ocupando
-FROM source_videos sv LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id
-WHERE sv.local_path IS NOT NULL
-   OR sv.status IN ('downloading','downloaded','transcribing','selecting','cutting','publishing')
-   OR gc.status IN ('pending_cut','pending','cutting','approved')
-GROUP BY sv.format;"
+docker compose exec -T postgres sh -c \
+  'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=ON_ERROR_STOP=1 "$@"' \
+  -- -c "
+    SELECT sv.format, COUNT(DISTINCT sv.id) AS ocupando
+    FROM source_videos sv
+    LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id
+    WHERE sv.local_path IS NOT NULL
+       OR sv.status IN ('downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing')
+       OR gc.status IN ('pending_cut', 'pending', 'cutting', 'approved')
+    GROUP BY sv.format;
+  "
 ```
-
-`curto ≥ 6` ou `longo ≥ 4` ⇒ déficit zero, nada baixa. Descobrir **qual** estado está segurando e
-destravar (seção anterior).
-
-**2. `failed` com `local_path` preenchido.** Era o caso dos 58 vídeos / 4.1 GB. `_discard_failed_download`
-corrige daqui pra frente; para o resíduo antigo:
 
 ```bash
-docker exec mysql mysql -uroot -p"$P" clips_automation -e "
-SELECT COUNT(*), SUM(local_path IS NOT NULL) FROM source_videos WHERE status='failed';"
+docker compose exec -T clip-processor df -h /app/videos
 ```
 
-Apagar **o arquivo antes** do `UPDATE`, com caminho absoluto, e conferir que saiu (regra 2 do
-CLAUDE.md).
+Nunca apague arquivos ou linhas só porque parecem antigos. Siga a lista em duas etapas e confirme que
+o arquivo saiu antes de limpar `local_path`, conforme `CLAUDE.md`.
 
-**3. Disco abaixo de 2 GB livres.** O disk guard aborta o download e mede o **disco real**:
+## Publicação no YouTube
+
+Confira janela local (19h–22h), cota no Redis, clips publicáveis, canal-destino ativo e OAuth:
 
 ```bash
-docker exec clip-processor df -h /app/videos
+docker compose exec -T redis redis-cli keys 'youtube_uploads:*'
+docker compose exec -T redis redis-cli get 'youtube_uploads:<channel_id>:<YYYY-MM-DD>'
+docker compose logs --tail=200 clip-processor | grep -iE 'PUB|oauth|upload|thumbnail'
 ```
 
-**4. Filtro de frescor.** `pending` com `published_at` anterior a ontem **nunca** baixa. Backlog alto
-com janela vazia e nada baixando geralmente é isso — e não é bug.
-
-```bash
-docker exec mysql mysql -uroot -p"$P" clips_automation -e "
-SELECT DATE(published_at) >= CURDATE() - INTERVAL 1 DAY AS fresco, COUNT(*)
-FROM source_videos WHERE status='pending' GROUP BY fresco;"
-```
-
----
-
-## Nada sobe para o YouTube
-
-Na ordem:
-
-| Checar | Como | Nota |
-|---|---|---|
-| Estamos na janela horária? | hora local SP entre 19h e 22h | fora dela nada publica; `UPLOAD_WINDOW_BYPASS=true` ignora |
-| A cota do dia acabou? | `docker exec redis redis-cli keys 'youtube_uploads:*'` e `get` na chave de hoje | teto rígido de **6/dia por canal** no código |
-| Há clip publicável? | `SELECT status, COUNT(*) FROM generated_clips GROUP BY status;` | publicável = `pending` ou `approved`, conforme `MANUAL_APPROVAL_REQUIRED` |
-| O OAuth expirou? | `SELECT slug, oauth_expired_flag FROM destination_channels;` | badge no painel; regerar com `youtube_oauth.py` |
-| O canal-destino está ativo? | `SELECT slug, active FROM destination_channels;` | sem canal ativo cai no fluxo legado |
-| `privacyStatus` | `YOUTUBE_PRIVACY_STATUS` no `.env` | default **`private`** — sobe e não aparece |
-
-Reset **só** do contador de cota travado, sem tocar no dedup:
-
-```bash
-docker exec redis redis-cli del "youtube_uploads:<channel_id>:$(date +%F)"
-```
-
-**Nunca `FLUSHALL`.** Isso apaga as chaves `video:*` de dedup e **ressuscita todo o backlog** no
-próximo poll, além de zerar a cota.
-
----
-
-## Diagnosticar falhas de upload
-
-```bash
-docker exec mysql mysql -uroot -p"$P" clips_automation -e "
-SELECT id, status, LEFT(upload_error, 200) FROM generated_clips
-WHERE status='failed' ORDER BY id DESC LIMIT 20;"
-
-docker compose logs clip-processor | grep -i thumb
-```
-
-`upload_error` mencionando thumbnail com `youtube_video_id` preenchido = o vídeo **subiu** e o clip foi
-marcado `failed` só por causa da thumbnail
-(ver [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md#thumbnail-sem-trycatch-próprio)).
-
----
-
-## Espaço em disco
-
-```bash
-docker exec clip-processor df -h /app/videos
-docker exec clip-processor du -sh /app/videos /app/videos/clips /app/videos/thumbnails
-```
-
-Maiores consumidores, em ordem histórica: `<clip_id>_raw.mp4`, os `.mp4` brutos dos vídeos fonte, os
-clips finais. Os `_raw`/`_subtitled` passaram a ser apagados na finalização do vídeo fonte desde
-12/08/2026; resíduo anterior a isso ainda pode estar lá.
-
-Limpeza segura, em **duas etapas** (regra 1 do CLAUDE.md):
-
-```bash
-# etapa 1 — materializa o alvo e confere contagem + tamanho
-comm -23 disco.txt manter.txt > alvos.txt && wc -l < alvos.txt && du -ch $(cat alvos.txt)
-# etapa 2 — só então apaga a partir da lista revisada
-tr '\n' '\0' < alvos.txt | xargs -0 rm -f
-```
-
-Contagem inesperada (muito maior, ou zero) ⇒ **parar e investigar**, não ajustar o comando até "dar
-certo".
-
-Ao montar `manter.txt`, extrair o **id** (prefixo numérico antes de `.` ou `_`) e comparar com
-`SELECT id FROM generated_clips`. Comparar **nome de arquivo** contra as colunas marca `.srt` e
-`_raw.mp4` como órfãos e apaga arquivo de clip vivo — eles não estão em coluna nenhuma.
-
----
+Não use `FLUSHALL`: isso apaga deduplicação e pode ressuscitar vídeos no próximo RSS. Para corrigir
+somente uma cota, remova apenas a chave diária explicitamente identificada.
 
 ## Backup e restauração
 
-O projeto usa MySQL 8.4 com volume nomeado `mysql_data`. O serviço de backup faz um dump consistente
-sem travar as tabelas (`--single-transaction`), comprime em gzip, grava checksum SHA-256 e mantém,
-por padrão, 30 dias de arquivos.
+O backup usa `pg_dump`, gzip e SHA-256. Aponte `POSTGRES_BACKUP_DIR` para outro disco ou armazenamento
+sincronizado quando precisar de proteção contra falha física:
 
 ```bash
-# manter a rotina diária ligada
-docker compose --profile backup up -d mysql-backup
-
-# gerar e verificar um backup imediatamente
-./scripts/backup-mysql.sh
-latest="$(find backups/mysql -name 'clips_automation_*.sql.gz' -type f -print | sort | tail -n 1)"
+docker compose --profile backup up -d postgres-backup
+./scripts/backup-postgres.sh
+latest="$(find backups/postgres -name 'clips_automation_*.sql.gz' -type f -print | sort | tail -n 1)"
 gzip -t "$latest"
-(cd backups/mysql && sha256sum -c "$(basename -- "${latest}.sha256")")
+(cd backups/postgres && sha256sum -c "$(basename -- "${latest}.sha256")")
 ```
 
-`MYSQL_BACKUP_DIR` aponta, por padrão, para `./backups/mysql`. Para proteção contra perda do disco
-principal, aponte essa variável para outro disco ou armazenamento sincronizado e recrie o serviço.
-Backup no mesmo disco protege contra exclusão acidental e corrupção lógica, mas não contra falha
-física do disco ou perda da máquina.
-
-Para restaurar, primeiro pare o pipeline e confirme explicitamente. O script valida gzip e checksum
-antes de enviar o dump ao MySQL:
+Para restaurar, pare o processamento e confirme explicitamente. O script valida o gzip e o checksum
+antes de enviar o dump:
 
 ```bash
 docker compose stop clip-processor queue scheduler
-CONFIRM_RESTORE=I_UNDERSTAND ./scripts/restore-mysql.sh ./backups/mysql/SEU_BACKUP.sql.gz
+CONFIRM_RESTORE=I_UNDERSTAND ./scripts/restore-postgres.sh ./backups/postgres/SEU_BACKUP.sql.gz
 docker compose start queue scheduler clip-processor
 ```
 
-As FKs **não** têm `ON DELETE CASCADE`: apagar `source_videos` com clips vinculados falha por FK.
-Ordem correta: **clips primeiro, depois vídeos**. Faça o backup antes de qualquer DELETE em massa.
+As FKs não usam `ON DELETE CASCADE`; faça backup antes de `DELETE` em massa e remova clips antes dos
+vídeos de origem.
 
----
-
-## Redis: o que é seguro apagar
-
-| Chave | Conteúdo | Apagar é seguro? |
-|---|---|---|
-| `video:<id>` | dedup, TTL 30 dias | **NÃO** — os vídeos deletados voltam no próximo poll |
-| `youtube_uploads:<...>:<data>` | cota diária | sim, se o objetivo é liberar upload hoje |
-| `clip_warned:<id>` | idempotência do aviso de TTL | sim, no pior caso reavisa |
-
-**A fila não mora no Redis.** Fila = MySQL. Purgar de vez = apagar linhas do MySQL **mantendo** as
-chaves de dedup.
-
----
-
-## Nunca podar Docker às cegas
-
-`docker system prune -f` remove containers **parados**, e `docker image prune -af` remove a imagem que
-ficou órfã em seguida. Foi assim que o `clip-processor` desapareceu por completo — junto com os logs
-que diriam por que ele havia caído.
-
-Antes de podar: `docker ps -a` e `docker compose ps`. Serviço do projeto parado ⇒
-**investigar (`docker compose logs`) antes**. Preferir alvo específico a `prune` genérico.
-
-Sob pressão de disco (SSD acima de ~85%) o Docker Desktop já ficou pendurado em `docker ps`
-indefinidamente. Sem Docker não há banco nem log — é o modo de falha que **esconde todos os outros**.
-Liberar espaço pode não bastar; exige restart do Docker Desktop.
-
----
-
-## Comandos do painel
-
-Rodam no container `php`, dentro de `painel/`:
+## Usuário e OAuth
 
 ```bash
-docker exec -it php php /var/www/html/painel/artisan painel:create-user      # senha >= 10 chars
-docker exec -it php php /var/www/html/painel/artisan painel:reset-password email@exemplo.com
+docker compose exec php php /var/www/html/painel/artisan painel:create-user
+docker compose exec php php /var/www/html/painel/artisan painel:reset-password email@exemplo.com
+docker compose exec clip-processor python -m src.youtube_oauth --channel <slug>
 ```
 
-Não existe registro público. O reset pela UI exige apenas 8 chars — inconsistência conhecida.
+Senhas nunca são exibidas. O token OAuth é salvo como `/app/youtube/token-<slug>.json`.
 
-Com `config:cache` ativo, `env()` fora de `config/` retorna `null` **em silêncio** e o painel passa a
-mostrar cota diferente da que o publisher usa. Se os números divergirem, é o primeiro suspeito.
-
----
-
-## OAuth de um canal-destino
-
-CLI interativo, dentro do container:
+## Qualidade
 
 ```bash
-docker exec -it clip-processor python -m src.youtube_oauth
+make setup
+make hooks
+make format
+make ci
 ```
 
-Gera `/app/youtube/token-<slug>.json`. O `<slug>` tem que ser exatamente o
-`destination_channels.slug` — o uploader monta o caminho a partir dele.
-
----
-
-## Testes
-
-```bash
-docker exec clip-processor python -m pytest tests/ -q         # pipeline
-docker exec php php /var/www/html/painel/artisan test        # painel (Pest)
-```
-
-Rodar a suíte do pipeline **dentro do container**: o host não tem as dependências do sidecar (`flask`),
-o que faz teste falhar por ambiente e não por código. Ver [`BUGS.md`](BUGS.md).
+`make ci` executa lint, mypy, testes Python, validação do Compose, hadolint quando instalado e build
+do frontend. Os testes PHP devem rodar em um banco de teste isolado; veja
+[`DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md).

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GeneratedClip extends Model
 {
@@ -22,24 +23,30 @@ class GeneratedClip extends Model
         'description',
         'tags',
         'score',
+        'reason',
         'start_time',
         'end_time',
         'youtube_video_id',
-        'status',
+        'scheduled_for',
+        'upload_error',
     ];
 
     protected $casts = [
         'start_time' => 'float',
         'end_time' => 'float',
-        'score' => 'int',
+        'score' => 'float',
+        'published_at' => 'datetime',
+        'scheduled_for' => 'datetime',
     ];
 
-    public function sourceVideo()
+    /** @return BelongsTo<SourceVideo, $this> */
+    public function sourceVideo(): BelongsTo
     {
         return $this->belongsTo(SourceVideo::class);
     }
 
-    public function destinationChannel()
+    /** @return BelongsTo<DestinationChannel, $this> */
+    public function destinationChannel(): BelongsTo
     {
         return $this->belongsTo(DestinationChannel::class);
     }

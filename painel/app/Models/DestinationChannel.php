@@ -29,6 +29,12 @@ class DestinationChannel extends Model
         'oauth_expired_flag' => 'bool',
     ];
 
+    /** @return HasMany<GeneratedClip, $this> */
+    public function generatedClips(): HasMany
+    {
+        return $this->hasMany(GeneratedClip::class, 'destination_channel_id');
+    }
+
     /** @return HasMany<MediaAsset, $this> */
     public function mediaAssets(): HasMany
     {

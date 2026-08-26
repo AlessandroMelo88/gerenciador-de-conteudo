@@ -3,15 +3,15 @@
 Mapa de **qual arquivo faz o quê** no daemon Python. Cada subsistema tem documento próprio, linkado na
 tabela; aqui é só o índice de módulos e o que é comum a todos.
 
-Última atualização: **13/08/2026** · 21 módulos, ~4.450 linhas em `clip-processor/src/`
+Última atualização: **26/08/2026** · módulos do daemon em `clip-processor/src/`
 
 ---
 
 ## O que é
 
-Container Docker único (`container_name: clip-processor`), sem porta publicada, rodando
+Container Docker único (nome gerenciado pelo Compose), sem porta publicada, rodando
 `python -m src.main`. Faz **todo** o trabalho do pipeline: descobre vídeos, baixa, transcreve, escolhe
-momentos com IA, corta, legenda e publica no YouTube.
+momentos com IA, corta, aplica pós-produção específica do formato e publica no YouTube.
 
 Dentro dele também roda o **sidecar HTTP** (Flask, thread daemon, porta 8090 interna) que o painel chama
 para ações que tocam disco ou processo.
@@ -42,7 +42,7 @@ lendo. **Conferir a data da imagem antes de investigar qualquer bug** —
 | Arquivo | Responsabilidade |
 |---|---|
 | `main.py` | Entrypoint. Recovery no boot, sobe o sidecar em thread, roda um ciclo síncrono e entrega ao APScheduler. Jobs: `ingest_cycle` 20 min, `publish_cycle` 20 min, `clip_pending_ttl` 1 h, `state_recovery` **30 min** |
-| `pipeline_runner.py` | Descoberta de vaga e **download**. Janela por formato (6 `curto` + 4 `longo`), `FRESHNESS_DAYS=1`, `_discard_failed_download` |
+| `pipeline_runner.py` | Descoberta de vaga e **download**. Janela por formato (6 `curto` + 4 `longo`), `FRESHNESS_DAYS=365` por default, `_discard_failed_download` |
 | `rss_poller.py` | **Nome enganoso:** além do polling RSS, executa o estágio de IA (transcrição + seleção) e dispara o corte. `poll_all_channels` é o coração do ciclo |
 
 ### Aquisição — [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md)
@@ -50,23 +50,23 @@ lendo. **Conferir a data da imagem antes de investigar qualquer bug** —
 | Arquivo | Responsabilidade |
 |---|---|
 | `downloader.py` | yt-dlp 720p, 3 tentativas, disk guard de 2 GB, abort por pause. `_cleanup_partial` (por download) e `cleanup_stale_downloads` (varredura de órfãos, **1 h+**) |
-| `dedup.py` | "Já vi esse vídeo?" via Redis `SET NX` (TTL 30 dias) com fallback para MySQL. `mark_failed_redis` está definida mas **nunca é chamada** |
+| `dedup.py` | "Já vi esse vídeo?" via Redis `SET NX` (TTL 30 dias) com fallback para PostgreSQL. `mark_failed_redis` é helper de compatibilidade para retries explícitos |
 | `processar.py` | Enfileira URL avulsa como `pending`. Não bypassa o pipeline |
 
 ### Inteligência — [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md), [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md)
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `transcriber.py` | Groq Whisper `whisper-large-v3-turbo`, pt. Converte para MP3 acima de 24 MB. **Sem fallback** — falhou, o vídeo vira `failed` |
+| `transcriber.py` | Tenta legendas do YouTube (manual/automática) em pt antes do Groq Whisper `whisper-large-v3-turbo`; converte para MP3 acima de 24 MB no fallback |
 | `selector.py` | Escolhe os momentos com score 0–10. Claude Haiku → fallback Groq LLaMA 3.3-70b. Prompt e limites variam por formato (`curto`: até 3 momentos de **30**–180 s; `longo`: 1 segmento de 420–1200 s) |
-| `metadata_generator.py` | Título, descrição e tags. Claude → **Groq** → título bruto do vídeo original. O fallback Groq foi adicionado em 27/07/2026 |
+| `metadata_generator.py` | Título, descrição e tags para SEO; `generate_thumbnail_text` usa um prompt dedicado para uma chamada literal da thumb. O provider é escolhido pela configuração e não há fallback determinístico |
 | `transcription_job.py` | Feature isolada "Transcrição Local": baixa só o áudio e roda whisper.cpp local, sem Groq e sem cota. Progresso em `transcription_jobs` |
 
 ### Produção de vídeo — [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md)
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `video_processor.py` | FFmpeg. `cut_clip` (curto = crop 1080x1920; longo = `scale=-2:1080`), `generate_srt`, `burn_subtitles`, `overlay_watermark`, `extract_thumbnail`, e o orquestrador `process_clip` |
+| `video_processor.py` | FFmpeg. `cut_clip` (curto = vertical 1080x1920; longo = `scale=-2:1080`), `generate_srt`/`burn_subtitles` somente para Shorts, overlays de watermark e texto da thumbnail, `extract_thumbnail`, e o orquestrador `process_clip` |
 
 ### Publicação — [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md)
 
@@ -91,7 +91,7 @@ lendo. **Conferir a data da imagem antes de investigar qualquer bug** —
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `db.py` | Conexão pymysql e helpers de status. `recover_stuck_downloads` ([`:127`](../clip-processor/src/db.py#L127)) e `recover_stuck_selecting` ([`:156`](../clip-processor/src/db.py#L156), três queries) — **não cobrem `cutting`, `publishing` nem `transcribing`, bug 4** |
+| `db.py` | Conexão psycopg2 e helpers de status. `recover_stuck_downloads`, `recover_stuck_selecting`, `recover_stuck_publishing` e `recover_cutting_on_boot` ([`db.py`](../clip-processor/src/db.py)) |
 
 Schema e colunas em [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md); estados e transições em
 [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md).
@@ -109,17 +109,17 @@ Vale conhecer antes de escrever código novo aqui — são consistentes no proje
 | Ciclo de vida da conexão | Quem **abre** fecha. Funções que recebem `conn` nunca o fecham |
 | Commit | Explícito em cada função (`autocommit=False`) |
 | Isolamento de falha | Cada estágio em `try/except` próprio que loga e segue. Uma falha não derruba o scheduler |
-| Fallback de IA | Anthropic → Groq. Qualquer caminho de IA novo deve nascer com fallback Groq — não replicar o buraco do `metadata_generator` |
+| Roteamento de IA | Seleção legada usa Anthropic → Groq; metadata e thumbnail usam o provider configurado. Resposta inválida ou ausente falha de forma explícita |
 
 > **`ANTHROPIC_API_KEY` está vazia na operação normal.** O código tenta Claude primeiro, mas o provider
-> que roda de fato em produção é o **Groq LLaMA 3.3-70b**, tanto na seleção quanto na metadata. Ao
+> que roda de fato em produção é o **Groq LLaMA 3.3-70b**, na seleção, metadata e chamada da thumbnail. Ao
 > depurar qualidade de corte ou de título, o prompt que importa é o que o Groq recebe.
 
 ---
 
 ## O que o Redis guarda (e o que não guarda)
 
-**A fila NÃO mora no Redis.** Fila = MySQL (`source_videos`, `generated_clips`). O Redis tem só:
+**A fila NÃO mora no Redis.** Fila = PostgreSQL (`source_videos`, `generated_clips`). O Redis tem só:
 
 | Chave | Conteúdo | TTL |
 |---|---|---|
@@ -134,8 +134,8 @@ RSS. Nunca `FLUSHALL` achando que "reseta a fila" — isso ressuscita todo o bac
 
 ## Configuração
 
-Todas as env vars são injetadas pelo `docker-compose.yml` da raiz `wordpress/`, que lê o `.env`
-**daquela** raiz — não o `canaldecortes/.env`.
+As env vars do runtime são injetadas pelo `docker-compose.yml` deste repositório, que lê o `.env` da
+raiz do projeto.
 
 | Var | Serve para | Default no compose |
 |---|---|---|
@@ -149,6 +149,7 @@ Todas as env vars são injetadas pelo `docker-compose.yml` da raiz `wordpress/`,
 | `UPLOAD_WINDOW_BYPASS` | ignora a janela 19h–22h | `false` |
 | `YOUTUBE_PRIVACY_STATUS` | `privacyStatus` do upload | `private` |
 | `YOUTUBE_CLIENT_SECRETS` | client secrets do OAuth | `/app/youtube/client_secret.json` |
+| `ASSETS_DIR` | raiz dos assets canônicos | `/app/assets` |
 | `LARAVEL_NOTIFY_URL` / `LARAVEL_HOST_HEADER` | endpoint de eventos e Host para o roteamento nginx | `http://nginx/internal/pipeline-event` / `canaldecortes.local` |
 | `CLIP_PENDING_TTL_HOURS` / `CLIP_PENDING_WARN_HOURS` | TTL de auto-rejeição | 48 / 24 (constantes) |
 
@@ -158,14 +159,15 @@ Todas as env vars são injetadas pelo `docker-compose.yml` da raiz `wordpress/`,
 Armadilha de drift: o default de `MAX_UPLOADS_PER_DAY` é `:-1` no `clip-processor` e `:-2` no serviço
 `php`. Só não morde porque a var está setada no `.env` da raiz.
 
-Volumes: `youtube/` (read-write, tokens), `videos/` (read-write), `branding/` (**read-only** aqui,
-read-write no `php`).
+Volumes: `youtube/` (read-write, tokens), `videos/` (read-write), `assets/` (**read-only**, assets
+canônicos por canal e faixas completas), `branding/` (**read-only** aqui, read-write no `php`, usado
+por marcas d'água e pelo fallback legado de `media_assets`).
 
 ---
 
 ## Testes
 
-`clip-processor/tests/`, pytest (186 testes em 25/08/2026). Dois jeitos de rodar:
+`clip-processor/tests/`, pytest (quantidade verificada pelo comando abaixo). Dois jeitos de rodar:
 
 ```bash
 # no container (reproduz produção)
@@ -175,6 +177,6 @@ docker exec clip-processor python -m pytest tests/ -q
 make test-python
 ```
 
-Lint e formatação: `make lint-python` (ruff) e `make format-python`; mypy informativo em
+Lint e formatação: `make lint-python` (ruff) e `make format-python`; mypy bloqueante em
 `make types-python`. Detalhes em `DESENVOLVIMENTO.md`. O bug 7 (falhas por ambiente no host)
 deixou de reproduzir com o venv.

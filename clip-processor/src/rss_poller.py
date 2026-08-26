@@ -7,26 +7,40 @@ Exporta:
   - _process_pending_clips(conn)
 
 Comportamento:
-  - Busca canais ativos do MySQL (blacklisted=FALSE filtrado no SELECT — COPY-03)
+  - Busca canais ativos do PostgreSQL (blacklisted=FALSE filtrado no SELECT — COPY-03)
   - Para cada canal, faz GET no rss_url e parseia com feedparser
   - Para cada entrada: extrai video_id, verifica deduplicação, insere se novo
   - Resiliência por canal: falha em um canal não aborta os demais
-  - Nova conexão MySQL por chamada (evita timeout de 6h) — exceto quando db_conn passado (testes)
+  - Nova conexão PostgreSQL por chamada (evita timeout de 6h) — exceto quando db_conn passado (testes)
   - Após RSS polling: processa vídeos com status 'downloaded' via pipeline de IA
   - Após IA: processa clips com status 'pending_cut' via pipeline de vídeo
 """
+
 import os
 import re
-import requests
+from datetime import datetime
+
 import feedparser
 import redis
+import requests
 import yt_dlp
-from datetime import datetime
 
 # Palavras-chave que bloqueiam ingestão de vídeos — títulos com qualquer uma são ignorados
 _TITLE_BLOCK_KEYWORDS = [
-    'aposta', 'apostas', 'bet ', 'bets ', 'betting', 'odds', 'cassino', 'casino',
-    'tigrinho', 'crash game', 'blaze', 'esportebet', 'pixbet', 'sportingbet',
+    'aposta',
+    'apostas',
+    'bet ',
+    'bets ',
+    'betting',
+    'odds',
+    'cassino',
+    'casino',
+    'tigrinho',
+    'crash game',
+    'blaze',
+    'esportebet',
+    'pixbet',
+    'sportingbet',
 ]
 
 
@@ -35,12 +49,11 @@ def _is_blocked_title(title: str) -> bool:
     return any(kw in t for kw in _TITLE_BLOCK_KEYWORDS)
 
 
-from src.db import get_db_connection, insert_video, update_status
+from src.db import fetch_used_moments, get_db_connection, insert_video, update_status
 from src.dedup import is_seen
-from src.transcriber import transcribe_video, save_transcript
-from src.selector import select_moments, insert_selected_moments, MIN_LONGFORM_SECONDS
+from src.selector import MIN_LONGFORM_SECONDS, insert_selected_moments, select_moments
+from src.transcriber import save_transcript, transcribe_video
 from src.video_processor import process_clip
-
 
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
@@ -94,11 +107,13 @@ def _extract_video_id(entry) -> str | None:
     return None
 
 
-def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None, anthropic_client=None) -> None:
+def _process_ai_pipeline(
+    conn, video_id: str, local_path: str, groq_client=None, anthropic_client=None
+) -> None:
     """Executa transcrição + seleção para um vídeo com status downloaded.
 
     Args:
-        conn: conexão pymysql ativa (quem chama fecha)
+        conn: conexão PostgreSQL ativa (quem chama fecha)
         video_id: youtube_video_id
         local_path: caminho do arquivo .mp4 em disco
         groq_client: cliente Groq (None = produção, injetado = testes)
@@ -129,19 +144,36 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
         # Seleção
         update_status(conn, video_id, 'selecting')
 
-        # Obter source_video_id INT + formato (curto/longo) para FK em generated_clips
+        # Obter source_video_id INT, formato (curto/longo) e nicho para calibrar a IA
         with conn.cursor() as cur:
-            cur.execute('SELECT id, format FROM source_videos WHERE youtube_video_id = %s', (video_id,))
+            cur.execute(
+                'SELECT sv.id, sv.format, sc.target_niche '
+                'FROM source_videos sv '
+                'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
+                'WHERE sv.youtube_video_id = %s',
+                (video_id,),
+            )
             row = cur.fetchone()
         if row is None:
             _log(f'[AI] AVISO: source_video_id não encontrado para {video_id}')
             return
         source_video_id = row['id']
         fmt = row.get('format') or 'curto'
+        niche = row.get('target_niche')
+        used_moments = fetch_used_moments(conn, source_video_id)
 
-        moments = select_moments(transcript, anthropic_client=anthropic_client, fmt=fmt)
+        select_kwargs = {'anthropic_client': anthropic_client, 'fmt': fmt}
+        if used_moments:
+            select_kwargs['used_moments'] = used_moments
+
+        if niche:
+            moments = select_moments(transcript, niche=niche, **select_kwargs)
+        else:
+            moments = select_moments(transcript, **select_kwargs)
         inserted = insert_selected_moments(conn, source_video_id, video_id, moments)
-        _log(f'[AI] Pipeline concluído para {video_id}: {inserted} momento(s) inserido(s) em generated_clips')
+        _log(
+            f'[AI] Pipeline concluído para {video_id}: {inserted} momento(s) inserido(s) em generated_clips'
+        )
         if inserted == 0:
             # Sem clip válido o status 'selecting' segurava a janela pra sempre.
             _log(f'[AI] Nenhum momento válido para {video_id} — marcando failed e liberando janela')
@@ -159,9 +191,9 @@ def _process_pending_clips(conn) -> None:
     """Processa clips com status pending_cut sem abortar o poll por falha isolada."""
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT gc.id FROM generated_clips gc "
-            "JOIN source_videos sv ON sv.id = gc.source_video_id "
-            "WHERE gc.status = 'pending_cut' AND sv.paused = 0"
+            'SELECT gc.id FROM generated_clips gc '
+            'JOIN source_videos sv ON sv.id = gc.source_video_id '
+            "WHERE gc.status = 'pending_cut' AND sv.paused = FALSE"
         )
         rows = cur.fetchall()
 
@@ -178,7 +210,7 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
     """Monitora feeds RSS de todos os canais ativos e insere vídeos novos.
 
     Args:
-        db_conn: conexão pymysql (opcional — se None, cria nova conexão para produção)
+        db_conn: conexão PostgreSQL (opcional — se None, cria nova conexão para produção)
         redis_client: cliente Redis (opcional — se None, cria nova conexão para produção)
     """
     # Gerenciar conexões: nova por chamada em produção, injetada em testes
@@ -219,7 +251,11 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
 
             try:
                 # Buscar feed RSS via HTTP e parsear com feedparser
-                response = requests.get(rss_url, timeout=30)
+                response = requests.get(
+                    rss_url,
+                    headers={'User-Agent': 'curl/7.88.1', 'Accept': '*/*'},
+                    timeout=30,
+                )
                 if response.status_code != 200:
                     _log(f'AVISO: canal {channel_name} retornou HTTP {response.status_code}')
                     continue
@@ -262,9 +298,9 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
         try:
             with db_conn.cursor() as cur:
                 cur.execute(
-                    "SELECT youtube_video_id, local_path FROM source_videos "
-                    "WHERE status = 'downloaded' AND local_path IS NOT NULL AND paused = 0 "
-                    "ORDER BY priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC"
+                    'SELECT youtube_video_id, local_path FROM source_videos '
+                    "WHERE status = 'downloaded' AND local_path IS NOT NULL AND paused = FALSE "
+                    'ORDER BY priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC'
                 )
                 downloaded_videos = cur.fetchall()
 

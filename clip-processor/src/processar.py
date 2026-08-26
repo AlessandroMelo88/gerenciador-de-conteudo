@@ -8,8 +8,7 @@ insere o vídeo em `source_videos` com `status='pending'`; o daemon APScheduler
 Uso CLI:
     python -m src.processar <youtube_url>
 
-Chamado pelo n8n via:
-    docker exec clip-processor python -m src.processar <url>
+Chamado pelo sidecar HTTP interno do clip-processor.
 
 Exporta:
   - YOUTUBE_URL_RE: regex que extrai videoId de URLs do YouTube
@@ -18,15 +17,15 @@ Exporta:
   - upsert_source_video(conn, meta) -> Tuple[str, bool]
   - main(url) -> int
 """
+
 import re
 import sys
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Optional, Tuple
 
 import yt_dlp
 
 from src.db import get_db_connection
-
 
 YOUTUBE_URL_RE = re.compile(
     r'(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|v\/)|youtu\.be\/)'
@@ -34,7 +33,7 @@ YOUTUBE_URL_RE = re.compile(
 )
 
 
-def parse_video_id(url: str) -> Optional[str]:
+def parse_video_id(url: str) -> str | None:
     """Extrai videoId de 11 caracteres de uma URL YouTube. None se URL inválida.
 
     Suporta:
@@ -50,8 +49,8 @@ def parse_video_id(url: str) -> Optional[str]:
     return match.group('id') if match else None
 
 
-def _normalize_upload_date(upload_date: Optional[str]) -> Optional[str]:
-    """Converte 'YYYYMMDD' (formato yt-dlp) para 'YYYY-MM-DD HH:MM:SS' (TIMESTAMP MySQL).
+def _normalize_upload_date(upload_date: str | None) -> str | None:
+    """Converte 'YYYYMMDD' (formato yt-dlp) para 'YYYY-MM-DD HH:MM:SS' (TIMESTAMPTZ).
 
     Retorna None se input vazio/inválido — coluna TIMESTAMP aceita NULL.
     """
@@ -85,7 +84,7 @@ def fetch_metadata(video_id: str) -> dict:
     }
 
 
-def upsert_source_video(conn, meta: dict, fmt: str = 'curto') -> Tuple[str, bool]:
+def upsert_source_video(conn, meta: dict, fmt: str = 'curto') -> tuple[str, bool]:
     """Insere ou retorna status atual. Idempotente.
 
     Estratégia SELECT-then-INSERT (em vez de INSERT...ON DUPLICATE KEY):
@@ -96,7 +95,7 @@ def upsert_source_video(conn, meta: dict, fmt: str = 'curto') -> Tuple[str, bool
     polar esse canal, mas a FK fica válida.
 
     Args:
-        conn: conexão pymysql ativa (DictCursor)
+        conn: conexão PostgreSQL ativa (RealDictCursor)
         meta: dict com youtube_video_id, title, channel_id, published_at
 
     Returns:
@@ -105,8 +104,7 @@ def upsert_source_video(conn, meta: dict, fmt: str = 'curto') -> Tuple[str, bool
     with conn.cursor() as cur:
         # 1) Resolver channel_id interno (FK). Cria pseudo-channel se necessário.
         cur.execute(
-            'SELECT id FROM source_channels WHERE youtube_channel_id = %s',
-            (meta['channel_id'],)
+            'SELECT id FROM source_channels WHERE youtube_channel_id = %s', (meta['channel_id'],)
         )
         row = cur.fetchone()
         if row:
@@ -115,19 +113,24 @@ def upsert_source_video(conn, meta: dict, fmt: str = 'curto') -> Tuple[str, bool
             cur.execute(
                 'INSERT INTO source_channels '
                 '(youtube_channel_id, channel_name, rss_url, active) '
-                'VALUES (%s, %s, %s, FALSE)',
+                'VALUES (%s, %s, %s, FALSE) RETURNING id',
                 (
                     meta['channel_id'],
                     f'manual:{meta["channel_id"]}',
                     f'https://www.youtube.com/feeds/videos.xml?channel_id={meta["channel_id"]}',
-                )
+                ),
             )
-            internal_channel_id = cur.lastrowid
+            inserted_channel = cur.fetchone()
+            if isinstance(inserted_channel, Mapping):
+                internal_channel_id = inserted_channel['id']
+            else:
+                # Compatibilidade com os mocks antigos; PostgreSQL usa RETURNING.
+                internal_channel_id = cur.lastrowid
 
         # 2) Verificar se vídeo já existe
         cur.execute(
             'SELECT status FROM source_videos WHERE youtube_video_id = %s',
-            (meta['youtube_video_id'],)
+            (meta['youtube_video_id'],),
         )
         existing = cur.fetchone()
         if existing:
@@ -146,7 +149,7 @@ def upsert_source_video(conn, meta: dict, fmt: str = 'curto') -> Tuple[str, bool
                 meta['published_at'],
                 'pending',
                 fmt,
-            )
+            ),
         )
     conn.commit()
     return ('pending', True)
@@ -159,7 +162,7 @@ def main(url: str, fmt: str = 'curto') -> int:
       - 3: metadata yt-dlp falhou (vídeo privado, inexistente, region-locked)
 
     Args:
-        fmt: 'curto' (shorts, padrão) ou 'longo' (segmento único de 10-20min,
+        fmt: 'curto' (shorts, padrão) ou 'longo' (segmento único de 7-20min,
              sem crop vertical) — controla o modo do seletor/corte mais tarde.
     """
     video_id = parse_video_id(url)

@@ -7,13 +7,16 @@ Exports esperados:
   - update_status(conn, video_id, status, local_path=None)
   - insert_video(conn, video_id, channel_id, title, published_at)
   - recover_stuck_downloads(conn)
+  - recover_cutting_on_boot(conn)
 
-RED state: imports falham pois src/db.py ainda não existe.
+As operações são exercitadas com conexões simuladas para manter os testes determinísticos.
 """
 
 from src.db import (
     SELECTING_STUCK_HOURS,
+    fetch_used_moments,
     insert_video,
+    recover_cutting_on_boot,
     recover_stuck_downloads,
     recover_stuck_selecting,
     update_status,
@@ -81,6 +84,21 @@ class TestRecoverStuckDownloads:
         )
 
 
+class TestRecoverCuttingOnBoot:
+    def test_recover_cutting_on_boot_devolve_para_fila(self, mock_db_conn):
+        """Clips interrompidos em cutting voltam para a fila apenas no boot."""
+        recover_cutting_on_boot(mock_db_conn)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.execute.assert_called_once()
+        sql_call = mock_cursor.execute.call_args[0][0]
+
+        assert 'UPDATE generated_clips' in sql_call
+        assert "status='pending_cut'" in sql_call
+        assert "WHERE status='cutting'" in sql_call
+        mock_db_conn.commit.assert_called_once()
+
+
 class TestRecoverStuckSelecting:
     def test_selecting_sem_arquivo_vai_para_failed(self, mock_db_conn):
         """'selecting' com local_path NULL precisa de saída própria.
@@ -138,3 +156,22 @@ class TestInsertVideo:
         assert video_id in params
         assert channel_id in params
         assert title in params
+
+
+class TestFetchUsedMoments:
+    def test_fetches_registered_intervals_for_source_video(self, mock_db_conn):
+        """O histórico de intervalos vem do banco para orientar a próxima seleção."""
+        expected = [
+            {'start_time': 10.0, 'end_time': 70.0, 'status': 'published'},
+            {'start_time': 120.0, 'end_time': 180.0, 'status': 'pending'},
+        ]
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.fetchall.return_value = expected
+
+        result = fetch_used_moments(mock_db_conn, source_video_id=42)
+
+        assert result == expected
+        sql_call = mock_cursor.execute.call_args[0][0]
+        assert 'FROM generated_clips' in sql_call
+        assert 'start_time IS NOT NULL' in sql_call
+        assert mock_cursor.execute.call_args[0][1] == (42,)

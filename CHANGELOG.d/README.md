@@ -22,10 +22,10 @@ CHANGELOG.d/<slug>.<tipo>.md
 
 Uma linha por item. O prefixo `- [x]` é adicionado automaticamente; escreva-o você mesmo
 se quiser marcar um item como pendente (`- [ ]`). Linhas iniciadas por espaço são
-continuação do item anterior. Exemplo (`backup-mysql.novidade.md`):
+continuação do item anterior. Exemplo (`backup-postgres.novidade.md`):
 
 ```
-**Backup diário do MySQL** — serviço `mysql-backup` com dump gzip + SHA-256 e `scripts/restore-mysql.sh` guardado por `CONFIRM_RESTORE`
+**Backup diário do PostgreSQL** — serviço `postgres-backup` com dump gzip + SHA-256 e `scripts/restore-postgres.sh` guardado por `CONFIRM_RESTORE`
 ```
 
 ## Comandos

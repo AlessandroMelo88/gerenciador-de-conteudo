@@ -6,7 +6,7 @@ prompt, com que regras de duração, e onde mexer.
 Código-fonte único desta decisão: [`clip-processor/src/selector.py`](../clip-processor/src/selector.py).
 Módulo irmão, mesmo subsistema de IA: [`clip-processor/src/metadata_generator.py`](../clip-processor/src/metadata_generator.py).
 
-Estado as-built em **13/08/2026**. Para o mapa geral do daemon, ver [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md).
+Estado as-built em **26/08/2026**. Para o mapa geral do daemon, ver [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md).
 
 ---
 
@@ -87,7 +87,9 @@ pipeline nasce com fallback Groq**, não só o seletor.
 
 Copiados literalmente do código. São o que efetivamente vai no campo `system` da chamada. Os quatro
 prompts de seleção compartilham `CONTENT_SELECTION_RULES`, que instrui a IA a detectar semanticamente
-os blocos comerciais e inferir os limites completos de cada assunto em cada transcrição.
+os blocos comerciais e inferir os limites completos de cada assunto em cada transcrição. Os quatro
+também recebem `DUPLICATE_AVOIDANCE_RULE`: quando existe histórico, a entrada do usuário acrescenta
+os intervalos já usados naquele vídeo e a IA deve procurar somente material ainda não reaproveitado.
 
 ### `SYSTEM_PROMPT` — formato **curto** (shorts)
 
@@ -195,6 +197,28 @@ Os prompts equivalentes do nicho de Tecnologia/Filosofia Hacker (`HACKER_LIBERTA
 `HACKER_LIBERTARIO_LONG_PROMPT`) recebem exatamente o mesmo `CONTENT_SELECTION_RULES`; portanto as
 restrições valem tanto para vídeos quanto para Shorts, independentemente do nicho.
 
+### Histórico de trechos já utilizados
+
+Antes de chamar a IA, `rss_poller._process_ai_pipeline()` busca em
+`generated_clips` os registros do mesmo `source_video_id`, usando `start_time`, `end_time` e `status`.
+Quando há registros, `select_moments()` anexa à transcrição um bloco delimitado como:
+
+```text
+--- HISTÓRICO DE TRECHOS JÁ UTILIZADOS NESTE VÍDEO ---
+Os intervalos abaixo estão bloqueados e não podem ser selecionados novamente:
+- [10.00s-70.00s] status=published
+--- FIM DO HISTÓRICO ---
+```
+
+O histórico inclui qualquer status que ainda tenha intervalo válido — publicado, pendente, rejeitado
+ou falho — porque todos representam material já usado ou reservado para aquele vídeo. Tema semelhante
+continua permitido quando é desenvolvido em outra parte sem reutilizar material falado.
+
+O prompt é uma orientação para a IA, não a única proteção. `insert_selected_moments()` consulta o
+histórico novamente imediatamente antes de inserir e bloqueia qualquer candidato que compartilhe mais
+de **0,5 s** com um intervalo existente. Assim, uma reexecução ou uma resposta que ignore o prompt não
+cria uma segunda linha para o mesmo trecho.
+
 ---
 
 ## 3. Palavras-chave e frases-chave, por formato
@@ -225,6 +249,7 @@ do prompt.
 | `discussão intensa`, `revelação importante`, `momento de conflito ou humor` | Trilha equivalente para podcast, onde não há jogada |
 | `no máximo 3 momentos não-sobrepostos` | Teto declarado ao modelo; também aplicado em código (`max_count=3`) |
 | `ordenados por score decrescente (10 = viral garantido, 1 = sem valor)` | Define a escala do score. O código também aceita 0–1 e normaliza (seção 5) |
+| `ANTI-REPETIÇÃO` + histórico de intervalos | Faz a IA evitar trechos já registrados no mesmo vídeo; o banco repete a validação antes do `INSERT` |
 
 ### Termos REMOVIDOS em 13/08/2026 — e por quê
 
@@ -290,6 +315,10 @@ prompts de seleção, instrui a IA a encontrar os blocos comerciais pelos sinais
 e a inferir seus timestamps em cada vídeo. Assim, anúncios no começo, no meio ou no fim são tratados da
 mesma forma, sem transformar o intervalo de um vídeo em regra para os outros.
 
+Para repetição, `DUPLICATE_OVERLAP_TOLERANCE_SECONDS = 0.5` permite apenas ruído de arredondamento nas
+bordas de intervalos vizinhos. O histórico é específico do vídeo fonte: um assunto parecido em outro
+vídeo não é tratado como duplicata automaticamente.
+
 `MIN_LONGFORM_SECONDS` tem um **segundo uso**, fora da seleção: `rss_poller._detect_format()`
 ([`rss_poller.py:54`](../clip-processor/src/rss_poller.py#L54)) classifica o vídeo fonte como `longo`
 se a duração real for ≥ 420 s. Mudar essa constante muda também **quantos vídeos entram como longo**.
@@ -331,9 +360,10 @@ escasso e a vizinhança é confiável.
 flowchart TD
     A["source_videos<br/>status=downloaded<br/>format=curto|longo"] --> B["transcribe_video()<br/>legendas YouTube → Groq fallback"]
     B --> C["transcript dict<br/>{video_id, text, segments}"]
-    C --> D["select_moments(transcript, fmt)<br/>selector.py:188"]
-    D --> E["Formata segmentos<br/>'[Ns-Ns] texto' por linha<br/>selector.py:210-215"]
-    E --> F{"fmt == 'longo'?"}
+    C --> D["fetch_used_moments(source_video_id)<br/>generated_clips"]
+    D --> E["select_moments(transcript, fmt, used_moments)<br/>selector.py"]
+    E --> E2["Formata segmentos + histórico<br/>'[Ns-Ns] texto' por linha"]
+    E2 --> F{"fmt == 'longo'?"}
     F -->|curto| G1["trunca em 8000 chars<br/>max_moments = 1..3<br/>SYSTEM_PROMPT"]
     F -->|longo| G2["trunca em 18000 chars mantendo começo e fim<br/>max_moments = 1<br/>LONG_SYSTEM_PROMPT"]
     G1 --> H{"transcript vazio?"}
@@ -350,7 +380,7 @@ flowchart TD
     N -->|longo| O2["_enforce_longform_duration()<br/>ESTICA até 420s"]
     O1 --> P["insert_selected_moments()<br/>selector.py:298"]
     O2 --> P
-    P --> Q{"score >= 7?"}
+    P --> Q{"score >= 7 e sem repetição?"}
     Q -->|não| R["descartado com log"]
     Q -->|sim| S["INSERT generated_clips<br/>status = pending_cut"]
     S --> T["process_clip()<br/>corte FFmpeg"]
@@ -409,16 +439,18 @@ Armadilha embutida: se o modelo devolver corretamente na escala 1–10 mas **tod
 tiverem score baixo (ex.: 0.8 e 1.0 num vídeo ruim), a heurística multiplica por 10 e transforma
 lixo em score 8–10.
 
-**7. Remoção de sobreposição.** `_remove_overlaps()`
+**7. Remoção de sobreposição e repetição.** `_remove_overlaps()`
 ([`selector.py:122`](../clip-processor/src/selector.py#L122)): ordena por score decrescente e vai
 aceitando candidatos que não intersectam nenhum já aceito, até `max_count` — **3 no curto, 1 no
-longo** ([`selector.py:208`](../clip-processor/src/selector.py#L208)).
+longo**. Quando há histórico do banco, `_remove_repeated_moments()` elimina antes os candidatos que
+reaproveitam mais de 0,5 s de um intervalo já registrado.
 
 **8. Filtro/ajuste de duração** — seção 4.
 
 **9. Inserção.** `insert_selected_moments()`
 ([`selector.py:298`](../clip-processor/src/selector.py#L298)) chama `_remove_overlaps` **de novo**
-(agora sempre com o default `max_count=3`), resolve o `destination_channel_id` via
+(agora sempre com o default `max_count=3`), consulta novamente os intervalos de `generated_clips`,
+remove candidatos repetidos e resolve o `destination_channel_id` via
 `source_videos → source_channels.target_niche → destination_channels.niche`
 ([`selector.py:269`](../clip-processor/src/selector.py#L269)), e para cada momento:
 

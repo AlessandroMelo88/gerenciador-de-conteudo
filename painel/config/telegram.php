@@ -11,8 +11,9 @@ return [
     'bots' => [
         'mybot' => [
             'token' => env('TELEGRAM_BOT_TOKEN'),
-            'webhook_url' => env('TELEGRAM_WEBHOOK_URL', 'https://alessandromelo.com.br/telegramcanal'),
-            'chat_id_allowed' => env('TELEGRAM_CHAT_ID_ALLOWED', '5760918317'),
+            'webhook_url' => env('TELEGRAM_WEBHOOK_URL'),
+            'chat_id_allowed' => env('TELEGRAM_CHAT_ID_ALLOWED'),
+            'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
             'commands' => [
                 StatusCommand::class,
                 ClipesCommand::class,
@@ -25,7 +26,7 @@ return [
     ],
     'default' => 'mybot',
 
-    // Configurações globais do SDK (manter defaults do vendor)
+    // Handler substituído em AppServiceProvider para permitir Http::fake() nos testes.
     'async_requests' => false,
     'http_client_handler' => null,
     'resolve_command_class' => true,

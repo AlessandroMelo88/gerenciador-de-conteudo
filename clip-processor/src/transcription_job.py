@@ -4,7 +4,7 @@ transcription_job.py — Worker de "Transcrição Local" (QUICK-1).
 Feature isolada do pipeline principal: o operador cola uma URL do YouTube no painel,
 o clip-processor baixa o áudio (yt-dlp) e roda whisper-cpp local (sem custo, sem
 YouTube, sem cota da Groq API) em background numa thread daemon. Progresso persistido
-na tabela `transcription_jobs` (MySQL) — nunca em memória — para sobreviver a
+na tabela `transcription_jobs` (PostgreSQL) — nunca em memória — para sobreviver a
 reload/saída da página do operador.
 
 NÃO toca em source_videos/generated_clips: nenhum job de transcrição local entra na
@@ -14,11 +14,13 @@ LIMITAÇÃO DOCUMENTADA: whisper-cpp não expõe progresso incremental fácil de
 via stdout/stderr entre versões — usamos milestones grosseiros de progresso (10% ao
 iniciar download, 50% ao iniciar transcrição, 100% ao terminar), não % real do whisper.
 """
+
 import math
 import os
 import re
 import subprocess
 import threading
+from collections.abc import Mapping
 
 from src.db import get_db_connection
 
@@ -45,10 +47,15 @@ def create_transcription_job(conn, youtube_url: str) -> int:
         cur.execute(
             'INSERT INTO transcription_jobs '
             '(youtube_url, status, progress_percent, created_at, updated_at) '
-            "VALUES (%s, 'pending', 0, NOW(), NOW())",
+            "VALUES (%s, 'pending', 0, NOW(), NOW()) RETURNING id",
             (youtube_url,),
         )
-        job_id = cur.lastrowid
+        inserted_job = cur.fetchone()
+        if isinstance(inserted_job, Mapping):
+            job_id = inserted_job['id']
+        else:
+            # Compatibilidade com mocks; PostgreSQL usa RETURNING.
+            job_id = cur.lastrowid
     conn.commit()
     return job_id
 
@@ -73,7 +80,7 @@ def update_job(conn, job_id, status=None, progress_percent=None, srt_path=None, 
 
     fields.append('updated_at=NOW()')
 
-    sql = f"UPDATE transcription_jobs SET {', '.join(fields)} WHERE id=%s"
+    sql = f'UPDATE transcription_jobs SET {", ".join(fields)} WHERE id=%s'
     params.append(job_id)
 
     with conn.cursor() as cur:
@@ -90,11 +97,17 @@ def _download_audio(job_id, youtube_url: str) -> str:
     os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
     subprocess.run(
         [
-            'yt-dlp', '-x', '--audio-format', 'wav',
-            '-o', f'{TRANSCRIPTS_DIR}/{job_id}_audio.%(ext)s',
+            'yt-dlp',
+            '-x',
+            '--audio-format',
+            'wav',
+            '-o',
+            f'{TRANSCRIPTS_DIR}/{job_id}_audio.%(ext)s',
             youtube_url,
         ],
-        check=True, capture_output=True, timeout=600,
+        check=True,
+        capture_output=True,
+        timeout=600,
     )
     return f'{TRANSCRIPTS_DIR}/{job_id}_audio.wav'
 
@@ -102,10 +115,19 @@ def _download_audio(job_id, youtube_url: str) -> str:
 def _audio_duration_seconds(audio_path: str) -> float:
     result = subprocess.run(
         [
-            'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-            '-of', 'default=noprint_wrappers=1:nokey=1', audio_path,
+            'ffprobe',
+            '-v',
+            'error',
+            '-show_entries',
+            'format=duration',
+            '-of',
+            'default=noprint_wrappers=1:nokey=1',
+            audio_path,
         ],
-        check=True, capture_output=True, timeout=60, text=True,
+        check=True,
+        capture_output=True,
+        timeout=60,
+        text=True,
     )
     return float(result.stdout.strip())
 
@@ -121,10 +143,21 @@ def _split_audio(job_id, audio_path: str, num_chunks: int, duration: float) -> l
         chunk_path = f'{TRANSCRIPTS_DIR}/{job_id}_part{i}.wav'
         subprocess.run(
             [
-                'ffmpeg', '-y', '-ss', str(start), '-i', audio_path,
-                '-t', str(chunk_duration), '-c', 'copy', chunk_path,
+                'ffmpeg',
+                '-y',
+                '-ss',
+                str(start),
+                '-i',
+                audio_path,
+                '-t',
+                str(chunk_duration),
+                '-c',
+                'copy',
+                chunk_path,
             ],
-            check=True, capture_output=True, timeout=300,
+            check=True,
+            capture_output=True,
+            timeout=300,
         )
         chunk_paths.append(chunk_path)
     return chunk_paths
@@ -139,10 +172,20 @@ def _run_whisper_on(audio_path: str, out_prefix: str) -> str:
     """
     subprocess.run(
         [
-            WHISPER_BIN, '-m', WHISPER_MODEL, '-f', audio_path,
-            '-l', 'pt', '-osrt', '-of', out_prefix,
+            WHISPER_BIN,
+            '-m',
+            WHISPER_MODEL,
+            '-f',
+            audio_path,
+            '-l',
+            'pt',
+            '-osrt',
+            '-of',
+            out_prefix,
         ],
-        check=True, capture_output=True, timeout=WHISPER_TIMEOUT_SECONDS,
+        check=True,
+        capture_output=True,
+        timeout=WHISPER_TIMEOUT_SECONDS,
     )
     return f'{out_prefix}.srt'
 
@@ -151,6 +194,7 @@ def _shift_srt_timestamps(srt_text: str, offset_seconds: float) -> str:
     """Soma `offset_seconds` a cada timestamp de um bloco .srt (não renumera — quem
     concatena os blocos cuida da renumeração sequencial).
     """
+
     def _shift(match):
         h, m, s, ms = (int(g) for g in match.groups())
         total_ms = ((h * 3600 + m * 60 + s) * 1000 + ms) + round(offset_seconds * 1000)
@@ -243,7 +287,7 @@ def process_transcription_job(job_id: int) -> None:
         srt_path = _run_whisper(job_id, audio_path)
 
         update_job(conn, job_id, status='done', progress_percent=100, srt_path=srt_path)
-    except Exception as e:  # noqa: BLE001 — thread de background não pode propagar
+    except Exception as e:
         update_job(conn, job_id, status='failed', error_message=str(e))
     finally:
         if audio_path and os.path.exists(audio_path):
@@ -258,7 +302,7 @@ def start_transcription_job(youtube_url: str) -> int:
     """Cria o job no banco e dispara a thread de background que processa a transcrição.
 
     Retorna imediatamente com o job_id — o endpoint HTTP não espera o whisper terminar.
-    Nunca compartilha conexão pymysql entre threads: esta função fecha sua própria
+    Nunca compartilha conexão PostgreSQL entre threads: esta função fecha sua própria
     conexão, a thread abre a sua via get_db_connection() dentro de process_transcription_job.
     """
     conn = get_db_connection()

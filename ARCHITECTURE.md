@@ -1,6 +1,6 @@
 # Arquitetura — Canal de Cortes
 
-> **Escopo:** este documento descreve o sistema **como ele é hoje** (as-built). Verificado lendo o código em 15/07/2026 no commit `dca6e44`; correções pontuais de formato, fallback de metadata, scheduler e limpeza de disco aplicadas em 13/08/2026.
+> **Escopo:** este documento descreve o sistema **como ele é hoje** (as-built). Revisado em 26/08/2026 após a adoção do PostgreSQL, das migrations Laravel e do contrato de qualidade bloqueante.
 >
 > **Detalhe por subsistema vive em [`Docs/`](Docs/README.md)** — este arquivo é a visão geral; pipeline, download, transcrição, seleção por IA, corte, publicação, banco, estados e runbook têm documento próprio lá. Comece pelo [`Docs/README.md`](Docs/README.md).
 > Não confundir com `.planning/research/ARCHITECTURE.md`, que é um documento de **pesquisa de junho/2026**: ele planeja um futuro que em parte não aconteceu (migração do bot para o n8n, painel em Filament) e não deve ser usado como referência do estado atual.
@@ -28,20 +28,20 @@ sozinha faz o modelo entregar 30 s picados só para bater a régua.
 
 ## 2. Topologia
 
-O `docker-compose.yml` fica na **raiz deste repositório** e foi configurado como um projeto Compose isolado. Ele usa a rede e os volumes próprios do projeto, não define `container_name`, não publica MySQL/Redis no host e não reutiliza mounts de outros Compose. O `.env` lido pelo Compose é o `.env` da raiz deste repositório.
+O `docker-compose.yml` fica na **raiz deste repositório** e foi configurado como um projeto Compose isolado. Ele usa a rede e os volumes próprios do projeto, não define `container_name`, não publica PostgreSQL/Redis no host e não reutiliza mounts de outros Compose. O `.env` lido pelo Compose é o `.env` da raiz deste repositório.
 
 | Serviço | Dono | Portas no host | Papel para o Canal de Cortes |
 |---|---|---|---|
 | `clip-processor` | **exclusivo** | **nenhuma** | Daemon Python: todo o pipeline + sidecar HTTP interno na 8090 |
 | `nginx` | exclusivo | `8088 → 80` | Serve o painel Laravel |
 | `php` | exclusivo | — (9000 interno) | PHP-FPM que roda o painel Laravel |
-| `mysql:8.4` | exclusivo | — (3306 interno) | Hospeda o database `clips_automation` em volume nomeado |
-| `mysql-backup` | exclusivo, perfil `backup` | — | Gera dump diário compactado e checksum |
+| `postgres:16-alpine` | exclusivo | — (5432 interno) | Hospeda o database `clips_automation` em volume nomeado |
+| `postgres-backup` | exclusivo, perfil `backup` | — | Gera dump diário compactado e checksum |
 | `redis:7-alpine` | exclusivo | — (6379 interno) | Dedup + cota diária (db 0 = pipeline, db 1 = painel) |
 
-Este projeto não depende de PostgreSQL, MinIO ou serviços de outros Compose.
+Este projeto não depende de MySQL, MinIO ou serviços de outros Compose.
 
-**Serviços opcionais ou históricos:** `mysql-backup` só é ativado pelo perfil `backup`; `n8n` e `cloudflared` foram substituídos pelo APScheduler dentro do `clip-processor` e pelo scheduler do Laravel. O workflow em `n8n/workflows/` está com `"active": false`.
+**Serviço opcional:** `postgres-backup` só é ativado pelo perfil `backup`. Os artefatos antigos de n8n/cloudflared não fazem parte deste checkout; a decisão de usar APScheduler no `clip-processor` e o scheduler do Laravel está registrada nos ADRs e nesta documentação.
 
 ### Acesso HTTP
 
@@ -59,10 +59,10 @@ Esta é a decisão arquitetural mais importante do sistema, e a que mais confund
                  └───────┬──────────────────┬───────┘
                          │                  │
         HTTP interno     │                  │  leitura direta
-     X-Internal-Token    │                  │  (MySQL, Redis, disco)
+     X-Internal-Token    │                  │  (PostgreSQL, Redis, disco)
                          ▼                  ▼
                  ┌───────────────┐   ┌──────────────────┐
-                 │ clip-processor│──►│ MySQL / Redis /  │
+                 │ clip-processor│──►│ PostgreSQL / Redis│
                  │  sidecar 8090 │   │ volumes de vídeo │
                  └───────────────┘   └──────────────────┘
                          ▲
@@ -70,9 +70,9 @@ Esta é a decisão arquitetural mais importante do sistema, e a que mais confund
                          └──── (eventos → Telegram)
 ```
 
-**A regra:** para **ler**, o painel vai direto na fonte (MySQL, Redis, disco). Para **agir sobre disco ou processos** (apagar arquivo, resolver canal via yt-dlp, enfileirar URL), o painel **nunca** toca no filesystem do pipeline — chama o sidecar HTTP. Isso substituiu o padrão anterior de `docker exec` / socket do Docker (decisão registrada em `painel/config/services.php:38-39`).
+**A regra:** para **ler**, o painel vai direto na fonte (PostgreSQL, Redis, disco). Para **agir sobre disco ou processos** (apagar arquivo, resolver canal via yt-dlp, enfileirar URL), o painel **nunca** toca no filesystem do pipeline — chama o sidecar HTTP. Isso substituiu o padrão anterior de `docker exec` / socket do Docker (decisão registrada em `painel/config/services.php:38-39`).
 
-Exceção importante à regra: **transições de status simples o painel escreve direto no MySQL** (ex.: `approve()` faz `UPDATE generated_clips SET status='approved' WHERE status='pending'`). Só o que mexe em disco/processo passa pelo sidecar.
+Exceção importante à regra: **transições de status simples o painel escreve direto no PostgreSQL** (ex.: `approve()` faz `UPDATE generated_clips SET status='approved' WHERE status='pending'`). Só o que mexe em disco/processo passa pelo sidecar.
 
 ### O sidecar (`clip-processor/src/internal_api.py`)
 
@@ -115,12 +115,12 @@ Todos com `coalesce=True, max_instances=1, misfire_grace_time=900`.
 
 ### Etapas
 
-1. **Descoberta** — `poll_all_channels` varre o RSS de cada `source_channel` ativo e não-blacklistado. Por entrada: dedup (Redis `SET NX`, TTL 30 dias, com fallback para MySQL) → filtro de título (bloqueia keywords de aposta/cassino) → detecção de formato (yt-dlp metadata; falha ⇒ assume `curto`) → `INSERT status='pending'`.
-2. **Download** — janela fixa **por formato**, que não se canibaliza: até 6 `curto` e 4 `longo` **ocupando disco simultaneamente**. Baixa só o déficit. Só considera vídeos publicados nas últimas 24 h (`FRESHNESS_DAYS = 1`), ordenados por `published_at DESC` — a notícia mais recente ganha, não a descoberta mais antiga. yt-dlp 720p, 3 tentativas, aborta se restarem < 2 GB de disco.
+1. **Descoberta** — `poll_all_channels` varre o RSS de cada `source_channel` ativo e não-blacklistado. Por entrada: dedup (Redis `SET NX`, TTL 30 dias, com fallback para PostgreSQL) → filtro de título (bloqueia keywords de aposta/cassino) → detecção de formato (yt-dlp metadata; falha ⇒ assume `curto`) → `INSERT status='pending'`.
+2. **Download** — janela fixa **por formato**, que não se canibaliza: até 6 `curto` e 4 `longo` **ocupando disco simultaneamente**. Baixa só o déficit. Considera vídeos publicados nos últimos `FRESHNESS_DAYS` dias (default 365), ordenados por `published_at DESC` — a notícia mais recente ganha, não a descoberta mais antiga. yt-dlp 720p, 3 tentativas, aborta se restarem < 2 GB de disco.
 3. **Transcrição** — Groq Whisper (`whisper-large-v3-turbo`, pt). Arquivo > 24 MB é convertido para MP3 antes.
 4. **Seleção de momentos** — Claude Haiku escolhe os trechos com score 0–10. Prompt e truncagem variam por formato (`longo`: 1 segmento, 420–1200 s; `curto`: até 3 momentos, 30–180 s). Ver [`Docs/SISTEMA-IA-SELECAO.md`](Docs/SISTEMA-IA-SELECAO.md).
-5. **Corte e pós-produção** — FFmpeg: corta → gera SRT → queima legenda → marca d'água → thumbnail. `curto` recebe crop 1080x1920; `longo` preserva o horizontal (`scale=-2:1080`).
-6. **Metadata** — Claude Haiku gera título, descrição e tags a partir da transcrição do trecho.
+5. **Corte e pós-produção** — FFmpeg: corta → gera SRT → queima legenda → marca d'água → thumbnail com chamada textual literal. `curto` recebe crop 1080x1920; `longo` preserva o horizontal (`scale=-2:1080`).
+6. **Metadata e thumbnail** — Claude Haiku/Groq gera título, descrição e tags para SEO; um prompt dedicado escolhe a chamada literal da thumbnail a partir da transcrição.
 7. **Publicação** — respeitando cota, janela horária e round-robin (ver 4.2).
 
 Cada etapa roda em `try/except` isolado que loga e dispara `notify('pipeline_failure', ...)` — uma falha não derruba o scheduler.
@@ -134,7 +134,7 @@ Cada etapa roda em `try/except` isolado que loga e dispara `notify('pipeline_fai
 | Seleção de momentos (Claude) | **Groq LLaMA `llama-3.3-70b-versatile`.** Sem `ANTHROPIC_API_KEY`, vai direto no Groq. Groq falhando também ⇒ nenhum momento. |
 | Metadata (Claude) | **Groq LLaMA `llama-3.3-70b-versatile`** (adicionado em 27/07/2026). Só se as duas IAs falharem cai no determinístico: título = título do vídeo original, descrição = `reason` da seleção, tags fixas. |
 | Transcrição (Groq Whisper) | **Nenhum.** Falhou ⇒ vídeo marcado `failed`. |
-| Dedup (Redis) | `SELECT` no MySQL. |
+| Dedup (Redis) | `SELECT` no PostgreSQL. |
 | Cota (Redis) | **Nenhum.** Redis fora ⇒ publicação para. |
 
 ### 4.2 Cota, janela e round-robin
@@ -189,18 +189,18 @@ pending_cut → cutting → pending ──► publishing → published
 
 ## 6. Schema (`clips_automation`)
 
-**As tabelas do pipeline não são geridas por migrations do Laravel.** Elas nascem de SQL bruto em `mysql/init/01..07`, aplicado automaticamente pelo entrypoint oficial do MySQL quando o volume `mysql_data` é criado. O painel apenas as mapeia com Eloquent e `$table` explícito. Backups são gerados pelo serviço opcional `mysql-backup` em `backups/mysql/`; a restauração exige confirmação explícita pelo script de operação.
+**Todas as tabelas são geridas por migrations do Laravel** em `painel/database/migrations`, inclusive as tabelas do pipeline. O serviço `panel-init` aplica o schema antes de liberar os demais serviços. O painel e o clip-processor compartilham o PostgreSQL, cada um com suas responsabilidades de leitura e escrita. Backups são gerados pelo serviço opcional `postgres-backup` em `backups/postgres/`; a restauração exige confirmação explícita pelo script de operação.
 
 Consequências práticas:
-- `php artisan migrate:fresh` **não** reconstrói o schema do pipeline.
-- Por isso `RefreshDatabase` está desligado em `tests/Pest.php` e os testes usam `DatabaseTransactions` sobre tabelas pré-existentes.
+- `php artisan migrate:fresh` reconstrói o schema do pipeline e do painel; use-o apenas em banco descartável.
+- A suíte usa `DatabaseTransactions` para isolar cada teste sem recriar as tabelas a cada caso.
 
 | Tabela | Origem | Notas |
 |---|---|---|
-| `source_channels` | `mysql/init` | `target_niche`, `channel_handle`, `blacklisted`, `rss_url`, `active` |
-| `source_videos` | `mysql/init` | FK → `source_channels`; `format` ENUM(`curto`,`longo`); `local_path`, `transcript_path` |
-| `generated_clips` | `mysql/init` | FK → `source_videos` e → `destination_channels`; `score`, `reason`, `start_time`/`end_time`, `upload_error` |
-| `destination_channels` | `mysql/init` | `slug`, `niche`, `credit_template`, `oauth_expired_flag` |
+| `source_channels` | migration Laravel `2026_08_26_000000` | `target_niche`, `channel_handle`, `blacklisted`, `rss_url`, `active` |
+| `source_videos` | migration Laravel `2026_08_26_000001` | FK → `source_channels`; `format` (`curto`/`longo`); `local_path`, `transcript_path` |
+| `generated_clips` | migration Laravel `2026_08_26_000003` | FK → `source_videos` e → `destination_channels`; `score`, `reason`, `start_time`/`end_time`, `upload_error` |
+| `destination_channels` | migration Laravel `2026_08_26_000002` | `slug`, `niche`, `credit_template`, `oauth_expired_flag` |
 | `niches` | **migration Laravel** | Única tabela de domínio do painel; seeda `futebol` e `podcast` |
 | `users`, `sessions`, `cache`, `jobs` | migration Laravel | Mesmo database |
 
@@ -246,7 +246,7 @@ Guard `web` (session, driver `database`), único guard — não há Sanctum/API.
 
 ## 8. Configuração
 
-O compose lê o `.env` da **raiz `wordpress/`**. O `canaldecortes/.env.example` está defasado dele.
+O Compose lê o `.env` da raiz deste repositório. Os defaults públicos estão em `.env.example` e `painel/.env.example`.
 
 | Var | Serve para |
 |---|---|
@@ -276,7 +276,7 @@ O compose lê o `.env` da **raiz `wordpress/`**. O `canaldecortes/.env.example` 
 | Mudar quantos vídeos ficam em disco | `DOWNLOAD_WINDOW_*` em `pipeline_runner.py` |
 | Adicionar ação do painel que toca disco | Rota nova no `internal_api.py` **+** método no `ClipProcessorClient.php` |
 | Adicionar página ao painel | `routes/web.php` + controller + `resources/js/pages/*.tsx` |
-| Alterar schema do pipeline | SQL novo em `mysql/init/`, aplicado à mão (**não** é migration) |
+| Alterar schema do pipeline | nova migration em `painel/database/migrations/` + `php artisan migrate` |
 
 ---
 
@@ -284,26 +284,25 @@ O compose lê o `.env` da **raiz `wordpress/`**. O `canaldecortes/.env.example` 
 
 Registrado aqui porque documentação errada custa mais caro que documentação ausente.
 
-### Documentação desatualizada
+### Legado documentado
 
-1. **Stack do painel atualizada para Inertia.js + React + shadcn UI** — referências legadas a Filament nos READMEs foram corrigidas em favor da stack real (Laravel 12 + Inertia.js + React 19 + Tailwind CSS + shadcn UI).
-2. **`.planning/research/ARCHITECTURE.md`** é pesquisa de junho, não estado atual: descreve migração do bot para o n8n e painel Filament, nenhum dos dois válido hoje.
-3. **`n8n/workflows/README.md`** manda importar workflows num container que não existe mais.
-
-### Código morto
-
-4. **`painel/app/Filament/Pages/Dashboard.php`** — órfão que sobreviveu por acidente à limpeza dos outros 18 arquivos Filament. `extends Filament\Pages\Dashboard`, classe que **não existe mais no autoloader**. Só não quebra porque nada o referencia; um `composer dump-autoload -o` com classmap authoritative daria fatal error. **Deve ser deletado.**
-5. **`app-sidebar.tsx`** — flag `external` e o branch `<a>` existiam só para linkar rotas Filament. Nenhum item usa; dead code.
-6. **`scripts/validate-infra.sh`** — checa n8n na 5678; como termina com `exit 1` se houver falha, **nunca passa**.
-7. **`scripts/validate-phase6-n8n.py`** — aponta para `telegram-n8n/`, diretório que não existe. Explode ao rodar.
-8. **`dedup.mark_failed_redis`** está definida mas nunca é chamada: download que falha deixa a chave `video:{id}` no Redis por 30 dias, então o RSS não re-ingere o vídeo.
-9. Nomes de teste ainda dizem "Resource" (`SourceChannelResourceTest`), mas o conteúdo já é Inertia.
+1. **`.planning/research/ARCHITECTURE.md`** é pesquisa de junho/2026, não estado atual:
+   descreve uma migração do bot para n8n e um painel Filament que não foram adotados.
+2. **`dedup.mark_failed_redis`** permanece como helper de compatibilidade para fluxos que
+   removem um registro falho antes de um novo polling; o fluxo normal mantém falhas no PostgreSQL
+   como estado terminal.
+3. Nomes de teste ainda dizem "Resource" (`SourceChannelResourceTest`), mas o conteúdo já
+   é Inertia.
 
 ### Armadilhas de configuração
 
-10. **`env()` fora de config** em `DashboardController` (`MAX_UPLOADS_PER_DAY`, `MANUAL_APPROVAL_REQUIRED`). Com `config:cache` ativo, `env()` retorna `null` e cai nos defaults **silenciosamente** — o painel passa a mostrar número diferente do que o publisher usa.
-11. **Drift de default do `MAX_UPLOADS_PER_DAY`:** `:-2` no serviço `php`, `:-1` no `clip-processor`. Só não morde porque a var está setada no `.env` da raiz.
-12. **`ANTHROPIC_API_KEY` vazia é um modo de falha silencioso:** o `selector` degrada limpo para o Groq, mas o `metadata_generator` instancia `anthropic.Anthropic()` sem key ⇒ exceção ⇒ **sempre** o fallback determinístico. O clip é publicado com o título bruto do vídeo original, sem erro visível.
-13. **Senha inconsistente:** `painel:create-user` exige ≥ 10 chars; o reset pela UI (`SettingsController`) exige apenas 8.
-14. **`destination_channels` seedados têm `youtube_channel_id` placeholder** (`UC_PLACEHOLDER_FUTEBOL` / `UC_PLACEHOLDER_PODCAST`). Se ninguém trocou no banco, seguem inválidos.
-15. **`docker/nginx_conf/canaldecortes.conf` na raiz `wordpress/` tem 0 bytes** e é sobrescrito pelo bind-mount. Vestigial e confuso.
+4. O painel lê `MAX_UPLOADS_PER_DAY` e `MANUAL_APPROVAL_REQUIRED` por
+   `config/pipeline.php`, mantendo os valores corretos mesmo com `config:cache`.
+5. O teto de `MAX_UPLOADS_PER_DAY` é centralizado em 6 no painel e no worker; alterações
+   devem atualizar ambos os contratos.
+6. **`destination_channels` seedados têm `youtube_channel_id` placeholder**
+   (`UC_PLACEHOLDER_FUTEBOL` / `UC_PLACEHOLDER_PODCAST`). Se ninguém trocou no
+   banco, seguem inválidos.
+7. O endpoint do webhook do Telegram exige `TELEGRAM_WEBHOOK_SECRET` e o endpoint de
+   eventos exige `CLIP_PROCESSOR_INTERNAL_TOKEN`; ambos falham fechado quando a
+   configuração ou o header está ausente.

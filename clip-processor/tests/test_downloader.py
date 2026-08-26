@@ -4,7 +4,7 @@ Testes ACQU-02: download 720p, disk guard, partial cleanup.
 Módulo alvo: src.downloader
 Exports esperados: download_video(video_id, output_path) -> bool
 
-RED state: imports falham pois src/downloader.py ainda não existe.
+Os cenários cobrem download, proteção de disco e limpeza de artefatos parciais.
 """
 
 import os
@@ -18,11 +18,12 @@ MIN_FREE_SPACE_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
 
 class TestDownloadVideo:
     def test_download_success(self, mocker, tmp_path):
-        """yt-dlp mockado sem erro → download_video() retorna True."""
+        """yt-dlp cria o arquivo esperado → download_video() retorna True."""
+        output_path = tmp_path / 'dQw4w9WgXcQ.mp4'
         mock_ydl = mocker.MagicMock()
         mock_ydl.__enter__ = mocker.MagicMock(return_value=mock_ydl)
         mock_ydl.__exit__ = mocker.MagicMock(return_value=False)
-        mock_ydl.download.return_value = 0
+        mock_ydl.download.side_effect = lambda _urls: output_path.touch()
 
         mocker.patch('yt_dlp.YoutubeDL', return_value=mock_ydl)
 
@@ -32,9 +33,27 @@ class TestDownloadVideo:
             return_value=mocker.MagicMock(free=10 * 1024 * 1024 * 1024),
         )
 
-        result = download_video('dQw4w9WgXcQ', str(tmp_path))
+        result = download_video('dQw4w9WgXcQ', str(output_path))
 
         assert result is True
+
+    def test_download_without_output_file_returns_false(self, mocker, tmp_path):
+        """yt-dlp sem erro, mas sem arquivo final, não pode ocupar a janela."""
+        output_path = tmp_path / 'dQw4w9WgXcQ.mp4'
+        mock_ydl = mocker.MagicMock()
+        mock_ydl.__enter__ = mocker.MagicMock(return_value=mock_ydl)
+        mock_ydl.__exit__ = mocker.MagicMock(return_value=False)
+        mock_ydl.download.return_value = 0
+
+        mocker.patch('yt_dlp.YoutubeDL', return_value=mock_ydl)
+        mocker.patch(
+            'src.downloader.shutil.disk_usage',
+            return_value=mocker.MagicMock(free=10 * 1024 * 1024 * 1024),
+        )
+
+        result = download_video('dQw4w9WgXcQ', str(output_path))
+
+        assert result is False
 
     def test_disk_space_guard(self, mocker, tmp_path):
         """shutil.disk_usage mockado com free=1GB (< 2GB mínimo)

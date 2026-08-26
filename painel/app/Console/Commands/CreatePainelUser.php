@@ -6,9 +6,6 @@ use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 
-use function Laravel\Prompts\password;
-use function Laravel\Prompts\text;
-
 class CreatePainelUser extends Command
 {
     /**
@@ -30,11 +27,13 @@ class CreatePainelUser extends Command
      */
     public function handle(): int
     {
-        $email = text(
-            label: 'Email do operador',
-            required: true,
-            validate: fn (string $value) => filter_var($value, FILTER_VALIDATE_EMAIL) ? null : 'Email inválido.',
-        );
+        $email = $this->ask('Email do operador');
+
+        if (! is_string($email) || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->error('Email inválido.');
+
+            return self::FAILURE;
+        }
 
         if (User::query()->where('email', $email)->exists()) {
             $this->error("Já existe usuário com email {$email}. Use painel:reset-password para alterar a senha.");
@@ -42,11 +41,12 @@ class CreatePainelUser extends Command
             return self::FAILURE;
         }
 
-        $pass = password(
-            label: 'Senha (mínimo 10 caracteres, não será exibida)',
-            required: true,
-            validate: fn (string $value) => strlen($value) >= 10 ? null : 'Senha deve ter no mínimo 10 caracteres.',
-        );
+        $pass = $this->secret('Senha (mínimo 10 caracteres, não será exibida)');
+        if (! is_string($pass) || strlen($pass) < 10) {
+            $this->error('Senha deve ter no mínimo 10 caracteres.');
+
+            return self::FAILURE;
+        }
 
         User::create([
             'name' => 'Operador',

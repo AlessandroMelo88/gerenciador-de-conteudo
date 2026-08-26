@@ -8,39 +8,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-
-# Carrega variáveis de ambiente
-if [[ -f "$ROOT_DIR/.env" ]]; then
-  set -a
-  # shellcheck source=/dev/null
-  source "$ROOT_DIR/.env"
-  set +a
-fi
-
-DB_USER="${CLIPS_DB_USER:-clips_user}"
-DB_PASS="${CLIPS_DB_PASSWORD:-}"
-DB_NAME="${CLIPS_DB_NAME:-clips_automation}"
-
-mysql_exec() {
-  docker exec -i mysql mysql \
-    -h 127.0.0.1 \
-    -u "$DB_USER" \
-    -p"$DB_PASS" \
-    "$DB_NAME" \
-    --silent \
-    --skip-column-names \
-    -e "$1" 2>/dev/null
-}
-
-mysql_exec_pretty() {
-  docker exec -i mysql mysql \
-    -h 127.0.0.1 \
-    -u "$DB_USER" \
-    -p"$DB_PASS" \
-    "$DB_NAME" \
-    -e "$1" 2>/dev/null
-}
+# shellcheck source=postgres.sh
+source "$SCRIPT_DIR/postgres.sh"
 
 MODE="pending"
 CLIP_ID=""
@@ -60,13 +29,13 @@ if [[ "$MODE" == "detail" && -n "$CLIP_ID" ]]; then
   echo "  CLIP #${CLIP_ID} — Detalhes"
   echo "══════════════════════════════════════════════"
 
-  mysql_exec_pretty "
+  postgres_exec_expanded "
     SELECT
       gc.id,
       gc.title,
       gc.score,
       gc.status,
-      ROUND(gc.end_time - gc.start_time, 1) AS duracao_segundos,
+      ROUND((gc.end_time - gc.start_time)::numeric, 1) AS duracao_segundos,
       gc.clip_path,
       gc.thumbnail_path,
       sv.title AS video_origem,
@@ -75,17 +44,17 @@ if [[ "$MODE" == "detail" && -n "$CLIP_ID" ]]; then
     FROM generated_clips gc
     JOIN source_videos sv ON gc.source_video_id = sv.id
     JOIN source_channels sc ON sv.channel_id = sc.id
-    WHERE gc.id = $CLIP_ID\G"
+    WHERE gc.id = $CLIP_ID"
 
   echo ""
   echo "── TÍTULO ──────────────────────────────────"
-  mysql_exec "SELECT title FROM generated_clips WHERE id = $CLIP_ID;"
+  postgres_exec "SELECT title FROM generated_clips WHERE id = $CLIP_ID;"
   echo ""
   echo "── DESCRIÇÃO ───────────────────────────────"
-  mysql_exec "SELECT description FROM generated_clips WHERE id = $CLIP_ID;"
+  postgres_exec "SELECT description FROM generated_clips WHERE id = $CLIP_ID;"
   echo ""
   echo "── TAGS ────────────────────────────────────"
-  mysql_exec "SELECT tags FROM generated_clips WHERE id = $CLIP_ID;"
+  postgres_exec "SELECT tags FROM generated_clips WHERE id = $CLIP_ID;"
   echo ""
   exit 0
 fi
@@ -93,7 +62,7 @@ fi
 # ─── Listagem geral ──────────────────────────────────────────────────────────
 STATUS_FILTER="gc.status = 'pending'"
 if [[ "$MODE" == "all" ]]; then
-  STATUS_FILTER="1=1"
+  STATUS_FILTER="TRUE"
 fi
 
 echo ""
@@ -102,25 +71,25 @@ echo "║         CANAL DE CORTES — CLIPES DISPONÍVEIS                       
 echo "╚══════════════════════════════════════════════════════════════════════╝"
 echo ""
 
-TOTAL=$(mysql_exec "SELECT COUNT(*) FROM generated_clips gc WHERE $STATUS_FILTER;")
+TOTAL=$(postgres_exec "SELECT COUNT(*) FROM generated_clips gc WHERE $STATUS_FILTER;")
 
 if [[ "$TOTAL" == "0" ]]; then
   echo "  Nenhum clipe encontrado."
   echo ""
   echo "  Dica: O pipeline pode não ter rodado ainda. Verifique:"
-  echo "    docker logs clip-processor --tail 50"
+  echo "    docker compose logs --tail=50 clip-processor"
   exit 0
 fi
 
 echo "  Total: $TOTAL clipe(s)"
 echo ""
 
-mysql_exec_pretty "
+postgres_exec_pretty "
   SELECT
     gc.id              AS ID,
     gc.score           AS Score,
     gc.status          AS Status,
-    CONCAT(ROUND(gc.end_time - gc.start_time, 0), 's') AS Duracao,
+    CONCAT(ROUND((gc.end_time - gc.start_time)::numeric, 0), 's') AS Duracao,
     LEFT(gc.title, 55) AS Titulo,
     sc.channel_name    AS Canal,
     DATE(gc.created_at) AS Criado
@@ -139,17 +108,25 @@ echo "    Marcar publicado:  ./manual-workflow/mark-published.sh <ID> <YT_VIDEO_
 echo "    Marcar falho:      ./manual-workflow/mark-failed.sh <ID> \"motivo\""
 echo ""
 echo "  Para copiar o vídeo do Docker:"
-echo "    docker cp clip-processor:/app/videos/clips/<arquivo>.mp4 ~/Desktop/"
-echo "    docker cp clip-processor:/app/videos/thumbnails/<arquivo>.jpg ~/Desktop/"
+echo "    docker compose cp clip-processor:/app/videos/clips/<arquivo>.mp4 ~/Desktop/"
+echo "    docker compose cp clip-processor:/app/videos/thumbnails/<arquivo>.jpg ~/Desktop/"
 echo ""
 
 # Resumo por status
 echo "── Resumo por status ──────────────────────────────────────────────────"
-mysql_exec_pretty "
+postgres_exec_pretty "
   SELECT
     status             AS Status,
     COUNT(*)           AS Quantidade
   FROM generated_clips
   GROUP BY status
-  ORDER BY FIELD(status, 'pending', 'publishing', 'published', 'failed', 'cutting', 'pending_cut');"
+  ORDER BY CASE status
+    WHEN 'pending' THEN 1
+    WHEN 'publishing' THEN 2
+    WHEN 'published' THEN 3
+    WHEN 'failed' THEN 4
+    WHEN 'cutting' THEN 5
+    WHEN 'pending_cut' THEN 6
+    ELSE 99
+  END;"
 echo ""

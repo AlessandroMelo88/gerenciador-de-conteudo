@@ -6,7 +6,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+# shellcheck source=postgres.sh
+source "$SCRIPT_DIR/postgres.sh"
 
 if [[ $# -lt 2 ]]; then
   echo "Uso: $0 <CLIP_ID> \"motivo\""
@@ -22,28 +23,9 @@ if ! [[ "$CLIP_ID" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
-if [[ -f "$ROOT_DIR/.env" ]]; then
-  set -a
-  source "$ROOT_DIR/.env"
-  set +a
-fi
-
-DB_USER="${CLIPS_DB_USER:-clips_user}"
-DB_PASS="${CLIPS_DB_PASSWORD:-}"
-DB_NAME="${CLIPS_DB_NAME:-clips_automation}"
-
-mysql_exec() {
-  docker exec -i mysql mysql \
-    -h 127.0.0.1 \
-    -u "$DB_USER" \
-    -p"$DB_PASS" \
-    "$DB_NAME" \
-    --silent \
-    --skip-column-names \
-    -e "$1" 2>/dev/null
-}
-
-CLIP_TITLE=$(mysql_exec "SELECT title FROM generated_clips WHERE id = $CLIP_ID;")
+CLIP_TITLE=$(postgres_exec_vars \
+  "SELECT title FROM generated_clips WHERE id = :'clip_id';" \
+  -v "clip_id=$CLIP_ID")
 if [[ -z "$CLIP_TITLE" ]]; then
   echo "Erro: Clipe #$CLIP_ID não encontrado."
   exit 1
@@ -58,11 +40,12 @@ if [[ "${CONFIRM,,}" != "s" ]]; then
   exit 0
 fi
 
-MOTIVO_ESCAPED="${MOTIVO//\'/\'\'}"
-mysql_exec "
+postgres_exec_vars "
   UPDATE generated_clips
-  SET status = 'failed', upload_error = '$MOTIVO_ESCAPED', updated_at = UTC_TIMESTAMP()
-  WHERE id = $CLIP_ID;"
+  SET status = 'failed', upload_error = :'motivo', updated_at = CURRENT_TIMESTAMP
+  WHERE id = :'clip_id';" \
+  -v "motivo=$MOTIVO" \
+  -v "clip_id=$CLIP_ID"
 
 echo ""
 echo "✔ Clipe #$CLIP_ID marcado como falho."

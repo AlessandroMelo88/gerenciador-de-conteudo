@@ -26,8 +26,6 @@ type NavItem = {
     title: string;
     url: string;
     icon: React.ElementType;
-    /** Rotas fora do SPA Inertia precisam de <a> normal, não <Link>. */
-    external?: boolean;
 };
 
 const navItems: NavItem[] = [
@@ -70,17 +68,10 @@ export function AppSidebar({
                     {navItems.map((item) => (
                         <SidebarMenuItem key={item.url}>
                             <SidebarMenuButton asChild isActive={currentPath === item.url} tooltip={item.title}>
-                                {item.external ? (
-                                    <a href={item.url}>
-                                        <item.icon />
-                                        <span>{item.title}</span>
-                                    </a>
-                                ) : (
-                                    <Link href={item.url}>
-                                        <item.icon />
-                                        <span>{item.title}</span>
-                                    </Link>
-                                )}
+                                <Link href={item.url}>
+                                    <item.icon />
+                                    <span>{item.title}</span>
+                                </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     ))}

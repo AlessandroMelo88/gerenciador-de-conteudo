@@ -17,8 +17,10 @@ Em testes: anthropic_client injetado é usado diretamente (sem fallback).
 
 import json
 import os
+import re
 from datetime import datetime
 
+from src.db import fetch_used_moments
 from src.fact_check_prompt import FACT_CHECK_INSTRUCTION, FAKE_NEWS_STATUSES
 
 CONTENT_SELECTION_RULES = (
@@ -45,6 +47,32 @@ CONTENT_SELECTION_RULES = (
     'houver segmento editorial completo e seguro, retorne {"moments": []}. Se aparecer o marcador '
     '[... trecho intermediário omitido ...], trate a lacuna como desconhecida; não atravesse essa lacuna '
     'nem crie um momento que a atravesse. '
+    'IMPORTANTE: timestamps delimitam blocos da transcrição, NÃO necessariamente frases completas. '
+    'Antes de definir end_time, leia a linha escolhida e as linhas seguintes. Se o texto terminar em '
+    'vírgula, dois-pontos, reticências, travessão, conjunção, preposição, palavra que pede complemento '
+    'ou continuar em minúscula na linha seguinte, avance end_time até fechar a oração, a resposta ou '
+    'o raciocínio e alcançar pontuação final, pausa clara ou troca de assunto. Exemplo de corte proibido: '
+    '"É diferente de você fazer," está incompleto; continue até incluir "faça um algoritmo, faça um '
+    'pequeno trecho." Nunca pare só porque chegou ao fim de uma linha, atingiu a duração preferida ou '
+    'encontrou um score alto. '
+)
+
+DUPLICATE_AVOIDANCE_RULE = (
+    'REGRA OBRIGATÓRIA — ANTI-REPETIÇÃO: o usuário pode fornecer um HISTÓRICO DE TRECHOS JÁ '
+    'UTILIZADOS NESTE VÍDEO, com intervalos em segundos e o status de cada registro. Trate todos '
+    'esses intervalos como bloqueados: nunca escolha um momento que reutilize material falado ou '
+    'se sobreponha a qualquer um deles por mais de 0.5 segundo. Escolha outro assunto ou outra parte ainda não '
+    'utilizada da transcrição. Tema parecido não é, sozinho, repetição: só descarte quando o trecho '
+    'novo reutilizar material falado do intervalo bloqueado. Se todos os candidatos bons estiverem '
+    'bloqueados, retorne apenas os candidatos restantes ou {"moments": []}. '
+)
+
+SELECTION_VALIDATION_RULES = (
+    'VALIDAÇÃO FINAL OBRIGATÓRIA — para cada candidato, releia a transcrição desde o início até '
+    'end_time e também a continuação imediata. Confirme que o início não entra no meio de uma fala e '
+    'que as últimas palavras formam uma frase, resposta ou ideia completa. Se end_time cair no fim de '
+    'um bloco cuja oração continua, mova-o para depois da continuação; se não for possível confirmar '
+    'o fechamento sem atravessar uma lacuna ou publicidade, descarte o candidato. '
 )
 
 SYSTEM_PROMPT = (
@@ -56,6 +84,8 @@ SYSTEM_PROMPT = (
     + 'Para futebol: priorize análise tática, debate acalorado, revelação de bastidores e o COMENTÁRIO sobre um gol. '
     'Para podcasts: priorize discussão intensa, revelação importante, momento de conflito ou humor. '
     + FACT_CHECK_INSTRUCTION
+    + DUPLICATE_AVOIDANCE_RULE
+    + SELECTION_VALIDATION_RULES
     + 'Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente '
     '(10 = viral garantido, 1 = sem valor). '
     'Responda APENAS com JSON válido, sem texto adicional:\n'
@@ -79,6 +109,8 @@ LONG_SYSTEM_PROMPT = (
     '(end_time - start_time >= 420). '
     + CONTENT_SELECTION_RULES
     + FACT_CHECK_INSTRUCTION
+    + DUPLICATE_AVOIDANCE_RULE
+    + SELECTION_VALIDATION_RULES
     + 'Retorne exatamente 1 momento, com score de 1 a 10 '
     '(10 = análise excelente pra virar vídeo, 1 = sem valor). '
     'Responda APENAS com JSON válido, sem texto adicional:\n'
@@ -94,6 +126,8 @@ HACKER_LIBERTARIO_PROMPT = (
     + CONTENT_SELECTION_RULES
     + 'Priorize: explicações técnicas brilhantes, reflexões sobre liberdade/privacidade digital, analogias marcantes sobre computação/IA, e conselhos diretos de carreira/tecnologia. '
     + FACT_CHECK_INSTRUCTION
+    + DUPLICATE_AVOIDANCE_RULE
+    + SELECTION_VALIDATION_RULES
     + 'Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente '
     '(10 = viral garantido, 1 = sem valor). '
     'Responda APENAS com JSON válido, sem texto adicional:\n'
@@ -110,6 +144,8 @@ HACKER_LIBERTARIO_LONG_PROMPT = (
     'uma reflexão densa sobre soberania tecnológica, ou um debate técnico do início ao fim. '
     + CONTENT_SELECTION_RULES
     + FACT_CHECK_INSTRUCTION
+    + DUPLICATE_AVOIDANCE_RULE
+    + SELECTION_VALIDATION_RULES
     + 'Retorne exatamente 1 momento, com score de 1 a 10 '
     '(10 = análise excelente pra virar vídeo, 1 = sem valor). '
     'Responda APENAS com JSON válido, sem texto adicional:\n'
@@ -130,10 +166,88 @@ def get_system_prompt(fmt: str = 'curto', niche: str | None = None) -> str:
 MIN_SHORTFORM_SECONDS = 30
 MAX_SHORTFORM_SECONDS = 180
 
+# Pequena tolerância para a borda de dois intervalos vizinhos. O filtro do
+# banco bloqueia qualquer repetição material, mas não considera 0,5 s de ruído
+# de arredondamento como sobreposição.
+DUPLICATE_OVERLAP_TOLERANCE_SECONDS = 0.5
+
 # Whisper/Groq costuma devolver timestamps com arredondamento. Se o modelo
 # terminar até este intervalo antes do fim de uma fala, completar o segmento
 # evita que o FFmpeg corte a última palavra.
 TRANSCRIPT_BOUNDARY_TOLERANCE_SECONDS = 3.0
+TRANSCRIPT_BOUNDARY_OPENING_SECONDS = 2.5
+MAX_BOUNDARY_COMPLETION_SECONDS = 30.0
+MAX_BOUNDARY_COMPLETION_GAP_SECONDS = 4.0
+
+_INCOMPLETE_TRAILING_WORDS = frozenset(
+    [
+        'a',
+        'ao',
+        'aos',
+        'as',
+        'à',
+        'às',
+        'e',
+        'ou',
+        'mas',
+        'porque',
+        'que',
+        'se',
+        'quando',
+        'como',
+        'para',
+        'pra',
+        'pro',
+        'de',
+        'do',
+        'da',
+        'dos',
+        'das',
+        'em',
+        'no',
+        'na',
+        'nos',
+        'nas',
+        'por',
+        'com',
+        'sem',
+        'sob',
+        'sobre',
+        'entre',
+        'um',
+        'uma',
+        'uns',
+        'umas',
+        'o',
+        'os',
+        'já',
+        'mais',
+        'menos',
+        'muito',
+        'tão',
+        'até',
+        'vai',
+        'vou',
+        'foi',
+        'é',
+        'era',
+        'ser',
+        'ter',
+        'tem',
+        'há',
+        'cada',
+        'qual',
+        'onde',
+        'quem',
+        'isso',
+        'essa',
+        'esse',
+        'meu',
+        'minha',
+        'seu',
+        'sua',
+    ]
+)
 
 MIN_LONGFORM_SECONDS = 420
 MAX_LONGFORM_SECONDS = 1200
@@ -148,14 +262,84 @@ LONGFORM_NATURAL_PAUSE_SECONDS = 2.5
 
 # O modo curto retorna até três itens pequenos; manter a resposta compacta deixa
 # espaço para a transcrição dentro do limite de TPM do Groq. O modo longo recebe
-# um teto próprio maior porque o gpt-oss precisa de tokens de raciocínio antes de
-# emitir o único JSON solicitado.
+# um teto próprio porque o gpt-oss precisa de tokens de raciocínio antes de emitir
+# o único JSON solicitado, mas ainda precisa caber no limite de 8k TPM do plano
+# usado pelo worker.
 SELECTOR_MAX_OUTPUT_TOKENS = 768
-LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS = 2048
+LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS = 1536
 
 
 def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [AI] {msg}', flush=True)
+
+
+def _moment_interval(moment: dict) -> tuple[float, float] | None:
+    """Retorna um intervalo válido de momento, ignorando dados incompletos."""
+    try:
+        start_time = float(moment['start_time'])
+        end_time = float(moment['end_time'])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    if end_time <= start_time:
+        return None
+    return start_time, end_time
+
+
+def _format_used_moments_context(used_moments: list[dict] | None) -> list[str]:
+    """Formata o histórico persistido para ser enviado junto da transcrição."""
+    lines = []
+    for moment in used_moments or []:
+        interval = _moment_interval(moment)
+        if interval is None:
+            continue
+        start_time, end_time = interval
+        status = str(moment.get('status') or 'registrado')
+        lines.append(f'- [{start_time:.2f}s-{end_time:.2f}s] status={status}')
+    return lines
+
+
+def _append_used_moments_context(transcript_text: str, used_moments: list[dict] | None) -> str:
+    """Anexa à entrada da IA os intervalos do vídeo que não podem ser repetidos."""
+    history_lines = _format_used_moments_context(used_moments)
+    if not history_lines:
+        return transcript_text
+
+    return (
+        transcript_text
+        + '\n\n--- HISTÓRICO DE TRECHOS JÁ UTILIZADOS NESTE VÍDEO ---\n'
+        + 'Os intervalos abaixo estão bloqueados e não podem ser selecionados novamente:\n'
+        + '\n'.join(history_lines)
+        + '\n--- FIM DO HISTÓRICO ---'
+    )
+
+
+def _intervals_overlap(first: tuple[float, float], second: tuple[float, float]) -> bool:
+    """Diz se dois intervalos compartilham material além do ruído de borda."""
+    overlap = min(first[1], second[1]) - max(first[0], second[0])
+    return overlap > DUPLICATE_OVERLAP_TOLERANCE_SECONDS
+
+
+def _remove_repeated_moments(moments: list[dict], used_moments: list[dict] | None) -> list[dict]:
+    """Remove momentos que reutilizam intervalo já registrado para o vídeo."""
+    used_intervals = [
+        interval
+        for moment in used_moments or []
+        if (interval := _moment_interval(moment)) is not None
+    ]
+    if not used_intervals:
+        return moments
+
+    filtered = []
+    for moment in moments:
+        interval = _moment_interval(moment)
+        if interval and any(_intervals_overlap(interval, used) for used in used_intervals):
+            _log(
+                f'[SELECTOR] Momento descartado por repetição: {interval[0]:.2f}-{interval[1]:.2f}s'
+            )
+            continue
+        filtered.append(moment)
+    return filtered
 
 
 def _normalize_scores(moments: list[dict]) -> list[dict]:
@@ -195,18 +379,126 @@ def _normalize_fake_news_labels(moments: list[dict]) -> list[dict]:
     return normalized
 
 
+def _clean_boundary_text(text: str | None) -> str:
+    """Normaliza texto de uma legenda para avaliar se a fala terminou."""
+    normalized = ' '.join(str(text or '').split())
+    normalized = re.sub(r'^(?:>>\s*)+', '', normalized).strip()
+    return re.sub(r'[\s"\'»”’\)\]}]+$', '', normalized).rstrip()
+
+
+def _has_terminal_punctuation(text: str | None) -> bool:
+    """Diz se o texto termina com pontuação que pode fechar uma frase."""
+    return bool(re.search(r'[.!?]$', _clean_boundary_text(text)))
+
+
+def _has_explicit_continuation(text: str | None) -> bool:
+    """Detecta vírgula/conector no fim que exige continuação da fala."""
+    normalized = _clean_boundary_text(text)
+    if not normalized:
+        return False
+    if normalized.endswith(('...', '…', ',', ';', ':', '—', '–', '-')):
+        return True
+
+    words = re.findall(r'[^\W\d_]+', normalized.casefold(), flags=re.UNICODE)
+    return bool(words and words[-1] in _INCOMPLETE_TRAILING_WORDS)
+
+
+def _starts_like_continuation(text: str | None) -> bool:
+    """Diz se a próxima legenda parece continuar a oração anterior."""
+    normalized = _clean_boundary_text(text)
+    normalized = normalized.lstrip('([{"“\'')
+    match = re.match(r'[^\W\d_]+', normalized, flags=re.UNICODE)
+    if not match:
+        return False
+
+    word = match.group(0)
+    continuation_words = {
+        'a',
+        'ao',
+        'aos',
+        'as',
+        'à',
+        'às',
+        'e',
+        'ou',
+        'mas',
+        'porque',
+        'que',
+        'se',
+        'quando',
+        'como',
+        'para',
+        'pra',
+        'pro',
+        'de',
+        'do',
+        'da',
+        'em',
+        'no',
+        'na',
+        'por',
+        'com',
+        'sem',
+        'então',
+        'apesar',
+        'embora',
+    }
+    return word[0].islower() or word.casefold() in continuation_words
+
+
+def _needs_boundary_completion(text: str | None, next_text: str | None) -> bool:
+    """Diz se a fala atual ainda depende do próximo bloco da transcrição."""
+    if _has_explicit_continuation(text):
+        return True
+    if _has_terminal_punctuation(text):
+        return False
+    return _starts_like_continuation(next_text)
+
+
+def _extend_boundary_to_complete_thought(
+    segments: list[tuple[float, float, str]], boundary_index: int, current_end: float
+) -> float:
+    """Avança um limite quando o bloco escolhido termina numa oração aberta.
+
+    A transcrição do YouTube/Whisper quebra a fala em blocos temporais que não
+    são necessariamente frases. A extensão é limitada para não atravessar uma
+    pausa longa ou engolir o assunto seguinte.
+    """
+    if boundary_index < 0 or boundary_index >= len(segments):
+        return current_end
+
+    text = segments[boundary_index][2]
+    original_end = current_end
+    for next_index in range(boundary_index + 1, len(segments)):
+        next_start, next_end, next_text = segments[next_index]
+        if not _needs_boundary_completion(text, next_text):
+            break
+        if next_start - current_end > MAX_BOUNDARY_COMPLETION_GAP_SECONDS:
+            break
+        if next_start - original_end > MAX_BOUNDARY_COMPLETION_SECONDS:
+            break
+
+        text = f'{text} {next_text}'.strip()
+        current_end = max(current_end, next_end)
+        following_text = segments[next_index + 1][2] if next_index + 1 < len(segments) else None
+        if not _needs_boundary_completion(text, following_text):
+            break
+
+    return current_end
+
+
 def complete_moment_boundaries(
     moments: list[dict], transcript_segments: list[dict] | None
 ) -> list[dict]:
-    """Completa limites próximos das bordas dos segmentos da transcrição.
+    """Completa limites das falas, sem parar numa oração aberta.
 
     Proteções implementadas:
     - start_time: Se cair logo no início de um segmento (<= 3.0s), recua para o início exato da fala.
     - end_time:
       * Se cair muito no início de um novo segmento (ex: <= 2.5s), recua (snap back) para o fim do
         segmento anterior, evitando pegar apenas o começo de uma frase inacabada ("Apesar de...").
-      * Se cair no corpo ou perto do fim de um segmento (<= tolerance), avança (snap forward) até o fim
-        daquele segmento, completando a frase inteira.
+      * Se cair perto do fim de um segmento, avança até o fim daquele segmento.
+      * Se o bloco terminar com uma oração aberta, também inclui os blocos seguintes até a ideia fechar.
     """
     if not moments or not transcript_segments:
         return moments
@@ -219,7 +511,7 @@ def complete_moment_boundaries(
         except (KeyError, TypeError, ValueError):
             continue
         if segment_end > segment_start:
-            segments.append((segment_start, segment_end))
+            segments.append((segment_start, segment_end, str(segment.get('text') or '')))
 
     if not segments:
         return moments
@@ -238,25 +530,38 @@ def complete_moment_boundaries(
         new_end = end_time
 
         # Ajuste de início
-        for segment_start, segment_end in segments:
+        for segment_start, segment_end, _ in segments:
             if segment_start <= start_time < segment_end:
                 if start_time - segment_start <= tolerance:
                     new_start = segment_start
                 break
 
         # Ajuste de fim
-        for seg_idx, (segment_start, segment_end) in enumerate(segments):
-            if segment_start < end_time < segment_end:
-                # Se o timestamp pegaria apenas os primeiros segundos de um novo segmento (<= 2.5s)
-                if (end_time - segment_start) <= 2.5 and seg_idx > 0:
-                    prev_end = segments[seg_idx - 1][1]
-                    new_end = prev_end
-                elif (segment_end - end_time) <= tolerance:
-                    new_end = segment_end
-                break
-            elif abs(end_time - segment_end) <= tolerance:
-                new_end = segment_end
-                break
+        end_segment_index = None
+        nearby_endings = [
+            (abs(end_time - segment_end), seg_idx)
+            for seg_idx, (_, segment_end, _) in enumerate(segments)
+            if abs(end_time - segment_end) <= tolerance
+        ]
+        if nearby_endings:
+            # Um fim exato deve ganhar de um bloco anterior que por acaso acaba
+            # até três segundos antes (caso real: 536.519 vs. 534.120).
+            _, end_segment_index = min(nearby_endings, key=lambda item: (item[0], -item[1]))
+            new_end = segments[end_segment_index][1]
+        else:
+            for seg_idx, (segment_start, segment_end, _) in enumerate(segments):
+                if segment_start < end_time < segment_end:
+                    # Se o timestamp pegaria apenas os primeiros segundos de um novo segmento (<= 2.5s)
+                    if (
+                        end_time - segment_start
+                    ) <= TRANSCRIPT_BOUNDARY_OPENING_SECONDS and seg_idx > 0:
+                        prev_end = segments[seg_idx - 1][1]
+                        new_end = prev_end
+                        end_segment_index = seg_idx - 1
+                    break
+
+        if end_segment_index is not None:
+            new_end = _extend_boundary_to_complete_thought(segments, end_segment_index, new_end)
 
         if new_start == start_time and new_end == end_time:
             adjusted.append(moment)
@@ -531,7 +836,11 @@ def _clamp_moment_bounds(moments: list[dict], transcript_duration: float) -> lis
 
 
 def select_moments(
-    transcript: dict, anthropic_client=None, fmt: str = 'curto', niche: str | None = None
+    transcript: dict,
+    anthropic_client=None,
+    fmt: str = 'curto',
+    niche: str | None = None,
+    used_moments: list[dict] | None = None,
 ) -> list[dict]:
     """Analisa transcrição e retorna momentos selecionados via IA.
 
@@ -547,6 +856,8 @@ def select_moments(
         fmt: 'curto' (vários momentos de 30s-3min, padrão) ou 'longo' (1 segmento
              contínuo de 7-20min — usado pelo Processar Vídeo manual)
         niche: slug do nicho (ex: 'hacker-libertario', 'futebol', 'podcast') para calibrar o prompt
+        used_moments: intervalos já registrados para este vídeo. São enviados à IA como
+            bloqueados e filtrados novamente antes do retorno.
 
     Returns:
         Lista de dicts com {'start_time', 'end_time', 'score', 'reason'}, sem overlap.
@@ -554,6 +865,7 @@ def select_moments(
     is_longo = fmt == 'longo'
     system_prompt = get_system_prompt(fmt=fmt, niche=niche)
     max_moments = 1 if is_longo else 3
+    used_moments = used_moments or []
 
     lines = []
     transcript_duration = 0.0
@@ -566,8 +878,9 @@ def select_moments(
     transcript_text = '\n'.join(lines)
 
     # Groq free tier: limite efetivo de 8k tokens por minuto contando entrada e
-    # saída. O modo longo reserva 2048 tokens para o raciocínio/JSON; por isso
-    # mantém uma janela de 14k caracteres, em vez de estourar o TPM com 18k.
+    # saída. O modo longo reserva 1536 tokens para o raciocínio/JSON; por isso
+    # mantém uma janela de 14k caracteres sem pedir mais saída do que o TPM
+    # suporta.
     MAX_CHARS = 14000 if is_longo else 8000
     selector_max_tokens = (
         LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS if is_longo else SELECTOR_MAX_OUTPUT_TOKENS
@@ -590,11 +903,14 @@ def select_moments(
         _log('[SELECTOR] Transcrição vazia — sem momentos')
         return []
 
+    transcript_text = _append_used_moments_context(transcript_text, used_moments)
+
     def _finalize(moments: list[dict]) -> list[dict]:
         moments = _clamp_moment_bounds(moments, transcript_duration)
         moments = complete_moment_boundaries(moments, transcript.get('segments', []))
         if is_longo:
             moments = expand_longform_context(moments, transcript.get('segments', []))
+        moments = _remove_repeated_moments(moments, used_moments)
         result = _remove_overlaps(moments, max_count=max_moments)
         if is_longo:
             result = _enforce_longform_duration(result, transcript_duration)
@@ -607,6 +923,7 @@ def select_moments(
             result = _clamp_moment_bounds(result, transcript_duration)
             result = _enforce_longform_duration(result, transcript_duration)
             result = complete_moment_boundaries(result, transcript.get('segments', []))
+            result = _remove_repeated_moments(result, used_moments)
         else:
             result = _filter_shortform_duration(result)
         return result
@@ -682,7 +999,10 @@ def insert_selected_moments(conn, source_video_id: int, video_id: str, moments: 
     Returns:
         Número de momentos inseridos.
     """
-    filtered = _remove_overlaps(moments)
+    # Consulta novamente imediatamente antes do INSERT: a seleção pode ter
+    # demorado enquanto outro worker registrava um clip para o mesmo vídeo.
+    used_moments = fetch_used_moments(conn, source_video_id)
+    filtered = _remove_overlaps(_remove_repeated_moments(moments, used_moments))
     destination_channel_id = _lookup_destination_channel_id(conn, source_video_id)
 
     inserted = 0

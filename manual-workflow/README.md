@@ -4,7 +4,7 @@ Guia de operação manual para postagem de clipes enquanto o upload automático 
 
 ## Pré-requisitos
 
-- Docker rodando com os serviços `clip-processor` e `mysql`
+- Docker rodando com os serviços `clip-processor` e `postgres`
 - Acesso ao YouTube Studio (conta "Futebol em Cortes")
 - Variável `CLIPS_DB_PASSWORD` configurada no `.env`
 
@@ -31,11 +31,11 @@ Os clipes ficam no volume Docker. Para acessar localmente:
 
 ```bash
 # Ver o volume montado
-docker inspect clip-processor | grep -A5 Mounts
+docker compose ps clip-processor
 
 # Copiar clip para pasta local (substitua o ID)
-docker cp clip-processor:/app/videos/clips/<arquivo>.mp4 ~/Desktop/
-docker cp clip-processor:/app/videos/thumbnails/<arquivo>.jpg ~/Desktop/
+docker compose cp clip-processor:/app/videos/clips/<arquivo>.mp4 ~/Desktop/
+docker compose cp clip-processor:/app/videos/thumbnails/<arquivo>.jpg ~/Desktop/
 ```
 
 ### 3. Revisar o clipe
@@ -113,14 +113,10 @@ Se o corte ficou ruim (corte no meio de frase, legenda errada), marque como falh
 
 ### Download não aconteceu automaticamente
 
-O step de download ainda não está conectado ao loop automaticamente. Para forçar o processamento:
+Para forçar o processamento de um lote específico:
 
 ```bash
-docker exec clip-processor python -c "
-from src.downloader import download_video
-from src.db import get_connection
-# ver manual-workflow/force-download.sh
-"
+./manual-workflow/force-download.sh --limit 3
 ```
 
 Veja `force-download.sh` para o comando completo.

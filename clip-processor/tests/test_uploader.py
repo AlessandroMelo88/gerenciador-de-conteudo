@@ -146,8 +146,8 @@ class TestUploadClip:
 
         yt.thumbnails.return_value.set.assert_called_once()
 
-    def test_thumbnail_failure_propagates(self, tmp_path):
-        """Falha no upload da thumbnail deve ser propagada ao caller."""
+    def test_thumbnail_permission_failure_keeps_video_published(self, tmp_path):
+        """403 na thumbnail não pode gerar retry/duplicata do vídeo."""
         import googleapiclient.errors
 
         clip_file = tmp_path / 'clip.mp4'
@@ -157,7 +157,38 @@ class TestUploadClip:
 
         yt = make_youtube_mock('thumb_fail_vid')
         yt.thumbnails.return_value.set.return_value.execute.side_effect = (
-            googleapiclient.errors.HttpError(MagicMock(status=400), b'error')
+            googleapiclient.errors.HttpError(MagicMock(status=403), b'forbidden')
+        )
+
+        uploader = YouTubeUploader(
+            token_file='/fake/token.json',
+            youtube_factory=lambda creds: yt,
+        )
+        uploader._load_credentials = lambda: MagicMock(expired=False)
+
+        with patch('src.uploader.MediaFileUpload'):
+            result = uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Clip thumb fail',
+                    'thumbnail_path': str(thumb_file),
+                }
+            )
+
+        assert result == 'thumb_fail_vid'
+
+    def test_thumbnail_non_permission_failure_propagates(self, tmp_path):
+        """Erros de thumbnail que não sejam permissão continuam visíveis."""
+        import googleapiclient.errors
+
+        clip_file = tmp_path / 'clip.mp4'
+        clip_file.write_bytes(b'fake_mp4')
+        thumb_file = tmp_path / 'thumb.jpg'
+        thumb_file.write_bytes(b'fake_jpg')
+
+        yt = make_youtube_mock('thumb_bad_request_vid')
+        yt.thumbnails.return_value.set.return_value.execute.side_effect = (
+            googleapiclient.errors.HttpError(MagicMock(status=400), b'bad request')
         )
 
         uploader = YouTubeUploader(
@@ -171,7 +202,7 @@ class TestUploadClip:
                 uploader.upload_clip(
                     {
                         'clip_path': str(clip_file),
-                        'title': 'Clip thumb fail',
+                        'title': 'Clip thumb bad request',
                         'thumbnail_path': str(thumb_file),
                     }
                 )
@@ -208,13 +239,13 @@ class TestUploadClip:
         assert 'futebol' in tags_in_body
         assert 'gol' in tags_in_body
 
-    def test_privacy_status_from_env(self, tmp_path, monkeypatch):
-        """YOUTUBE_PRIVACY_STATUS do env deve ser usado no upload."""
-        monkeypatch.setenv('YOUTUBE_PRIVACY_STATUS', 'public')
+    def test_default_privacy_status_is_public(self, tmp_path, monkeypatch):
+        """Quando YOUTUBE_PRIVACY_STATUS não está setado, default é public."""
+        monkeypatch.delenv('YOUTUBE_PRIVACY_STATUS', raising=False)
         clip_file = tmp_path / 'clip.mp4'
         clip_file.write_bytes(b'fake_mp4')
 
-        yt = make_youtube_mock('public_vid')
+        yt = make_youtube_mock('default_pub_vid')
         uploader = YouTubeUploader(
             token_file='/fake/token.json',
             youtube_factory=lambda creds: yt,
@@ -225,12 +256,36 @@ class TestUploadClip:
             uploader.upload_clip(
                 {
                     'clip_path': str(clip_file),
-                    'title': 'Public clip',
+                    'title': 'Default public clip',
                 }
             )
 
         call_kwargs = yt.videos.return_value.insert.call_args[1]
         assert call_kwargs['body']['status']['privacyStatus'] == 'public'
+
+    def test_privacy_status_from_env(self, tmp_path, monkeypatch):
+        """YOUTUBE_PRIVACY_STATUS do env deve ser usado no upload quando configurado."""
+        monkeypatch.setenv('YOUTUBE_PRIVACY_STATUS', 'unlisted')
+        clip_file = tmp_path / 'clip.mp4'
+        clip_file.write_bytes(b'fake_mp4')
+
+        yt = make_youtube_mock('unlisted_vid')
+        uploader = YouTubeUploader(
+            token_file='/fake/token.json',
+            youtube_factory=lambda creds: yt,
+        )
+        uploader._load_credentials = lambda: MagicMock(expired=False)
+
+        with patch('src.uploader.MediaFileUpload'):
+            uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Unlisted clip',
+                }
+            )
+
+        call_kwargs = yt.videos.return_value.insert.call_args[1]
+        assert call_kwargs['body']['status']['privacyStatus'] == 'unlisted'
 
 
 # ---------------------------------------------------------------------------

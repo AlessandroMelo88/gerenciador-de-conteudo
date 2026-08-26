@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SourceVideo extends Model
 {
@@ -18,8 +20,9 @@ class SourceVideo extends Model
         'channel_id',
         'title',
         'published_at',
-        'status',
         'local_path',
+        'transcript_path',
+        'format',
         'priority',
         'paused',
         'queue_position',
@@ -32,12 +35,14 @@ class SourceVideo extends Model
         'queue_position' => 'integer',
     ];
 
-    public function sourceChannel()
+    /** @return BelongsTo<SourceChannel, $this> */
+    public function sourceChannel(): BelongsTo
     {
         return $this->belongsTo(SourceChannel::class, 'channel_id');
     }
 
-    public function generatedClips()
+    /** @return HasMany<GeneratedClip, $this> */
+    public function generatedClips(): HasMany
     {
         return $this->hasMany(GeneratedClip::class, 'source_video_id');
     }

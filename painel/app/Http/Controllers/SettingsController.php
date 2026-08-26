@@ -56,7 +56,7 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', Password::min(8), 'confirmed'],
+            'password' => ['required', Password::min(10), 'confirmed'],
         ]);
 
         Auth::user()->update(['password' => Hash::make($data['password'])]);

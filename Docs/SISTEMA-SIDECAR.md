@@ -13,10 +13,10 @@ Verificado no código em **13/08/2026**.
 
 ## A regra
 
-- Para **ler**, o painel vai direto na fonte (MySQL, Redis, disco).
+- Para **ler**, o painel vai direto na fonte (PostgreSQL, Redis, disco).
 - Para **agir sobre disco ou processo**, o painel **nunca** toca o filesystem do pipeline — chama o
   sidecar HTTP em `clip-processor:8090`.
-- **Exceção:** transição de status simples o painel escreve direto no MySQL (ex.: `approve()` faz
+- **Exceção:** transição de status simples o painel escreve direto no PostgreSQL (ex.: `approve()` faz
   `UPDATE generated_clips SET status='approved'`).
 
 Isso substituiu o padrão anterior de `docker exec` / socket do Docker.
@@ -107,7 +107,7 @@ linha de `source_videos`**, e só por data (`before_date`).
 **Também apaga as chaves Redis `video:<id>` de dedup**
 ([`:220`](../clip-processor/src/internal_api.py#L220)). Consequência: os vídeos purgados deixam de
 estar "vistos" e **voltam a ser inseridos como `pending`** no próximo poll RSS. Não voltam a baixar
-(`FRESHNESS_DAYS=1` barra publicado antes de ontem), mas o contador de backlog reenche.
+(`FRESHNESS_DAYS` barra vídeos publicados antes da janela configurada), mas o contador de backlog reenche.
 
 Purgar trata o sintoma; a causa é o RSS ingerir mais do que a janela consome.
 

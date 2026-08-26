@@ -1,6 +1,11 @@
 from unittest.mock import MagicMock
 
-from src.media_assets import choose_media_asset, resolve_media_assets
+import src.media_assets as media_assets
+from src.media_assets import (
+    choose_media_asset,
+    resolve_filesystem_media_assets,
+    resolve_media_assets,
+)
 
 
 def test_choose_media_asset_prefers_channel_and_format_scope():
@@ -65,9 +70,57 @@ def test_resolve_media_assets_rolls_back_optional_table_failure():
     result = resolve_media_assets(
         conn,
         destination_channel_id=None,
-        video_format='longo',
+        video_format='curto',
         clip_id=84,
     )
 
     assert result == {}
     assert conn.rollback.call_count == 3
+
+
+def test_resolve_filesystem_assets_prefers_video_and_rotates_audio(tmp_path, monkeypatch):
+    channels_root = tmp_path / 'channels'
+    audio_root = tmp_path / 'audio'
+    channel_root = channels_root / 'hacker-libertario'
+    channel_root.mkdir(parents=True)
+    audio_root.mkdir()
+
+    for filename in ('intro.mp4', 'intro.jpg', 'encerramento.mp4', 'encerramento.jpg'):
+        (channel_root / filename).write_bytes(b'asset')
+    (audio_root / 'a.wav').write_bytes(b'audio')
+
+    monkeypatch.setattr(media_assets, 'ASSETS_ROOT', tmp_path)
+    monkeypatch.setattr(media_assets, 'CHANNELS_ROOT', channels_root)
+    monkeypatch.setattr(media_assets, 'AUDIO_ROOT', audio_root)
+
+    result = resolve_filesystem_media_assets(
+        channel_slug='hacker-libertario',
+        video_format='longo',
+        clip_id=0,
+    )
+
+    assert result['intro']['absolute_path'] == str(channel_root / 'intro.mp4')
+    assert result['outro']['absolute_path'] == str(channel_root / 'encerramento.mp4')
+    assert result['music']['absolute_path'] == str(audio_root / 'a.wav')
+
+
+def test_resolve_filesystem_assets_uses_images_when_video_is_missing(tmp_path, monkeypatch):
+    channels_root = tmp_path / 'channels'
+    channel_root = channels_root / 'canal'
+    channel_root.mkdir(parents=True)
+    (channel_root / 'intro.jpg').write_bytes(b'intro')
+    (channel_root / 'encerramento.jpg').write_bytes(b'outro')
+
+    monkeypatch.setattr(media_assets, 'ASSETS_ROOT', tmp_path)
+    monkeypatch.setattr(media_assets, 'CHANNELS_ROOT', channels_root)
+    monkeypatch.setattr(media_assets, 'AUDIO_ROOT', tmp_path / 'audio-inexistente')
+
+    result = resolve_filesystem_media_assets(
+        channel_slug='canal',
+        video_format='curto',
+        clip_id=0,
+    )
+
+    assert result['intro']['absolute_path'] == str(channel_root / 'intro.jpg')
+    assert result['outro']['absolute_path'] == str(channel_root / 'encerramento.jpg')
+    assert 'music' not in result

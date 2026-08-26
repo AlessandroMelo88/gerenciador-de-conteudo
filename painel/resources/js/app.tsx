@@ -1,3 +1,4 @@
+// oxlint-disable-next-line import/no-unassigned-import -- Vite entrypoint loads global CSS as a side effect.
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/react';

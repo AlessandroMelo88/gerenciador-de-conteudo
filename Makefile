@@ -6,14 +6,15 @@ SHELL := /bin/bash
 
 PY_DIR    := clip-processor
 PANEL_DIR := painel
-VENV      ?= .venv                      # relativo a clip-processor/
+VENV      ?= .venv
 RUFF      ?= $(VENV)/bin/ruff
 MYPY      ?= $(VENV)/bin/mypy
 PYTEST    ?= $(VENV)/bin/pytest
-YAMLLINT  ?= $(PY_DIR)/$(VENV)/bin/yamllint  # relativo à raiz
-PYTHON    ?= python3
+YAMLLINT  ?= $(PY_DIR)/$(VENV)/bin/yamllint
+PYTHON    ?= python
+ASDF      ?= asdf
 
-.PHONY: help setup setup-python setup-panel hooks \
+.PHONY: help setup setup-asdf setup-python setup-panel hooks \
         lint lint-python lint-php lint-js lint-shell lint-yaml lint-docker \
         format format-python format-php format-js \
         test test-python test-php types-python types-js \
@@ -26,17 +27,22 @@ help: ## Lista os alvos disponíveis
 # ------------------------------------------------------------------ setup
 setup: setup-python setup-panel ## Instala dependências de dev (venv Python, composer, npm)
 
+setup-asdf: ## Instala as versões fixadas em .tool-versions
+	@command -v $(ASDF) >/dev/null 2>&1 || { echo "asdf não encontrado — instale o asdf e os plugins python, nodejs e php"; exit 1; }
+	$(ASDF) install
+
 setup-python: ## Cria clip-processor/.venv com requirements-dev.txt
+	@$(PYTHON) -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else "Python 3.12+ é obrigatório; encontrado " + sys.version.split()[0])'
 	cd $(PY_DIR) && $(PYTHON) -m venv $(VENV) && $(VENV)/bin/pip install -q -r requirements-dev.txt
 
 setup-panel: ## composer install + npm ci no painel
 	cd $(PANEL_DIR) && composer install --no-interaction --prefer-dist && npm ci
 
-hooks: ## Instala os hooks do pre-commit (pip install pre-commit antes)
+hooks: ## Instala os hooks do pre-commit (incluído no requirements-dev)
 	pre-commit install --install-hooks
 
 # ------------------------------------------------------------------- lint
-lint: lint-python lint-php lint-js lint-shell lint-yaml ## Todos os linters, sem alterar arquivos
+lint: lint-python types-python lint-php lint-js lint-shell lint-yaml lint-docker ## Todos os linters, sem alterar arquivos
 
 lint-python: ## ruff check + ruff format --check (clip-processor)
 	cd $(PY_DIR) && $(RUFF) check . && $(RUFF) format --check .
@@ -70,7 +76,7 @@ format-js: ## prettier --write + oxlint --fix
 	cd $(PANEL_DIR) && npm run format && npm run lint:fix
 
 # ------------------------------------------------------------------ types
-types-python: ## mypy (informativo: não bloqueia CI ainda)
+types-python: ## mypy (verificação de tipos bloqueante)
 	cd $(PY_DIR) && $(MYPY)
 
 types-js: ## tsc --noEmit
@@ -82,8 +88,10 @@ test: test-python test-php ## Suítes Python e PHP
 test-python: ## pytest do clip-processor (host, via venv)
 	cd $(PY_DIR) && $(PYTEST) -q
 
-test-php: ## Pest do painel (exige MySQL/Redis acessíveis — ver DESENVOLVIMENTO.md)
-	cd $(PANEL_DIR) && php artisan test
+test-php: ## Pest do painel no container (usa vendor de desenvolvimento do host)
+	docker compose run --rm --no-deps \
+		-v "$(CURDIR)/painel/vendor:/var/www/html/painel/vendor" \
+		php php artisan test
 
 # ------------------------------------------------------------------ infra
 compose-check: ## Valida docker-compose.yml com o .env atual
@@ -99,3 +107,5 @@ changelog-release: ## make changelog-release VERSION=v0.2.0 — move fragmentos 
 
 # --------------------------------------------------------------------- ci
 ci: lint test-python ## O que o GitHub Actions roda (sem os testes PHP, que precisam de banco)
+	@$(MAKE) compose-check lint-docker
+	cd $(PANEL_DIR) && npm run build

@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import { ArrowUpIcon, CalendarIcon, CheckCircle2Icon, ShieldAlertIcon, SparklesIcon, Trash2Icon } from 'lucide-react';
 
 import { ConfirmButton } from '@/components/confirm-button';
-import { VideoSummaryCards, StorageMetrics, DownloadWindowMetrics } from '@/components/video-summary-cards';
+import type { StorageMetrics, DownloadWindowMetrics } from '@/components/video-summary-cards';
+import { VideoSummaryCards } from '@/components/video-summary-cards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -72,6 +73,14 @@ const USO_BADGE: Record<string, string> = {
     'Em uso': 'secondary',
 };
 
+function dateDaysAgo(days: number): string {
+    return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+}
+
+function today(): string {
+    return new Date().toISOString().slice(0, 10);
+}
+
 function applyFilters(patch: Record<string, unknown>, current: PageProps['filters']) {
     router.get(
         '/painel/videos',
@@ -82,12 +91,11 @@ function applyFilters(patch: Record<string, unknown>, current: PageProps['filter
 
 function PurgeOldDialog() {
     const [open, setOpen] = useState(false);
-    const defaultDate = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
-    const [beforeDate, setBeforeDate] = useState(defaultDate);
+    const [todayDate] = useState(today);
+    const [beforeDate, setBeforeDate] = useState(() => dateDaysAgo(3));
 
     const setQuickDays = (days: number) => {
-        const d = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
-        setBeforeDate(d);
+        setBeforeDate(dateDaysAgo(days));
     };
 
     return (
@@ -173,7 +181,7 @@ function PurgeOldDialog() {
                             id="before_date"
                             type="date"
                             value={beforeDate}
-                            max={new Date().toISOString().slice(0, 10)}
+                            max={todayDate}
                             onChange={(e) => setBeforeDate(e.target.value)}
                         />
                     </Field>

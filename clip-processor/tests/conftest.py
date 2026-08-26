@@ -25,7 +25,7 @@ def mock_redis():
 
 @pytest.fixture
 def mock_db_conn():
-    """MagicMock simulando conexão pymysql com suporte a context manager em cursor().
+    """MagicMock simulando conexão psycopg2 com suporte a context manager em cursor().
 
     Uso:
         with conn.cursor() as cur:

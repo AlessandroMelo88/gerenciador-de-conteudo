@@ -6,7 +6,7 @@ o índice de toda a documentação, em [`Docs/README.md`](Docs/README.md).
 ## Antes de qualquer coisa
 
 1. Leia `Docs/README.md` e `CLAUDE.md` (regras de operação destrutiva — valem para pessoas e agentes).
-2. `make setup && make hooks`.
+2. `make setup-asdf`, `make setup` e `make hooks`.
 
 ## Branches
 

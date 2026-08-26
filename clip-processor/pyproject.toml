@@ -49,7 +49,7 @@ quote-style = "single"
 docstring-code-format = true
 
 # ---------------------------------------------------------------------------
-# mypy — verificação de tipos, hoje informativa (ver Docs/DESENVOLVIMENTO.md)
+# mypy — verificação de tipos bloqueante (ver Docs/DESENVOLVIMENTO.md)
 # ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.12"

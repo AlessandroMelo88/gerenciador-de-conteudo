@@ -227,8 +227,22 @@ function VideoTable({
     selected: number[];
     onToggleSelect: (id: number) => void;
 }) {
-    const [items, setItems] = useState(videos);
-    useEffect(() => setItems(videos), [videos]);
+    const [orderedIds, setOrderedIds] = useState<number[] | null>(null);
+    const items = useMemo(() => {
+        if (!sortable || orderedIds === null) {
+            return videos;
+        }
+
+        const videosById = new Map(videos.map((video) => [video.id, video]));
+        const orderedItems = orderedIds.flatMap((id) => {
+            const video = videosById.get(id);
+            return video ? [video] : [];
+        });
+        const orderedIdSet = new Set(orderedIds);
+        const newItems = videos.filter((video) => !orderedIdSet.has(video.id));
+
+        return [...orderedItems, ...newItems];
+    }, [videos, sortable, orderedIds]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -242,7 +256,7 @@ function VideoTable({
         const newIndex = items.findIndex((v) => v.id === over.id);
         if (oldIndex < 0 || newIndex < 0) return;
         const next = arrayMove(items, oldIndex, newIndex);
-        setItems(next);
+        setOrderedIds(next.map((video) => video.id));
         onReorder?.(next.map((v) => v.id));
     }
 

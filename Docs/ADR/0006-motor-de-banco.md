@@ -1,27 +1,42 @@
 # ADR-0006 — Motor de banco do pipeline
 
-**Status:** em andamento (não decidido neste documento) · **Data:** 25/08/2026
+**Status:** aceito · **Data:** 26/08/2026
 
 ## Contexto
 
-O pipeline nasceu em MySQL 8.4 (`mysql/init/*.sql`, `pymysql` no daemon, `pdo_mysql` no painel).
-O `README.md` de 25/08/2026 afirma explicitamente "MySQL 8.4, não PostgreSQL" e proíbe SQLite pelas
-escritas concorrentes de painel, fila e worker.
+O pipeline compartilhava o MySQL legado com o painel e dependia de SQL de bootstrap separado das
+migrations. Isso duplicava a definição do schema, dificultava `migrate:fresh`/CI e mantinha o daemon,
+o painel e os scripts operacionais com contratos diferentes.
 
-No mesmo dia, uma frente de trabalho paralela começou a migrar o daemon e o painel para
-**PostgreSQL** (`psycopg2`, `RETURNING id`, `COUNT(*) FILTER`, booleanos `TRUE/FALSE`,
-`postgres/init/`, `scripts/*-postgres.sh`, `config/database.php` com default `pgsql`). Esse trabalho
-ainda não estava commitado quando este ADR foi escrito.
+## Decisão
 
-## O que precisa constar aqui quando a decisão fechar
+O runtime usa **PostgreSQL 16** como banco único do painel Laravel e do `clip-processor`:
 
-- Motivação concreta (o que o MySQL não atendia).
-- Plano de migração de dados (`scripts/migrate-mysql-to-postgres.py`) e de rollback.
-- Impacto nas regras operacionais de `CLAUDE.md` (backups, FKs sem cascade, `DELETE` em massa) e
-  no `RUNBOOK.md` (backup/restore passam a ser `pg_dump`/`psql`).
-- Atualização de ADR-0004 (os `mysql/init` deixam de ser a fonte do schema) e do CI (`php-tests`
-  usa serviço MySQL e aplica `mysql/init/*.sql`).
-- Confirmação de que a suíte Python passa com o novo driver (em 25/08/2026 ela falhava na coleta no
-  host por `psycopg2` ausente no venv).
+- Laravel usa `pgsql`/`pdo_pgsql`; Python usa `psycopg2`.
+- O serviço `panel-init` executa as migrations antes de iniciar PHP, fila e scheduler.
+- Backups e restaurações usam `pg_dump`/`psql`, com checksum SHA-256 e confirmação explícita para
+  restaurações.
+- O utilitário [`scripts/migrations/migrate-mysql-to-postgres.py`](../../scripts/migrations/migrate-mysql-to-postgres.py)
+  é uma ponte única para dados existentes: exige confirmação, preserva IDs, recalibra sequences e
+  não apaga a origem.
+- FKs continuam sem `ON DELETE CASCADE`; remoções operacionais devem validar dependências e cruzar
+  banco com disco antes de apagar arquivos.
 
-Até lá, `README.md`, `ARCHITECTURE.md` e `BANCO-DE-DADOS.md` descrevem o MySQL, que é o que roda.
+## Consequências
+
+- O Compose é autocontido e não publica PostgreSQL nem Redis no host.
+- O schema do pipeline e o schema do painel podem ser recriados juntos em banco descartável.
+- A migração exige janela operacional, backup validado e conferência de contagens antes do cutover.
+- As imagens do painel precisam ser reconstruídas quando migrations ou código Laravel mudarem; o
+  worker também precisa de rebuild quando `clip-processor/src` mudar.
+
+## Rollback
+
+Em caso de falha, interromper os consumidores, restaurar o último backup PostgreSQL validado com
+`scripts/restore-postgres.sh` e manter a origem MySQL intacta até a validação pós-cutover. Não usar
+`docker compose down -v` como mecanismo de rollback.
+
+## Relação com outras decisões
+
+Este ADR substitui a decisão de motor implícita em ADR-0001 e a estratégia de schema registrada em
+ADR-0004. A regra específica de ownership por migrations está detalhada no ADR-0007.

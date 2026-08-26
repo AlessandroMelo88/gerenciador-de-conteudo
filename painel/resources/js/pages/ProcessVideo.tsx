@@ -58,13 +58,14 @@ export default function ProcessVideo() {
                                     <div className="flex items-center gap-2">
                                         <RadioGroupItem value="curto" id="curto" />
                                         <Label htmlFor="curto">
-                                            Curto (shorts — vários momentos de 15s a 3min, vertical)
+                                            Curto (Shorts — vários momentos de 30s a 3min, vertical, com legendas)
                                         </Label>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <RadioGroupItem value="longo" id="longo" />
                                         <Label htmlFor="longo">
-                                            Longo (1 segmento de 10 a 20min — análise/entrevista, horizontal)
+                                            Longo (1 segmento de 7 a 20min — análise/entrevista, horizontal, sem
+                                            legendas)
                                         </Label>
                                     </div>
                                 </RadioGroup>

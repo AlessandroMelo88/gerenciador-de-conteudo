@@ -1,6 +1,6 @@
 """Worker de TTL para clipes pending (CTRL-05).
 
-- Expira: clipes com status='pending' e created_at < NOW() - INTERVAL TTL_HOURS HOUR → 'rejected'.
+- Expira: clipes com status='pending' e created_at < NOW() - TTL_HOURS horas → 'rejected'.
 - Avisa: clipes na janela [WARN_HOURS, TTL_HOURS) recebem 1 aviso via Laravel/Telegram
   (idempotente via Redis SET NX com TTL=24h).
 
@@ -10,13 +10,13 @@ Exporta:
   - TTL_HOURS, WARN_HOURS (constantes module-level)
   - run_ttl_once(conn=None, redis_client=None) -> dict
 """
+
 import os
 
 import redis
 
 from src.db import get_db_connection
 from src.telegram_notifier import notify
-
 
 TTL_HOURS = int(os.getenv('CLIP_PENDING_TTL_HOURS', '48'))
 WARN_HOURS = int(os.getenv('CLIP_PENDING_WARN_HOURS', '24'))
@@ -27,7 +27,7 @@ def run_ttl_once(conn=None, redis_client=None) -> dict:
     """Executa 1 iteração do TTL: expira clipes >TTL_HOURS, avisa clipes WARN_HOURS-TTL_HOURS.
 
     Args:
-        conn: conexão MySQL (DictCursor). Se None, cria nova e fecha ao final.
+        conn: conexão PostgreSQL (RealDictCursor). Se None, cria nova e fecha ao final.
         redis_client: cliente Redis. Se None, cria a partir das envs REDIS_HOST/REDIS_PORT.
 
     Returns:
@@ -49,7 +49,7 @@ def run_ttl_once(conn=None, redis_client=None) -> dict:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE generated_clips SET status='rejected' "
-                "WHERE status='pending' AND created_at < NOW() - INTERVAL %s HOUR",
+                "WHERE status='pending' AND created_at < NOW() - (%s * INTERVAL '1 hour')",
                 (TTL_HOURS,),
             )
             expired_count = cur.rowcount
@@ -57,17 +57,17 @@ def run_ttl_once(conn=None, redis_client=None) -> dict:
             # consumido no contrato dos testes — fetchall slot 'expire query').
             try:
                 cur.fetchall()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         conn.commit()
 
         # 2) Listar clipes a ponto de expirar (entre WARN_HOURS e TTL_HOURS)
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, title FROM generated_clips "
+                'SELECT id, title FROM generated_clips '
                 "WHERE status='pending' "
-                "AND created_at < NOW() - INTERVAL %s HOUR "
-                "AND created_at > NOW() - INTERVAL %s HOUR",
+                "AND created_at < NOW() - (%s * INTERVAL '1 hour') "
+                "AND created_at > NOW() - (%s * INTERVAL '1 hour')",
                 (WARN_HOURS, TTL_HOURS),
             )
             soon_to_expire = cur.fetchall()
@@ -77,11 +77,14 @@ def run_ttl_once(conn=None, redis_client=None) -> dict:
         for clip in soon_to_expire:
             key = f'clip_warned:{clip["id"]}'
             if redis_client.set(key, '1', nx=True, ex=WARN_TTL_SECONDS):
-                sent = notify('clip_ttl_warning', {
-                    'clip_id': clip['id'],
-                    'title': clip.get('title'),
-                    'expires_in_hours': TTL_HOURS - WARN_HOURS,
-                })
+                sent = notify(
+                    'clip_ttl_warning',
+                    {
+                        'clip_id': clip['id'],
+                        'title': clip.get('title'),
+                        'expires_in_hours': TTL_HOURS - WARN_HOURS,
+                    },
+                )
                 if sent:
                     warned += 1
                 else:

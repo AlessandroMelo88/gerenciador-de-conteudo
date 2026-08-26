@@ -80,6 +80,10 @@ class SourceChannelController extends Controller
 
     public function destroy(SourceChannel $sourceChannel): RedirectResponse
     {
+        if ($sourceChannel->sourceVideos()->exists()) {
+            return back()->with('error', 'Canal-fonte possui vídeos e não pode ser apagado');
+        }
+
         $sourceChannel->delete();
 
         return back()->with('success', 'Canal-fonte apagado');

@@ -14,7 +14,7 @@ const CHAIN = [
     'Baixa',
     'Transcreve',
     'IA seleciona momentos',
-    "Corta + legenda + marca d'água",
+    "Corta + pós-produção por formato + marca d'água",
 ];
 
 export default function Documentation() {
@@ -65,8 +65,8 @@ export default function Documentation() {
                                         canal-destino, e o limite diário.
                                     </li>
                                     <li>
-                                        <strong>Fila de aprovação</strong> — clips prontos, cortados e com legenda,
-                                        esperando você aprovar ou rejeitar.
+                                        <strong>Fila de aprovação</strong> — clips prontos e cortados, esperando você
+                                        aprovar ou rejeitar; Shorts recebem legenda e vídeos longos não.
                                     </li>
                                     <li>
                                         <strong>Na fila (aguardando cota)</strong> — já aprovados, publicando sozinhos
@@ -156,8 +156,8 @@ export default function Documentation() {
                                     </li>
                                     <li>
                                         O formato curto/longo é decidido automaticamente pela duração de cada vídeo
-                                        (≥10min vira longo horizontal, senão vira até 3 shorts verticais) — não é
-                                        escolhido por canal.
+                                        (≥7min vira longo horizontal sem legendas; senão vira até 3 shorts verticais com
+                                        legendas) — não é escolhido por canal.
                                     </li>
                                 </ul>
                             </div>

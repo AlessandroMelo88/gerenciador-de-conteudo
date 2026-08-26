@@ -1,8 +1,5 @@
-"""
-pipeline_runner.py — Uma execucao completa do pipeline.
+"""Execução dos ciclos de ingestão e publicação do pipeline."""
 
-Usado pelo daemon e pelo workflow n8n.
-"""
 import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -11,12 +8,10 @@ import redis as redis_lib
 
 from src.db import get_db_connection, update_status
 from src.downloader import VIDEOS_DIR, cleanup_stale_downloads, download_video
-from src.queue_controls import _CLIP_STATUSES_NEED_RAW, _cleanup_partial
 from src.publisher import publish_pending_clips
+from src.queue_controls import _CLIP_STATUSES_NEED_RAW, _cleanup_partial
 from src.rss_poller import poll_all_channels
 from src.telegram_notifier import notify
-from src.uploader import YouTubeUploader
-
 
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
@@ -35,10 +30,8 @@ def _log(msg: str) -> None:
 DOWNLOAD_WINDOW_CURTO = int(os.environ.get('DOWNLOAD_WINDOW_CURTO', 6))
 DOWNLOAD_WINDOW_LONGO = int(os.environ.get('DOWNLOAD_WINDOW_LONGO', 4))
 
-# Só entra na janela vídeo publicado há no máximo esse tanto de dias — mesmo
-# com vaga livre e backlog represado, notícia velha nunca é baixada; evita
-# gastar disco/banda com conteúdo que não vai mais fazer sentido postar.
-FRESHNESS_DAYS = 1
+# Janela de frescor (em dias) para considerar vídeos na fila de download automático.
+FRESHNESS_DAYS = int(os.environ.get('FRESHNESS_DAYS', 365))
 
 
 def _select_pending_videos(db_conn) -> list:
@@ -53,7 +46,7 @@ def _select_pending_videos(db_conn) -> list:
     """
     cutoff_date = (datetime.now(SAO_PAULO_TZ) - timedelta(days=FRESHNESS_DAYS)).date()
 
-    result = []
+    result: list[str] = []
     for fmt, window in (('longo', DOWNLOAD_WINDOW_LONGO), ('curto', DOWNLOAD_WINDOW_CURTO)):
         with db_conn.cursor() as cur:
             cur.execute(
@@ -74,9 +67,9 @@ def _select_pending_videos(db_conn) -> list:
 
         with db_conn.cursor() as cur:
             cur.execute(
-                "SELECT youtube_video_id FROM source_videos "
-                "WHERE status = 'pending' AND paused = 0 AND format = %s "
-                "AND DATE(published_at) >= %s "
+                'SELECT youtube_video_id FROM source_videos '
+                "WHERE status = 'pending' AND paused = FALSE AND format = %s "
+                'AND DATE(published_at) >= %s '
                 'ORDER BY priority DESC, '
                 'queue_position IS NULL, queue_position ASC, '
                 'published_at DESC LIMIT %s',
@@ -211,19 +204,25 @@ def run_pipeline_once(db_conn=None, redis_client=None):
         except Exception as exc:
             _log(f'ERRO em poll_all_channels: {exc}')
             # Phase 6 (CTRL-06): notifica Telegram em falha crítica de estágio.
-            notify('pipeline_failure', {
-                'stage': 'poll_all_channels',
-                'error_msg': str(exc)[:500],
-            })
+            notify(
+                'pipeline_failure',
+                {
+                    'stage': 'poll_all_channels',
+                    'error_msg': str(exc)[:500],
+                },
+            )
 
         try:
             _download_pending_videos(db_conn)
         except Exception as exc:
             _log(f'ERRO em _download_pending_videos: {exc}')
-            notify('pipeline_failure', {
-                'stage': 'download_pending_videos',
-                'error_msg': str(exc)[:500],
-            })
+            notify(
+                'pipeline_failure',
+                {
+                    'stage': 'download_pending_videos',
+                    'error_msg': str(exc)[:500],
+                },
+            )
 
         try:
             publish_result = publish_pending_clips(
@@ -232,10 +231,13 @@ def run_pipeline_once(db_conn=None, redis_client=None):
             )
         except Exception as exc:
             _log(f'ERRO em publish_pending_clips: {exc}')
-            notify('pipeline_failure', {
-                'stage': 'publish_pending_clips',
-                'error_msg': str(exc)[:500],
-            })
+            notify(
+                'pipeline_failure',
+                {
+                    'stage': 'publish_pending_clips',
+                    'error_msg': str(exc)[:500],
+                },
+            )
 
         _log(f'Ciclo completo finalizado: {publish_result}')
         return publish_result
@@ -269,10 +271,13 @@ def run_publish_only(db_conn=None, redis_client=None):
         return result
     except Exception as exc:
         _log(f'ERRO em publish_pending_clips (ciclo isolado): {exc}')
-        notify('pipeline_failure', {
-            'stage': 'publish_pending_clips_standalone',
-            'error_msg': str(exc)[:500],
-        })
+        notify(
+            'pipeline_failure',
+            {
+                'stage': 'publish_pending_clips_standalone',
+                'error_msg': str(exc)[:500],
+            },
+        )
         return None
     finally:
         if own_db:
@@ -305,19 +310,25 @@ def run_ingest_cycle(db_conn=None, redis_client=None):
             poll_all_channels(db_conn=db_conn, redis_client=redis_client)
         except Exception as exc:
             _log(f'ERRO em poll_all_channels (ciclo ingest): {exc}')
-            notify('pipeline_failure', {
-                'stage': 'poll_all_channels',
-                'error_msg': str(exc)[:500],
-            })
+            notify(
+                'pipeline_failure',
+                {
+                    'stage': 'poll_all_channels',
+                    'error_msg': str(exc)[:500],
+                },
+            )
 
         try:
             _download_pending_videos(db_conn)
         except Exception as exc:
             _log(f'ERRO em _download_pending_videos (ciclo ingest): {exc}')
-            notify('pipeline_failure', {
-                'stage': 'download_pending_videos',
-                'error_msg': str(exc)[:500],
-            })
+            notify(
+                'pipeline_failure',
+                {
+                    'stage': 'download_pending_videos',
+                    'error_msg': str(exc)[:500],
+                },
+            )
 
         _log('Ciclo de ingestão finalizado')
     finally:

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from 'lucide-react';
 
@@ -35,6 +35,7 @@ export function NicheCombobox({
     const [newLabel, setNewLabel] = useState('');
     const [newSlug, setNewSlug] = useState('');
     const [creating, setCreating] = useState(false);
+    const listId = useId();
 
     const selected = niches.find((n) => n.slug === value);
 
@@ -64,6 +65,7 @@ export function NicheCombobox({
                         variant="outline"
                         role="combobox"
                         aria-expanded={open}
+                        aria-controls={listId}
                         className="w-full justify-between font-normal"
                     >
                         {selected ? selected.label : 'Selecione um nicho…'}
@@ -73,7 +75,7 @@ export function NicheCombobox({
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                     <Command>
                         <CommandInput placeholder="Buscar nicho…" />
-                        <CommandList>
+                        <CommandList id={listId}>
                             <CommandEmpty>Nenhum nicho encontrado.</CommandEmpty>
                             <CommandGroup>
                                 {niches.map((niche) => (

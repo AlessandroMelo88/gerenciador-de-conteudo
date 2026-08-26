@@ -1,6 +1,7 @@
 """
 queue_controls.py — Pause / resume / reorder / prioritize da fila de source_videos.
 """
+
 import os
 import subprocess
 from datetime import datetime
@@ -18,7 +19,9 @@ class PauseAborted(Exception):
     """Download/processo abortado porque o vídeo foi pausado."""
 
 
-def is_paused(conn, *, source_video_id: int | None = None, youtube_video_id: str | None = None) -> bool:
+def is_paused(
+    conn, *, source_video_id: int | None = None, youtube_video_id: str | None = None
+) -> bool:
     with conn.cursor() as cur:
         if source_video_id is not None:
             cur.execute('SELECT paused FROM source_videos WHERE id = %s', (source_video_id,))
@@ -45,7 +48,7 @@ def pause_video(source_video_id: int) -> dict:
             raise RuntimeError('source_video não encontrado')
 
         with conn.cursor() as cur:
-            cur.execute('UPDATE source_videos SET paused = 1 WHERE id = %s', (source_video_id,))
+            cur.execute('UPDATE source_videos SET paused = TRUE WHERE id = %s', (source_video_id,))
         conn.commit()
 
         status = row['status']
@@ -71,8 +74,7 @@ def pause_video(source_video_id: int) -> dict:
         # Clips em cutting: aborta FFmpeg e devolve pra pending_cut
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id FROM generated_clips "
-                "WHERE source_video_id = %s AND status = 'cutting'",
+                "SELECT id FROM generated_clips WHERE source_video_id = %s AND status = 'cutting'",
                 (source_video_id,),
             )
             cutting = cur.fetchall() or []
@@ -83,7 +85,7 @@ def pause_video(source_video_id: int) -> dict:
                     "UPDATE generated_clips SET status = 'pending_cut' WHERE id = %s AND status = 'cutting'",
                     (clip['id'],),
                 )
-            actions.append(f"clip_{clip['id']}_cut_aborted")
+            actions.append(f'clip_{clip["id"]}_cut_aborted')
         if cutting:
             conn.commit()
 
@@ -103,7 +105,7 @@ def resume_video(source_video_id: int) -> dict:
             raise RuntimeError('source_video não encontrado')
 
         with conn.cursor() as cur:
-            cur.execute('UPDATE source_videos SET paused = 0 WHERE id = %s', (source_video_id,))
+            cur.execute('UPDATE source_videos SET paused = FALSE WHERE id = %s', (source_video_id,))
         conn.commit()
         _log(f'resume video={source_video_id}')
         return {'paused': False, 'status': row['status']}
@@ -156,7 +158,7 @@ def can_delete_raw(conn, source_video_id: int) -> tuple[bool, str]:
     if not row:
         return False, 'source_video não encontrado'
     if row['status'] in ('downloading', 'cutting'):
-        return False, f"vídeo em uso agora (status={row['status']})"
+        return False, f'vídeo em uso agora (status={row["status"]})'
     with conn.cursor() as cur:
         placeholders = ', '.join(['%s'] * len(_CLIP_STATUSES_NEED_RAW))
         cur.execute(
@@ -172,6 +174,7 @@ def can_delete_raw(conn, source_video_id: int) -> tuple[bool, str]:
 def _cleanup_partial(youtube_video_id: str, videos_dir: str = '/app/videos') -> None:
     """Apaga o raw e os temporários de download de um vídeo (best-effort)."""
     import glob
+
     pattern = f'{videos_dir}/{youtube_video_id}*'
     for path in glob.glob(pattern):
         if os.path.exists(path):
@@ -189,7 +192,7 @@ def _kill_ytdlp_for(youtube_video_id: str) -> None:
             check=False,
             capture_output=True,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _log(f'AVISO: pkill yt-dlp falhou: {exc}')
     # YoutubeDL roda in-process — o progress_hook / retry check aborta o download.
 
@@ -207,5 +210,5 @@ def _kill_ffmpeg_for_clip(clip_id: int) -> None:
             check=False,
             capture_output=True,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _log(f'AVISO: pkill ffmpeg falhou: {exc}')

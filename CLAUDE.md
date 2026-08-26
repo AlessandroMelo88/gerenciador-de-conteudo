@@ -6,9 +6,8 @@ tarefa mora nesses arquivos, não no histórico de conversa.
 
 Arquitetura as-built: `ARCHITECTURE.md`. O painel é Inertia.js + React 19 + shadcn UI desde `dca6e44`.
 
-**Isolamento:** o `docker-compose.yml` da raiz `wordpress/` é compartilhado com outros projetos
-(kelnab, feeb, placebeads, riodelux, gringo). Mexer **apenas** no serviço `clip-processor` e nos
-paths sob `canaldecortes/`.
+**Isolamento:** o `docker-compose.yml` na raiz deste repositório é exclusivo do projeto. Não alterar
+Compose, containers ou volumes de outros projetos.
 
 ---
 
@@ -64,7 +63,9 @@ Preferir alvo específico a `prune` genérico.
 ### 5. Backup antes de DELETE em massa
 
 ```bash
-docker exec mysql mysqldump -uroot -p"$P" clips_automation source_videos generated_clips > backup.sql
+docker compose exec -T postgres sh -c \
+  'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+   --no-owner --no-privileges --table=source_videos --table=generated_clips' > backup.sql
 ```
 
 As FKs de `generated_clips` **não** têm `ON DELETE CASCADE` — apagar `source_videos` com clips
@@ -87,33 +88,34 @@ O raw de um vídeo ainda é necessário se algum clip dele está em `pending_cut
 
 ## Estados que não têm recuperação automática
 
-`recover_stuck_downloads` (`src/db.py:112`) só devolve `downloading` → `pending`. Não existe
-recuperação para `selecting`, `cutting` ou `publishing` — o que trava nesses estados fica preso
-para sempre e segura o arquivo em disco. Foi a causa do acúmulo que lotou o SSD.
+`recover_stuck_downloads` (`src/db.py:112`) devolve `downloading` → `pending`, e
+`recover_stuck_selecting` (`src/db.py:145`) trata seleções antigas. Ainda não existe recuperação
+automática para `transcribing`, `cutting` ou `publishing` — o que trava nesses estados precisa de
+avaliação manual e pode segurar o arquivo em disco.
 
 ---
 
 ## Reset de fila / limpar Redis — o que cada coisa faz
 
-Incidente 27/07/2026: nada subia desde 24/07. Cadeia: HD 99% cheio → MySQL caiu
-(`Can't connect to MySQL server ... Errno 111` em loop) → pipeline travou → clip ficou preso em
-`publishing` (estado sem recuperação, ver acima). Destravar exigiu: liberar disco, subir MySQL,
+Incidente 27/07/2026: nada subia desde 24/07. Cadeia: HD 99% cheio → banco caiu
+(`Connection refused` em loop) → pipeline travou → clip ficou preso em
+`publishing` (estado sem recuperação, ver acima). Destravar exigiu: liberar disco, subir PostgreSQL,
 apagar o clip travado e purgar o backlog.
 
-**A fila NÃO mora no Redis.** Fila = MySQL (`source_videos`, `generated_clips`). O Redis guarda só:
+**A fila NÃO mora no Redis.** Fila = PostgreSQL (`source_videos`, `generated_clips`). O Redis guarda só:
 
 - chaves `video:<id>` (TTL 30 dias) — marca "vídeo já visto" pra dedup;
 - contador de quota diária `youtube_uploads:<data>` (e `:<canal>` / `:<formato>`).
 
 Consequência que morde: **apagar as chaves `video:*` faz os vídeos deletados voltarem** no próximo
-poll RSS (deixam de estar "vistos"). Para purgar de vez, apagar as linhas do MySQL e **manter** as
+poll RSS (deixam de estar "vistos"). Para purgar de vez, apagar as linhas do PostgreSQL e **manter** as
 chaves dedup. Nunca `FLUSHALL` achando que "reseta a fila" — isso ressuscita todo o backlog e zera
 a quota junto.
 
 **Contador de quota travado ≠ fila travada.** Se o problema for só "não sobe mais hoje", conferir
 `youtube_uploads:<hoje>` no Redis; resetar só essa chave, não o dedup.
 
-**Filtro de frescor no download:** `pipeline_runner.py` (`FRESHNESS_DAYS=1`) só baixa `pending` com
+**Filtro de frescor no download:** `pipeline_runner.py` (`FRESHNESS_DAYS=365` por default) só baixa `pending` com
 `published_at` de hoje/ontem. Vídeo pendente mais velho que isso nunca baixa — fica em `pending`
 pra sempre sem ser lixo de verdade. Considerar isso antes de classificar `pending` antigo como
 backlog descartável.
@@ -134,7 +136,7 @@ esse buraco em outro lugar.
 
 **Editar código do clip-processor exige rebuild + restart** — não há bind mount pro `src/`, a
 imagem embute o código no build. `docker compose build clip-processor && docker compose up -d
-clip-processor` (isolado, não sobe mysql/redis nem outros projetos).
+clip-processor` (isolado, não sobe postgres/redis nem outros projetos).
 
 ## graphify
 

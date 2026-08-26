@@ -10,8 +10,10 @@ from unittest.mock import MagicMock
 from src.selector import (
     HACKER_LIBERTARIO_LONG_PROMPT,
     HACKER_LIBERTARIO_PROMPT,
+    LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS,
     LONG_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
+    complete_moment_boundaries,
     expand_longform_context,
     insert_selected_moments,
     select_moments,
@@ -35,6 +37,35 @@ SAMPLE_MOMENTS = [
 
 
 class TestSelectMoments:
+    def test_longform_groq_budget_stays_within_free_tier(self, monkeypatch):
+        """O seletor longo não deve pedir uma resposta que estoure o TPM do Groq."""
+        captured = {}
+
+        def fake_groq(transcript_text, system_prompt, *, max_tokens):
+            captured['max_tokens'] = max_tokens
+            return [
+                {
+                    'start_time': 0.0,
+                    'end_time': 420.0,
+                    'score': 9,
+                    'reason': 'Análise completa',
+                }
+            ]
+
+        monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+        monkeypatch.setattr('src.selector._select_via_groq', fake_groq)
+
+        select_moments(
+            {
+                'video_id': 'long001aaaa',
+                'text': 'Texto longo',
+                'segments': [{'start': 0.0, 'end': 600.0, 'text': 'Análise completa.'}],
+            },
+            fmt='longo',
+        )
+
+        assert captured['max_tokens'] == LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS
+
     def test_all_selection_prompts_detect_ads_and_complete_topics(self):
         """Todos os formatos delegam os limites de anúncios e assuntos à IA por vídeo."""
         prompts = (
@@ -56,10 +87,15 @@ class TestSelectMoments:
             assert 'assunto completo' in normalized
             assert 'conclusão' in normalized
             assert 'nunca corte' in normalized
+            assert 'não necessariamente frases completas' in normalized
+            assert 'é diferente de você fazer' in normalized
+            assert 'validação final obrigatória' in normalized
             assert '65s' not in normalized
             assert 'pesquise na internet' in normalized
             assert 'fake_news' in normalized
             assert 'positivo' in normalized and 'negativo' in normalized
+            assert 'anti-repetição' in normalized
+            assert 'histórico de trechos já utilizados' in normalized
 
     def test_returns_moments_list(self, sample_video_id):
         """AI-02: select_moments() retorna lista de dicts com start_time, end_time, score, reason."""
@@ -131,6 +167,32 @@ class TestSelectMoments:
         kwargs = call_args.kwargs if hasattr(call_args, 'kwargs') else call_args[1]
         user_content = kwargs['messages'][0]['content']
         assert '[0s-60s]' in user_content or '[0s-' in user_content
+
+    def test_used_moments_are_sent_to_ai_and_filtered_from_result(self, sample_video_id):
+        """A IA recebe o histórico e um intervalo já usado não volta no resultado."""
+        mock_anthropic = MagicMock()
+        response_moments = [
+            {'start_time': 0.0, 'end_time': 60.0, 'score': 10, 'reason': 'Trecho já publicado'},
+            {'start_time': 120.0, 'end_time': 180.0, 'score': 8, 'reason': 'Novo trecho'},
+        ]
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text=json.dumps({'moments': response_moments}))]
+        mock_anthropic.messages.create.return_value = mock_response
+
+        used_moments = [
+            {'start_time': 0.0, 'end_time': 60.0, 'status': 'published'},
+        ]
+        result = select_moments(
+            SAMPLE_TRANSCRIPT,
+            anthropic_client=mock_anthropic,
+            used_moments=used_moments,
+        )
+
+        user_content = mock_anthropic.messages.create.call_args.kwargs['messages'][0]['content']
+        assert 'HISTÓRICO DE TRECHOS JÁ UTILIZADOS NESTE VÍDEO' in user_content
+        assert '[0.00s-60.00s] status=published' in user_content
+        assert len(result) == 1
+        assert result[0]['start_time'] == 120.0
 
     def test_shortform_under_30s_discarded(self, sample_video_id):
         """Momentos abaixo de MIN_SHORTFORM_SECONDS (30s) são descartados no modo curto.
@@ -225,6 +287,43 @@ class TestSelectMoments:
 
         assert len(result) == 1
         assert result[0]['end_time'] == 578.08
+
+    def test_end_time_continues_past_incomplete_transcript_block(self):
+        """Uma oração que termina em vírgula avança até a continuação completa."""
+        moments = [{'start_time': 500.0, 'end_time': 536.519, 'score': 9}]
+        transcript_segments = [
+            {
+                'start': 534.120,
+                'end': 536.519,
+                'text': '>> Aham. que é diferente de você fazer,',
+            },
+            {
+                'start': 536.519,
+                'end': 538.480,
+                'text': 'faça um algoritmo, faça um pequeno',
+            },
+            {
+                'start': 538.480,
+                'end': 540.760,
+                'text': 'trecho. E aí eu fui rodar em todos eles.',
+            },
+        ]
+
+        result = complete_moment_boundaries(moments, transcript_segments)
+
+        assert result[0]['end_time'] == 540.760
+
+    def test_end_time_continues_when_next_block_starts_lowercase(self):
+        """Mesmo sem pontuação, a próxima linha minúscula revela continuação."""
+        moments = [{'start_time': 500.0, 'end_time': 546.720, 'score': 9}]
+        transcript_segments = [
+            {'start': 542.920, 'end': 546.720, 'text': 'RTX 5090 da Nvidia e que é a melhor'},
+            {'start': 546.720, 'end': 548.800, 'text': 'placa de vídeo que tem hoje no mercado.'},
+        ]
+
+        result = complete_moment_boundaries(moments, transcript_segments)
+
+        assert result[0]['end_time'] == 548.800
 
     def test_longform_context_includes_intro_and_natural_closing_pause(self):
         """O longo recua para o início da fala e avança até a pausa do assunto."""
@@ -357,6 +456,30 @@ class TestInsertMoments:
 
         # Apenas 1 momento deve ser inserido (o de score 8)
         assert count == 1
+
+    def test_registered_interval_is_not_inserted_again(self, mock_db_conn):
+        """A trava no banco impede duplicata mesmo quando a IA ignora o histórico."""
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchall.return_value = [
+            {'start_time': 0.0, 'end_time': 60.0, 'status': 'published'},
+        ]
+        moments = [
+            {'start_time': 0.0, 'end_time': 60.0, 'score': 10, 'reason': 'Repetido'},
+            {'start_time': 100.0, 'end_time': 160.0, 'score': 8, 'reason': 'Novo'},
+        ]
+
+        count = insert_selected_moments(
+            mock_db_conn, source_video_id=1, video_id='dQw4w9WgXcQ', moments=moments
+        )
+
+        assert count == 1
+        insert_calls = [
+            call
+            for call in cursor.execute.call_args_list
+            if call.args and 'INSERT INTO generated_clips' in str(call.args[0])
+        ]
+        assert len(insert_calls) == 1
+        assert 100.0 in insert_calls[0].args[1]
 
     def test_max_3_moments(self, mock_db_conn):
         """AI-03: Máximo 3 momentos inseridos mesmo se mais de 3 com score >= 7 forem passados."""

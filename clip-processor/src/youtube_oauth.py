@@ -28,6 +28,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
@@ -64,6 +65,13 @@ def generate_token(channel_slug: str, secrets_file: str | None = None) -> str:
     print('Depois de autorizar, o browser vai tentar abrir localhost:8085 e mostrar erro.')
     print('Isso e normal. Copie a URL COMPLETA da barra do browser e cole aqui:')
     redirect_response = input('> ').strip()
+
+    # O fluxo de aplicativo instalado usa um callback HTTP de loopback.
+    # O oauthlib bloqueia HTTP por padrão, embora localhost seja o redirect
+    # permitido pelo Google para esse tipo de cliente OAuth.
+    redirect_uri = urlparse(redirect_response)
+    if redirect_uri.scheme == 'http' and redirect_uri.hostname in {'localhost', '127.0.0.1', '::1'}:
+        os.environ.setdefault('OAUTHLIB_INSECURE_TRANSPORT', '1')
 
     flow.fetch_token(authorization_response=redirect_response)
     creds = flow.credentials

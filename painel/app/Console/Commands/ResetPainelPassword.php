@@ -6,8 +6,6 @@ use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 
-use function Laravel\Prompts\password;
-
 class ResetPainelPassword extends Command
 {
     /**
@@ -39,11 +37,12 @@ class ResetPainelPassword extends Command
             return self::FAILURE;
         }
 
-        $pass = password(
-            label: 'Nova senha (mínimo 10 caracteres, não será exibida)',
-            required: true,
-            validate: fn (string $value) => strlen($value) >= 10 ? null : 'Senha deve ter no mínimo 10 caracteres.',
-        );
+        $pass = $this->secret('Nova senha (mínimo 10 caracteres, não será exibida)');
+        if (! is_string($pass) || strlen($pass) < 10) {
+            $this->error('Senha deve ter no mínimo 10 caracteres.');
+
+            return self::FAILURE;
+        }
 
         $user->password = Hash::make($pass);
         $user->save();

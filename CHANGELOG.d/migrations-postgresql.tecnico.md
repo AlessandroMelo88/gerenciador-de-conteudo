@@ -1,0 +1,3 @@
+**Schema PostgreSQL versionado** — as tabelas do pipeline agora pertencem às migrations Laravel em
+`painel/database/migrations`; o utilitário excepcional de migração MySQL → PostgreSQL fica isolado em
+`scripts/migrations/`, e os backups operacionais usam `postgres-backup`

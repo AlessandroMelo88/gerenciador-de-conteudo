@@ -8,8 +8,10 @@ a referencia). Formato: **Contexto → Decisão → Consequências**, com status
 | [0001](0001-compose-isolado-por-projeto.md) | Compose isolado por projeto, sem `container_name` nem portas de banco no host | aceito · 25/08/2026 |
 | [0002](0002-fila-no-mysql-redis-so-dedup-e-cota.md) | A fila mora no banco; Redis guarda só dedup, cota e idempotência | aceito · 27/07/2026 |
 | [0003](0003-fallback-de-ia-obrigatorio.md) | Todo caminho de IA nasce com cascata Anthropic → Groq | aceito · 27/07/2026 |
-| [0004](0004-schema-do-pipeline-fora-das-migrations.md) | Schema do pipeline em SQL bruto (`mysql/init`), fora das migrations do Laravel | aceito · 2026 (registrado 25/08/2026) |
-| [0005](0005-ferramentas-de-qualidade.md) | Lint/format bloqueantes com baseline para dívida antiga; avisos e mypy informativos | aceito · 25/08/2026 |
-| [0006](0006-motor-de-banco.md) | Motor de banco do pipeline (MySQL hoje; migração para PostgreSQL em andamento) | **em andamento** |
+| [0004](0004-schema-do-pipeline-fora-das-migrations.md) | Schema do pipeline em SQL bruto (`mysql/init`), fora das migrations do Laravel | supersedido · 2026 |
+| [0005](0005-ferramentas-de-qualidade.md) | Lint/format bloqueantes com baseline para dívida antiga; avisos e mypy informativos | supersedido · 25/08/2026 |
+| [0006](0006-motor-de-banco.md) | PostgreSQL 16 como banco único do painel e do pipeline | aceito · 26/08/2026 |
+| [0007](0007-schema-gerido-por-migrations-laravel.md) | Schema do pipeline versionado exclusivamente em migrations Laravel | aceito · 26/08/2026 |
+| [0008](0008-gates-de-qualidade-bloqueantes.md) | mypy e ferramentas de qualidade como gates bloqueantes | aceito · 26/08/2026 |
 
 Template: [`_template.md`](_template.md).

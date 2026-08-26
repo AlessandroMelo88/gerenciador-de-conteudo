@@ -1,5 +1,5 @@
 # pre-commit — hooks locais de qualidade.
-#   pip install pre-commit && pre-commit install --install-hooks   (ou `make hooks`)
+#   pip install -r clip-processor/requirements-dev.txt && make hooks
 #   pre-commit run --all-files        # roda tudo uma vez
 #   pre-commit autoupdate             # atualiza as versões dos hooks
 # Os hooks do painel usam o vendor/ e o node_modules/ locais (composer install, npm ci).
@@ -86,6 +86,13 @@ repos:
         entry: bash -c 'cd painel && npx tsc --noEmit'
         language: system
         files: ^painel/(resources/js/.*\.(ts|tsx)|tsconfig\.json)$
+        pass_filenames: false
+        stages: [pre-push]
+      - id: mypy
+        name: mypy (clip-processor)
+        entry: bash -c 'cd clip-processor && .venv/bin/mypy' --
+        language: system
+        files: ^clip-processor/.*\.py$
         pass_filenames: false
         stages: [pre-push]
       - id: phpstan

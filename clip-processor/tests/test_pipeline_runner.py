@@ -207,11 +207,14 @@ class TestSelectPendingVideos:
         select_call = cur.execute.call_args_list[1]
         assert select_call.args[1][-1] == 1  # LIMIT = déficit (4 - 3 = 1)
 
-    def test_filters_by_freshness_cutoff(self):
+    def test_filters_by_freshness_cutoff(self, monkeypatch):
         """SELECT deve restringir a published_at de hoje ou ontem (FRESHNESS_DAYS=1)."""
         from datetime import datetime, timedelta
 
+        import src.pipeline_runner as pipeline_runner
         from src.pipeline_runner import SAO_PAULO_TZ
+
+        monkeypatch.setattr(pipeline_runner, 'FRESHNESS_DAYS', 1)
 
         mock_conn = MagicMock()
         cur = self._make_cursor(

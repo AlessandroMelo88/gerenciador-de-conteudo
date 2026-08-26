@@ -6,6 +6,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Validation\Rule;
+use LogicException;
 use Telegram\Bot\Laravel\Facades\Telegram;
 use Telegram\Bot\Objects\Update;
 
@@ -13,39 +15,24 @@ class TelegramWebhookController extends Controller
 {
     public function handle(Request $request): Response
     {
-        // Parse update do body Laravel (não php://input, que fica vazio em testes Feature).
-        $updateData = $request->json()->all();
-
-        // Telegram Bot API sempre envia entities para comandos. Testes que simplificam o
-        // payload e omitem entities precisam do fallback abaixo para que o CommandBus
-        // consiga detectar e despachar o comando pelo campo text.
-        if (isset($updateData['message']['text'])) {
-            $text = $updateData['message']['text'];
-            if (str_starts_with($text, '/') && empty($updateData['message']['entities'])) {
-                $end = (int) (strpos($text, ' ') ?: strlen($text));
-                $updateData['message']['entities'] = [[
-                    'offset' => 0,
-                    'length' => $end,
-                    'type' => 'bot_command',
-                ]];
-            }
+        if (! $this->hasValidWebhookSecret($request)) {
+            return response('unauthorized', 401);
         }
 
-        // SDK v3.x usa magic __get com snake_case para acessar propriedades.
-        $update = new Update($updateData);
+        $update = new Update($request->json()->all());
 
         // 1) Allowlist — silencioso se chat_id não autorizado
         $chatId = $update->message?->chat?->id;
         $allowed = (string) config('telegram.bots.mybot.chat_id_allowed');
-        if ($chatId && (string) $chatId !== $allowed) {
+        if ($chatId === null || $allowed === '' || ! hash_equals($allowed, (string) $chatId)) {
             return response('ok');
         }
 
         // 2) Deduplicação — SET NX atômico; silencioso se update_id já visto
         // PhpRedisConnection::set($key, $value, $expireResolution, $expireTTL, $flag)
         // Internamente constrói [$flag, $expireResolution => $expireTTL] para phpredis.
-        $updateId = $update->updateId;
-        if ($updateId) {
+        $updateId = $request->input('update_id');
+        if (is_int($updateId) || (is_string($updateId) && ctype_digit($updateId))) {
             $key = "tg:dedup:{$updateId}";
             $isNew = Redis::connection('default')->set($key, '1', 'EX', 300, 'NX');
             if (! $isNew) {
@@ -62,20 +49,47 @@ class TelegramWebhookController extends Controller
     public function pipelineEvent(Request $request): JsonResponse
     {
         // Auth: mesmo X-Internal-Token do ClipProcessorClient (Phase 8)
-        $token = config('services.clip_processor.token');
-        if ($request->header('X-Internal-Token') !== $token) {
+        $token = (string) config('services.clip_processor.token', '');
+        $providedToken = (string) $request->header('X-Internal-Token', '');
+        if ($token === '' || $providedToken === '' || ! hash_equals($token, $providedToken)) {
             return response()->json(['error' => 'unauthorized'], 401);
         }
 
-        $event = $request->input('event');
-        $payload = $request->input('payload', []);
+        $data = $request->validate([
+            'event' => ['required', 'string', Rule::in([
+                'upload_published',
+                'pipeline_failure',
+                'clip_ttl_warning',
+                'daily_summary',
+            ])],
+            'payload' => ['nullable', 'array'],
+        ]);
 
+        $event = (string) $data['event'];
+        $payload = $data['payload'] ?? [];
         $text = match ($event) {
-            'upload_published' => "Upload publicado: {$payload['title']} — {$payload['youtube_url']}",
-            'pipeline_failure' => "Falha crítica [{$payload['stage']}]: {$payload['error_msg']}",
-            'clip_ttl_warning' => "Clip #{$payload['clip_id']} expira em {$payload['expires_in_hours']}h: {$payload['title']}",
-            'daily_summary' => $payload['text'] ?? 'Resumo diário: sem clips pendentes.',
-            default => "Evento desconhecido: {$event}",
+            'upload_published' => sprintf(
+                'Upload publicado: %s — %s',
+                $this->payloadString($payload, 'title', 'sem título'),
+                $this->payloadString($payload, 'youtube_url', 'URL indisponível'),
+            ),
+            'pipeline_failure' => sprintf(
+                'Falha crítica [%s]: %s',
+                $this->payloadString($payload, 'stage', 'etapa desconhecida'),
+                $this->payloadString($payload, 'error_msg', 'erro não informado'),
+            ),
+            'clip_ttl_warning' => sprintf(
+                'Clip #%s expira em %sh: %s',
+                $this->payloadString($payload, 'clip_id', '?'),
+                $this->payloadString($payload, 'expires_in_hours', '?'),
+                $this->payloadString($payload, 'title', 'sem título'),
+            ),
+            'daily_summary' => $this->payloadString(
+                $payload,
+                'text',
+                'Resumo diário: sem clips pendentes.',
+            ),
+            default => throw new LogicException('Evento de pipeline não suportado.'),
         };
 
         Telegram::sendMessage([
@@ -84,5 +98,22 @@ class TelegramWebhookController extends Controller
         ]);
 
         return response()->json(['ok' => true]);
+    }
+
+    private function hasValidWebhookSecret(Request $request): bool
+    {
+        $expected = (string) config('telegram.bots.mybot.webhook_secret', '');
+        $provided = (string) $request->header('X-Telegram-Bot-Api-Secret-Token', '');
+
+        return $expected !== ''
+            && $provided !== ''
+            && hash_equals($expected, $provided);
+    }
+
+    private function payloadString(array $payload, string $key, string $fallback): string
+    {
+        $value = $payload[$key] ?? null;
+
+        return is_scalar($value) && (string) $value !== '' ? (string) $value : $fallback;
     }
 }

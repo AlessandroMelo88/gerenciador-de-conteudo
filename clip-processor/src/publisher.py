@@ -24,7 +24,11 @@ def _publishable_status() -> str:
 
     Controlado por MANUAL_APPROVAL_REQUIRED (default 'false' = 100% auto).
     """
-    return 'approved' if os.environ.get('MANUAL_APPROVAL_REQUIRED', 'false').lower() == 'true' else 'pending'
+    return (
+        'approved'
+        if os.environ.get('MANUAL_APPROVAL_REQUIRED', 'false').lower() == 'true'
+        else 'pending'
+    )
 
 
 def _log(msg: str) -> None:
@@ -60,14 +64,18 @@ def publish_pending_clips(
     total = 0
     for dest in dest_channels:
         ch_uploader = uploader or YouTubeUploader(channel_slug=dest['slug'])
-        ch_quota = quota_manager or QuotaManager(redis_client, channel_id=dest['youtube_channel_id'])
+        ch_quota = quota_manager or QuotaManager(
+            redis_client, channel_id=dest['youtube_channel_id']
+        )
         clips = _fetch_pending_clips_for_channel(conn, dest['id'])
         remaining = list(clips)
 
         while remaining:
             clip = remaining[0]
             longo_waiting = _has_longo_waiting(remaining)
-            credit_handle = resolve_credit_handle(clip.get('channel_handle'), clip.get('channel_name'))
+            credit_handle = resolve_credit_handle(
+                clip.get('channel_handle'), clip.get('channel_name')
+            )
             if dest.get('credit_template') and credit_handle:
                 clip = dict(clip)  # não mutar original
                 clip['description'] = append_credits(
@@ -76,7 +84,12 @@ def publish_pending_clips(
                     credit_handle,
                 )
             published = _publish_one(
-                conn, clip, ch_uploader, ch_quota, now, longo_waiting=longo_waiting,
+                conn,
+                clip,
+                ch_uploader,
+                ch_quota,
+                now,
+                longo_waiting=longo_waiting,
             )
             remaining.pop(0)
             total += published
@@ -200,15 +213,20 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
             youtube_video_id = uploader.upload_clip(_prepare_publication_clip(clip))
             _mark_clip_published(conn, clip_id, youtube_video_id)
             quota_manager.record_upload(now=now, format=clip_format)
-            _maybe_finalize_source_video(conn, clip['source_video_id'], clip.get('source_local_path'))
+            _maybe_finalize_source_video(
+                conn, clip['source_video_id'], clip.get('source_local_path')
+            )
             published_count += 1
             _log(f'Clip {clip_id} publicado no YouTube: {youtube_video_id}')
-            notify('upload_published', {
-                'clip_id': clip_id,
-                'youtube_video_id': youtube_video_id,
-                'youtube_url': f'https://www.youtube.com/watch?v={youtube_video_id}',
-                'title': clip.get('title'),
-            })
+            notify(
+                'upload_published',
+                {
+                    'clip_id': clip_id,
+                    'youtube_video_id': youtube_video_id,
+                    'youtube_url': f'https://www.youtube.com/watch?v={youtube_video_id}',
+                    'title': clip.get('title'),
+                },
+            )
         except Exception as exc:
             _mark_clip_failed(conn, clip_id, str(exc))
             _log(f'Falha ao publicar clip {clip_id}: {exc}')
@@ -238,12 +256,15 @@ def _publish_one(conn, clip, uploader, quota_manager, now, *, longo_waiting: boo
         quota_manager.record_upload(now=now, format=clip_format)
         _maybe_finalize_source_video(conn, clip['source_video_id'], clip.get('source_local_path'))
         _log(f'Clip {clip_id} publicado no YouTube: {youtube_video_id}')
-        notify('upload_published', {
-            'clip_id': clip_id,
-            'youtube_video_id': youtube_video_id,
-            'youtube_url': f'https://www.youtube.com/watch?v={youtube_video_id}',
-            'title': clip.get('title'),
-        })
+        notify(
+            'upload_published',
+            {
+                'clip_id': clip_id,
+                'youtube_video_id': youtube_video_id,
+                'youtube_url': f'https://www.youtube.com/watch?v={youtube_video_id}',
+                'title': clip.get('title'),
+            },
+        )
         return 1
     except Exception as exc:
         _mark_clip_failed(conn, clip_id, str(exc))
@@ -321,8 +342,7 @@ def _transition_to_publishing(conn, clip_id: int) -> bool:
     """
     with conn.cursor() as cur:
         cur.execute(
-            "UPDATE generated_clips SET status='publishing' "
-            'WHERE id=%s AND status=%s',
+            "UPDATE generated_clips SET status='publishing' WHERE id=%s AND status=%s",
             (clip_id, _publishable_status()),
         )
         rowcount = cur.rowcount
@@ -344,9 +364,7 @@ def _mark_clip_published(conn, clip_id: int, youtube_video_id: str) -> None:
 def _mark_clip_failed(conn, clip_id: int, error: str) -> None:
     with conn.cursor() as cur:
         cur.execute(
-            'UPDATE generated_clips '
-            "SET status='failed', upload_error=%s "
-            'WHERE id=%s',
+            "UPDATE generated_clips SET status='failed', upload_error=%s WHERE id=%s",
             (error[:2000], clip_id),
         )
     conn.commit()
@@ -356,8 +374,8 @@ def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: 
     with conn.cursor() as cur:
         cur.execute(
             'SELECT '
-            'SUM(status IN %s) AS non_terminal_count, '
-            "SUM(status = 'published') AS published_count "
+            'COUNT(*) FILTER (WHERE status IN %s) AS non_terminal_count, '
+            "COUNT(*) FILTER (WHERE status = 'published') AS published_count "
             'FROM generated_clips '
             'WHERE source_video_id = %s',
             (NON_TERMINAL_CLIP_STATUSES, source_video_id),

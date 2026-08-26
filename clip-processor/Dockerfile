@@ -2,6 +2,7 @@ FROM python:3.12-slim
 
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    fonts-dejavu-core \
     git \
     build-essential \
     cmake \
@@ -13,7 +14,7 @@ RUN curl -fsSL https://deno.land/install.sh | sh
 ENV PATH="/root/.deno/bin:${PATH}"
 
 # whisper-cpp local — Transcrição Local do painel (não usado pelo pipeline principal,
-# que continua na Groq Whisper API via transcriber.py)
+# que prioriza legendas do YouTube e usa Groq Whisper como fallback via transcriber.py)
 RUN git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git /opt/whisper.cpp \
     && cmake -B /opt/whisper.cpp/build -S /opt/whisper.cpp -DCMAKE_BUILD_TYPE=Release \
     && cmake --build /opt/whisper.cpp/build -j --config Release \

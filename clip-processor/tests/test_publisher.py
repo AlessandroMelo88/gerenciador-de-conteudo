@@ -35,7 +35,7 @@ def make_mock_quota(can_upload=True):
 
 
 def make_conn_with_clips(clips: list[dict], dest_channels: list[dict] | None = None):
-    """Cria mock de conexão MySQL com clips configurados.
+    """Cria mock de conexão PostgreSQL com clips configurados.
 
     Args:
         clips: clips pendentes a retornar por _fetch_pending_clips / _fetch_pending_clips_for_channel
@@ -59,8 +59,8 @@ def make_conn_with_clips(clips: list[dict], dest_channels: list[dict] | None = N
         {'cnt': 1},  # published clips count
         {'local_path': None},  # source_video local_path
     ] * (len(clips) + 5)  # extra para não falhar
-    # Phase 6: guard de status no UPDATE approved→publishing usa cursor.rowcount.
-    # Simula MySQL retornando 1 row afetada no UPDATE (caminho feliz).
+    # O guard de status no UPDATE approved→publishing usa cursor.rowcount.
+    # Simula PostgreSQL retornando 1 row afetada no UPDATE (caminho feliz).
     cursor.rowcount = 1
 
     conn.cursor.return_value.__enter__ = MagicMock(return_value=cursor)

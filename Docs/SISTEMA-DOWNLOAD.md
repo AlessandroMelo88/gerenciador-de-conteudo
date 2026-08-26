@@ -3,7 +3,7 @@
 Como o vídeo entra na fila e como sai do YouTube para o disco. Cobre `rss_poller.py` (parte de
 descoberta), `dedup.py`, `downloader.py` e a parte de download do `pipeline_runner.py`.
 
-Verificado no código em **13/08/2026**.
+Verificado no código em **26/08/2026**.
 
 ---
 
@@ -73,7 +73,7 @@ O pipeline **não** baixa tudo que descobre. Ele mantém um número fixo de víd
 |---|---|---|---|
 | `DOWNLOAD_WINDOW_CURTO` | 6 | `DOWNLOAD_WINDOW_CURTO` | [`pipeline_runner.py:35`](../clip-processor/src/pipeline_runner.py#L35) |
 | `DOWNLOAD_WINDOW_LONGO` | 4 | `DOWNLOAD_WINDOW_LONGO` | [`pipeline_runner.py:36`](../clip-processor/src/pipeline_runner.py#L36) |
-| `FRESHNESS_DAYS` | 1 | — (constante, não é env) | [`pipeline_runner.py:41`](../clip-processor/src/pipeline_runner.py#L41) |
+| `FRESHNESS_DAYS` | 365 | `FRESHNESS_DAYS` | [`pipeline_runner.py:38`](../clip-processor/src/pipeline_runner.py#L38) |
 
 Nenhuma das duas `DOWNLOAD_WINDOW_*` está declarada no `docker-compose.yml`, então em produção valem
 os defaults 6 e 4.
@@ -83,7 +83,7 @@ por formato:
 
 1. conta a **ocupação** — quantos vídeos daquele formato ocupam a janela agora;
 2. `deficit = max(0, window - occupied)`; se zero, não baixa nada daquele formato nesta rodada;
-3. busca exatamente `deficit` vídeos `pending`, `paused = 0`, `DATE(published_at) >= hoje - 1 dia`,
+3. busca exatamente `deficit` vídeos `pending`, `paused = FALSE`, `DATE(published_at) >= hoje - `FRESHNESS_DAYS`,
    ordenados por `priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC`.
 
 A definição de "ocupa a janela" está em
@@ -92,7 +92,7 @@ larga que "tem arquivo em disco" e é o ponto onde estado preso vira pipeline pa
 
 ### O filtro de frescor morde
 
-`published_at` mais velho que hoje/ontem **nunca baixa**, mesmo com a janela vazia e o backlog cheio.
+`published_at` mais velho que `FRESHNESS_DAYS` dias **não baixa**, mesmo com a janela vazia e o backlog cheio.
 Vídeo `pending` antigo fica `pending` para sempre sem ser lixo de verdade — considerar isso antes de
 classificar `pending` velho como backlog descartável.
 
@@ -172,7 +172,7 @@ exatamente `<id>.mp4`, `<id>.mp4.part` e `<id>.mp4.ytdl`. É esse que `_discard_
 ### `cleanup_stale_downloads` — varredura de órfãos
 
 [`downloader.py:72`](../clip-processor/src/downloader.py#L72). Rede de segurança para quando
-`_cleanup_partial` nunca roda: container morto, OOM, MySQL fora derrubando o processo. Nesses casos o
+`_cleanup_partial` nunca roda: container morto, OOM, PostgreSQL fora derrubando o processo. Nesses casos o
 `except` não executa e um `.part` de 1.4 GB fica órfão indefinidamente.
 
 - `STALE_AFTER_HOURS = 1` ([`:45`](../clip-processor/src/downloader.py#L45)) — **1 hora**, não 6.

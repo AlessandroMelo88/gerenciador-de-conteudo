@@ -9,6 +9,7 @@ import os
 import sys
 import types
 from pathlib import Path
+from typing import Any
 
 from src.db import get_db_connection as db_connect
 
@@ -18,24 +19,34 @@ YOUTUBE_UPLOAD_SCOPES = [
 ]
 
 
+class _CredentialsFallback:  # pragma: no cover - local tests without optional deps
+    @classmethod
+    def from_authorized_user_file(cls, *args, **kwargs):
+        raise ModuleNotFoundError('google')
+
+
+Credentials: Any
 try:
-    from google.oauth2.credentials import Credentials
+    from google.oauth2.credentials import Credentials as _GoogleCredentials
 except ModuleNotFoundError:
-
-    class Credentials:  # pragma: no cover - fallback only for local tests without deps
-        @classmethod
-        def from_authorized_user_file(cls, *args, **kwargs):
-            raise ModuleNotFoundError('google')
+    Credentials = _CredentialsFallback
+else:
+    Credentials = _GoogleCredentials
 
 
+class _MediaFileUploadFallback:  # pragma: no cover - local tests without optional deps
+    def __init__(self, path, **kwargs):
+        self.path = path
+        self.kwargs = kwargs
+
+
+MediaFileUpload: Any
 try:
-    from googleapiclient.http import MediaFileUpload
+    from googleapiclient.http import MediaFileUpload as _GoogleMediaFileUpload
 except ModuleNotFoundError:
-
-    class MediaFileUpload:  # pragma: no cover - fallback only for local tests without deps
-        def __init__(self, path, **kwargs):
-            self.path = path
-            self.kwargs = kwargs
+    MediaFileUpload = _MediaFileUploadFallback
+else:
+    MediaFileUpload = _GoogleMediaFileUpload
 
 
 try:
@@ -50,18 +61,24 @@ except ModuleNotFoundError:
             self.resp = resp
             self.content = content
 
-    errors_module.HttpError = HttpError
-    googleapiclient_module.errors = errors_module
+    # ModuleType is populated dynamically so tests can import the optional SDK.
+    errors_module.__dict__['HttpError'] = HttpError
+    googleapiclient_module.__dict__['errors'] = errors_module
     sys.modules.setdefault('googleapiclient', googleapiclient_module)
     sys.modules.setdefault('googleapiclient.errors', errors_module)
 
 
-try:
-    from google.auth.exceptions import RefreshError
-except ModuleNotFoundError:
+class _RefreshErrorFallback(Exception):  # pragma: no cover - local tests without optional deps
+    pass
 
-    class RefreshError(Exception):  # pragma: no cover - fallback only for local tests without deps
-        pass
+
+RefreshError: Any
+try:
+    from google.auth.exceptions import RefreshError as _GoogleRefreshError
+except ModuleNotFoundError:
+    RefreshError = _RefreshErrorFallback
+else:
+    RefreshError = _GoogleRefreshError
 
 
 class YouTubeUploader:
@@ -120,10 +137,24 @@ class YouTubeUploader:
                 chunksize=-1,
                 resumable=True,
             )
-            service.thumbnails().set(
-                videoId=video_id,
-                media_body=thumb_media,
-            ).execute()
+            try:
+                service.thumbnails().set(
+                    videoId=video_id,
+                    media_body=thumb_media,
+                ).execute()
+            except Exception as exc:
+                # O vídeo já foi criado neste ponto. Canais sem verificação
+                # suficiente podem receber 403 somente na thumbnail; isso não
+                # deve transformar um upload concluído em retry/duplicata.
+                status = getattr(getattr(exc, 'resp', None), 'status', None)
+                if status == 403:
+                    print(
+                        f'[YT] Aviso: thumbnail recusada para {video_id}; '
+                        'vídeo mantido como publicado',
+                        flush=True,
+                    )
+                else:
+                    raise
 
         return video_id
 
@@ -149,7 +180,7 @@ class YouTubeUploader:
             try:
                 creds.refresh(Request())
             except RefreshError:
-                self._flag_expired()  # persiste no MySQL antes de re-raise
+                self._flag_expired()  # persiste no PostgreSQL antes de re-raise
                 raise
         return creds
 
@@ -157,7 +188,7 @@ class YouTubeUploader:
         """Marca destination_channels.oauth_expired_flag=TRUE para o slug atual.
 
         Best-effort: se channel_slug for None (uso legado), silenciosamente skip.
-        Se a conexão MySQL falhar, log e continua (não substitui a exceção RefreshError).
+        Se a conexão PostgreSQL falhar, log e continua (não substitui a exceção RefreshError).
         """
         if not getattr(self, 'channel_slug', None):
             return
@@ -231,7 +262,7 @@ class YouTubeUploader:
                 'categoryId': '17',
             },
             'status': {
-                'privacyStatus': os.environ.get('YOUTUBE_PRIVACY_STATUS', 'private'),
+                'privacyStatus': os.environ.get('YOUTUBE_PRIVACY_STATUS', 'public'),
                 'selfDeclaredMadeForKids': False,
             },
         }

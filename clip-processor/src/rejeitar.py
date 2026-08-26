@@ -10,7 +10,7 @@ recorte futuro (decisão explícita em 06-CONTEXT.md).
 Uso CLI:
     docker exec clip-processor python -m src.rejeitar <clip_id>
 
-Chamado pelo n8n via executeCommand no workflow 06-router.
+Chamado pelo sidecar HTTP interno do clip-processor.
 
 Exit codes:
     0 — sucesso (clip marcado como rejected; MP4 removido quando existia)

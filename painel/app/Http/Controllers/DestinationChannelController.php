@@ -79,6 +79,10 @@ class DestinationChannelController extends Controller
 
     public function destroy(DestinationChannel $destinationChannel): RedirectResponse
     {
+        if ($destinationChannel->generatedClips()->exists()) {
+            return back()->with('error', 'Canal-destino possui clips e não pode ser apagado');
+        }
+
         $destinationChannel->delete();
 
         return back()->with('success', 'Canal-destino apagado');

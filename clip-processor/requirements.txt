@@ -4,7 +4,7 @@ google-auth
 google-auth-oauthlib
 anthropic
 groq
-pymysql
+psycopg2-binary
 apscheduler
 feedparser
 redis

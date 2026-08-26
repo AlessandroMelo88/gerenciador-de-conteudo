@@ -5,7 +5,7 @@ Testes AI-04: integração do pipeline de IA (transcriber + selector) no rss_pol
 Módulo alvo: src.rss_poller
 Exports esperados: poll_all_channels(db_conn, redis_client)
 
-RED state: imports falham pois src/rss_poller.py ainda não existe.
+Os cenários cobrem descoberta RSS e integração das etapas do pipeline.
 """
 
 from src.rss_poller import _detect_format, poll_all_channels
@@ -234,6 +234,32 @@ class TestAIPipelineIntegration:
         mock_save.assert_called_once_with(mock_db_conn, 'vid001aaaaaa', mock_transcript)
         # Verificar que select_moments foi chamado (fmt default 'curto' quando ausente no row)
         mock_select.assert_called_once_with(mock_transcript, anthropic_client=None, fmt='curto')
+
+    def test_process_ai_pipeline_passes_used_moments_to_selector(self, mock_db_conn, mocker):
+        """O histórico de generated_clips é encaminhado para o prompt da IA."""
+        from src.rss_poller import _process_ai_pipeline
+
+        mock_transcript = {
+            'video_id': 'vid001aaaaaa',
+            'text': 'Texto',
+            'segments': [{'start': 0.0, 'end': 60.0, 'text': 'Análise'}],
+        }
+
+        mocker.patch('src.rss_poller.transcribe_video', return_value=mock_transcript)
+        mocker.patch('src.rss_poller.save_transcript')
+        mock_select = mocker.patch('src.rss_poller.select_moments', return_value=[])
+        mocker.patch('src.rss_poller.insert_selected_moments', return_value=1)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.fetchone.return_value = {'id': 42}
+        used_moments = [
+            {'start_time': 10.0, 'end_time': 70.0, 'status': 'published'},
+        ]
+        mock_cursor.fetchall.return_value = used_moments
+
+        _process_ai_pipeline(mock_db_conn, 'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4')
+
+        assert mock_select.call_args.kwargs['used_moments'] == used_moments
 
     def test_process_ai_pipeline_transcription_failure_marks_failed(self, mock_db_conn, mocker):
         """AI-04: Falha na transcrição (None) marca vídeo como failed e não chama select_moments."""

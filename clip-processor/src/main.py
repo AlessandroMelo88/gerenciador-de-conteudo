@@ -1,29 +1,49 @@
 # Canal de Cortes — clip-processor daemon
 # Phase 5: Pipeline completo com publicação YouTube
-import signal
 import os
+import signal
 import threading
 from datetime import datetime
-try:
-    from apscheduler.schedulers.blocking import BlockingScheduler
-except ModuleNotFoundError:
-    class _FallbackJob:
-        def __init__(self, id, coalesce, max_instances):
-            self.id = id
-            self.coalesce = coalesce
-            self.max_instances = max_instances
+from typing import Any
 
-    class BlockingScheduler:  # pragma: no cover - local test fallback
+from src import ttl_worker
+from src.db import (
+    get_db_connection,
+    recover_cutting_on_boot,
+    recover_stuck_downloads,
+    recover_stuck_publishing,
+    recover_stuck_selecting,
+)
+from src.internal_api import app as _internal_app
+from src.pipeline_runner import run_ingest_cycle, run_pipeline_once, run_publish_only
+from src.ttl_worker import run_ttl_once
+
+
+class _FallbackJob:
+    def __init__(self, id, coalesce, max_instances):
+        self.id = id
+        self.coalesce = coalesce
+        self.max_instances = max_instances
+
+
+BlockingScheduler: Any
+try:
+    from apscheduler.schedulers.blocking import BlockingScheduler as _BlockingScheduler
+except ModuleNotFoundError:
+
+    class _FallbackScheduler:  # pragma: no cover - local test fallback
         def __init__(self, timezone=None):
             self.timezone = timezone
             self._jobs = []
 
         def add_job(self, func, trigger, **kwargs):
-            self._jobs.append(_FallbackJob(
-                kwargs.get('id'),
-                kwargs.get('coalesce'),
-                kwargs.get('max_instances'),
-            ))
+            self._jobs.append(
+                _FallbackJob(
+                    kwargs.get('id'),
+                    kwargs.get('coalesce'),
+                    kwargs.get('max_instances'),
+                )
+            )
 
         def get_jobs(self):
             return self._jobs
@@ -33,17 +53,19 @@ except ModuleNotFoundError:
 
         def start(self):
             return None
-from src.pipeline_runner import run_pipeline_once, run_publish_only, run_ingest_cycle
-from src.db import get_db_connection, recover_stuck_downloads, recover_stuck_selecting
-from src import ttl_worker
-from src.ttl_worker import run_ttl_once
-from src.internal_api import app as _internal_app
+
+    BlockingScheduler = _FallbackScheduler
+else:
+    BlockingScheduler = _BlockingScheduler
 
 
 def pipeline_enabled() -> bool:
     """Permite manter o sidecar disponível sem iniciar ingestão/publicação."""
     return os.environ.get('PIPELINE_ENABLED', 'true').strip().lower() in {
-        '1', 'true', 'yes', 'on',
+        '1',
+        'true',
+        'yes',
+        'on',
     }
 
 
@@ -55,22 +77,29 @@ def _start_internal_api():
     _internal_app.run(host='0.0.0.0', port=8090, use_reloader=False, debug=False)
 
 
-def run_recovery_once():
+def run_recovery_once(*, recover_cutting=False):
     """Roda os recoveries de estado preso. Agendado, não só no boot.
 
     Enquanto isso existia apenas no bloco de startup, tudo que travasse depois
     do container subir ficava preso até o próximo restart — na prática, dias.
     Também cobre a janela do erro `Errno 111` (clip-processor sobe antes do
-    MySQL): o recovery de boot morre no except e antes ninguém tentava de novo.
+    PostgreSQL): o recovery de boot morre no except e antes ninguém tentava de novo.
 
     Falha é logada e engolida de propósito — recovery é manutenção oportunista,
     não pode derrubar o scheduler.
+
+    ``cutting`` é recuperado apenas quando ``recover_cutting=True`` no boot.
+    O job periódico deixa esse estado intacto, porque uma codificação legítima
+    pode ultrapassar a cadência de 30 minutos.
     """
     conn = None
     try:
         conn = get_db_connection()
         recover_stuck_downloads(conn)
         recover_stuck_selecting(conn)
+        recover_stuck_publishing(conn)
+        if recover_cutting:
+            recover_cutting_on_boot(conn)
     except Exception as e:
         log(f'[ACQU] Aviso: recovery periódico falhou — {e}')
     finally:
@@ -160,19 +189,22 @@ signal.signal(signal.SIGINT, shutdown)
 
 if __name__ == '__main__':
     log('[ACQU] Daemon iniciado — ingestão + publish a cada 20 minutos')
-    log(f'[ACQU] MYSQL_HOST: {os.environ.get("MYSQL_HOST", "não configurado")}')
+    log(f'[ACQU] POSTGRES_HOST: {os.environ.get("POSTGRES_HOST", "não configurado")}')
     log(f'[ACQU] REDIS_HOST: {os.environ.get("REDIS_HOST", "não configurado")}')
     log(f'[ACQU] PIPELINE_ENABLED: {pipeline_enabled()}')
-    log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "private")}')
+    log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")}')
     log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
-    log(f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)')
+    log(
+        f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)'
+    )
 
-    # Recovery: vídeos presos em 'downloading' voltam para 'pending' e os
+    # Recovery: vídeos presos em 'downloading' voltam para 'pending', os
     # presos em 'selecting' voltam para 'downloaded' (senão seguram slot da
-    # janela de download pra sempre e o pipeline para de baixar).
-    # Mesma rotina do job de 30min — se falhar aqui (MySQL ainda subindo), o
+    # janela de download pra sempre e o pipeline para de baixar) e clips que
+    # ficaram em 'cutting' após a morte do processo voltam para 'pending_cut'.
+    # Mesma rotina do job de 30min — se falhar aqui (PostgreSQL ainda subindo), o
     # próximo tick agendado cobre, sem depender de restart.
-    run_recovery_once()
+    run_recovery_once(recover_cutting=True)
 
     # Sidecar HTTP interno consumido pelo painel Laravel (Phase 8).
     # Thread daemon → morre com o processo principal. Iniciado ANTES do ciclo

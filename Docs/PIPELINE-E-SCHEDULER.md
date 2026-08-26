@@ -4,7 +4,7 @@ Como o daemon decide *quando* fazer as coisas, e qual função roda qual etapa.
 Referência módulo a módulo em [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md);
 estados e transições em [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md).
 
-Verificado no código em **13/08/2026**.
+Verificado no código em **26/08/2026**.
 
 ---
 
@@ -13,7 +13,7 @@ Verificado no código em **13/08/2026**.
 `CMD ["python", "-m", "src.main"]` ([`clip-processor/Dockerfile:29`](../clip-processor/Dockerfile#L29)).
 Sequência do boot, em ordem, em [`main.py:140-167`](../clip-processor/src/main.py#L140):
 
-1. Loga env vars relevantes (`MYSQL_HOST`, `REDIS_HOST`, `YOUTUBE_PRIVACY_STATUS`, `MAX_UPLOADS_PER_DAY`).
+1. Loga env vars relevantes (`POSTGRES_HOST`, `REDIS_HOST`, `YOUTUBE_PRIVACY_STATUS`, `MAX_UPLOADS_PER_DAY`).
 2. `run_recovery_once()` — recovery de estado preso ([`main.py:153`](../clip-processor/src/main.py#L153)).
 3. Sobe o sidecar Flask numa thread daemon ([`main.py:159`](../clip-processor/src/main.py#L159)).
    Vem **antes** do ciclo inicial de propósito: o ciclo pode levar minutos e o painel precisa do
@@ -89,8 +89,8 @@ meia-noite, os aprovados não ficam represados esperando um ciclo completo.
 
 ## Conexões
 
-Cada `run_*` abre a própria conexão MySQL e o próprio cliente Redis quando chamado sem argumentos,
-e fecha o MySQL no `finally` (`own_db` / `own_redis`, ex.
+Cada `run_*` abre a própria conexão PostgreSQL e o próprio cliente Redis quando chamado sem argumentos,
+e fecha o PostgreSQL no `finally` (`own_db` / `own_redis`, ex.
 [`pipeline_runner.py:194-204`](../clip-processor/src/pipeline_runner.py#L194)). Os parâmetros
 existem para injeção em teste. `poll_all_channels` faz o mesmo
 ([`rss_poller.py:185`](../clip-processor/src/rss_poller.py#L185)) — conexão nova por chamada, para
@@ -129,7 +129,7 @@ que se estava lendo. Diagnosticar bug de pipeline contra o código do host, sem 
 imagem, é perda de tempo garantida.
 
 ```bash
-# aplicar mudança de código (isolado — não sobe mysql/redis nem outros projetos)
+# aplicar mudança de código (isolado — não sobe postgres/redis nem outros projetos)
 docker compose build clip-processor && docker compose up -d clip-processor
 ```
 

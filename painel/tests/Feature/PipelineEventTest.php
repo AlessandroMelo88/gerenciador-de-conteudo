@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Http;
 uses(DatabaseTransactions::class);
 
 beforeEach(function () {
+    config(['services.clip_processor.token' => 'test-internal-token']);
+
     Http::fake([
         '*api.telegram.org*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]], 200),
     ]);

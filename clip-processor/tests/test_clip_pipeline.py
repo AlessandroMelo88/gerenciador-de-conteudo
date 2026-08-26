@@ -1,7 +1,7 @@
 """
 test_clip_pipeline.py — Integração Phase 4 no rss_poller.
 
-Estado inicial do Plan 04-01: RED controlado por atributo/função ausente.
+Cobertura de integração do processamento de clips pendentes.
 """
 
 from src.rss_poller import poll_all_channels

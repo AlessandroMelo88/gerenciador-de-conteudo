@@ -1,198 +1,119 @@
 # Banco de dados — `clips_automation`
 
-Um único database MySQL 8.4 hospeda as tabelas do pipeline **e** as do painel Laravel.
+O projeto usa um único banco **PostgreSQL 16** para o painel Laravel e o pipeline Python. A fonte
+de verdade do schema é `painel/database/migrations`; não há SQL de bootstrap duplicando as migrations.
+O serviço `panel-init` executa `php artisan migrate` antes de liberar PHP, fila e scheduler.
+
 Estados e transições ficam em [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md).
 
-Verificado no SQL e no código em **13/08/2026**.
+## Ciclo de vida do schema
 
----
+As tabelas do pipeline são migrations Laravel, assim como as tabelas do painel:
 
-## As tabelas do pipeline não são migrations do Laravel
-
-Elas nascem de **SQL bruto** em `mysql/init/01..07`, aplicado **à mão** via `docker exec`. O painel
-apenas as mapeia com Eloquent e `$table` explícito.
-
-Consequências que já morderam:
-
-- `php artisan migrate:fresh` **não** reconstrói o schema do pipeline;
-- por isso `RefreshDatabase` está desligado em `painel/tests/Pest.php` — os testes usam
-  `DatabaseTransactions` sobre tabelas pré-existentes;
-- migrar para outro servidor exige aplicar os `mysql/init/*` à mão se o dump não trouxer o schema
-  (fase 4 do [`PLANO-ORACLE.md`](PLANO-ORACLE.md)).
-
-`01-clips-schema.sql` contém `${CLIPS_DB_PASSWORD}` como **placeholder** — precisa de `envsubst`
-antes de rodar ([`mysql/init/01-clips-schema.sql:5-8`](../mysql/init/01-clips-schema.sql#L5)).
-
-### Ordem de aplicação
-
-| Arquivo | O que faz |
+| Migration | Responsabilidade |
 |---|---|
-| `01-clips-schema.sql` | database + `source_channels`, `source_videos`, `generated_clips` |
-| `02-seed-channels.sql` | canais fonte iniciais |
-| `03-schema-migration.sql` | `transcript_path`, `reason`; ENUM de clip ganha `pending_cut`/`cutting` |
-| `04-publishing-migration.sql` | ENUM ganha `publishing`; `published_at`, `scheduled_for`, `upload_error` |
-| `04-queue-controls.sql` | `priority`, `paused`, `queue_position` em `source_videos` |
-| `05-controle-manual-migration.sql` | ENUM ganha `approved` e `rejected` |
-| `06-multi-canal-migration.sql` | `destination_channels`; `target_niche`, `channel_handle`, `blacklisted`; `generated_clips.destination_channel_id` |
-| `07-panel-oauth-flag-migration.sql` | `destination_channels.oauth_expired_flag` |
+| `2026_08_26_000000_create_source_channels_table` | canais monitorados via RSS |
+| `2026_08_26_000001_create_source_videos_table` | vídeos descobertos e fila de download |
+| `2026_08_26_000002_create_destination_channels_table` | canais próprios de publicação |
+| `2026_08_26_000003_create_generated_clips_table` | cortes gerados e seus estados |
+| `2026_08_26_000004_add_pipeline_updated_at_triggers` | `updated_at` automático para escritas do Python |
+| `2026_08_26_000005_seed_pipeline_channels` | canais iniciais, sem sobrescrever configuração do operador |
+| `2026_08_26_000006_create_media_assets_table` | biblioteca de intros, encerramentos e músicas por escopo |
 
-Há **dois** arquivos com prefixo `04`. Eles não dependem um do outro, mas a ordem alfabética
-(`04-publishing` antes de `04-queue-controls`) é a que vale num `for f in mysql/init/*`.
+As migrations `niches` e `transcription_jobs` seguem no mesmo diretório e pertencem ao domínio do
+painel. A migration de adoção verifica a existência das quatro tabelas do pipeline para não destruir
+nem recriar um volume PostgreSQL que já tenha sido inicializado pela versão anterior.
 
-Os `ALTER TABLE ... ADD COLUMN` são feitos com checagem em `INFORMATION_SCHEMA` + SQL dinâmico porque
-o MySQL 8.4 do container **não aceita `ADD COLUMN IF NOT EXISTS`**. É por isso que os arquivos são
-verbosos; a intenção é serem idempotentes.
+Comandos:
 
----
+```bash
+docker compose run --rm panel-init
+docker compose exec php php artisan migrate:status
+```
+
+`php artisan migrate:fresh` reconstrói todo o schema, inclusive o pipeline. Só deve ser usado em um
+banco descartável, nunca em uma instalação com dados.
 
 ## Tabelas
 
-| Tabela | Origem | Papel |
-|---|---|---|
-| `source_channels` | `mysql/init/01`, `06` | canais monitorados via RSS |
-| `source_videos` | `mysql/init/01`, `03`, `04-queue` | um registro por vídeo descoberto — **é a fila** |
-| `generated_clips` | `mysql/init/01`, `03`, `04`, `05`, `06` | um registro por corte |
-| `destination_channels` | `mysql/init/06`, `07` | canais próprios onde se publica |
-| `niches` | **migration Laravel** (`2026_07_14_010214`) | domínio do painel; seeda `futebol` e `podcast` |
-| `transcription_jobs` | **migration Laravel** (`2026_07_30_000000`) | Transcrição Local, isolada do pipeline |
-| `users`, `sessions`, `cache`, `jobs` | migrations Laravel | painel |
-
 ### `source_channels`
 
-[`mysql/init/01-clips-schema.sql:15`](../mysql/init/01-clips-schema.sql#L15) +
-[`06-multi-canal-migration.sql:39-90`](../mysql/init/06-multi-canal-migration.sql#L39).
-
-| Coluna | Tipo | Notas |
-|---|---|---|
-| `youtube_channel_id` | VARCHAR(64) UNIQUE | |
-| `channel_name` | VARCHAR(255) | |
-| `rss_url` | VARCHAR(512) | usado direto no `requests.get` |
-| `active` | BOOLEAN default TRUE | filtro do poll |
-| `target_niche` | VARCHAR(50) NULL | casa com `destination_channels.niche` |
-| `channel_handle` | VARCHAR(100) NULL | usado nos créditos da descrição |
-| `blacklisted` | BOOLEAN default FALSE, indexada | filtro do poll |
-
-O poll exige `active = TRUE AND blacklisted = FALSE`
-([`rss_poller.py:203`](../clip-processor/src/rss_poller.py#L203)).
+Representa canais monitorados pelo RSS. `youtube_channel_id` é único; `active` controla o monitoramento;
+`blacklisted` impede ingestão; `target_niche` roteia o vídeo para um canal-destino; e `channel_handle`
+é usado na atribuição da descrição.
 
 ### `source_videos`
 
-[`mysql/init/01-clips-schema.sql:24`](../mysql/init/01-clips-schema.sql#L24).
+É a fila persistida do pipeline. A chave natural é `youtube_video_id`; `channel_id` referencia
+`source_channels`; `format` é `curto` ou `longo`; `status` acompanha a máquina de estados; `local_path`
+indica o arquivo bruto; `priority`, `paused` e `queue_position` controlam a fila; e `published_at`
+serve para o filtro de frescor e para a ordenação.
 
-| Coluna | Tipo | Notas |
-|---|---|---|
-| `youtube_video_id` | VARCHAR(64) **UNIQUE** | chave natural — o Python quase sempre busca por ela, não por `id` |
-| `channel_id` | INT, FK → `source_channels` | |
-| `title` | VARCHAR(500) | |
-| `published_at` | TIMESTAMP | filtro de frescor (`FRESHNESS_DAYS`) e ordenação da fila |
-| `status` | ENUM (9 valores) | ver [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) |
-| `local_path` | VARCHAR(1024) | `NOT NULL` ⇒ ocupa vaga da janela de download |
-| `transcript_path` | VARCHAR(500) | `03-schema-migration` |
-| `format` | ENUM(`curto`,`longo`) default `curto` | decidido na ingestão pela duração |
-| `priority` | INT default 0 | `prioritize_video` grava `MAX(priority)+1` |
-| `paused` | TINYINT(1) default 0 | pause cooperativo |
-| `queue_position` | INT NULL | ordem manual do drag-and-drop |
-| `created_at`, `updated_at` | TIMESTAMP | `updated_at` é `ON UPDATE CURRENT_TIMESTAMP` |
-
-**`updated_at` é o que o recovery usa** para decidir se um `selecting` está travado
-([`db.py:188`](../clip-processor/src/db.py#L188)). Qualquer `UPDATE` na linha, mesmo sem mudar
-`status`, reseta esse relógio.
-
-Ordenação canônica da fila (repetida em três queries):
+Ordenação canônica da fila:
 `priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC`.
-
-### `generated_clips`
-
-[`mysql/init/01-clips-schema.sql:52`](../mysql/init/01-clips-schema.sql#L52) + migrations 03/04/05/06.
-
-| Coluna | Tipo | Notas |
-|---|---|---|
-| `source_video_id` | INT, FK → `source_videos` | |
-| `destination_channel_id` | INT NULL, FK → `destination_channels` | resolvido por nicho na seleção |
-| `clip_path`, `thumbnail_path` | VARCHAR(1024) | **zerados na finalização do vídeo fonte** |
-| `title` | VARCHAR(200) | o uploader trunca em 100 antes de enviar |
-| `description`, `tags` | TEXT | `tags` é string separada por vírgula |
-| `score` | TINYINT | 0–10, da IA |
-| `reason` | TEXT | justificativa da IA; virou a descrição no fallback determinístico |
-| `start_time`, `end_time` | FLOAT | segundos no vídeo fonte |
-| `status` | ENUM (8 valores) | default `pending_cut` |
-| `youtube_video_id` | VARCHAR(64) | id **do clip publicado**, não do vídeo fonte |
-| `published_at` | TIMESTAMP NULL | |
-| `scheduled_for` | TIMESTAMP NULL | coluna existe; não encontrei nenhum código que a leia ou escreva |
-| `upload_error` | TEXT NULL | truncado em 2000 chars por `_mark_clip_failed` |
-
-Cuidado com `youtube_video_id`: existe nas duas tabelas com significados diferentes (fonte vs clip
-publicado).
 
 ### `destination_channels`
 
-[`mysql/init/06-multi-canal-migration.sql:13`](../mysql/init/06-multi-canal-migration.sql#L13).
+Representa os canais próprios onde os cortes são publicados. O `slug` vincula o registro ao token OAuth
+`youtube/token-<slug>.json` e à marca d'água. `active` habilita o destino e `oauth_expired_flag` é
+atualizado pelo uploader quando o refresh do token falha.
 
-| Coluna | Notas |
-|---|---|
-| `slug` | VARCHAR(50) UNIQUE — define `token-<slug>.json` e `watermark-<slug>.png` |
-| `niche` | casa com `source_channels.target_niche` |
-| `youtube_channel_id` | VARCHAR(50) UNIQUE NOT NULL — usado na chave Redis de cota |
-| `credit_template` | TEXT — anexado à descrição no momento da publicação |
-| `active` | filtro de `publish_pending_clips` |
-| `oauth_expired_flag` | BOOLEAN default FALSE (`07-...`) — badge no painel, auto-limpo em upload OK |
+### `generated_clips`
 
-O `slug` é acoplamento de **filesystem**: renomear um slug quebra o token OAuth e a marca d'água em
-silêncio.
+Representa os cortes derivados de `source_videos`. Guarda metadados, intervalos de corte, arquivos,
+destino, estado de publicação e eventual erro de upload. As FKs não usam `ON DELETE CASCADE`: antes de
+remover um vídeo, remova ou trate seus clips explicitamente. Os campos `start_time` e `end_time` também
+formam o histórico anti-repetição: a seleção consulta todos os intervalos válidos do mesmo vídeo fonte,
+e a inserção bloqueia candidatos com mais de 0,5 s de sobreposição.
 
-Os canais seedados têm `youtube_channel_id` **placeholder** (`UC_PLACEHOLDER_FUTEBOL`,
-`UC_PLACEHOLDER_PODCAST`). Se ninguém trocou no banco, seguem inválidos — e a chave de cota é montada
-com esse valor.
+### `media_assets`
 
----
+Biblioteca de pós-produção compartilhada pelo painel e pelo `clip-processor`. `kind` aceita `intro`,
+`outro` ou `music`; `destination_channel_id` e `format` podem ficar nulos para criar um fallback
+global. `priority` resolve empates dentro do mesmo escopo, `active` permite pausar sem perder o arquivo,
+`duration_seconds` controla imagens de abertura/fechamento e `music_volume` controla a trilha.
 
-## Integridade referencial
+`path` é relativo ao disk Laravel `branding`, montado como `/app/branding` no worker. Esses registros
+continuam como fallback legado: a biblioteca canônica por diretório fica em `assets/channels` e
+`assets/audio`. A FK do canal usa `ON DELETE SET NULL` para que apagar um canal transforme seus assets
+em configurações globais, nunca em arquivos órfãos.
 
-**Nenhuma FK tem `ON DELETE CASCADE`.** Consequências:
+Índices relevantes:
 
-- apagar `source_videos` com clips vinculados **falha por FK**;
-- ordem correta em delete manual: **clips primeiro, depois vídeos**;
-- sempre fazer backup antes (regra 5 do [`../CLAUDE.md`](../CLAUDE.md)).
+- `source_videos(status, format)` e `source_videos(published_at)` para reposição da janela;
+- `generated_clips(source_video_id, status)` para recuperação e finalização;
+- `generated_clips(destination_channel_id, status)` para a fila de publicação;
+- `source_channels(blacklisted)` para o polling.
+
+## Donos das operações
+
+| Serviço | Conexão | Responsabilidade |
+|---|---|---|
+| Laravel | `pgsql` via Eloquent/Query Builder | painel, migrations e transições operacionais |
+| clip-processor | `psycopg2` | ingestão, processamento, recuperação e publicação |
+| Redis | database configurado | deduplicação, cota e idempotência de avisos; não é a fila |
+
+O `updated_at` de `source_videos`, `destination_channels` e `generated_clips` é atualizado por trigger
+PostgreSQL, inclusive quando a alteração vem do Python.
+
+## Migração do banco legado
+
+O utilitário excepcional MySQL → PostgreSQL está em
+[`scripts/migrations/migrate-mysql-to-postgres.py`](../scripts/migrations/migrate-mysql-to-postgres.py).
+Ele não participa do Compose nem do startup normal. Instale as dependências isoladas de
+`scripts/migrations/requirements.txt`, faça backup validado da origem e confirme explicitamente a
+operação com `CONFIRM_MIGRATION=I_UNDERSTAND`. O script preserva IDs, faz upsert e recalibra sequences;
+a origem não é apagada.
+
+## Backup e restauração
+
+O serviço opcional `postgres-backup` usa `pg_dump`, gzip e SHA-256:
 
 ```bash
-docker exec mysql mysqldump -uroot -p"$P" clips_automation source_videos generated_clips > backup.sql
+./scripts/backup-postgres.sh
+CONFIRM_RESTORE=I_UNDERSTAND ./scripts/restore-postgres.sh \
+  ./backups/postgres/clips_automation_DATA.sql.gz
 ```
 
-`niches` é a fonte dos selects do painel, mas **não há FK** ligando `source_channels.target_niche` /
-`destination_channels.niche` a ela — seguem VARCHAR livre. Um nicho digitado errado não é rejeitado
-pelo banco; só faz o clip nunca encontrar canal-destino.
-
----
-
-## Divergência banco × disco (bug aberto)
-
-**287 clips têm `clip_path` apontando para arquivo que não existe em disco.** Origem: limpeza apagou o
-arquivo sem limpar a coluna. Detalhe e status em [`BUGS.md`](BUGS.md).
-
-Efeito prático no pipeline: o uploader valida a existência do arquivo
-([`uploader.py:133`](../clip-processor/src/uploader.py#L133)) e levanta `FileNotFoundError`, então o
-clip vira `failed` na tentativa de publicar em vez de subir vazio.
-
-Query para medir a divergência (só leitura):
-
-```sql
-SELECT id, status, clip_path FROM generated_clips
-WHERE clip_path IS NOT NULL AND status IN ('pending','approved') ORDER BY id;
-```
-Depois conferir cada path com `docker exec clip-processor ls -l <path>` — não confiar na coluna.
-
----
-
-## Acesso
-
-| Serviço | Usuário | Database |
-|---|---|---|
-| `clip-processor` | `clips_user` (env `MYSQL_USER`) | `clips_automation` |
-| `php` (painel) | ver `painel/.env` | `clips_automation` |
-
-O `clip-processor` conecta via pymysql com `autocommit=False`, `charset=utf8mb4`,
-`connect_timeout=10`, `cursorclass=DictCursor`
-([`db.py:43`](../clip-processor/src/db.py#L43)). **Cada função faz commit explícito**; quem abre a
-conexão é responsável por fechar.
-
-A senha vem de `CLIPS_DB_PASSWORD` no `.env` da **raiz `wordpress/`** — não o `canaldecortes/.env`.
+Pare `clip-processor`, `queue` e `scheduler` antes de restaurar. Verifique o checksum quando existir
+e nunca execute `docker compose down -v` em uma instalação com dados.

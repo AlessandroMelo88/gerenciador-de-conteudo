@@ -3,10 +3,9 @@ test_transcription_job.py — Testes unitários para transcription_job.py (QUICK
 
 Feature "Transcrição Local": worker de background que baixa áudio de uma URL do
 YouTube e roda whisper-cpp local, persistindo status/progresso em transcription_jobs
-(MySQL). Isolado do pipeline principal — nunca toca source_videos/generated_clips.
+(PostgreSQL). Isolado do pipeline principal — nunca toca source_videos/generated_clips.
 
-Estado inicial: RED — módulo src.transcription_job não existe ainda.
-Após implementação: GREEN.
+Os cenários cobrem criação, atualização e execução do job.
 """
 
 from unittest.mock import MagicMock, patch
