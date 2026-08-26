@@ -2,7 +2,7 @@
 
 Índice da documentação. **Comece por aqui em toda conversa nova.**
 
-Última atualização: **13/08/2026**
+Última atualização: **25/08/2026**
 
 ---
 
@@ -29,6 +29,10 @@ horizontal de 7 a 20 min).
 | [`../CLAUDE.md`](../CLAUDE.md) | As 7 regras de operação destrutiva e os incidentes que as geraram. **Ler antes de apagar qualquer coisa** |
 | [`RUNBOOK.md`](RUNBOOK.md) | Comandos do dia a dia: está de pé? por que parou? como reiniciar sem travar clip? como limpar disco em duas etapas? |
 | [`BUGS.md`](BUGS.md) | Backlog com status FEITO / PARCIAL / ABERTO / SUSPEITA, evidência e onde corrigir |
+| [`DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md) | Setup do host, `make lint/format/test`, o que cada ferramenta (ruff, Pint, PHPStan, Prettier, oxlint, pre-commit, CI) verifica e bloqueia, políticas de baseline, como fechar versão |
+| [`TODO-REFATORACAO.md`](TODO-REFATORACAO.md) | Auditoria de 25/08/2026: onde o código pode ser melhor refatorado, por prioridade, com `arquivo:linha`, esforço e risco — Python, PHP e React |
+| [`ADR/`](ADR/README.md) | Registros de decisão de arquitetura (compose isolado, fila no banco, fallback de IA, schema fora das migrations, ferramentas de qualidade, motor de banco) |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) · [`../CHANGELOG.md`](../CHANGELOG.md) · [`../CHANGELOG.d/`](../CHANGELOG.d/README.md) | Convenções de branch/commit, release notes e fragmentos de changelog |
 
 ### Como o sistema funciona, por subsistema
 
@@ -136,6 +140,9 @@ Regra única: **status mora no documento, não na cabeça de ninguém.**
 - Mudou comportamento de um subsistema → atualiza o `SISTEMA-*.md` dele; se mexeu em estado ou
   transição, também `ESTADOS-E-TRANSICOES.md`; se for estrutural, `ARCHITECTURE.md`.
 - Descobriu incidente novo de operação destrutiva → `CLAUDE.md`, não aqui.
+- Tomou uma decisão de arquitetura → novo `ADR/NNNN-*.md` (nunca editar um aceito; substituir).
+- Concluiu um item do `TODO-REFATORACAO.md` → marca FEITO com data e commit, sem renumerar.
+- Toda mudança relevante → fragmento em `CHANGELOG.d/` (ver `CHANGELOG.d/README.md`).
 
 Ao citar código, usar sempre `arquivo:linha` clicável. Datas sempre absolutas (`13/08/2026`), nunca
 relativas ("semana passada") — estes arquivos são lidos meses depois.

@@ -1,6 +1,6 @@
 # Painel Canal de Cortes
 
-Interface web (Laravel 12 + Inertia.js + React 19 + Tailwind CSS + shadcn UI) para o operador do pipeline Canal de Cortes:
+Interface web (Laravel 13 + Inertia.js + React 19 + Tailwind CSS + shadcn UI) para o operador do pipeline Canal de Cortes:
 - Gerenciar canais-fonte (RSS) e canais-destino (YouTube).
 - Ver dashboard em tempo real do pipeline (uploads, cota, falhas).
 - Aprovar/rejeitar clips gerados pela IA — mesmo efeito de `/aprovar` e `/rejeitar` no Telegram.
@@ -82,7 +82,9 @@ docker exec -it clip-processor python -m src.youtube_oauth --channel {slug}
 ```
 Rodar no host, seguir o fluxo do Google. Volta ao painel: badge OAuth vira "authorized".
 
-## Testes
+## Testes e qualidade
 
-- Suíte Laravel: `docker exec -it php bash -c "cd /var/www/html/painel && php artisan test"`
-- Suíte Python: `docker exec -it clip-processor pytest tests/ -v`
+- Suíte Laravel: `docker exec -it php bash -c "cd /var/www/html/painel && php artisan test"` (grava no banco real — ver `Docs/DESENVOLVIMENTO.md` §5)
+- Suíte Python: `docker exec -it clip-processor pytest tests/ -v` ou `make test-python` na raiz
+- Lint/format do painel: `vendor/bin/pint`, `vendor/bin/phpstan analyse`, `npm run check` (tsc + oxlint + prettier) — ou `make lint-php` / `make lint-js` na raiz
+- Referência completa: `Docs/DESENVOLVIMENTO.md`

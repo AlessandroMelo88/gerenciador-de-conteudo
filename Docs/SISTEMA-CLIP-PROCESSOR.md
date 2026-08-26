@@ -165,9 +165,16 @@ read-write no `php`).
 
 ## Testes
 
-`clip-processor/tests/`, pytest. **Rodar dentro do container** — o host não tem as dependências do
-sidecar (`flask`), o que faz teste falhar por ambiente e não por código. Ver bug 7.
+`clip-processor/tests/`, pytest (186 testes em 25/08/2026). Dois jeitos de rodar:
 
 ```bash
+# no container (reproduz produção)
 docker exec clip-processor python -m pytest tests/ -q
+
+# no host, via venv com requirements-dev.txt (make setup-python uma vez)
+make test-python
 ```
+
+Lint e formatação: `make lint-python` (ruff) e `make format-python`; mypy informativo em
+`make types-python`. Detalhes em `DESENVOLVIMENTO.md`. O bug 7 (falhas por ambiente no host)
+deixou de reproduzir com o venv.

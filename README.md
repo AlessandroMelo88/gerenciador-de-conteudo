@@ -83,6 +83,17 @@ docker compose logs -f nginx php clip-processor
 docker compose exec php php artisan migrate:status
 ```
 
+## Desenvolvimento e qualidade
+
+```bash
+make setup      # venv Python + composer + npm
+make lint       # ruff, Pint, PHPStan, tsc, oxlint, Prettier, shellcheck, yamllint
+make format     # aplica formatação em tudo
+make test-python
+```
+
+Hooks locais com `make hooks` (pre-commit); o mesmo conjunto roda no GitHub Actions (`.github/workflows/ci.yml`). Convenções de commit e changelog em [`CONTRIBUTING.md`](CONTRIBUTING.md); ferramentas, políticas e pendências em [`Docs/DESENVOLVIMENTO.md`](Docs/DESENVOLVIMENTO.md); dívida técnica mapeada em [`Docs/TODO-REFATORACAO.md`](Docs/TODO-REFATORACAO.md).
+
 ## Proteção dos dados
 
 O banco atual é **MySQL 8.4**, não PostgreSQL. Não troque para SQLite neste stack: o painel Laravel, o worker Python e a fila fazem escritas concorrentes; SQLite é mais adequado para processo único e pode gerar bloqueios (`database is locked`) nesse cenário. A segurança dos dados vem de volume persistente, backup verificável e cópia fora do disco principal.
