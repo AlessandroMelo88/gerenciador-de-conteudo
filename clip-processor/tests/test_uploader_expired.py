@@ -1,7 +1,9 @@
 """RED test para captura de RefreshError e persistência de oauth_expired_flag
 (implementação GREEN no Plan 08-06)."""
+
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from src.uploader import YouTubeUploader
 
@@ -24,14 +26,18 @@ def test_load_credentials_catches_refresh_error_and_flags_channel(tmp_path):
     fake_creds = MagicMock()
     fake_creds.expired = True
     fake_creds.refresh_token = 'stale'
-    fake_creds.refresh.side_effect = RefreshError('invalid_grant: Token has been expired or revoked')
+    fake_creds.refresh.side_effect = RefreshError(
+        'invalid_grant: Token has been expired or revoked'
+    )
 
     fake_conn = MagicMock()
     fake_cursor = MagicMock()
     fake_conn.cursor.return_value.__enter__.return_value = fake_cursor
 
-    with patch('src.uploader.Credentials.from_authorized_user_file', return_value=fake_creds), \
-         patch('src.uploader.db_connect', return_value=fake_conn):
+    with (
+        patch('src.uploader.Credentials.from_authorized_user_file', return_value=fake_creds),
+        patch('src.uploader.db_connect', return_value=fake_conn),
+    ):
         with pytest.raises(RefreshError):
             uploader._load_credentials()
 

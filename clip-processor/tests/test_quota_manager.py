@@ -1,13 +1,14 @@
 """
 Testes para QuotaManager — controle de quota e janela de publicação.
 """
-import pytest
+
 from datetime import datetime
 from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
 
-from src.quota_manager import QuotaManager, UPLOAD_WINDOW_START, UPLOAD_WINDOW_END
+import pytest
 
+from src.quota_manager import QuotaManager
 
 TZ_SP = ZoneInfo('America/Sao_Paulo')
 
@@ -132,6 +133,7 @@ class TestRecordUpload:
 # Estes testes falham até a implementação em Wave 3-4.
 # ---------------------------------------------------------------------------
 
+
 class TestQuotaManagerMultiCanal:
     """Testes RED para suporte a channel_id no QuotaManager (MCAN-03, MCAN-04)."""
 
@@ -205,5 +207,7 @@ class TestLongoReservation:
     def test_normalize_scores_via_parse(self):
         from src.selector import _parse_moments
 
-        moments = _parse_moments('{"moments":[{"start_time":0,"end_time":500,"score":0.95,"reason":"x"}]}')
+        moments = _parse_moments(
+            '{"moments":[{"start_time":0,"end_time":500,"score":0.95,"reason":"x"}]}'
+        )
         assert moments[0]['score'] == pytest.approx(9.5)

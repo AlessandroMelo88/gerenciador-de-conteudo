@@ -21,10 +21,10 @@ Exporta:
   - LARAVEL_HOST_HEADER (constante module-level)
   - notify(event_type, payload, timeout=5.0) -> bool
 """
+
 import os
 
 import requests
-
 
 LARAVEL_NOTIFY_URL = os.getenv(
     'LARAVEL_NOTIFY_URL',

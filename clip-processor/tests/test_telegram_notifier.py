@@ -8,8 +8,9 @@ em vez de N8N_NOTIFY_URL.
 Testes test_notifier_uses_laravel_url e test_notifier_sends_host_header estão
 em RED até o Plan 09-03 renomear N8N_NOTIFY_URL → LARAVEL_NOTIFY_URL.
 """
-import pytest
+
 from unittest.mock import MagicMock, patch
+
 import requests
 
 from src.telegram_notifier import notify

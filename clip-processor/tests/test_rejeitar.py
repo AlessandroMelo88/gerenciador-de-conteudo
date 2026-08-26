@@ -3,8 +3,8 @@ Testes para rejeitar.py — comando /rejeitar do Telegram.
 
 Estado RED até Plan 06-03.
 """
-import pytest
-from unittest.mock import MagicMock, patch
+
+from unittest.mock import patch
 
 from src.rejeitar import rejeitar
 
@@ -18,14 +18,17 @@ def test_marca_rejected(mock_db_conn):
         'clip_path': '/app/videos/clips/clip_123.mp4',
     }
 
-    with patch('src.rejeitar.db_connect', return_value=mock_db_conn), \
-         patch('src.rejeitar.os.path.exists', return_value=False), \
-         patch('src.rejeitar.os.remove'):
+    with (
+        patch('src.rejeitar.db_connect', return_value=mock_db_conn),
+        patch('src.rejeitar.os.path.exists', return_value=False),
+        patch('src.rejeitar.os.remove'),
+    ):
         rejeitar(123)
 
     # Pelo menos uma chamada UPDATE com status='rejected' e id=123
     update_calls = [
-        c for c in cursor.execute.call_args_list
+        c
+        for c in cursor.execute.call_args_list
         if 'UPDATE' in str(c).upper() and 'rejected' in str(c)
     ]
     assert len(update_calls) >= 1
@@ -44,9 +47,11 @@ def test_apaga_mp4_mantem_raw(mock_db_conn):
         'source_local_path': '/app/videos/raw/video_xyz.mp4',
     }
 
-    with patch('src.rejeitar.db_connect', return_value=mock_db_conn), \
-         patch('src.rejeitar.os.path.exists', return_value=True) as mock_exists, \
-         patch('src.rejeitar.os.remove') as mock_remove:
+    with (
+        patch('src.rejeitar.db_connect', return_value=mock_db_conn),
+        patch('src.rejeitar.os.path.exists', return_value=True),
+        patch('src.rejeitar.os.remove') as mock_remove,
+    ):
         rejeitar(7)
 
     removed_paths = [c.args[0] for c in mock_remove.call_args_list]
@@ -64,7 +69,8 @@ def test_clip_nao_existe(mock_db_conn):
 
     assert result == 1
     update_calls = [
-        c for c in cursor.execute.call_args_list
+        c
+        for c in cursor.execute.call_args_list
         if 'UPDATE' in str(c).upper() and 'rejected' in str(c)
     ]
     assert len(update_calls) == 0

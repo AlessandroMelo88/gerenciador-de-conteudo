@@ -29,16 +29,13 @@ import json
 import os
 from pathlib import Path
 
-from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-SECRETS_FILE = os.environ.get(
-    "YOUTUBE_CLIENT_SECRETS", "/app/youtube/client_secrets.json"
-)
+SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
+SECRETS_FILE = os.environ.get('YOUTUBE_CLIENT_SECRETS', '/app/youtube/client_secrets.json')
 
 
-def generate_token(channel_slug: str, secrets_file: str = None) -> str:
+def generate_token(channel_slug: str, secrets_file: str | None = None) -> str:
     """Gera token OAuth para o canal-destino e salva em /app/youtube/token-{slug}.json.
 
     Args:
@@ -51,62 +48,60 @@ def generate_token(channel_slug: str, secrets_file: str = None) -> str:
     if secrets_file is None:
         secrets_file = SECRETS_FILE
 
-    token_path = f"/app/youtube/token-{channel_slug}.json"
+    token_path = f'/app/youtube/token-{channel_slug}.json'
 
     if not os.path.exists(secrets_file):
         raise FileNotFoundError(
-            f"client_secrets.json nao encontrado em: {secrets_file}\n"
-            "Defina YOUTUBE_CLIENT_SECRETS ou copie o arquivo para o caminho default."
+            f'client_secrets.json nao encontrado em: {secrets_file}\n'
+            'Defina YOUTUBE_CLIENT_SECRETS ou copie o arquivo para o caminho default.'
         )
 
     flow = InstalledAppFlow.from_client_secrets_file(secrets_file, SCOPES)
-    flow.redirect_uri = "http://localhost:8085/"
-    auth_url, _ = flow.authorization_url(access_type="offline", prompt="consent")
+    flow.redirect_uri = 'http://localhost:8085/'
+    auth_url, _ = flow.authorization_url(access_type='offline', prompt='consent')
 
-    print(f"\nAbra esta URL no browser:\n\n{auth_url}\n")
-    print("Depois de autorizar, o browser vai tentar abrir localhost:8085 e mostrar erro.")
-    print("Isso e normal. Copie a URL COMPLETA da barra do browser e cole aqui:")
-    redirect_response = input("> ").strip()
+    print(f'\nAbra esta URL no browser:\n\n{auth_url}\n')
+    print('Depois de autorizar, o browser vai tentar abrir localhost:8085 e mostrar erro.')
+    print('Isso e normal. Copie a URL COMPLETA da barra do browser e cole aqui:')
+    redirect_response = input('> ').strip()
 
     flow.fetch_token(authorization_response=redirect_response)
     creds = flow.credentials
 
     creds_data = json.loads(creds.to_json())
-    if not creds_data.get("refresh_token"):
+    if not creds_data.get('refresh_token'):
         raise RuntimeError(
-            "refresh_token nao obtido. Revogue o acesso em:\n"
-            "  https://myaccount.google.com/permissions\n"
-            "e execute novamente."
+            'refresh_token nao obtido. Revogue o acesso em:\n'
+            '  https://myaccount.google.com/permissions\n'
+            'e execute novamente.'
         )
 
     Path(token_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(token_path, "w") as f:
+    with open(token_path, 'w') as f:
         json.dump(creds_data, f, indent=2)
 
     return token_path
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Gera token OAuth YouTube por canal-destino"
-    )
+    parser = argparse.ArgumentParser(description='Gera token OAuth YouTube por canal-destino')
     parser.add_argument(
-        "--channel",
+        '--channel',
         required=True,
-        help="Slug do canal destino (ex: futebol-em-cortes, podcast-cortes)",
+        help='Slug do canal destino (ex: futebol-em-cortes, podcast-cortes)',
     )
     args = parser.parse_args()
 
-    print(f"Gerando token OAuth para canal: {args.channel}")
-    print(f"Usando client_secrets: {SECRETS_FILE}")
+    print(f'Gerando token OAuth para canal: {args.channel}')
+    print(f'Usando client_secrets: {SECRETS_FILE}')
     print()
 
     token_path = generate_token(args.channel)
-    print(f"Token salvo em: {token_path}")
+    print(f'Token salvo em: {token_path}')
     print()
-    print("IMPORTANTE: Publicar app em Production no GCP Console para evitar expiracao em 7 dias.")
-    print("  APIs & Services -> OAuth consent screen -> Publish App")
+    print('IMPORTANTE: Publicar app em Production no GCP Console para evitar expiracao em 7 dias.')
+    print('  APIs & Services -> OAuth consent screen -> Publish App')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

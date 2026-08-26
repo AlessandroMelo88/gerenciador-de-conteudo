@@ -3,9 +3,8 @@ test_video_processor.py — Testes Phase 4 VID-01, VID-02, VID-03.
 
 Estado inicial do Plan 04-01: RED controlado por NotImplementedError.
 """
-import json
 
-import pytest
+import json
 
 from src.video_processor import (
     burn_subtitles,
@@ -14,7 +13,6 @@ from src.video_processor import (
     generate_srt,
     process_clip,
 )
-
 
 SAMPLE_TRANSCRIPT = {
     'video_id': 'vid001aaaaaa',
@@ -28,7 +26,6 @@ SAMPLE_TRANSCRIPT = {
 
 
 class TestVideoProcessor:
-
     def test_cut_clip_uses_ffmpeg_with_exact_timestamps(self, tmp_path, mocker):
         mock_run = mocker.patch('src.video_processor.subprocess.run')
         output = tmp_path / 'clip.mp4'
@@ -88,13 +85,18 @@ class TestVideoProcessor:
 
         mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/10_raw.mp4')
         mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/10.srt')
-        mocker.patch('src.video_processor.burn_subtitles', return_value='/app/clips/10_subtitled.mp4')
+        mocker.patch(
+            'src.video_processor.burn_subtitles', return_value='/app/clips/10_subtitled.mp4'
+        )
         mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/10.jpg')
-        mocker.patch('src.video_processor.generate_metadata', return_value={
-            'title': 'Titulo',
-            'description': 'Descricao',
-            'tags': ['futebol'],
-        })
+        mocker.patch(
+            'src.video_processor.generate_metadata',
+            return_value={
+                'title': 'Titulo',
+                'description': 'Descricao',
+                'tags': ['futebol'],
+            },
+        )
         mocker.patch('src.video_processor.update_clip_metadata')
         mocker.patch('src.video_processor.os.rename')  # slug=None → rename subtitled → final
 
@@ -124,7 +126,6 @@ class TestVideoProcessor:
 
 
 class TestSubtitles:
-
     def test_srt_contains_shifted_segment_times(self, tmp_path):
         srt_path = tmp_path / 'clip.srt'
 
@@ -156,6 +157,7 @@ class TestSubtitles:
 # Wave 2 — RED tests: Overlay Watermark (COPY-01)
 # Estes testes falham até a implementação em Wave 3-4.
 # ---------------------------------------------------------------------------
+
 
 class TestOverlayWatermark:
     """Testes RED para overlay_watermark (COPY-01)."""
@@ -203,6 +205,7 @@ class TestOverlayWatermark:
 # Wave 4 — Integration tests: process_clip com overlay_watermark (MCAN-02)
 # ---------------------------------------------------------------------------
 
+
 class TestProcessClipWithWatermark:
     """Testes de integração: process_clip aplica overlay_watermark com slug do canal-destino."""
 
@@ -229,12 +232,21 @@ class TestProcessClipWithWatermark:
 
         mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/20_raw.mp4')
         mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/20.srt')
-        mocker.patch('src.video_processor.burn_subtitles', return_value='/app/clips/20_subtitled.mp4')
-        mock_watermark = mocker.patch('src.video_processor.overlay_watermark', return_value='/app/clips/20.mp4')
+        mocker.patch(
+            'src.video_processor.burn_subtitles', return_value='/app/clips/20_subtitled.mp4'
+        )
+        mock_watermark = mocker.patch(
+            'src.video_processor.overlay_watermark', return_value='/app/clips/20.mp4'
+        )
         mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/20.jpg')
-        mocker.patch('src.video_processor.generate_metadata', return_value={
-            'title': 'Titulo', 'description': 'Desc', 'tags': ['futebol'],
-        })
+        mocker.patch(
+            'src.video_processor.generate_metadata',
+            return_value={
+                'title': 'Titulo',
+                'description': 'Desc',
+                'tags': ['futebol'],
+            },
+        )
         mocker.patch('src.video_processor.update_clip_metadata')
         mocker.patch('src.video_processor.os.remove')
 
@@ -243,9 +255,10 @@ class TestProcessClipWithWatermark:
         assert result is True
         mock_watermark.assert_called_once()
         call_args = mock_watermark.call_args
-        assert '/app/branding/watermark-futebol-br.png' in call_args.args or \
-               '/app/branding/watermark-futebol-br.png' in str(call_args), \
-               f'overlay_watermark deve receber watermark-futebol-br.png. Args: {call_args}'
+        assert (
+            '/app/branding/watermark-futebol-br.png' in call_args.args
+            or '/app/branding/watermark-futebol-br.png' in str(call_args)
+        ), f'overlay_watermark deve receber watermark-futebol-br.png. Args: {call_args}'
 
     def test_process_clip_skips_watermark_when_slug_is_null(self, tmp_path, mock_db_conn, mocker):
         """MCAN-02: destination_channel_slug NULL → os.rename é usado, overlay_watermark NÃO chamado."""
@@ -270,12 +283,19 @@ class TestProcessClipWithWatermark:
 
         mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/21_raw.mp4')
         mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/21.srt')
-        mocker.patch('src.video_processor.burn_subtitles', return_value='/app/clips/21_subtitled.mp4')
+        mocker.patch(
+            'src.video_processor.burn_subtitles', return_value='/app/clips/21_subtitled.mp4'
+        )
         mock_watermark = mocker.patch('src.video_processor.overlay_watermark')
         mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/21.jpg')
-        mocker.patch('src.video_processor.generate_metadata', return_value={
-            'title': 'Titulo', 'description': 'Desc', 'tags': [],
-        })
+        mocker.patch(
+            'src.video_processor.generate_metadata',
+            return_value={
+                'title': 'Titulo',
+                'description': 'Desc',
+                'tags': [],
+            },
+        )
         mocker.patch('src.video_processor.update_clip_metadata')
         mock_rename = mocker.patch('src.video_processor.os.rename')
 

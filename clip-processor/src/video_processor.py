@@ -14,13 +14,13 @@ Convenções:
   - Diretórios são constantes patcháveis em testes
   - conn: quem chama é responsável por fechar
 """
+
 import json
 import os
 import subprocess
 from datetime import datetime
 
 from src.metadata_generator import generate_metadata, update_clip_metadata
-
 
 VIDEOS_DIR = '/app/videos'
 CLIPS_DIR = '/app/videos/clips'
@@ -31,7 +31,9 @@ def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [VID] {msg}')
 
 
-def cut_clip(source_path: str, start_time: float, end_time: float, output_path: str, fmt: str = 'curto') -> str:
+def cut_clip(
+    source_path: str, start_time: float, end_time: float, output_path: str, fmt: str = 'curto'
+) -> str:
     """Corta um trecho do vídeo fonte.
 
     fmt='curto' (padrão): converte pra vertical 1080x1920 (Shorts).
@@ -43,23 +45,31 @@ def cut_clip(source_path: str, start_time: float, end_time: float, output_path: 
         video_filter = 'scale=-2:1080,setsar=1'
     else:
         video_filter = (
-            'scale=1080:1920:force_original_aspect_ratio=increase,'
-            'crop=1080:1920,'
-            'setsar=1'
+            'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1'
         )
     subprocess.run(
         [
             'ffmpeg',
-            '-ss', str(start_time),
-            '-to', str(end_time),
-            '-i', source_path,
-            '-vf', video_filter,
-            '-c:v', 'libx264',
-            '-preset', 'veryfast',
-            '-crf', '23',
-            '-c:a', 'aac',
-            '-b:a', '128k',
-            '-movflags', '+faststart',
+            '-ss',
+            str(start_time),
+            '-to',
+            str(end_time),
+            '-i',
+            source_path,
+            '-vf',
+            video_filter,
+            '-c:v',
+            'libx264',
+            '-preset',
+            'veryfast',
+            '-crf',
+            '23',
+            '-c:a',
+            'aac',
+            '-b:a',
+            '128k',
+            '-movflags',
+            '+faststart',
             output_path,
             '-y',
         ],
@@ -109,22 +119,28 @@ def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str) -> str
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     subtitle_filter = (
-        f"subtitles={srt_path}:"
+        f'subtitles={srt_path}:'
         "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=38,"
-        "PlayResX=1080,PlayResY=1920,"
-        "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
-        "BackColour=&H60000000,"
+        'PlayResX=1080,PlayResY=1920,'
+        'PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,'
+        'BackColour=&H60000000,'
         "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=180'"
     )
     subprocess.run(
         [
             'ffmpeg',
-            '-i', input_clip_path,
-            '-vf', subtitle_filter,
-            '-c:v', 'libx264',
-            '-preset', 'veryfast',
-            '-crf', '23',
-            '-c:a', 'copy',
+            '-i',
+            input_clip_path,
+            '-vf',
+            subtitle_filter,
+            '-c:v',
+            'libx264',
+            '-preset',
+            'veryfast',
+            '-crf',
+            '23',
+            '-c:a',
+            'copy',
             output_path,
             '-y',
         ],
@@ -134,7 +150,7 @@ def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str) -> str
     return output_path
 
 
-def extract_thumbnail(clip_path: str, thumbnail_path: str, at_seconds: float = None) -> str:
+def extract_thumbnail(clip_path: str, thumbnail_path: str, at_seconds: float | None = None) -> str:
     """Extrai um frame do clip como thumbnail JPG."""
     os.makedirs(os.path.dirname(thumbnail_path), exist_ok=True)
     if at_seconds is None:
@@ -142,10 +158,14 @@ def extract_thumbnail(clip_path: str, thumbnail_path: str, at_seconds: float = N
     subprocess.run(
         [
             'ffmpeg',
-            '-ss', str(at_seconds),
-            '-i', clip_path,
-            '-frames:v', '1',
-            '-q:v', '2',
+            '-ss',
+            str(at_seconds),
+            '-i',
+            clip_path,
+            '-frames:v',
+            '1',
+            '-q:v',
+            '2',
             thumbnail_path,
             '-y',
         ],
@@ -169,13 +189,20 @@ def overlay_watermark(input_path: str, watermark_path: str, output_path: str) ->
     subprocess.run(
         [
             'ffmpeg',
-            '-i', input_path,        # [0] = clip vídeo
-            '-i', watermark_path,    # [1] = PNG watermark
-            '-filter_complex', 'overlay=W-w-20:20',  # canto sup direito, margem 20px
-            '-c:v', 'libx264',
-            '-preset', 'veryfast',
-            '-crf', '23',
-            '-c:a', 'copy',
+            '-i',
+            input_path,  # [0] = clip vídeo
+            '-i',
+            watermark_path,  # [1] = PNG watermark
+            '-filter_complex',
+            'overlay=W-w-20:20',  # canto sup direito, margem 20px
+            '-c:v',
+            'libx264',
+            '-preset',
+            'veryfast',
+            '-crf',
+            '23',
+            '-c:a',
+            'copy',
             output_path,
             '-y',
         ],
@@ -199,7 +226,7 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
 
         _update_clip_status(conn, clip_id, 'cutting')
 
-        with open(clip['transcript_path'], 'r', encoding='utf-8') as f:
+        with open(clip['transcript_path'], encoding='utf-8') as f:
             transcript = json.load(f)
 
         raw_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}_raw.mp4')
@@ -208,7 +235,13 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
         final_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}.mp4')
         thumbnail_path = os.path.join(THUMBNAILS_DIR, f'{clip_id}.jpg')
 
-        cut_clip(clip['local_path'], clip['start_time'], clip['end_time'], raw_clip_path, fmt=clip.get('format') or 'curto')
+        cut_clip(
+            clip['local_path'],
+            clip['start_time'],
+            clip['end_time'],
+            raw_clip_path,
+            fmt=clip.get('format') or 'curto',
+        )
         generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
         burn_subtitles(raw_clip_path, srt_path, subtitled_path)
 
@@ -229,19 +262,19 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             # Sem canal-destino: renomear arquivo legendado para path final
             os.rename(subtitled_path, final_clip_path)
 
-        duration = max(float(clip['end_time']) - float(clip['start_time']), 1.0)
+        max(float(clip['end_time']) - float(clip['start_time']), 1.0)
         extract_thumbnail(final_clip_path, thumbnail_path, at_seconds=1.0)
 
         with conn.cursor() as cur:
             cur.execute(
-                'UPDATE generated_clips '
-                'SET clip_path=%s, thumbnail_path=%s '
-                'WHERE id=%s',
+                'UPDATE generated_clips SET clip_path=%s, thumbnail_path=%s WHERE id=%s',
                 (final_clip_path, thumbnail_path, clip_id),
             )
         conn.commit()
 
-        metadata = generate_metadata(_build_clip_context(clip, transcript), anthropic_client=anthropic_client)
+        metadata = generate_metadata(
+            _build_clip_context(clip, transcript), anthropic_client=anthropic_client
+        )
         update_clip_metadata(conn, clip_id, metadata)
         _update_clip_status(conn, clip_id, 'pending')
         _log(f'Clip {clip_id} processado: {final_clip_path}')
@@ -302,7 +335,7 @@ def _build_clip_context(clip: dict, transcript: dict) -> dict:
 
 
 def _format_srt_time(seconds: float) -> str:
-    milliseconds_total = int(round(seconds * 1000))
+    milliseconds_total = round(seconds * 1000)
     hours = milliseconds_total // 3_600_000
     remainder = milliseconds_total % 3_600_000
     minutes = remainder // 60_000

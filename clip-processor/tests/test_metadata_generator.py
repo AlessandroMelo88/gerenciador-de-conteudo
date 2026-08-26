@@ -3,11 +3,11 @@ test_metadata_generator.py — Testes Phase 4 VID-04.
 
 Estado inicial do Plan 04-01: RED controlado por NotImplementedError.
 """
+
 import json
 from unittest.mock import MagicMock
 
 from src.metadata_generator import generate_metadata, update_clip_metadata
-
 
 SAMPLE_CONTEXT = {
     'source_title': 'Debate quente depois do clássico',
@@ -20,15 +20,20 @@ SAMPLE_CONTEXT = {
 
 
 class TestMetadataGenerator:
-
     def test_generate_metadata_returns_title_description_tags(self):
         mock_anthropic = MagicMock()
         response = MagicMock()
-        response.content = [MagicMock(text=json.dumps({
-            'title': 'Polêmica no clássico: foi pênalti?',
-            'description': 'Debate completo sobre o lance mais polêmico.',
-            'tags': ['futebol', 'classico', 'arbitragem'],
-        }))]
+        response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'title': 'Polêmica no clássico: foi pênalti?',
+                        'description': 'Debate completo sobre o lance mais polêmico.',
+                        'tags': ['futebol', 'classico', 'arbitragem'],
+                    }
+                )
+            )
+        ]
         mock_anthropic.messages.create.return_value = response
 
         metadata = generate_metadata(SAMPLE_CONTEXT, anthropic_client=mock_anthropic)
@@ -39,11 +44,17 @@ class TestMetadataGenerator:
     def test_title_is_trimmed_to_100_chars(self):
         mock_anthropic = MagicMock()
         response = MagicMock()
-        response.content = [MagicMock(text=json.dumps({
-            'title': 'A' * 150,
-            'description': 'Descricao',
-            'tags': ['futebol'],
-        }))]
+        response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'title': 'A' * 150,
+                        'description': 'Descricao',
+                        'tags': ['futebol'],
+                    }
+                )
+            )
+        ]
         mock_anthropic.messages.create.return_value = response
 
         metadata = generate_metadata(SAMPLE_CONTEXT, anthropic_client=mock_anthropic)
@@ -53,11 +64,17 @@ class TestMetadataGenerator:
     def test_generate_metadata_uses_structured_output(self):
         mock_anthropic = MagicMock()
         response = MagicMock()
-        response.content = [MagicMock(text=json.dumps({
-            'title': 'Titulo',
-            'description': 'Descricao',
-            'tags': ['futebol'],
-        }))]
+        response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'title': 'Titulo',
+                        'description': 'Descricao',
+                        'tags': ['futebol'],
+                    }
+                )
+            )
+        ]
         mock_anthropic.messages.create.return_value = response
 
         generate_metadata(SAMPLE_CONTEXT, anthropic_client=mock_anthropic)
@@ -68,7 +85,6 @@ class TestMetadataGenerator:
 
 
 class TestMetadataPersistence:
-
     def test_update_clip_metadata_persists_fields(self, mock_db_conn):
         metadata = {
             'title': 'Titulo',
@@ -90,6 +106,7 @@ class TestMetadataPersistence:
 # Wave 2 — RED tests: append_credits (COPY-02)
 # Estes testes falham até a implementação em Wave 3-4.
 # ---------------------------------------------------------------------------
+
 
 class TestAppendCredits:
     """Testes RED para append_credits (COPY-02)."""

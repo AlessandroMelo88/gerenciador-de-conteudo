@@ -1,9 +1,10 @@
 """RED tests for internal_api sidecar (implementação GREEN no Plan 08-07)."""
-import os
-import pytest
-from unittest.mock import patch, MagicMock
 
-from src.internal_api import app, resolve_channel, reject_clip, purge_old_videos
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from src.internal_api import app, purge_old_videos
 
 
 @pytest.fixture
@@ -169,7 +170,9 @@ def test_purge_old_videos_deletes_rows_and_frees_files(client, mocker):
 
 
 def test_purge_old_videos_route_returns_result(client, mocker):
-    mocker.patch('src.internal_api.purge_old_videos', return_value={'deleted_rows': 3, 'freed_bytes': 2048})
+    mocker.patch(
+        'src.internal_api.purge_old_videos', return_value={'deleted_rows': 3, 'freed_bytes': 2048}
+    )
 
     resp = client.post(
         '/internal/purge-old-videos',

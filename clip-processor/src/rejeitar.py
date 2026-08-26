@@ -21,13 +21,13 @@ Exit codes:
 Exporta:
     - rejeitar(clip_id) -> int
 """
+
 import os
 import sys
 
 # Alias `db_connect` para preservar o nome esperado pelos testes
 # (patch('src.rejeitar.db_connect', ...))
 from src.db import get_db_connection as db_connect
-
 
 # Status do clip que aceitam transição para 'rejected'.
 # - pending: clip recém-cortado aguardando aprovação manual
@@ -56,10 +56,7 @@ def rejeitar(clip_id: int) -> int:
     conn = db_connect()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                'SELECT clip_path, status FROM generated_clips WHERE id=%s',
-                (clip_id,)
-            )
+            cur.execute('SELECT clip_path, status FROM generated_clips WHERE id=%s', (clip_id,))
             row = cur.fetchone()
 
             if not row:
@@ -76,7 +73,7 @@ def rejeitar(clip_id: int) -> int:
             cur.execute(
                 "UPDATE generated_clips SET status='rejected' "
                 "WHERE id=%s AND status IN ('pending', 'approved')",
-                (clip_id,)
+                (clip_id,),
             )
             affected = cur.rowcount
 
@@ -87,10 +84,7 @@ def rejeitar(clip_id: int) -> int:
             os.remove(clip_path)
             print(f'OK: clip {clip_id} rejeitado, MP4 removido ({clip_path})')
         else:
-            print(
-                f'OK: clip {clip_id} rejeitado '
-                f'(MP4 não encontrado em {clip_path!r})'
-            )
+            print(f'OK: clip {clip_id} rejeitado (MP4 não encontrado em {clip_path!r})')
         return 0
     finally:
         conn.close()

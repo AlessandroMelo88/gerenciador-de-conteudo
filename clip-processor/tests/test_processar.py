@@ -4,15 +4,10 @@ Testes para processar.py — ingestão manual de vídeo YouTube via /processar.
 Estado RED até Plan 06-04. Imports no topo: ModuleNotFoundError até stub existir;
 após stub, testes falham com NotImplementedError ao invocar as funções.
 """
-import pytest
-from unittest.mock import MagicMock, patch
 
 from src.processar import (
-    YOUTUBE_URL_RE,
     parse_video_id,
-    fetch_metadata,
     upsert_source_video,
-    main,
 )
 
 

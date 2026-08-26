@@ -8,16 +8,18 @@ YouTube e roda whisper-cpp local, persistindo status/progresso em transcription_
 Estado inicial: RED — módulo src.transcription_job não existe ainda.
 Após implementação: GREEN.
 """
-import pytest
+
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from src.internal_api import app
 from src.transcription_job import (
     create_transcription_job,
-    update_job,
     process_transcription_job,
     start_transcription_job,
+    update_job,
 )
-from src.internal_api import app
 
 
 @pytest.fixture
@@ -29,7 +31,6 @@ def client(monkeypatch):
 
 
 class TestCreateTranscriptionJob:
-
     def test_inserts_pending_job_and_returns_id(self):
         mock_conn = MagicMock()
         mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
@@ -46,7 +47,6 @@ class TestCreateTranscriptionJob:
 
 
 class TestUpdateJob:
-
     def test_updates_only_passed_fields(self):
         mock_conn = MagicMock()
         mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
@@ -68,7 +68,13 @@ class TestUpdateJob:
         mock_conn = MagicMock()
         mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
 
-        update_job(mock_conn, 5, status='done', progress_percent=100, srt_path='/app/videos/transcripts/5.srt')
+        update_job(
+            mock_conn,
+            5,
+            status='done',
+            progress_percent=100,
+            srt_path='/app/videos/transcripts/5.srt',
+        )
 
         call_args = mock_cursor.execute.call_args
         sql = call_args[0][0]
@@ -85,18 +91,24 @@ class TestUpdateJob:
 
 
 class TestProcessTranscriptionJob:
-
     def test_happy_path_updates_status_progression(self):
         mock_conn = MagicMock()
         mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
         mock_cursor.fetchone.return_value = {'youtube_url': 'https://youtube.com/watch?v=abc'}
 
-        with patch('src.transcription_job.get_db_connection', return_value=mock_conn), \
-             patch('src.transcription_job.update_job') as mock_update, \
-             patch('src.transcription_job._download_audio', return_value='/app/videos/transcripts/1_audio.wav') as mock_download, \
-             patch('src.transcription_job._run_whisper', return_value='/app/videos/transcripts/1.srt') as mock_whisper, \
-             patch('os.remove'), \
-             patch('os.path.exists', return_value=True):
+        with (
+            patch('src.transcription_job.get_db_connection', return_value=mock_conn),
+            patch('src.transcription_job.update_job') as mock_update,
+            patch(
+                'src.transcription_job._download_audio',
+                return_value='/app/videos/transcripts/1_audio.wav',
+            ) as mock_download,
+            patch(
+                'src.transcription_job._run_whisper', return_value='/app/videos/transcripts/1.srt'
+            ) as mock_whisper,
+            patch('os.remove'),
+            patch('os.path.exists', return_value=True),
+        ):
             process_transcription_job(1)
 
         mock_download.assert_called_once_with(1, 'https://youtube.com/watch?v=abc')
@@ -107,7 +119,7 @@ class TestProcessTranscriptionJob:
         assert 'transcribing' in statuses
         assert 'done' in statuses
 
-        done_call = [c for c in mock_update.call_args_list if c.kwargs.get('status') == 'done'][0]
+        done_call = next(c for c in mock_update.call_args_list if c.kwargs.get('status') == 'done')
         assert done_call.kwargs.get('progress_percent') == 100
         assert done_call.kwargs.get('srt_path') == '/app/videos/transcripts/1.srt'
 
@@ -116,28 +128,35 @@ class TestProcessTranscriptionJob:
         mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
         mock_cursor.fetchone.return_value = {'youtube_url': 'https://youtube.com/watch?v=abc'}
 
-        with patch('src.transcription_job.get_db_connection', return_value=mock_conn), \
-             patch('src.transcription_job.update_job') as mock_update, \
-             patch('src.transcription_job._download_audio', side_effect=RuntimeError('yt-dlp failed')), \
-             patch('os.remove'), \
-             patch('os.path.exists', return_value=True):
+        with (
+            patch('src.transcription_job.get_db_connection', return_value=mock_conn),
+            patch('src.transcription_job.update_job') as mock_update,
+            patch(
+                'src.transcription_job._download_audio', side_effect=RuntimeError('yt-dlp failed')
+            ),
+            patch('os.remove'),
+            patch('os.path.exists', return_value=True),
+        ):
             # Não deve propagar exceção — thread de background não pode matar o processo.
             process_transcription_job(1)
 
         statuses = [call.kwargs.get('status') for call in mock_update.call_args_list]
         assert 'failed' in statuses
-        failed_call = [c for c in mock_update.call_args_list if c.kwargs.get('status') == 'failed'][0]
+        failed_call = next(
+            c for c in mock_update.call_args_list if c.kwargs.get('status') == 'failed'
+        )
         assert 'yt-dlp failed' in failed_call.kwargs.get('error_message')
 
 
 class TestStartTranscriptionJob:
-
     def test_creates_job_and_starts_daemon_thread(self):
         mock_conn = MagicMock()
 
-        with patch('src.transcription_job.get_db_connection', return_value=mock_conn), \
-             patch('src.transcription_job.create_transcription_job', return_value=42) as mock_create, \
-             patch('src.transcription_job.threading.Thread') as mock_thread_cls:
+        with (
+            patch('src.transcription_job.get_db_connection', return_value=mock_conn),
+            patch('src.transcription_job.create_transcription_job', return_value=42) as mock_create,
+            patch('src.transcription_job.threading.Thread') as mock_thread_cls,
+        ):
             mock_thread = MagicMock()
             mock_thread_cls.return_value = mock_thread
 

@@ -4,10 +4,10 @@ quota_manager.py — Limite diario e janela de horario para uploads YouTube.
 Exporta:
   - QuotaManager: guarda contagem diaria no Redis e valida janela 19h-22h.
 """
+
 import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-
 
 SAO_PAULO_TZ = ZoneInfo('America/Sao_Paulo')
 DEFAULT_MAX_UPLOADS_PER_DAY = 2
@@ -72,9 +72,7 @@ class QuotaManager:
         longo_count = int(self.redis_client.get(self._format_key(now, 'longo')) or 0)
 
         if format == 'longo':
-            if longo_count >= self.max_longo_per_day:
-                return False
-            return True
+            return not longo_count >= self.max_longo_per_day
 
         # Curto: se há longo publishable, não come os slots reservados pra ele.
         if longo_waiting and self.max_longo_per_day > 0:
@@ -109,7 +107,9 @@ class QuotaManager:
 
     def _resolve_longo_limit(self, value: int | None) -> int:
         if value is None:
-            value = int(os.environ.get('MAX_LONGO_UPLOADS_PER_DAY', DEFAULT_MAX_LONGO_UPLOADS_PER_DAY))
+            value = int(
+                os.environ.get('MAX_LONGO_UPLOADS_PER_DAY', DEFAULT_MAX_LONGO_UPLOADS_PER_DAY)
+            )
         return max(0, min(int(value), self.max_uploads_per_day))
 
     def _local_now(self, now: datetime | None) -> datetime:

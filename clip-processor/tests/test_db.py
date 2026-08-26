@@ -10,6 +10,7 @@ Exports esperados:
 
 RED state: imports falham pois src/db.py ainda não existe.
 """
+
 from src.db import (
     SELECTING_STUCK_HOURS,
     insert_video,
@@ -20,7 +21,6 @@ from src.db import (
 
 
 class TestUpdateStatus:
-
     def test_status_update(self, mock_db_conn):
         """update_status() executa SQL UPDATE com status correto."""
         update_status(mock_db_conn, video_id=1, status='downloading')
@@ -65,7 +65,6 @@ class TestUpdateStatus:
 
 
 class TestRecoverStuckDownloads:
-
     def test_recover_stuck_downloads(self, mock_db_conn):
         """recover_stuck_downloads() executa UPDATE SET status='pending'
         WHERE status='downloading'."""
@@ -77,11 +76,12 @@ class TestRecoverStuckDownloads:
         sql_call = mock_cursor.execute.call_args[0][0]
         assert 'UPDATE' in sql_call.upper()
         assert 'pending' in sql_call.lower() or 'pending' in str(mock_cursor.execute.call_args)
-        assert 'downloading' in sql_call.lower() or 'downloading' in str(mock_cursor.execute.call_args)
+        assert 'downloading' in sql_call.lower() or 'downloading' in str(
+            mock_cursor.execute.call_args
+        )
 
 
 class TestRecoverStuckSelecting:
-
     def test_selecting_sem_arquivo_vai_para_failed(self, mock_db_conn):
         """'selecting' com local_path NULL precisa de saída própria.
 
@@ -96,8 +96,7 @@ class TestRecoverStuckSelecting:
         executed = [call[0][0] for call in mock_cursor.execute.call_args_list]
 
         no_file_sql = [
-            sql for sql in executed
-            if 'local_path IS NULL' in sql and "status='failed'" in sql
+            sql for sql in executed if 'local_path IS NULL' in sql and "status='failed'" in sql
         ]
         assert len(no_file_sql) == 1, 'falta a query de selecting sem arquivo'
 
@@ -120,7 +119,6 @@ class TestRecoverStuckSelecting:
 
 
 class TestInsertVideo:
-
     def test_insert_video(self, mock_db_conn):
         """insert_video() executa INSERT com todos os campos corretos."""
         video_id = 'dQw4w9WgXcQ'

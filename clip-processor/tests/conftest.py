@@ -2,8 +2,10 @@
 Fixtures compartilhadas para todos os testes do clip-processor.
 Fornece: mock_redis, mock_db_conn, sample_rss_xml, sample_video_id
 """
-import pytest
+
 from unittest.mock import MagicMock
+
+import pytest
 
 
 @pytest.fixture

@@ -5,10 +5,10 @@ Estado RED até Plan 06-05.
 Atualizado em Plan 09-03: ttl_worker.py usa notify() do telegram_notifier
 em vez de requests.post direto — testes agora patcham src.ttl_worker.notify.
 """
-import pytest
-from unittest.mock import MagicMock, patch
 
-from src.ttl_worker import run_ttl_once, TTL_HOURS, WARN_HOURS
+from unittest.mock import patch
+
+from src.ttl_worker import run_ttl_once
 
 
 class TestExpire:
@@ -25,7 +25,8 @@ class TestExpire:
 
         # Pelo menos um UPDATE com status='rejected' e WHERE created_at + INTERVAL
         update_sqls = [
-            str(c).upper() for c in cursor.execute.call_args_list
+            str(c).upper()
+            for c in cursor.execute.call_args_list
             if 'UPDATE' in str(c).upper() and 'REJECTED' in str(c).upper()
         ]
         assert len(update_sqls) >= 1
@@ -40,7 +41,7 @@ class TestWarn:
         # Simula 2 clips na janela de aviso
         cursor.fetchall.side_effect = [
             [],  # expire query
-            [    # warn query
+            [  # warn query
                 {'id': 10, 'title': 'Clip 10', 'created_at': '2026-06-18T00:00:00Z'},
                 {'id': 11, 'title': 'Clip 11', 'created_at': '2026-06-18T01:00:00Z'},
             ],

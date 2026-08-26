@@ -4,11 +4,11 @@ test_selector.py — Testes unitários para selector.py (AI-02, AI-03).
 Estado inicial: RED — todos falham com NotImplementedError.
 Após implementação: GREEN.
 """
-import json
-import pytest
-from unittest.mock import MagicMock
-from src.selector import select_moments, insert_selected_moments
 
+import json
+from unittest.mock import MagicMock
+
+from src.selector import insert_selected_moments, select_moments
 
 SAMPLE_TRANSCRIPT = {
     'video_id': 'dQw4w9WgXcQ',
@@ -28,7 +28,6 @@ SAMPLE_MOMENTS = [
 
 
 class TestSelectMoments:
-
     def test_returns_moments_list(self, sample_video_id):
         """AI-02: select_moments() retorna lista de dicts com start_time, end_time, score, reason."""
         mock_anthropic = MagicMock()
@@ -57,7 +56,13 @@ class TestSelectMoments:
 
         # Verificar que o conteúdo enviado ao Haiku tem formato [Ns-Ns]
         call_args = mock_anthropic.messages.create.call_args
-        messages = call_args[1]['messages'] if 'messages' in call_args[1] else call_args[0][3] if len(call_args[0]) > 3 else None
+        (
+            call_args[1]['messages']
+            if 'messages' in call_args[1]
+            else call_args[0][3]
+            if len(call_args[0]) > 3
+            else None
+        )
         # Alternativa: verificar o kwarg 'messages'
         kwargs = call_args.kwargs if hasattr(call_args, 'kwargs') else call_args[1]
         user_content = kwargs['messages'][0]['content']
@@ -88,12 +93,13 @@ class TestSelectMoments:
 
 
 class TestInsertMoments:
-
     def test_score_7_inserted(self, mock_db_conn):
         """AI-03: Momento com score=7 é inserido em generated_clips com status pending_cut."""
         moments = [{'start_time': 0.0, 'end_time': 360.0, 'score': 7, 'reason': 'Bom momento'}]
 
-        count = insert_selected_moments(mock_db_conn, source_video_id=1, video_id='dQw4w9WgXcQ', moments=moments)
+        count = insert_selected_moments(
+            mock_db_conn, source_video_id=1, video_id='dQw4w9WgXcQ', moments=moments
+        )
 
         assert count == 1
         mock_db_conn.cursor().__enter__().execute.assert_called()
@@ -109,15 +115,18 @@ class TestInsertMoments:
         cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.side_effect = [
             {'target_niche': 'futebol'},  # source_videos JOIN source_channels
-            {'id': 1},                    # destination_channels WHERE niche=futebol
+            {'id': 1},  # destination_channels WHERE niche=futebol
         ]
 
-        count = insert_selected_moments(mock_db_conn, source_video_id=1, video_id='dQw4w9WgXcQ', moments=moments)
+        count = insert_selected_moments(
+            mock_db_conn, source_video_id=1, video_id='dQw4w9WgXcQ', moments=moments
+        )
 
         assert count == 0
         # SELECTs são chamados (lookup do canal), mas INSERT não deve ocorrer
         insert_calls = [
-            c for c in cursor.execute.call_args_list
+            c
+            for c in cursor.execute.call_args_list
             if c.args and 'INSERT' in str(c.args[0]).upper()
         ]
         assert len(insert_calls) == 0, 'Momento com score < 7 não deve gerar INSERT'
@@ -129,7 +138,9 @@ class TestInsertMoments:
             {'start_time': 200.0, 'end_time': 600.0, 'score': 7, 'reason': 'Score menor — overlap'},
         ]
 
-        count = insert_selected_moments(mock_db_conn, source_video_id=1, video_id='dQw4w9WgXcQ', moments=overlapping)
+        count = insert_selected_moments(
+            mock_db_conn, source_video_id=1, video_id='dQw4w9WgXcQ', moments=overlapping
+        )
 
         # Apenas 1 momento deve ser inserido (o de score 8)
         assert count == 1
@@ -137,7 +148,12 @@ class TestInsertMoments:
     def test_max_3_moments(self, mock_db_conn):
         """AI-03: Máximo 3 momentos inseridos mesmo se mais de 3 com score >= 7 forem passados."""
         many_moments = [
-            {'start_time': i * 400.0, 'end_time': i * 400.0 + 360.0, 'score': 8, 'reason': f'Momento {i}'}
+            {
+                'start_time': i * 400.0,
+                'end_time': i * 400.0 + 360.0,
+                'score': 8,
+                'reason': f'Momento {i}',
+            }
             for i in range(5)  # 5 momentos não-sobrepostos com score 8
         ]
 
@@ -148,7 +164,9 @@ class TestInsertMoments:
             {'id': 2},
         ]
 
-        count = insert_selected_moments(mock_db_conn, source_video_id=1, video_id='dQw4w9WgXcQ', moments=many_moments)
+        count = insert_selected_moments(
+            mock_db_conn, source_video_id=1, video_id='dQw4w9WgXcQ', moments=many_moments
+        )
 
         assert count <= 3
 
@@ -165,20 +183,25 @@ class TestInsertMomentsDestinationChannel:
         # Segundo SELECT: id do canal-destino para o nicho
         cursor.fetchone.side_effect = [
             {'target_niche': 'futebol'},  # source_videos JOIN source_channels
-            {'id': 42},                   # destination_channels WHERE niche='futebol'
+            {'id': 42},  # destination_channels WHERE niche='futebol'
         ]
 
-        count = insert_selected_moments(mock_db_conn, source_video_id=5, video_id='abc123', moments=moments)
+        count = insert_selected_moments(
+            mock_db_conn, source_video_id=5, video_id='abc123', moments=moments
+        )
 
         assert count == 1
         # Verificar que o INSERT inclui destination_channel_id
         insert_calls = [
-            c for c in cursor.execute.call_args_list
+            c
+            for c in cursor.execute.call_args_list
             if c.args and 'INSERT' in str(c.args[0]).upper()
         ]
         assert len(insert_calls) == 1, 'Deve haver exatamente 1 INSERT'
         params = insert_calls[0].args[1]
-        assert 42 in params, f'destination_channel_id=42 deve estar nos params do INSERT. Params: {params}'
+        assert 42 in params, (
+            f'destination_channel_id=42 deve estar nos params do INSERT. Params: {params}'
+        )
 
     def test_destination_channel_id_null_when_niche_is_null(self, mock_db_conn):
         """MCAN-02: Quando target_niche é NULL, destination_channel_id fica NULL (sem erro)."""
@@ -190,17 +213,22 @@ class TestInsertMomentsDestinationChannel:
             {'target_niche': None},  # sem nicho definido
         ]
 
-        count = insert_selected_moments(mock_db_conn, source_video_id=5, video_id='abc123', moments=moments)
+        count = insert_selected_moments(
+            mock_db_conn, source_video_id=5, video_id='abc123', moments=moments
+        )
 
         assert count == 1
         # INSERT deve ter None como destination_channel_id
         insert_calls = [
-            c for c in cursor.execute.call_args_list
+            c
+            for c in cursor.execute.call_args_list
             if c.args and 'INSERT' in str(c.args[0]).upper()
         ]
         assert len(insert_calls) == 1
         params = insert_calls[0].args[1]
-        assert None in params, f'destination_channel_id=None deve estar nos params. Params: {params}'
+        assert None in params, (
+            f'destination_channel_id=None deve estar nos params. Params: {params}'
+        )
 
     def test_destination_channel_id_null_when_no_active_destination(self, mock_db_conn):
         """MCAN-02: Quando não há canal-destino ativo para o nicho, destination_channel_id=NULL."""
@@ -209,16 +237,21 @@ class TestInsertMomentsDestinationChannel:
         cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.side_effect = [
             {'target_niche': 'futebol'},  # nicho existe
-            None,                          # mas não há canal-destino ativo
+            None,  # mas não há canal-destino ativo
         ]
 
-        count = insert_selected_moments(mock_db_conn, source_video_id=5, video_id='abc123', moments=moments)
+        count = insert_selected_moments(
+            mock_db_conn, source_video_id=5, video_id='abc123', moments=moments
+        )
 
         assert count == 1
         insert_calls = [
-            c for c in cursor.execute.call_args_list
+            c
+            for c in cursor.execute.call_args_list
             if c.args and 'INSERT' in str(c.args[0]).upper()
         ]
         assert len(insert_calls) == 1
         params = insert_calls[0].args[1]
-        assert None in params, f'destination_channel_id=None quando sem destino ativo. Params: {params}'
+        assert None in params, (
+            f'destination_channel_id=None quando sem destino ativo. Params: {params}'
+        )

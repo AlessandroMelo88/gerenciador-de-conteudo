@@ -7,22 +7,26 @@ Exports esperados: poll_all_channels(db_conn, redis_client)
 
 RED state: imports falham pois src/rss_poller.py ainda não existe.
 """
-from src.rss_poller import poll_all_channels, _detect_format
+
+from src.rss_poller import _detect_format, poll_all_channels
 
 
 class TestDetectFormat:
-
     def test_detect_format_returns_longo_for_long_video(self, mocker):
         mock_ydl = mocker.MagicMock()
         mock_ydl.extract_info.return_value = {'duration': 900}
-        mocker.patch('src.rss_poller.yt_dlp.YoutubeDL').return_value.__enter__.return_value = mock_ydl
+        mocker.patch(
+            'src.rss_poller.yt_dlp.YoutubeDL'
+        ).return_value.__enter__.return_value = mock_ydl
 
         assert _detect_format('abc12345678') == 'longo'
 
     def test_detect_format_returns_curto_for_short_video(self, mocker):
         mock_ydl = mocker.MagicMock()
         mock_ydl.extract_info.return_value = {'duration': 45}
-        mocker.patch('src.rss_poller.yt_dlp.YoutubeDL').return_value.__enter__.return_value = mock_ydl
+        mocker.patch(
+            'src.rss_poller.yt_dlp.YoutubeDL'
+        ).return_value.__enter__.return_value = mock_ydl
 
         assert _detect_format('abc12345678') == 'curto'
 
@@ -33,7 +37,6 @@ class TestDetectFormat:
 
 
 class TestPollAllChannels:
-
     def test_poll_detects_new_videos(self, mock_db_conn, mock_redis, sample_rss_xml, mocker):
         """Dado feed RSS com 2 entradas nunca vistas, poll_all_channels()
         insere 2 registros no DB com status 'pending'."""
@@ -48,10 +51,13 @@ class TestPollAllChannels:
         mock_cursor.fetchall.return_value = [channel]
 
         # Mock: RSS fetch retorna sample_rss_xml
-        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
-            status_code=200,
-            text=sample_rss_xml,
-        ))
+        mocker.patch(
+            'src.rss_poller.requests.get',
+            return_value=mocker.MagicMock(
+                status_code=200,
+                text=sample_rss_xml,
+            ),
+        )
 
         # Mock: nenhum vídeo já visto (is_seen retorna False)
         mocker.patch('src.rss_poller.is_seen', return_value=False)
@@ -80,10 +86,13 @@ class TestPollAllChannels:
         mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         mock_cursor.fetchall.return_value = [channel]
 
-        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
-            status_code=200,
-            text=sample_rss_xml,
-        ))
+        mocker.patch(
+            'src.rss_poller.requests.get',
+            return_value=mocker.MagicMock(
+                status_code=200,
+                text=sample_rss_xml,
+            ),
+        )
 
         # Todos os vídeos já foram vistos
         mocker.patch('src.rss_poller.is_seen', return_value=True)
@@ -110,10 +119,13 @@ class TestPollAllChannels:
   <title>Canal Vazio</title>
 </feed>"""
 
-        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
-            status_code=200,
-            text=empty_feed,
-        ))
+        mocker.patch(
+            'src.rss_poller.requests.get',
+            return_value=mocker.MagicMock(
+                status_code=200,
+                text=empty_feed,
+            ),
+        )
 
         mocker.patch('src.rss_poller.is_seen', return_value=False)
         mock_insert = mocker.patch('src.rss_poller.insert_video')
@@ -147,16 +159,19 @@ class TestAIPipelineIntegration:
         ]
         self._make_downloaded_cursor(mock_db_conn, video_rows)
 
-        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
-            status_code=200, text='<feed/>'
-        ))
+        mocker.patch(
+            'src.rss_poller.requests.get',
+            return_value=mocker.MagicMock(status_code=200, text='<feed/>'),
+        )
 
         mock_pipeline = mocker.patch('src.rss_poller._process_ai_pipeline')
 
         poll_all_channels(mock_db_conn, mock_redis)
 
         # Pipeline deve ter sido chamado para o vídeo downloaded
-        mock_pipeline.assert_called_once_with(mock_db_conn, 'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4')
+        mock_pipeline.assert_called_once_with(
+            mock_db_conn, 'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4'
+        )
 
     def test_ai_pipeline_failure_does_not_abort_poll(self, mock_db_conn, mock_redis, mocker):
         """AI-04: Falha no pipeline de IA de um vídeo não aborta os demais."""
@@ -166,9 +181,10 @@ class TestAIPipelineIntegration:
         ]
         self._make_downloaded_cursor(mock_db_conn, video_rows)
 
-        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
-            status_code=200, text='<feed/>'
-        ))
+        mocker.patch(
+            'src.rss_poller.requests.get',
+            return_value=mocker.MagicMock(status_code=200, text='<feed/>'),
+        )
 
         # Primeiro vídeo levanta exceção, segundo deve ser processado mesmo assim
         call_count = []
@@ -200,7 +216,7 @@ class TestAIPipelineIntegration:
         mocker.patch('src.rss_poller.transcribe_video', return_value=mock_transcript)
         mock_save = mocker.patch('src.rss_poller.save_transcript')
         mock_select = mocker.patch('src.rss_poller.select_moments', return_value=[])
-        mock_insert = mocker.patch('src.rss_poller.insert_selected_moments', return_value=0)
+        mocker.patch('src.rss_poller.insert_selected_moments', return_value=0)
 
         # Configurar cursor para retornar source_video_id
         mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
@@ -210,6 +226,7 @@ class TestAIPipelineIntegration:
 
         # Verificar que transcribe foi chamado
         import src.rss_poller as rss_mod
+
         rss_mod.transcribe_video.assert_called_once_with(
             'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4', groq_client=None
         )
@@ -274,6 +291,7 @@ class TestAIPipelineIntegration:
 # Estes testes falham até a implementação em Wave 3-4.
 # ---------------------------------------------------------------------------
 
+
 class TestBlacklistGuard:
     """Testes RED para blacklist guard no rss_poller (COPY-03)."""
 
@@ -306,10 +324,13 @@ class TestBlacklistGuard:
   </entry>
 </feed>"""
 
-        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
-            status_code=200,
-            text=sample_rss,
-        ))
+        mocker.patch(
+            'src.rss_poller.requests.get',
+            return_value=mocker.MagicMock(
+                status_code=200,
+                text=sample_rss,
+            ),
+        )
         mocker.patch('src.rss_poller.is_seen', return_value=False)
         mock_insert = mocker.patch('src.rss_poller.insert_video')
 
@@ -332,10 +353,13 @@ class TestBlacklistGuard:
         mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         mock_cursor.fetchall.return_value = [active_channel]
 
-        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
-            status_code=200,
-            text=sample_rss_xml,
-        ))
+        mocker.patch(
+            'src.rss_poller.requests.get',
+            return_value=mocker.MagicMock(
+                status_code=200,
+                text=sample_rss_xml,
+            ),
+        )
         mocker.patch('src.rss_poller.is_seen', return_value=False)
         mocker.patch('src.rss_poller._detect_format', return_value='curto')
         mock_insert = mocker.patch('src.rss_poller.insert_video')

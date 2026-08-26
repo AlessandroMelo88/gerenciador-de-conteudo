@@ -4,13 +4,13 @@ test_transcriber.py — Testes unitários para transcriber.py (AI-01).
 Estado inicial: RED — todos falham com NotImplementedError.
 Após implementação: GREEN.
 """
-import pytest
+
 from unittest.mock import MagicMock, patch
-from src.transcriber import transcribe_video, save_transcript
+
+from src.transcriber import save_transcript, transcribe_video
 
 
 class TestTranscribeVideo:
-
     def test_transcription_returns_segments(self, mock_db_conn, sample_video_id, tmp_path):
         """AI-01: Groq Whisper retorna dict com texto e lista de segmentos com start/end/text."""
         # Criar arquivo MP4 falso pequeno (<25MB) para não acionar extração de áudio
@@ -51,7 +51,9 @@ class TestTranscribeVideo:
         with patch('src.transcriber.VIDEOS_DIR', str(tmp_path)):
             path = save_transcript(mock_db_conn, sample_video_id, transcript)
 
-        import os, json
+        import json
+        import os
+
         assert os.path.exists(path)
         with open(path) as f:
             saved = json.load(f)
@@ -93,10 +95,9 @@ class TestTranscribeVideo:
             segments=[mock_seg],
         )
 
-        with patch('os.path.getsize', return_value=25_000_000), \
-             patch('subprocess.run') as mock_run:
+        with patch('os.path.getsize', return_value=25_000_000), patch('subprocess.run') as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
-            result = transcribe_video(sample_video_id, video_path, groq_client=mock_groq)
+            transcribe_video(sample_video_id, video_path, groq_client=mock_groq)
 
         # ffmpeg deve ter sido chamado para extração de áudio
         mock_run.assert_called_once()

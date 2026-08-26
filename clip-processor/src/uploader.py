@@ -4,13 +4,13 @@ uploader.py — Upload de clips para YouTube Data API v3.
 Exporta:
   - YouTubeUploader.upload_clip(clip) -> youtube_video_id
 """
+
 import os
 import sys
 import types
 from pathlib import Path
 
 from src.db import get_db_connection as db_connect
-
 
 DEFAULT_TOKEN_FILE = '/app/token.json'
 YOUTUBE_UPLOAD_SCOPES = [
@@ -21,6 +21,7 @@ YOUTUBE_UPLOAD_SCOPES = [
 try:
     from google.oauth2.credentials import Credentials
 except ModuleNotFoundError:
+
     class Credentials:  # pragma: no cover - fallback only for local tests without deps
         @classmethod
         def from_authorized_user_file(cls, *args, **kwargs):
@@ -30,6 +31,7 @@ except ModuleNotFoundError:
 try:
     from googleapiclient.http import MediaFileUpload
 except ModuleNotFoundError:
+
     class MediaFileUpload:  # pragma: no cover - fallback only for local tests without deps
         def __init__(self, path, **kwargs):
             self.path = path
@@ -57,6 +59,7 @@ except ModuleNotFoundError:
 try:
     from google.auth.exceptions import RefreshError
 except ModuleNotFoundError:
+
     class RefreshError(Exception):  # pragma: no cover - fallback only for local tests without deps
         pass
 
@@ -142,6 +145,7 @@ class YouTubeUploader:
         creds = Credentials.from_authorized_user_file(str(token_path), YOUTUBE_UPLOAD_SCOPES)
         if getattr(creds, 'expired', False) and getattr(creds, 'refresh_token', None):
             from google.auth.transport.requests import Request
+
             try:
                 creds.refresh(Request())
             except RefreshError:
@@ -170,6 +174,7 @@ class YouTubeUploader:
                 conn.close()
         except Exception as exc:  # pragma: no cover — defensive
             import logging
+
             logging.getLogger(__name__).warning('Falha ao marcar oauth_expired_flag: %s', exc)
 
     def _clear_expired(self) -> None:
@@ -189,6 +194,7 @@ class YouTubeUploader:
                 conn.close()
         except Exception as exc:  # pragma: no cover
             import logging
+
             logging.getLogger(__name__).warning('Falha ao limpar oauth_expired_flag: %s', exc)
 
     def _get_service(self):
@@ -202,6 +208,7 @@ class YouTubeUploader:
 
         if self._service_factory is None:
             from googleapiclient.discovery import build
+
             self._service_factory = build
 
         self._service = self._service_factory('youtube', 'v3', credentials=creds)

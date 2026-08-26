@@ -2,9 +2,10 @@
 Testes para YouTubeUploader — upload de clips e thumbnails.
 Todas as chamadas YouTube API são mockadas.
 """
-import os
-import pytest
+
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.uploader import YouTubeUploader
 
@@ -53,12 +54,14 @@ class TestUploadClip:
         uploader._load_credentials = lambda: MagicMock(expired=False)
 
         with patch('src.uploader.MediaFileUpload'):
-            result = uploader.upload_clip({
-                'clip_path': str(clip_file),
-                'title': 'Gol incrível do Vini Jr',
-                'description': 'Descrição do clip',
-                'tags': 'futebol,gol,vini',
-            })
+            result = uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Gol incrível do Vini Jr',
+                    'description': 'Descrição do clip',
+                    'tags': 'futebol,gol,vini',
+                }
+            )
 
         assert result == 'abc_vid_id'
 
@@ -71,10 +74,12 @@ class TestUploadClip:
         uploader._load_credentials = lambda: MagicMock(expired=False)
 
         with pytest.raises(FileNotFoundError, match='Arquivo de clip não encontrado'):
-            uploader.upload_clip({
-                'clip_path': '/nonexistent/clip.mp4',
-                'title': 'Título',
-            })
+            uploader.upload_clip(
+                {
+                    'clip_path': '/nonexistent/clip.mp4',
+                    'title': 'Título',
+                }
+            )
 
     def test_missing_clip_path_raises_value_error(self):
         """Ausência de clip_path deve levantar ValueError."""
@@ -109,10 +114,12 @@ class TestUploadClip:
         uploader = YouTubeUploader(token_file='/nonexistent/token.json')
 
         with pytest.raises(FileNotFoundError, match='Token OAuth não encontrado'):
-            uploader.upload_clip({
-                'clip_path': str(clip_file),
-                'title': 'Título',
-            })
+            uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Título',
+                }
+            )
 
     def test_thumbnail_upload_called_when_path_exists(self, tmp_path):
         """Se thumbnail_path existir, thumbnails().set() deve ser chamado."""
@@ -129,25 +136,29 @@ class TestUploadClip:
         uploader._load_credentials = lambda: MagicMock(expired=False)
 
         with patch('src.uploader.MediaFileUpload'):
-            uploader.upload_clip({
-                'clip_path': str(clip_file),
-                'title': 'Clip com thumb',
-                'thumbnail_path': str(thumb_file),
-            })
+            uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Clip com thumb',
+                    'thumbnail_path': str(thumb_file),
+                }
+            )
 
         yt.thumbnails.return_value.set.assert_called_once()
 
     def test_thumbnail_failure_propagates(self, tmp_path):
         """Falha no upload da thumbnail deve ser propagada ao caller."""
         import googleapiclient.errors
+
         clip_file = tmp_path / 'clip.mp4'
         clip_file.write_bytes(b'fake_mp4')
         thumb_file = tmp_path / 'thumb.jpg'
         thumb_file.write_bytes(b'fake_jpg')
 
         yt = make_youtube_mock('thumb_fail_vid')
-        yt.thumbnails.return_value.set.return_value.execute.side_effect = \
+        yt.thumbnails.return_value.set.return_value.execute.side_effect = (
             googleapiclient.errors.HttpError(MagicMock(status=400), b'error')
+        )
 
         uploader = YouTubeUploader(
             token_file='/fake/token.json',
@@ -157,11 +168,13 @@ class TestUploadClip:
 
         with patch('src.uploader.MediaFileUpload'):
             with pytest.raises(googleapiclient.errors.HttpError):
-                uploader.upload_clip({
-                    'clip_path': str(clip_file),
-                    'title': 'Clip thumb fail',
-                    'thumbnail_path': str(thumb_file),
-                })
+                uploader.upload_clip(
+                    {
+                        'clip_path': str(clip_file),
+                        'title': 'Clip thumb fail',
+                        'thumbnail_path': str(thumb_file),
+                    }
+                )
 
     def test_tags_string_is_parsed_as_list(self, tmp_path):
         """Tags em formato string separado por vírgula devem virar lista."""
@@ -169,8 +182,10 @@ class TestUploadClip:
         clip_file.write_bytes(b'fake_mp4')
 
         yt = make_youtube_mock('tags_vid')
-        yt.videos.return_value.insert.return_value.next_chunk.return_value = \
-            (None, {'id': 'tags_vid'})
+        yt.videos.return_value.insert.return_value.next_chunk.return_value = (
+            None,
+            {'id': 'tags_vid'},
+        )
 
         uploader = YouTubeUploader(
             token_file='/fake/token.json',
@@ -179,11 +194,13 @@ class TestUploadClip:
         uploader._load_credentials = lambda: MagicMock(expired=False)
 
         with patch('src.uploader.MediaFileUpload'):
-            uploader.upload_clip({
-                'clip_path': str(clip_file),
-                'title': 'Teste tags',
-                'tags': 'futebol, gol, brasil',
-            })
+            uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Teste tags',
+                    'tags': 'futebol, gol, brasil',
+                }
+            )
 
         call_kwargs = yt.videos.return_value.insert.call_args[1]
         tags_in_body = call_kwargs['body']['snippet']['tags']
@@ -205,10 +222,12 @@ class TestUploadClip:
         uploader._load_credentials = lambda: MagicMock(expired=False)
 
         with patch('src.uploader.MediaFileUpload'):
-            uploader.upload_clip({
-                'clip_path': str(clip_file),
-                'title': 'Public clip',
-            })
+            uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Public clip',
+                }
+            )
 
         call_kwargs = yt.videos.return_value.insert.call_args[1]
         assert call_kwargs['body']['status']['privacyStatus'] == 'public'
@@ -219,12 +238,12 @@ class TestUploadClip:
 # Estes testes falham até a implementação em Wave 3-4.
 # ---------------------------------------------------------------------------
 
+
 class TestYouTubeUploaderChannelSlug:
     """Testes RED para suporte a channel_slug no YouTubeUploader (MCAN-01)."""
 
     def test_channel_slug_determines_token_file_path(self):
         """MCAN-01: channel_slug='futebol-em-cortes' → token_file='/app/youtube/token-futebol-em-cortes.json'."""
-        from src.uploader import DEFAULT_TOKEN_FILE
 
         uploader = YouTubeUploader(channel_slug='futebol-em-cortes')
         assert uploader.token_file == '/app/youtube/token-futebol-em-cortes.json'

@@ -11,16 +11,16 @@ Convenções:
   - title deve respeitar o limite de 100 caracteres do YouTube
   - tags são persistidas em generated_clips.tags como texto
 """
+
 import json
 from datetime import datetime
 
-
 SYSTEM_PROMPT = (
-    "Você é especialista em SEO para YouTube Shorts no nicho de futebol brasileiro. "
-    "Gere metadados chamativos, claros e honestos para um corte curto. "
-    "O título deve ter no máximo 100 caracteres. "
-    "A descrição deve resumir o momento e incluir contexto para retenção. "
-    "As tags devem ser termos curtos em PT-BR, sem hashtag, focados em futebol, cortes e tema do vídeo."
+    'Você é especialista em SEO para YouTube Shorts no nicho de futebol brasileiro. '
+    'Gere metadados chamativos, claros e honestos para um corte curto. '
+    'O título deve ter no máximo 100 caracteres. '
+    'A descrição deve resumir o momento e incluir contexto para retenção. '
+    'As tags devem ser termos curtos em PT-BR, sem hashtag, focados em futebol, cortes e tema do vídeo.'
 )
 
 METADATA_OUTPUT_SCHEMA = {
@@ -78,19 +78,20 @@ def _normalize_metadata(metadata: dict, clip_context: dict | None = None) -> dic
 
 def _build_prompt(clip_context: dict) -> str:
     return (
-        f"Título original: {clip_context.get('source_title', '')}\n"
-        f"Motivo do corte: {clip_context.get('reason', '')}\n"
-        f"Score viral: {clip_context.get('score', '')}\n"
-        f"Intervalo: {clip_context.get('start_time', '')}s até {clip_context.get('end_time', '')}s\n"
-        f"Trecho da transcrição:\n{clip_context.get('transcript_excerpt', '')}\n\n"
-        "Retorne title, description e tags otimizados para YouTube Shorts, em JSON com as chaves "
-        "title, description, tags (lista de strings)."
+        f'Título original: {clip_context.get("source_title", "")}\n'
+        f'Motivo do corte: {clip_context.get("reason", "")}\n'
+        f'Score viral: {clip_context.get("score", "")}\n'
+        f'Intervalo: {clip_context.get("start_time", "")}s até {clip_context.get("end_time", "")}s\n'
+        f'Trecho da transcrição:\n{clip_context.get("transcript_excerpt", "")}\n\n'
+        'Retorne title, description e tags otimizados para YouTube Shorts, em JSON com as chaves '
+        'title, description, tags (lista de strings).'
     )
 
 
 def _generate_via_anthropic(clip_context: dict, anthropic_client) -> dict:
     if anthropic_client is None:
         import anthropic
+
         anthropic_client = anthropic.Anthropic()
 
     response = anthropic_client.messages.create(
@@ -106,6 +107,7 @@ def _generate_via_anthropic(clip_context: dict, anthropic_client) -> dict:
 def _generate_via_groq(clip_context: dict) -> dict:
     """Gera metadata via Groq (fallback sempre disponível)."""
     from groq import Groq
+
     client = Groq()
     _log('Fallback: gerando metadata via Groq LLM')
     response = client.chat.completions.create(
@@ -141,12 +143,18 @@ def generate_metadata(clip_context: dict, anthropic_client=None) -> dict:
     except Exception as exc:
         _log(f'Erro ao gerar metadata via Groq: {exc}')
 
-    fallback_title = clip_context.get('source_title') or clip_context.get('reason') or 'Corte de futebol'
-    return _normalize_metadata({
-        'title': fallback_title,
-        'description': clip_context.get('reason') or 'Melhor momento selecionado automaticamente.',
-        'tags': ['futebol', 'cortes', 'shorts'],
-    }, clip_context)
+    fallback_title = (
+        clip_context.get('source_title') or clip_context.get('reason') or 'Corte de futebol'
+    )
+    return _normalize_metadata(
+        {
+            'title': fallback_title,
+            'description': clip_context.get('reason')
+            or 'Melhor momento selecionado automaticamente.',
+            'tags': ['futebol', 'cortes', 'shorts'],
+        },
+        clip_context,
+    )
 
 
 def append_credits(description: str, credit_template: str, channel_handle: str) -> str:
@@ -174,9 +182,7 @@ def update_clip_metadata(conn, clip_id: int, metadata: dict) -> None:
 
     with conn.cursor() as cur:
         cur.execute(
-            'UPDATE generated_clips '
-            'SET title=%s, description=%s, tags=%s '
-            'WHERE id=%s',
+            'UPDATE generated_clips SET title=%s, description=%s, tags=%s WHERE id=%s',
             (normalized['title'], normalized['description'], tags_text, clip_id),
         )
     conn.commit()

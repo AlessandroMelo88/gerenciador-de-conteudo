@@ -3,11 +3,11 @@ test_clip_pipeline.py — Integração Phase 4 no rss_poller.
 
 Estado inicial do Plan 04-01: RED controlado por atributo/função ausente.
 """
+
 from src.rss_poller import poll_all_channels
 
 
 class TestClipPipelineIntegration:
-
     def _make_cursor(self, mock_db_conn, channel_rows=None, downloaded_rows=None, clip_rows=None):
         cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         cursor.fetchall.side_effect = [

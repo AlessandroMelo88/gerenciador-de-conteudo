@@ -1,14 +1,13 @@
 """
 Testes para publisher.py — publicação de clips pendentes.
 """
+
 import os
-import pytest
-from unittest.mock import MagicMock, call, patch
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
 from src.publisher import publish_pending_clips
-
 
 TZ_SP = ZoneInfo('America/Sao_Paulo')
 
@@ -51,13 +50,13 @@ def make_conn_with_clips(clips: list[dict], dest_channels: list[dict] | None = N
     # Testes multi-canal passam dest_channels explicitamente.
     actual_dest_channels = dest_channels if dest_channels is not None else []
     cursor.fetchall.side_effect = [
-        actual_dest_channels,   # _fetch_destination_channels
-        clips,                  # _fetch_pending_clips (fallback) OU _fetch_pending_clips_for_channel
+        actual_dest_channels,  # _fetch_destination_channels
+        clips,  # _fetch_pending_clips (fallback) OU _fetch_pending_clips_for_channel
     ] + [clips] * (len(clips) + 10)  # extra fetchall calls se houver múltiplos canais
 
     cursor.fetchone.side_effect = [
-        {'cnt': 0},   # non-terminal clips count
-        {'cnt': 1},   # published clips count
+        {'cnt': 0},  # non-terminal clips count
+        {'cnt': 1},  # published clips count
         {'local_path': None},  # source_video local_path
     ] * (len(clips) + 5)  # extra para não falhar
     # Phase 6: guard de status no UPDATE approved→publishing usa cursor.rowcount.
@@ -104,9 +103,9 @@ class TestPublishPendingClips:
                 publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
 
         select_calls = [
-            c for c in cursor.execute.call_args_list
-            if c.args and 'SELECT' in str(c.args[0]).upper()
-            and 'gc.status = %s' in str(c.args[0])
+            c
+            for c in cursor.execute.call_args_list
+            if c.args and 'SELECT' in str(c.args[0]).upper() and 'gc.status = %s' in str(c.args[0])
         ]
         assert select_calls, 'SELECT parametrizado não encontrado'
         # Multi-canal: params pode ser ('pending',) [legacy] ou ('pending', dest_id) [multi-canal]
@@ -118,22 +117,20 @@ class TestPublishPendingClips:
 
     def test_successful_upload_transitions_to_published(self):
         """Upload bem-sucedido: pending → publishing → published."""
-        conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
+        conn, _cursor = make_conn_with_clips([SAMPLE_CLIP])
         redis = MagicMock()
         uploader = make_mock_uploader(video_id='yt_success_01')
 
         with patch('src.publisher.QuotaManager') as MockQuota:
             MockQuota.return_value.can_upload.return_value = True
-            result = publish_pending_clips(
-                conn, redis, uploader=uploader, now=dt_sp(20)
-            )
+            result = publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
 
         assert result == 1
         uploader.upload_clip.assert_called_once()
 
     def test_failed_upload_sets_status_failed_does_not_increment_quota(self):
         """Upload com erro: status vai para 'failed', quota não é incrementada."""
-        conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
+        conn, _cursor = make_conn_with_clips([SAMPLE_CLIP])
         redis = MagicMock()
         uploader = make_mock_uploader(should_fail=True, fail_msg='API error 500')
 
@@ -150,7 +147,7 @@ class TestPublishPendingClips:
 
     def test_quota_blocked_leaves_clip_as_pending(self):
         """Quando quota/janela bloqueada, clip deve continuar como pending."""
-        conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
+        conn, _cursor = make_conn_with_clips([SAMPLE_CLIP])
         redis = MagicMock()
         uploader = make_mock_uploader()
 
@@ -163,7 +160,7 @@ class TestPublishPendingClips:
 
     def test_no_pending_clips_returns_zero(self):
         """Sem clips pendentes, retorna 0 sem chamar o uploader."""
-        conn, cursor = make_conn_with_clips([])
+        conn, _cursor = make_conn_with_clips([])
         redis = MagicMock()
         uploader = make_mock_uploader()
 
@@ -181,7 +178,7 @@ class TestPublishPendingClips:
             {**SAMPLE_CLIP, 'id': 2},
             {**SAMPLE_CLIP, 'id': 3},
         ]
-        conn, cursor = make_conn_with_clips(clips)
+        conn, _cursor = make_conn_with_clips(clips)
         redis = MagicMock()
         uploader = make_mock_uploader()
 
@@ -206,7 +203,7 @@ class TestPublishPendingClips:
             {**SAMPLE_CLIP, 'id': 1},
             {**SAMPLE_CLIP, 'id': 2},
         ]
-        conn, cursor = make_conn_with_clips(clips)
+        conn, _cursor = make_conn_with_clips(clips)
         redis = MagicMock()
 
         # Primeiro upload falha, segundo tem sucesso
@@ -266,11 +263,13 @@ class TestPublishApprovedClips:
 
         # Procura o SELECT — deve ter passado 'approved' como parâmetro
         select_calls = [
-            c for c in cursor.execute.call_args_list
-            if c.args and 'SELECT' in str(c.args[0]).upper()
-            and 'gc.status = %s' in str(c.args[0])
+            c
+            for c in cursor.execute.call_args_list
+            if c.args and 'SELECT' in str(c.args[0]).upper() and 'gc.status = %s' in str(c.args[0])
         ]
-        assert select_calls, f'SELECT parametrizado não encontrado. Calls: {cursor.execute.call_args_list}'
+        assert select_calls, (
+            f'SELECT parametrizado não encontrado. Calls: {cursor.execute.call_args_list}'
+        )
         # Multi-canal: params pode ser ('approved',) [legacy] ou ('approved', dest_id) [multi-canal]
         status_param = select_calls[0].args[1][0] if select_calls[0].args[1] else None
         assert status_param == 'approved', (
@@ -292,7 +291,8 @@ class TestPublishApprovedClips:
         uploader.upload_clip.assert_not_called()
         # Nenhum UPDATE para status='publishing' ou 'published'
         terminal_updates = [
-            c for c in cursor.execute.call_args_list
+            c
+            for c in cursor.execute.call_args_list
             if c.args
             and 'UPDATE' in str(c.args[0]).upper()
             and ('publishing' in str(c.args[0]) or 'published' in str(c.args[0]))
@@ -303,7 +303,7 @@ class TestPublishApprovedClips:
 
     def test_fora_da_janela_horaria(self):
         """Fora da janela horária (QuotaManager.can_upload=False), publisher pula sem mexer no clip."""
-        conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
+        conn, _cursor = make_conn_with_clips([SAMPLE_CLIP])
         redis = MagicMock()
         uploader = make_mock_uploader()
 
@@ -320,6 +320,7 @@ class TestPublishApprovedClips:
 # Wave 2 — RED tests: Multi-Canal (MCAN-02, MCAN-04)
 # Estes testes falham até a implementação em Wave 3-4.
 # ---------------------------------------------------------------------------
+
 
 class TestPublisherMultiCanal:
     """Testes RED para roteamento multi-canal no publisher (MCAN-02, MCAN-04)."""
@@ -399,10 +400,22 @@ class TestPublisherMultiCanal:
         from src.publisher import _fetch_destination_channels
 
         dest_channels = [
-            {'id': 1, 'slug': 'futebol-br', 'name': 'Futebol BR', 'niche': 'futebol',
-             'youtube_channel_id': 'UCaaa', 'credit_template': 'Vídeo de {channel_handle}'},
-            {'id': 2, 'slug': 'esportes-ao-vivo', 'name': 'Esportes Ao Vivo', 'niche': 'esportes',
-             'youtube_channel_id': 'UCbbb', 'credit_template': None},
+            {
+                'id': 1,
+                'slug': 'futebol-br',
+                'name': 'Futebol BR',
+                'niche': 'futebol',
+                'youtube_channel_id': 'UCaaa',
+                'credit_template': 'Vídeo de {channel_handle}',
+            },
+            {
+                'id': 2,
+                'slug': 'esportes-ao-vivo',
+                'name': 'Esportes Ao Vivo',
+                'niche': 'esportes',
+                'youtube_channel_id': 'UCbbb',
+                'credit_template': None,
+            },
         ]
         conn, cursor = make_conn_with_clips([])
         # Reset side_effect e usar return_value para teste direto desta função
@@ -413,18 +426,29 @@ class TestPublisherMultiCanal:
 
         assert len(result) == 2
         execute_calls = [str(c) for c in cursor.execute.call_args_list]
-        assert any('active' in c.lower() or 'WHERE' in c for c in execute_calls), \
+        assert any('active' in c.lower() or 'WHERE' in c for c in execute_calls), (
             'SELECT deve filtrar por active = TRUE'
+        )
 
     def test_publish_multi_canal_loop_publishes_to_both_channels(self):
         """MCAN-01/03: publish_pending_clips itera por canais-destino e publica clips de cada."""
         clip_ch1 = {**SAMPLE_CLIP, 'id': 1, 'destination_channel_id': 1}
         clip_ch2 = {**SAMPLE_CLIP, 'id': 2, 'destination_channel_id': 2, 'channel_handle': '@espn'}
 
-        dest_ch1 = {'id': 1, 'slug': 'futebol-br', 'youtube_channel_id': 'UCaaa',
-                    'credit_template': None, 'name': 'Futebol BR'}
-        dest_ch2 = {'id': 2, 'slug': 'esportes', 'youtube_channel_id': 'UCbbb',
-                    'credit_template': None, 'name': 'Esportes'}
+        dest_ch1 = {
+            'id': 1,
+            'slug': 'futebol-br',
+            'youtube_channel_id': 'UCaaa',
+            'credit_template': None,
+            'name': 'Futebol BR',
+        }
+        dest_ch2 = {
+            'id': 2,
+            'slug': 'esportes',
+            'youtube_channel_id': 'UCbbb',
+            'credit_template': None,
+            'name': 'Esportes',
+        }
 
         conn, cursor = make_conn_with_clips([])
         redis = MagicMock()
@@ -433,9 +457,9 @@ class TestPublisherMultiCanal:
         # _fetch_destination_channels retorna 2 canais
         # _fetch_pending_clips_for_channel retorna 1 clip por canal
         cursor.fetchall.side_effect = [
-            [dest_ch1, dest_ch2],   # _fetch_destination_channels
-            [clip_ch1],              # _fetch_pending_clips_for_channel(conn, 1)
-            [clip_ch2],              # _fetch_pending_clips_for_channel(conn, 2)
+            [dest_ch1, dest_ch2],  # _fetch_destination_channels
+            [clip_ch1],  # _fetch_pending_clips_for_channel(conn, 1)
+            [clip_ch2],  # _fetch_pending_clips_for_channel(conn, 2)
         ]
 
         with patch('src.publisher.QuotaManager') as MockQuota:
@@ -455,8 +479,13 @@ class TestPublisherMultiCanal:
             'channel_handle': '@sportv',
             'description': 'Descrição original',
         }
-        dest = {'id': 1, 'slug': 'futebol-br', 'youtube_channel_id': 'UCaaa',
-                'credit_template': 'Crédito: {channel_handle}', 'name': 'Futebol BR'}
+        dest = {
+            'id': 1,
+            'slug': 'futebol-br',
+            'youtube_channel_id': 'UCaaa',
+            'credit_template': 'Crédito: {channel_handle}',
+            'name': 'Futebol BR',
+        }
 
         conn, cursor = make_conn_with_clips([])
         redis = MagicMock()
@@ -469,7 +498,9 @@ class TestPublisherMultiCanal:
 
         with patch('src.publisher.QuotaManager') as MockQuota:
             MockQuota.return_value.can_upload.return_value = True
-            with patch('src.publisher.append_credits', return_value='Desc + Crédito') as mock_credits:
+            with patch(
+                'src.publisher.append_credits', return_value='Desc + Crédito'
+            ) as mock_credits:
                 result = publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
 
         assert result == 1

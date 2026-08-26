@@ -1,17 +1,17 @@
 """
 Testes para pipeline_runner.py — ciclo completo do pipeline.
 """
-import pytest
-from unittest.mock import MagicMock, patch, call
+
+from unittest.mock import MagicMock, patch
 
 from src.pipeline_runner import (
-    run_pipeline_once,
-    run_ingest_cycle,
+    DOWNLOAD_WINDOW_CURTO,
+    DOWNLOAD_WINDOW_LONGO,
     _discard_failed_download,
     _download_pending_videos,
     _select_pending_videos,
-    DOWNLOAD_WINDOW_CURTO,
-    DOWNLOAD_WINDOW_LONGO,
+    run_ingest_cycle,
+    run_pipeline_once,
 )
 
 
@@ -33,10 +33,11 @@ class TestRunPipelineOnce:
         mock_conn = MagicMock()
         mock_redis = MagicMock()
 
-        with patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll), \
-             patch('src.pipeline_runner._download_pending_videos', side_effect=fake_download), \
-             patch('src.pipeline_runner.publish_pending_clips', side_effect=fake_publish), \
-             patch('src.pipeline_runner.YouTubeUploader'):
+        with (
+            patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll),
+            patch('src.pipeline_runner._download_pending_videos', side_effect=fake_download),
+            patch('src.pipeline_runner.publish_pending_clips', side_effect=fake_publish),
+        ):
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
 
         assert call_order == ['poll', 'download', 'publish']
@@ -46,10 +47,11 @@ class TestRunPipelineOnce:
         mock_conn = MagicMock()
         mock_redis = MagicMock()
 
-        with patch('src.pipeline_runner.poll_all_channels') as mock_poll, \
-             patch('src.pipeline_runner._download_pending_videos'), \
-             patch('src.pipeline_runner.publish_pending_clips') as mock_pub, \
-             patch('src.pipeline_runner.YouTubeUploader'):
+        with (
+            patch('src.pipeline_runner.poll_all_channels') as mock_poll,
+            patch('src.pipeline_runner._download_pending_videos'),
+            patch('src.pipeline_runner.publish_pending_clips') as mock_pub,
+        ):
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
 
         # poll_all_channels deve receber a conexão injetada
@@ -65,10 +67,11 @@ class TestRunPipelineOnce:
         mock_conn = MagicMock()
         mock_redis = MagicMock()
 
-        with patch('src.pipeline_runner.poll_all_channels'), \
-             patch('src.pipeline_runner._download_pending_videos'), \
-             patch('src.pipeline_runner.publish_pending_clips'), \
-             patch('src.pipeline_runner.YouTubeUploader'):
+        with (
+            patch('src.pipeline_runner.poll_all_channels'),
+            patch('src.pipeline_runner._download_pending_videos'),
+            patch('src.pipeline_runner.publish_pending_clips'),
+        ):
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
 
         mock_conn.close.assert_not_called()
@@ -78,11 +81,13 @@ class TestRunPipelineOnce:
         mock_conn = MagicMock()
         mock_redis = MagicMock()
 
-        with patch('src.pipeline_runner.poll_all_channels'), \
-             patch('src.pipeline_runner._download_pending_videos'), \
-             patch('src.pipeline_runner.publish_pending_clips',
-                   side_effect=Exception('publish bombed')), \
-             patch('src.pipeline_runner.YouTubeUploader'):
+        with (
+            patch('src.pipeline_runner.poll_all_channels'),
+            patch('src.pipeline_runner._download_pending_videos'),
+            patch(
+                'src.pipeline_runner.publish_pending_clips', side_effect=Exception('publish bombed')
+            ),
+        ):
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
 
     def test_poll_failure_does_not_skip_publish(self):
@@ -100,10 +105,11 @@ class TestRunPipelineOnce:
             call_order.append('publish')
             return 0
 
-        with patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll), \
-             patch('src.pipeline_runner._download_pending_videos'), \
-             patch('src.pipeline_runner.publish_pending_clips', side_effect=fake_publish), \
-             patch('src.pipeline_runner.YouTubeUploader'):
+        with (
+            patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll),
+            patch('src.pipeline_runner._download_pending_videos'),
+            patch('src.pipeline_runner.publish_pending_clips', side_effect=fake_publish),
+        ):
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
 
         assert 'poll_failed' in call_order
@@ -114,12 +120,13 @@ class TestRunPipelineOnce:
         mock_conn = MagicMock()
         mock_redis_instance = MagicMock()
 
-        with patch('src.pipeline_runner.get_db_connection', return_value=mock_conn) as mock_get_db, \
-             patch('src.pipeline_runner.redis_lib.Redis', return_value=mock_redis_instance), \
-             patch('src.pipeline_runner.poll_all_channels'), \
-             patch('src.pipeline_runner._download_pending_videos'), \
-             patch('src.pipeline_runner.publish_pending_clips'), \
-             patch('src.pipeline_runner.YouTubeUploader'):
+        with (
+            patch('src.pipeline_runner.get_db_connection', return_value=mock_conn) as mock_get_db,
+            patch('src.pipeline_runner.redis_lib.Redis', return_value=mock_redis_instance),
+            patch('src.pipeline_runner.poll_all_channels'),
+            patch('src.pipeline_runner._download_pending_videos'),
+            patch('src.pipeline_runner.publish_pending_clips'),
+        ):
             run_pipeline_once()
 
         mock_get_db.assert_called_once()
@@ -130,11 +137,13 @@ class TestRunPipelineOnce:
         mock_conn = MagicMock()
         mock_redis = MagicMock()
 
-        with patch('src.pipeline_runner.poll_all_channels'), \
-             patch('src.pipeline_runner._download_pending_videos',
-                   side_effect=Exception('disk full')), \
-             patch('src.pipeline_runner.publish_pending_clips', return_value=0), \
-             patch('src.pipeline_runner.YouTubeUploader'):
+        with (
+            patch('src.pipeline_runner.poll_all_channels'),
+            patch(
+                'src.pipeline_runner._download_pending_videos', side_effect=Exception('disk full')
+            ),
+            patch('src.pipeline_runner.publish_pending_clips', return_value=0),
+        ):
             run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
 
 
@@ -201,6 +210,7 @@ class TestSelectPendingVideos:
     def test_filters_by_freshness_cutoff(self):
         """SELECT deve restringir a published_at de hoje ou ontem (FRESHNESS_DAYS=1)."""
         from datetime import datetime, timedelta
+
         from src.pipeline_runner import SAO_PAULO_TZ
 
         mock_conn = MagicMock()
@@ -247,13 +257,16 @@ class TestDownloadPendingVideos:
         )
         mock_conn.cursor.return_value = cur
 
-        with patch('src.pipeline_runner.download_video', return_value=True) as mock_dl, \
-             patch('src.pipeline_runner.update_status') as mock_upd:
+        with (
+            patch('src.pipeline_runner.download_video', return_value=True),
+            patch('src.pipeline_runner.update_status') as mock_upd,
+        ):
             _download_pending_videos(mock_conn)
 
         mock_upd.assert_any_call(mock_conn, 'abc123', 'downloading')
-        mock_upd.assert_any_call(mock_conn, 'abc123', 'downloaded',
-                                  local_path='/app/videos/abc123.mp4')
+        mock_upd.assert_any_call(
+            mock_conn, 'abc123', 'downloaded', local_path='/app/videos/abc123.mp4'
+        )
 
     def test_failed_download_updates_status_to_failed(self):
         """Download falho deve marcar failed já limpando local_path (libera a vaga)."""
@@ -264,8 +277,10 @@ class TestDownloadPendingVideos:
         )
         mock_conn.cursor.return_value = cur
 
-        with patch('src.pipeline_runner.download_video', return_value=False), \
-             patch('src.pipeline_runner.update_status') as mock_upd:
+        with (
+            patch('src.pipeline_runner.download_video', return_value=False),
+            patch('src.pipeline_runner.update_status') as mock_upd,
+        ):
             _download_pending_videos(mock_conn)
 
         mock_upd.assert_any_call(mock_conn, 'xyz999', 'failed', clear_local_path=True)
@@ -313,8 +328,10 @@ class TestDownloadPendingVideos:
         )
         mock_conn.cursor.return_value = cur
 
-        with patch('src.pipeline_runner.download_video', return_value=True) as mock_dl, \
-             patch('src.pipeline_runner.update_status'):
+        with (
+            patch('src.pipeline_runner.download_video', return_value=True) as mock_dl,
+            patch('src.pipeline_runner.update_status'),
+        ):
             _download_pending_videos(mock_conn)
 
         downloaded_order = [call.args[0] for call in mock_dl.call_args_list]
@@ -364,8 +381,10 @@ class TestDiscardFailedDownload:
         def fake_update(*args, **kwargs):
             seen_on_update['file_existed'] = raw.exists()
 
-        with patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)), \
-             patch('src.pipeline_runner.update_status', side_effect=fake_update) as mock_upd:
+        with (
+            patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)),
+            patch('src.pipeline_runner.update_status', side_effect=fake_update) as mock_upd,
+        ):
             _discard_failed_download(conn, 'xyz999')
 
         assert not raw.exists(), 'raw deveria ter sido apagado'
@@ -377,8 +396,10 @@ class TestDiscardFailedDownload:
         """Sem arquivo em disco (falha antes de escrever nada), segue e limpa a coluna."""
         conn = self._make_conn()
 
-        with patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)), \
-             patch('src.pipeline_runner.update_status') as mock_upd:
+        with (
+            patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)),
+            patch('src.pipeline_runner.update_status') as mock_upd,
+        ):
             _discard_failed_download(conn, 'nada404')
 
         mock_upd.assert_called_once_with(conn, 'nada404', 'failed', clear_local_path=True)
@@ -389,9 +410,11 @@ class TestDiscardFailedDownload:
         raw.write_bytes(b'preso')
         conn = self._make_conn()
 
-        with patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)), \
-             patch('src.pipeline_runner._cleanup_partial'), \
-             patch('src.pipeline_runner.update_status') as mock_upd:
+        with (
+            patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)),
+            patch('src.pipeline_runner._cleanup_partial'),
+            patch('src.pipeline_runner.update_status') as mock_upd,
+        ):
             _discard_failed_download(conn, 'trava01')
 
         assert raw.exists()
@@ -403,8 +426,10 @@ class TestDiscardFailedDownload:
         raw.write_bytes(b'necessario')
         conn = self._make_conn(clips_need_raw=1)
 
-        with patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)), \
-             patch('src.pipeline_runner.update_status') as mock_upd:
+        with (
+            patch('src.pipeline_runner.VIDEOS_DIR', str(tmp_path)),
+            patch('src.pipeline_runner.update_status') as mock_upd,
+        ):
             _discard_failed_download(conn, 'vivo123')
 
         assert raw.exists(), 'raw de clip em corte não pode ser apagado'
@@ -425,9 +450,11 @@ class TestRunIngestCycle:
         mock_conn = MagicMock()
         mock_redis = MagicMock()
 
-        with patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll), \
-             patch('src.pipeline_runner._download_pending_videos', side_effect=fake_download), \
-             patch('src.pipeline_runner.publish_pending_clips') as mock_pub:
+        with (
+            patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll),
+            patch('src.pipeline_runner._download_pending_videos', side_effect=fake_download),
+            patch('src.pipeline_runner.publish_pending_clips') as mock_pub,
+        ):
             run_ingest_cycle(db_conn=mock_conn, redis_client=mock_redis)
 
         assert call_order == ['poll', 'download']
@@ -438,9 +465,12 @@ class TestRunIngestCycle:
         mock_conn = MagicMock()
         mock_redis = MagicMock()
 
-        with patch('src.pipeline_runner.poll_all_channels'), \
-             patch('src.pipeline_runner._download_pending_videos',
-                   side_effect=Exception('disk full')):
+        with (
+            patch('src.pipeline_runner.poll_all_channels'),
+            patch(
+                'src.pipeline_runner._download_pending_videos', side_effect=Exception('disk full')
+            ),
+        ):
             run_ingest_cycle(db_conn=mock_conn, redis_client=mock_redis)
 
     def test_poll_failure_does_not_skip_download(self):
@@ -456,8 +486,10 @@ class TestRunIngestCycle:
         def fake_download(conn):
             call_order.append('download')
 
-        with patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll), \
-             patch('src.pipeline_runner._download_pending_videos', side_effect=fake_download):
+        with (
+            patch('src.pipeline_runner.poll_all_channels', side_effect=fake_poll),
+            patch('src.pipeline_runner._download_pending_videos', side_effect=fake_download),
+        ):
             run_ingest_cycle(db_conn=mock_conn, redis_client=mock_redis)
 
         assert call_order == ['poll_failed', 'download']
@@ -467,10 +499,12 @@ class TestRunIngestCycle:
         mock_conn = MagicMock()
         mock_redis_instance = MagicMock()
 
-        with patch('src.pipeline_runner.get_db_connection', return_value=mock_conn) as mock_get_db, \
-             patch('src.pipeline_runner.redis_lib.Redis', return_value=mock_redis_instance), \
-             patch('src.pipeline_runner.poll_all_channels'), \
-             patch('src.pipeline_runner._download_pending_videos'):
+        with (
+            patch('src.pipeline_runner.get_db_connection', return_value=mock_conn) as mock_get_db,
+            patch('src.pipeline_runner.redis_lib.Redis', return_value=mock_redis_instance),
+            patch('src.pipeline_runner.poll_all_channels'),
+            patch('src.pipeline_runner._download_pending_videos'),
+        ):
             run_ingest_cycle()
 
         mock_get_db.assert_called_once()
@@ -481,8 +515,10 @@ class TestRunIngestCycle:
         mock_conn = MagicMock()
         mock_redis = MagicMock()
 
-        with patch('src.pipeline_runner.poll_all_channels'), \
-             patch('src.pipeline_runner._download_pending_videos'):
+        with (
+            patch('src.pipeline_runner.poll_all_channels'),
+            patch('src.pipeline_runner._download_pending_videos'),
+        ):
             run_ingest_cycle(db_conn=mock_conn, redis_client=mock_redis)
 
         mock_conn.close.assert_not_called()

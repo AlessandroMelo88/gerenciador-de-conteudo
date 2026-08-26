@@ -14,22 +14,22 @@ Ver Docs/SISTEMA-IA-SELECAO.md.
 
 Em testes: anthropic_client injetado é usado diretamente (sem fallback).
 """
+
 import json
 import os
 from datetime import datetime
 
-
 SYSTEM_PROMPT = (
-    "Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos. "
-    "Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, "
-    "de PREFERÊNCIA entre 30 segundos e 3 minutos (end_time - start_time >= 30 e <= 180 segundos). "
-    "Para vídeos curtos (Shorts com duração total menor que 30s), selecione o segmento do vídeo completo. "
-    "O segmento precisa ter ASSUNTO COMPLETO: começo, meio e fim de um mesmo raciocínio. "
-    "Para futebol: priorize análise tática, debate acalorado, revelação de bastidores e o COMENTÁRIO sobre um gol. "
-    "Para podcasts: priorize discussão intensa, revelação importante, momento de conflito ou humor. "
-    "Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente "
-    "(10 = viral garantido, 1 = sem valor). "
-    "Responda APENAS com JSON válido, sem texto adicional:\n"
+    'Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos. '
+    'Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, '
+    'de PREFERÊNCIA entre 30 segundos e 3 minutos (end_time - start_time >= 30 e <= 180 segundos). '
+    'Para vídeos curtos (Shorts com duração total menor que 30s), selecione o segmento do vídeo completo. '
+    'O segmento precisa ter ASSUNTO COMPLETO: começo, meio e fim de um mesmo raciocínio. '
+    'Para futebol: priorize análise tática, debate acalorado, revelação de bastidores e o COMENTÁRIO sobre um gol. '
+    'Para podcasts: priorize discussão intensa, revelação importante, momento de conflito ou humor. '
+    'Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente '
+    '(10 = viral garantido, 1 = sem valor). '
+    'Responda APENAS com JSON válido, sem texto adicional:\n'
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
 
@@ -38,19 +38,19 @@ SYSTEM_PROMPT = (
 # Groq Llama 3.3-70b) ignora instruções de duração longa quando misturado com o
 # pedido de "múltiplos momentos curtos" do modo padrão.
 LONG_SYSTEM_PROMPT = (
-    "Você é um especialista em identificar o melhor segmento de ANÁLISE ou ENTREVISTA longa "
-    "de um vídeo de futebol/esportes para virar um vídeo único no YouTube (não um short). "
-    "Analise a transcrição e identifique O MELHOR segmento CONTÍNUO — não fragmente em vários "
-    "pedaços — com duração de PREFERÊNCIA ENTRE 420 e 1200 segundos (7 a 20 minutos). "
-    "Priorize um raciocínio completo: uma análise tática do início ao fim, uma resposta longa e "
-    "coesa de um entrevistado, ou um debate que se desenvolve com começo, meio e fim. Se o "
-    "raciocínio natural passar de 20 minutos, pode estender até o ponto em que ele realmente "
-    "termina — não corte no meio de uma ideia só pra caber na janela preferida. Não escolha um "
-    "trecho curto — o segmento PRECISA ter pelo menos 420 segundos de duração "
-    "(end_time - start_time >= 420). "
-    "Retorne exatamente 1 momento, com score de 1 a 10 "
-    "(10 = análise excelente pra virar vídeo, 1 = sem valor). "
-    "Responda APENAS com JSON válido, sem texto adicional:\n"
+    'Você é um especialista em identificar o melhor segmento de ANÁLISE ou ENTREVISTA longa '
+    'de um vídeo de futebol/esportes para virar um vídeo único no YouTube (não um short). '
+    'Analise a transcrição e identifique O MELHOR segmento CONTÍNUO — não fragmente em vários '
+    'pedaços — com duração de PREFERÊNCIA ENTRE 420 e 1200 segundos (7 a 20 minutos). '
+    'Priorize um raciocínio completo: uma análise tática do início ao fim, uma resposta longa e '
+    'coesa de um entrevistado, ou um debate que se desenvolve com começo, meio e fim. Se o '
+    'raciocínio natural passar de 20 minutos, pode estender até o ponto em que ele realmente '
+    'termina — não corte no meio de uma ideia só pra caber na janela preferida. Não escolha um '
+    'trecho curto — o segmento PRECISA ter pelo menos 420 segundos de duração '
+    '(end_time - start_time >= 420). '
+    'Retorne exatamente 1 momento, com score de 1 a 10 '
+    '(10 = análise excelente pra virar vídeo, 1 = sem valor). '
+    'Responda APENAS com JSON válido, sem texto adicional:\n'
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
 
@@ -92,7 +92,9 @@ def _parse_moments(raw_text: str) -> list[dict]:
     return _normalize_scores(data.get('moments', []))
 
 
-def _select_via_anthropic_client(client, transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -> list[dict]:
+def _select_via_anthropic_client(
+    client, transcript_text: str, system_prompt: str = SYSTEM_PROMPT
+) -> list[dict]:
     """Usa cliente Anthropic já instanciado (produção ou mock de teste)."""
     response = client.messages.create(
         model='claude-haiku-4-5',
@@ -106,6 +108,7 @@ def _select_via_anthropic_client(client, transcript_text: str, system_prompt: st
 def _select_via_groq(transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -> list[dict]:
     """Seleciona momentos via Groq (fallback sempre disponível)."""
     from groq import Groq
+
     client = Groq()
     _log('[SELECTOR] Usando Groq LLM')
     response = client.chat.completions.create(
@@ -127,8 +130,10 @@ def _remove_overlaps(moments: list[dict], max_count: int = 3) -> list[dict]:
     selected = []
     for candidate in sorted_moments:
         overlaps = any(
-            not (candidate['end_time'] <= kept['start_time'] or
-                 candidate['start_time'] >= kept['end_time'])
+            not (
+                candidate['end_time'] <= kept['start_time']
+                or candidate['start_time'] >= kept['end_time']
+            )
             for kept in selected
         )
         if not overlaps:
@@ -152,7 +157,11 @@ def _enforce_longform_duration(moments: list[dict], transcript_duration: float) 
             adjusted.append(m)
             continue
 
-        target = min(MIN_LONGFORM_SECONDS, transcript_duration) if transcript_duration else MIN_LONGFORM_SECONDS
+        target = (
+            min(MIN_LONGFORM_SECONDS, transcript_duration)
+            if transcript_duration
+            else MIN_LONGFORM_SECONDS
+        )
         missing = target - duration
         new_start = max(0, m['start_time'] - missing / 2)
         new_end = new_start + target
@@ -167,7 +176,9 @@ def _enforce_longform_duration(moments: list[dict], transcript_duration: float) 
     return adjusted
 
 
-def _filter_shortform_duration(moments: list[dict], transcript_duration: float = None) -> list[dict]:
+def _filter_shortform_duration(
+    moments: list[dict], transcript_duration: float | None = None
+) -> list[dict]:
     """Descarta momentos do formato 'curto' com duração inferior ao mínimo aceitável
     ou superior a MAX_SHORTFORM_SECONDS (180s).
     """
@@ -179,10 +190,14 @@ def _filter_shortform_duration(moments: list[dict], transcript_duration: float =
     for m in moments:
         duration = float(m.get('end_time', 0)) - float(m.get('start_time', 0))
         if duration < min_required:
-            _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que o mínimo ({min_required:.1f}s)')
+            _log(
+                f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que o mínimo ({min_required:.1f}s)'
+            )
             continue
         if duration > MAX_SHORTFORM_SECONDS:
-            _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s maior que o máximo ({MAX_SHORTFORM_SECONDS}s)')
+            _log(
+                f'[SELECTOR] Momento descartado: duração {duration:.1f}s maior que o máximo ({MAX_SHORTFORM_SECONDS}s)'
+            )
             continue
         valid.append(m)
     return valid
@@ -243,7 +258,9 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto') 
     # Caminho de testes: cliente injetado diretamente
     if anthropic_client is not None:
         try:
-            return _finalize(_select_via_anthropic_client(anthropic_client, transcript_text, system_prompt))
+            return _finalize(
+                _select_via_anthropic_client(anthropic_client, transcript_text, system_prompt)
+            )
         except Exception as e:
             _log(f'Erro ao selecionar momentos: {e}')
             return []
@@ -253,6 +270,7 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto') 
     if api_key:
         try:
             import anthropic
+
             client = anthropic.Anthropic(api_key=api_key)
             _log('[SELECTOR] Usando Anthropic Claude Haiku')
             moments = _select_via_anthropic_client(client, transcript_text, system_prompt)
@@ -288,9 +306,7 @@ def _lookup_destination_channel_id(conn, source_video_id: int) -> int | None:
 
     with conn.cursor() as cur:
         cur.execute(
-            'SELECT id FROM destination_channels '
-            'WHERE niche = %s AND active = TRUE '
-            'LIMIT 1',
+            'SELECT id FROM destination_channels WHERE niche = %s AND active = TRUE LIMIT 1',
             (target_niche,),
         )
         dest_row = cur.fetchone()
@@ -324,8 +340,15 @@ def insert_selected_moments(conn, source_video_id: int, video_id: str, moments: 
                 'INSERT INTO generated_clips '
                 '(source_video_id, start_time, end_time, score, reason, status, destination_channel_id) '
                 'VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                (source_video_id, moment['start_time'], moment['end_time'], score, reason,
-                 'pending_cut', destination_channel_id),
+                (
+                    source_video_id,
+                    moment['start_time'],
+                    moment['end_time'],
+                    score,
+                    reason,
+                    'pending_cut',
+                    destination_channel_id,
+                ),
             )
         conn.commit()
         inserted += 1

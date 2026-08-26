@@ -8,11 +8,11 @@ Exports esperados:
 
 RED state: imports falham pois src/dedup.py ainda não existe.
 """
+
 from src.dedup import is_seen, mark_failed_redis
 
 
 class TestIsSeen:
-
     def test_redis_hit(self, mock_redis, mock_db_conn):
         """redis.set() retorna None (chave existia = NX falhou) → is_seen() retorna True."""
         # NX=True: set retorna None se chave já existe
@@ -65,7 +65,6 @@ class TestIsSeen:
 
 
 class TestMarkFailedRedis:
-
     def test_mark_failed_redis(self, mock_redis):
         """mark_failed_redis() chama redis.delete() com chave correta."""
         video_id = 'dQw4w9WgXcQ'
