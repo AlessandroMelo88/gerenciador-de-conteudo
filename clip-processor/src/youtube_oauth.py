@@ -29,6 +29,9 @@ import json
 import os
 from pathlib import Path
 
+# Permite redirecionamento OAuth em http://localhost
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
