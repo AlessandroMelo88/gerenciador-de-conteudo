@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 
 import { NavUser } from '@/components/nav-user';
 import {
