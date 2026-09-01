@@ -210,6 +210,7 @@ export default function SourceVideos() {
     const { props } = usePage<PageProps>();
     const { videos, filters, statusOptions, storage, downloadWindow, auth } = props;
     const [selected, setSelected] = useState<number[]>([]);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     const toggle = (id: number) =>
         setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -228,103 +229,201 @@ export default function SourceVideos() {
                 title="Vídeos"
                 user={auth.user}
                 description={`Lista de todo vídeo bruto (fonte) já baixado ou tentado pelo pipeline — não são os clips finais, são a matéria-prima. ${videos.total} vídeo(s).`}
-                actions={<PurgeOldDialog />}
+                actions={
+                    <div className="flex items-center gap-2">
+                        <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('grid')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    viewMode === 'grid'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                                title="Modo Cards"
+                            >
+                                ⊞ Cards
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('list')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    viewMode === 'list'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                                title="Modo Lista"
+                            >
+                                ☰ Lista
+                            </button>
+                        </div>
+                        <PurgeOldDialog />
+                    </div>
+                }
             >
                 <VideoSummaryCards storage={storage} downloadWindow={downloadWindow} />
 
-                <Tabs
-                    value={filters.tab}
-                    onValueChange={(tab) => applyFilters({ tab }, filters)}
-                >
-                            <TabsList>
-                                <TabsTrigger value="ativos">Ativos</TabsTrigger>
-                                <TabsTrigger value="falharam">Falharam</TabsTrigger>
-                                <TabsTrigger value="todos">Todos</TabsTrigger>
-                            </TabsList>
-                        </Tabs>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Tabs
+                        value={filters.tab}
+                        onValueChange={(tab) => applyFilters({ tab }, filters)}
+                    >
+                        <TabsList>
+                            <TabsTrigger value="ativos">Ativos</TabsTrigger>
+                            <TabsTrigger value="falharam">Falharam</TabsTrigger>
+                            <TabsTrigger value="todos">Todos</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
 
-                        <div className="flex flex-wrap items-center gap-3">
-                            <Input
-                                placeholder="Buscar título ou canal…"
-                                defaultValue={filters.search ?? ''}
-                                className="w-64"
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        applyFilters({ search: (e.target as HTMLInputElement).value }, filters);
-                                    }
-                                }}
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Input
+                            placeholder="Buscar título ou canal…"
+                            defaultValue={filters.search ?? ''}
+                            className="w-56 text-xs h-9"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    applyFilters({ search: (e.target as HTMLInputElement).value }, filters);
+                                }
+                            }}
+                        />
+                        <Select
+                            value={filters.status ?? 'all'}
+                            onValueChange={(v) => applyFilters({ status: v === 'all' ? null : v }, filters)}
+                        >
+                            <SelectTrigger className="w-40 text-xs h-9">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos os status</SelectItem>
+                                {Object.entries(statusOptions).map(([value, label]) => (
+                                    <SelectItem key={value} value={value}>
+                                        {label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <div className="flex items-center gap-2">
+                            <Switch
+                                checked={filters.seguro_apagar}
+                                onCheckedChange={(v) => applyFilters({ seguro_apagar: v }, filters)}
                             />
-                            <Select
-                                value={filters.status ?? 'all'}
-                                onValueChange={(v) => applyFilters({ status: v === 'all' ? null : v }, filters)}
-                            >
-                                <SelectTrigger className="w-48">
-                                    <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todos os status</SelectItem>
-                                    {Object.entries(statusOptions).map(([value, label]) => (
-                                        <SelectItem key={value} value={value}>
-                                            {label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <div className="flex items-center gap-2">
-                                <Switch
-                                    checked={filters.seguro_apagar}
-                                    onCheckedChange={(v) => applyFilters({ seguro_apagar: v }, filters)}
-                                />
-                                <span className="text-sm text-muted-foreground">Só sem uso (seguro apagar)</span>
-                            </div>
+                            <span className="text-xs text-muted-foreground">Só sem uso</span>
                         </div>
+                    </div>
+                </div>
 
-                        {selected.length > 0 && (
-                            <div className="flex items-center gap-2">
-                                <ConfirmButton
-                                    variant="destructive"
-                                    size="sm"
-                                    description={`Apagar os arquivos brutos dos ${selected.length} vídeo(s) selecionado(s)? Os cortes já gerados NÃO são afetados.`}
-                                    onConfirm={() => {
-                                        router.post(
-                                            '/painel/videos/bulk-delete-files',
-                                            { ids: selected },
-                                            { preserveScroll: true, onSuccess: () => setSelected([]) },
-                                        );
-                                    }}
-                                >
-                                    Apagar arquivos selecionados ({selected.length})
-                                </ConfirmButton>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const urls = videos.data
-                                            .filter((v) => selected.includes(v.id))
-                                            .map((v) => `https://youtube.com/watch?v=${v.youtubeVideoId}`)
-                                            .join('\n');
-                                        copyToClipboard(urls, `${selected.length} URL(s) copiada(s)`);
-                                    }}
-                                >
-                                    Copiar URLs selecionadas
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const ids = videos.data
-                                            .filter((v) => selected.includes(v.id))
-                                            .map((v) => v.youtubeVideoId)
-                                            .join('\n');
-                                        copyToClipboard(ids, `${selected.length} ID(s) copiado(s)`);
-                                    }}
-                                >
-                                    Copiar IDs selecionados
-                                </Button>
-                            </div>
-                        )}
+                {selected.length > 0 && (
+                    <div className="flex items-center gap-2">
+                        <ConfirmButton
+                            variant="destructive"
+                            size="sm"
+                            description={`Apagar os arquivos brutos dos ${selected.length} vídeo(s) selecionado(s)?`}
+                            onConfirm={() => {
+                                router.post(
+                                    '/painel/videos/bulk-delete-files',
+                                    { ids: selected },
+                                    { preserveScroll: true, onSuccess: () => setSelected([]) },
+                                );
+                            }}
+                        >
+                            Apagar arquivos selecionados ({selected.length})
+                        </ConfirmButton>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                const urls = videos.data
+                                    .filter((v) => selected.includes(v.id))
+                                    .map((v) => `https://youtube.com/watch?v=${v.youtubeVideoId}`)
+                                    .join('\n');
+                                copyToClipboard(urls, `${selected.length} URL(s) copiada(s)`);
+                            }}
+                        >
+                            Copiar URLs
+                        </Button>
+                    </div>
+                )}
 
-                        <div className="overflow-x-auto rounded-lg border">
+                {viewMode === 'grid' ? (
+                    <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                        {videos.data.map((v) => {
+                            const isPol = (v.channelName ?? '').toLowerCase().includes('pingos') || (v.channelName ?? '').toLowerCase().includes('politica') || (v.channelName ?? '').toLowerCase().includes('band') || (v.channelName ?? '').toLowerCase().includes('antagonista');
+                            const bgGradient = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+
+                            return (
+                                <article
+                                    key={v.id}
+                                    className="group rounded-2xl border border-border bg-card overflow-hidden flex flex-col hover:border-primary/40 transition-all shadow-xs"
+                                >
+                                    <div className="relative aspect-video overflow-hidden" style={{ background: bgGradient }}>
+                                        <div className="absolute inset-0 grid place-items-center">
+                                            <a
+                                                href={`https://youtube.com/watch?v=${v.youtubeVideoId}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md border border-white/20 grid place-items-center text-white group-hover:scale-105 transition-transform"
+                                            >
+                                                ▶
+                                            </a>
+                                        </div>
+                                        <span className="absolute left-2.5 top-2.5 font-semibold text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
+                                            {isPol ? '🏛️ Política' : '⚽ Futebol'}
+                                        </span>
+                                        <span className="absolute right-2.5 top-2.5 font-mono text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
+                                            {v.statusLabel}
+                                        </span>
+                                    </div>
+                                    <div className="p-4 flex flex-col gap-3 flex-1">
+                                        <div className="flex items-start gap-2">
+                                            {(v.canDelete ?? v.hasLocalFile) && (
+                                                <Checkbox
+                                                    checked={selected.includes(v.id)}
+                                                    onCheckedChange={() => toggle(v.id)}
+                                                    className="mt-1"
+                                                />
+                                            )}
+                                            <div className="font-semibold text-sm leading-snug tracking-tight text-foreground line-clamp-2" title={v.title}>
+                                                {v.title}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                            <span className="font-mono px-1.5 py-0.5 rounded border border-border">
+                                                #{v.id}
+                                            </span>
+                                            <span className="truncate">{v.channelName ?? 'Canal Fonte'}</span>
+                                        </div>
+                                        <div className="flex-1" />
+                                        <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                                            <a
+                                                href={`https://youtube.com/watch?v=${v.youtubeVideoId}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex h-8 items-center justify-center rounded-lg border border-border px-3 text-xs font-medium text-foreground hover:bg-muted"
+                                            >
+                                                Ver no YouTube
+                                            </a>
+                                            <div className="flex-1" />
+                                            {(v.canDelete ?? v.hasLocalFile) && (
+                                                <ConfirmButton
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="h-8 px-2.5 text-xs"
+                                                    description={`Apagar arquivo bruto do vídeo #${v.id}?`}
+                                                    onConfirm={() => {
+                                                        router.post(`/painel/videos/${v.id}/delete-file`, {}, { preserveScroll: true });
+                                                    }}
+                                                >
+                                                    Apagar arquivo
+                                                </ConfirmButton>
+                                            )}
+                                        </div>
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto rounded-lg border">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -446,6 +545,7 @@ export default function SourceVideos() {
                                 </TableBody>
                             </Table>
                         </div>
+                    )}
 
                         <div className="flex items-center justify-between">
                             <p className="text-sm text-muted-foreground">

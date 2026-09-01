@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
-import { Landmark, Trophy, Mic, PlusCircle, Trash2, Edit2, KeyRound } from 'lucide-react';
+import { Landmark, Trophy, Mic, PlusCircle, Trash2, Edit2 } from 'lucide-react';
 
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
@@ -10,6 +10,14 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { AppShell } from '@/layouts/app-shell';
 
@@ -33,14 +41,14 @@ type PageProps = {
 };
 
 function NicheIcon({ niche }: { niche: string }) {
-    const n = niche.toLowerCase();
+    const n = (niche ?? '').toLowerCase();
     if (n.includes('política') || n.includes('politica')) return <Landmark className="w-5 h-5 text-white" />;
     if (n.includes('podcast')) return <Mic className="w-5 h-5 text-white" />;
     return <Trophy className="w-5 h-5 text-white" />;
 }
 
 function NicheBadge({ niche }: { niche: string }) {
-    const n = niche.toLowerCase();
+    const n = (niche ?? '').toLowerCase();
     if (n.includes('política') || n.includes('politica')) {
         return (
             <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
@@ -188,6 +196,7 @@ function ChannelDialog({
 export default function DestinationChannels() {
     const { props } = usePage<PageProps>();
     const { channels, niches, auth } = props;
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     const toggleActive = (channel: DestinationChannel) => {
         router.put(
@@ -214,103 +223,209 @@ export default function DestinationChannels() {
                 title="Canais Destino"
                 user={auth.user}
                 description="Canais do YouTube onde os clipes aprovados são publicados. Cada canal possui sua própria cota e autorização OAuth."
-            >
-                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                    {channels.map((channel) => {
-                        const isPol = channel.niche.toLowerCase().includes('política') || channel.niche.toLowerCase().includes('politica');
-                        const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
-                        const isAuth = channel.oauthStatus === 'authorized';
-
-                        return (
-                            <div
-                                key={channel.id}
-                                className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 shadow-xs hover:border-primary/30 transition-all"
-                            >
-                                <div className="flex items-start gap-3">
-                                    <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0 shadow-sm" style={{ background: bgGrad }}>
-                                        <NicheIcon niche={channel.niche} />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="font-bold text-sm tracking-tight truncate text-foreground">{channel.name}</div>
-                                        <div className="font-mono text-[11px] text-muted-foreground truncate">{channel.slug}</div>
-                                    </div>
-                                    <NicheBadge niche={channel.niche} />
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <span
-                                        className={`flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border ${
-                                            isAuth
-                                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                                                : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
-                                        }`}
-                                    >
-                                        <span className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                                        {isAuth ? 'OAuth autorizado' : 'Sem autorização'}
-                                    </span>
-                                    <span className="font-mono text-[10.5px] text-muted-foreground truncate" title={channel.youtubeChannelId}>
-                                        {channel.youtubeChannelId}
-                                    </span>
-                                </div>
-
-                                <div className="rounded-xl border border-border bg-muted/40 p-3">
-                                    <div className="flex items-center justify-between text-xs mb-2">
-                                        <span className="text-muted-foreground">Cota diária</span>
-                                        <span className="font-mono font-semibold text-foreground">5 de 5 slots</span>
-                                    </div>
-                                    <div className="h-1.5 rounded-full bg-black/10 dark:bg-white/[.08] overflow-hidden">
-                                        <div className="h-full rounded-full bg-emerald-500" style={{ width: '100%' }} />
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-2 pt-2 border-t border-border/60">
-                                    <Switch
-                                        checked={channel.active}
-                                        onCheckedChange={() => toggleActive(channel)}
-                                    />
-                                    <span className="text-xs font-medium text-foreground">
-                                        {channel.active ? 'Ativo' : 'Pausado'}
-                                    </span>
-                                    <div className="flex-1" />
-                                    <ChannelDialog
-                                        channel={channel}
-                                        niches={niches}
-                                        trigger={
-                                            <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg text-xs">
-                                                <Edit2 className="w-3.5 h-3.5 mr-1" /> Editar
-                                            </Button>
-                                        }
-                                    />
-                                    <ConfirmButton
-                                        variant="destructive"
-                                        size="sm"
-                                        className="h-8 w-8 p-0 rounded-lg"
-                                        description={`Excluir canal "${channel.name}"?`}
-                                        onConfirm={() => deleteChannel(channel)}
-                                    >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </ConfirmButton>
-                                </div>
-                            </div>
-                        );
-                    })}
-
-                    {/* Card de Adicionar Canal */}
-                    <ChannelDialog
-                        niches={niches}
-                        trigger={
+                actions={
+                    <div className="flex items-center gap-2">
+                        <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
                             <button
                                 type="button"
-                                className="rounded-2xl border-2 border-dashed border-border p-6 min-h-[200px] grid place-items-center text-muted-foreground hover:border-primary hover:text-primary transition-all group"
+                                onClick={() => setViewMode('grid')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    viewMode === 'grid'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                                title="Modo Cards"
                             >
-                                <div className="flex flex-col items-center gap-2">
-                                    <PlusCircle className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
-                                    <span className="text-sm font-semibold">Adicionar canal destino</span>
-                                </div>
+                                ⊞ Cards
                             </button>
-                        }
-                    />
-                </div>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('list')}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    viewMode === 'list'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                                title="Modo Lista"
+                            >
+                                ☰ Lista
+                            </button>
+                        </div>
+                    </div>
+                }
+            >
+                {viewMode === 'grid' ? (
+                    <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                        {channels.map((channel) => {
+                            const isPol = (channel.niche ?? '').toLowerCase().includes('política') || (channel.niche ?? '').toLowerCase().includes('politica');
+                            const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                            const isAuth = channel.oauthStatus === 'authorized';
+
+                            return (
+                                <div
+                                    key={channel.id}
+                                    className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 shadow-xs hover:border-primary/30 transition-all"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0 shadow-sm" style={{ background: bgGrad }}>
+                                            <NicheIcon niche={channel.niche} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-bold text-sm tracking-tight truncate text-foreground">{channel.name}</div>
+                                            <div className="font-mono text-[11px] text-muted-foreground truncate">{channel.slug}</div>
+                                        </div>
+                                        <NicheBadge niche={channel.niche} />
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className={`flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border ${
+                                                isAuth
+                                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                                    : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                                            }`}
+                                        >
+                                            <span className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                            {isAuth ? 'OAuth autorizado' : 'Sem autorização'}
+                                        </span>
+                                        <span className="font-mono text-[10.5px] text-muted-foreground truncate" title={channel.youtubeChannelId}>
+                                            {channel.youtubeChannelId}
+                                        </span>
+                                    </div>
+
+                                    <div className="rounded-xl border border-border bg-muted/40 p-3">
+                                        <div className="flex items-center justify-between text-xs mb-2">
+                                            <span className="text-muted-foreground">Cota diária restante</span>
+                                            <span className="font-mono font-semibold text-foreground">5 de 5 slots</span>
+                                        </div>
+                                        <div className="h-1.5 rounded-full bg-black/10 dark:bg-white/[.08] overflow-hidden">
+                                            <div className="h-full rounded-full bg-emerald-500" style={{ width: '100%' }} />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                                        <Switch
+                                            checked={channel.active}
+                                            onCheckedChange={() => toggleActive(channel)}
+                                        />
+                                        <span className="text-xs font-medium text-foreground">
+                                            {channel.active ? 'Ativo' : 'Pausado'}
+                                        </span>
+                                        <div className="flex-1" />
+                                        <ChannelDialog
+                                            channel={channel}
+                                            niches={niches}
+                                            trigger={
+                                                <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg text-xs">
+                                                    <Edit2 className="w-3.5 h-3.5 mr-1" /> Editar
+                                                </Button>
+                                            }
+                                        />
+                                        <ConfirmButton
+                                            variant="destructive"
+                                            size="sm"
+                                            className="h-8 w-8 p-0 rounded-lg"
+                                            description={`Excluir canal "${channel.name}"?`}
+                                            onConfirm={() => deleteChannel(channel)}
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </ConfirmButton>
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Card de Adicionar Canal */}
+                        <ChannelDialog
+                            niches={niches}
+                            trigger={
+                                <button
+                                    type="button"
+                                    className="rounded-2xl border-2 border-dashed border-border p-6 min-h-[200px] grid place-items-center text-muted-foreground hover:border-primary hover:text-primary transition-all group"
+                                >
+                                    <div className="flex flex-col items-center gap-2">
+                                        <PlusCircle className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
+                                        <span className="text-sm font-semibold">Adicionar canal destino</span>
+                                    </div>
+                                </button>
+                            }
+                        />
+                    </div>
+                ) : (
+                    <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+                        <Table className="w-full text-xs">
+                            <TableHeader className="bg-muted/40">
+                                <TableRow>
+                                    <TableHead className="px-5 py-3 font-semibold">Canal</TableHead>
+                                    <TableHead className="px-5 py-3 font-semibold">Nicho</TableHead>
+                                    <TableHead className="px-5 py-3 font-semibold">OAuth</TableHead>
+                                    <TableHead className="px-5 py-3 font-semibold">YouTube ID</TableHead>
+                                    <TableHead className="px-5 py-3 font-semibold">Status</TableHead>
+                                    <TableHead className="px-5 py-3 font-semibold text-right">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {channels.map((channel) => {
+                                    const isAuth = channel.oauthStatus === 'authorized';
+                                    return (
+                                        <TableRow key={channel.id} className="hover:bg-muted/30">
+                                            <TableCell className="px-5 py-3">
+                                                <div className="font-semibold text-foreground">{channel.name}</div>
+                                                <div className="font-mono text-[11px] text-muted-foreground">{channel.slug}</div>
+                                            </TableCell>
+                                            <TableCell className="px-5 py-3">
+                                                <NicheBadge niche={channel.niche} />
+                                            </TableCell>
+                                            <TableCell className="px-5 py-3">
+                                                <span
+                                                    className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
+                                                        isAuth
+                                                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                                            : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                                                    }`}
+                                                >
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                                    {isAuth ? 'Autorizado' : 'Pendente'}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="px-5 py-3 font-mono text-muted-foreground">
+                                                {channel.youtubeChannelId}
+                                            </TableCell>
+                                            <TableCell className="px-5 py-3">
+                                                <Switch
+                                                    checked={channel.active}
+                                                    onCheckedChange={() => toggleActive(channel)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="px-5 py-3 text-right">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <ChannelDialog
+                                                        channel={channel}
+                                                        niches={niches}
+                                                        trigger={
+                                                            <Button variant="outline" size="sm" className="h-8 px-2.5 rounded-lg text-xs">
+                                                                <Edit2 className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                        }
+                                                    />
+                                                    <ConfirmButton
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 rounded-lg"
+                                                        description={`Excluir canal "${channel.name}"?`}
+                                                        onConfirm={() => deleteChannel(channel)}
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </ConfirmButton>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
             </AppShell>
         </>
     );

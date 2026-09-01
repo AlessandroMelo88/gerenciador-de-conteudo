@@ -138,6 +138,7 @@ export default function SourceChannels() {
     const { channels, niches, auth } = props;
 
     const [activeTab, setActiveTab] = useState<string>('todos');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
     const [search, setSearch] = useState('');
 
     const toggle = (id: number, field: 'active' | 'blacklisted', current: boolean) => {
@@ -186,11 +187,11 @@ export default function SourceChannels() {
             <AppShell
                 title="Canais Fonte"
                 user={auth.user}
-                description="Canais do YouTube monitorados pelo robô para encontrar matéria-prima. O robô balanceia downloads entre os nichos."
+                description="Canais do YouTube monitorados pelo robô para encontrar matéria-prima bruta. O robô balanceia downloads entre os nichos."
                 actions={<CreateChannelDialog niches={niches} />}
             >
                 <div className="flex flex-col gap-4">
-                    {/* Subtabs de nicho + Busca */}
+                    {/* Subtabs de nicho + Toggle Cards/Lista + Busca */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl border border-border bg-card w-fit">
                             <button
@@ -253,97 +254,200 @@ export default function SourceChannels() {
                             )}
                         </div>
 
-                        <div className="relative">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Buscar canal ou @handle…"
-                                className="h-10 w-[240px] pl-9 pr-3 rounded-xl text-xs bg-card"
-                            />
+                        <div className="flex items-center gap-3">
+                            <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('grid')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        viewMode === 'grid'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    title="Modo Cards"
+                                >
+                                    ⊞ Cards
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('list')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        viewMode === 'list'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    title="Modo Lista"
+                                >
+                                    ☰ Lista
+                                </button>
+                            </div>
+
+                            <div className="relative">
+                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder="Buscar canal ou handle…"
+                                    className="h-10 w-[220px] pl-9 pr-3 rounded-xl text-xs bg-card"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
-                        <div className="overflow-x-auto">
-                            <Table className="w-full text-xs">
-                                <TableHeader className="bg-muted/40">
-                                    <TableRow>
-                                        <TableHead className="px-5 py-3 font-semibold">Canal</TableHead>
-                                        <TableHead className="px-5 py-3 font-semibold">Nicho</TableHead>
-                                        <TableHead className="px-5 py-3 font-semibold">Ativo</TableHead>
-                                        <TableHead className="px-5 py-3 font-semibold">Blacklist</TableHead>
-                                        <TableHead className="px-5 py-3 font-semibold text-right">Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filtered.map((channel) => {
-                                        const isPol = (channel.targetNiche ?? '').toLowerCase().includes('politica');
-                                        const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
-                                        const initials = channel.channelName
-                                            .split(' ')
-                                            .map((w) => w[0])
-                                            .slice(0, 2)
-                                            .join('');
+                    {viewMode === 'grid' ? (
+                        <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                            {filtered.map((channel) => {
+                                const isPol = (channel.targetNiche ?? '').toLowerCase().includes('politica');
+                                const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                                const initials = channel.channelName
+                                    .split(' ')
+                                    .map((w) => w[0])
+                                    .slice(0, 2)
+                                    .join('');
 
-                                        return (
-                                            <TableRow key={channel.id} className="hover:bg-muted/30">
-                                                <TableCell className="px-5 py-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <span
-                                                            className="w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold text-white shrink-0 shadow-sm"
-                                                            style={{ background: bgGrad }}
-                                                        >
-                                                            {initials}
-                                                        </span>
-                                                        <div className="min-w-0">
-                                                            <div className="font-semibold text-foreground truncate">
-                                                                {channel.channelName}
-                                                            </div>
-                                                            <div className="font-mono text-[11px] text-muted-foreground truncate">
-                                                                {channel.channelHandle ?? '—'}
+                                return (
+                                    <div
+                                        key={channel.id}
+                                        className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 shadow-xs hover:border-primary/30 transition-all"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <span
+                                                className="w-11 h-11 rounded-xl grid place-items-center text-xs font-bold text-white shrink-0 shadow-sm"
+                                                style={{ background: bgGrad }}
+                                            >
+                                                {initials}
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-bold text-sm tracking-tight truncate text-foreground">
+                                                    {channel.channelName}
+                                                </div>
+                                                <div className="font-mono text-[11px] text-muted-foreground truncate">
+                                                    {channel.channelHandle ?? '—'}
+                                                </div>
+                                            </div>
+                                            <NicheBadge niche={channel.targetNiche} />
+                                        </div>
+
+                                        <div className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-muted/40 border border-border">
+                                            <span className="text-muted-foreground">Status no Robô:</span>
+                                            <span className="font-semibold text-foreground">
+                                                {channel.active ? '🟢 Monitorando' : '⏸️ Pausado'}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-3 pt-2 border-t border-border/60">
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    checked={channel.active}
+                                                    onCheckedChange={() => toggle(channel.id, 'active', channel.active)}
+                                                />
+                                                <span className="text-xs text-foreground">Ativo</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    checked={channel.blacklisted}
+                                                    onCheckedChange={() => toggle(channel.id, 'blacklisted', channel.blacklisted)}
+                                                    className="data-[state=checked]:bg-destructive"
+                                                />
+                                                <span className="text-xs text-destructive">Bloquear</span>
+                                            </div>
+                                            <div className="flex-1" />
+                                            <ConfirmButton
+                                                variant="destructive"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 rounded-lg"
+                                                description={`Remover o canal fonte "${channel.channelName}"?`}
+                                                onConfirm={() => destroy(channel.id)}
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </ConfirmButton>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+                            <div className="overflow-x-auto">
+                                <Table className="w-full text-xs">
+                                    <TableHeader className="bg-muted/40">
+                                        <TableRow>
+                                            <TableHead className="px-5 py-3 font-semibold">Canal</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold">Nicho</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold">Ativo</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold">Blacklist</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold text-right">Ações</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filtered.map((channel) => {
+                                            const isPol = (channel.targetNiche ?? '').toLowerCase().includes('politica');
+                                            const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                                            const initials = channel.channelName
+                                                .split(' ')
+                                                .map((w) => w[0])
+                                                .slice(0, 2)
+                                                .join('');
+
+                                            return (
+                                                <TableRow key={channel.id} className="hover:bg-muted/30">
+                                                    <TableCell className="px-5 py-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <span
+                                                                className="w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold text-white shrink-0 shadow-sm"
+                                                                style={{ background: bgGrad }}
+                                                            >
+                                                                {initials}
+                                                            </span>
+                                                            <div className="min-w-0">
+                                                                <div className="font-semibold text-foreground truncate">
+                                                                    {channel.channelName}
+                                                                </div>
+                                                                <div className="font-mono text-[11px] text-muted-foreground truncate">
+                                                                    {channel.channelHandle ?? '—'}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="px-5 py-3">
-                                                    <NicheBadge niche={channel.targetNiche} />
-                                                </TableCell>
-                                                <TableCell className="px-5 py-3">
-                                                    <Switch
-                                                        checked={channel.active}
-                                                        onCheckedChange={() => toggle(channel.id, 'active', channel.active)}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="px-5 py-3">
-                                                    <Switch
-                                                        checked={channel.blacklisted}
-                                                        onCheckedChange={() =>
-                                                            toggle(channel.id, 'blacklisted', channel.blacklisted)
-                                                        }
-                                                        className="data-[state=checked]:bg-destructive"
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="px-5 py-3 text-right">
-                                                    <div className="flex items-center justify-end gap-1.5">
-                                                        <ConfirmButton
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            className="h-8 w-8 p-0 rounded-lg"
-                                                            description={`Remover o canal fonte "${channel.channelName}"?`}
-                                                            onConfirm={() => destroy(channel.id)}
-                                                        >
-                                                            <Trash2 className="w-3.5 h-3.5" />
-                                                        </ConfirmButton>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3">
+                                                        <NicheBadge niche={channel.targetNiche} />
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3">
+                                                        <Switch
+                                                            checked={channel.active}
+                                                            onCheckedChange={() => toggle(channel.id, 'active', channel.active)}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3">
+                                                        <Switch
+                                                            checked={channel.blacklisted}
+                                                            onCheckedChange={() =>
+                                                                toggle(channel.id, 'blacklisted', channel.blacklisted)
+                                                            }
+                                                            className="data-[state=checked]:bg-destructive"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            <ConfirmButton
+                                                                variant="destructive"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 rounded-lg"
+                                                                description={`Remover o canal fonte "${channel.channelName}"?`}
+                                                                onConfirm={() => destroy(channel.id)}
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </ConfirmButton>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </AppShell>
         </>

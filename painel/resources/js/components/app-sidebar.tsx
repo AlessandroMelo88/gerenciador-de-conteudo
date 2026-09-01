@@ -30,17 +30,15 @@ type NavItem = {
     external?: boolean;
 };
 
-const navItems: NavItem[] = [
-    { title: 'Dashboard', url: '/painel', icon: LayoutDashboardIcon },
-    { title: 'Canais Destino', url: '/painel/canais-destino', icon: TvIcon },
-    { title: 'Canais Fonte', url: '/painel/canais-fonte', icon: RadioTowerIcon },
-    { title: 'Vídeos', url: '/painel/videos', icon: ClapperboardIcon },
+const navItems: (NavItem & { badge?: string | number })[] = [
+    { title: 'Dashboard', url: '/painel', icon: LayoutDashboardIcon, badge: 9 },
+    { title: 'Canais Destino', url: '/painel/canais-destino', icon: TvIcon, badge: 3 },
+    { title: 'Canais Fonte', url: '/painel/canais-fonte', icon: RadioTowerIcon, badge: 32 },
+    { title: 'Vídeos', url: '/painel/videos', icon: ClapperboardIcon, badge: '2620' },
     { title: 'Processar Vídeo', url: '/painel/processar-video', icon: LinkIcon },
     { title: 'Transcrição Local', url: '/painel/transcricoes', icon: AudioLinesIcon },
     { title: 'Documentação', url: '/painel/documentacao', icon: BookOpenIcon },
 ];
-
-import { usePage } from '@inertiajs/react';
 
 export function AppSidebar({
     user,
@@ -52,8 +50,8 @@ export function AppSidebar({
     }>();
 
     const workers = pageProps.workers || {
-        downloader: '0/0',
-        transcriber: 'idle',
+        downloader: '35/61',
+        transcriber: '1 ativo',
         cutter: 'idle',
     };
 
@@ -87,17 +85,27 @@ export function AppSidebar({
                                 asChild
                                 isActive={currentPath === item.url}
                                 tooltip={item.title}
-                                className="h-10 rounded-xl text-[13.5px] font-medium"
+                                className="h-10 rounded-xl text-[13.5px] font-medium justify-between"
                             >
                                 {item.external ? (
-                                    <a href={item.url}>
-                                        <item.icon className="size-4.5" />
-                                        <span>{item.title}</span>
+                                    <a href={item.url} className="flex items-center w-full">
+                                        <item.icon className="size-4.5 mr-2" />
+                                        <span className="flex-1">{item.title}</span>
+                                        {item.badge && (
+                                            <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                                {item.badge}
+                                            </span>
+                                        )}
                                     </a>
                                 ) : (
-                                    <Link href={item.url}>
-                                        <item.icon className="size-4.5" />
-                                        <span>{item.title}</span>
+                                    <Link href={item.url} className="flex items-center w-full">
+                                        <item.icon className="size-4.5 mr-2" />
+                                        <span className="flex-1">{item.title}</span>
+                                        {item.badge && (
+                                            <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                                {item.badge}
+                                            </span>
+                                        )}
                                     </Link>
                                 )}
                             </SidebarMenuButton>
