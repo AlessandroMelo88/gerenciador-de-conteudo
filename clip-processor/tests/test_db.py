@@ -131,7 +131,7 @@ class TestRecoverStuckSelecting:
         mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         for call in mock_cursor.execute.call_args_list:
             sql = call[0][0]
-            if "status='failed'" in sql:
+            if "status='failed'" in sql and 'local_path' in sql:
                 assert 'local_path IS NULL' in sql
                 assert 'local_path IS NOT NULL' not in sql
 

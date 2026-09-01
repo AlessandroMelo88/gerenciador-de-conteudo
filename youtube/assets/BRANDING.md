@@ -1,108 +1,99 @@
-# Futebol em Cortes — Identidade Visual
+# Hacker Libertário — Identidade e SEO do canal
 
-# Site
- https://ideogram.ai 
+> **Tipo:** referência manual de branding e SEO · **Atualizado:** 2026-08-26
+> Este arquivo não é concatenado nem carregado como prompt em runtime.
 
-## Dados do Canal
+Este arquivo é a fonte de verdade para a identidade do canal e para os textos usados no
+YouTube Studio e no pipeline de publicação.
+
+## Identidade atual
 
 | Campo | Valor |
 |-------|-------|
-| Nome | Futebol em Cortes |
-| Descrição | Os melhores cortes da internet em um só lugar... |
-| Público-alvo | Brasil — 18-35 anos, consome conteúdo de futebol, política, entretenimento |
-| Tom | Dinâmico, direto, viral, sem frescura |
-| Referências visuais | ESPN Brasil, Cazé TV, canais de cortes do TikTok |
+| Nome | Hacker Libertário |
+| Tagline | Tecnologia, liberdade e conhecimento sem intermediários. |
+| Público | Brasil; pessoas interessadas em tecnologia, IA, Linux e software livre |
+| Tom | Direto, crítico, didático e curioso |
+| Paleta | Grafite `#0B0F14`, verde-lima `#B7F34A`, ciano `#00D9FF` e branco `#F2F6F8` |
 
----
+### Logo final
 
-## Logo (800×800px)
+- Arquivo para upload e backup: `assets/channels/hacker-libertario/logo.png`
+- Formato: PNG RGBA, 800×800px, fundo transparente
+- Conceito: terminal, circuitos e símbolo de liberdade em uma marca legível em tamanho pequeno
+- Upload: YouTube Studio → Personalização → Identidade visual → Foto do perfil
 
-Cole este prompt no gerador de imagem de sua escolha:
+Os arquivos `template/banner-2048x1152.png` e `template/Logo Canal Futebol (offline).html`
+são exportações da identidade antiga de futebol. Trate ambos como legado e não os use no canal
+“Hacker Libertário”.
 
-### Prompt — Ideogram / DALL-E / Midjourney
+## Texto da página do canal
 
-```
-YouTube channel logo for "Futebol em Cortes", a Brazilian viral clips channel.
-Bold modern design. A stylized scissors icon cutting through a play button or film strip.
-Red, white and black color palette. Dark background (#111111).
-Clean vector style, minimal details, works at small sizes.
-Text "FUTEBOL EM CORTES" in bold condensed font below the icon.
-No gradients. High contrast. Square format 800x800.
-```
+### Descrição “Sobre”
 
-### Versão em Português (para Ideogram BR ou Adobe Firefly):
+```text
+Tecnologia, inteligência artificial, Linux, programação, open source, privacidade e soberania digital — em cortes diretos e sem enrolação.
 
-```
-Logo para canal do YouTube chamado "Futebol em Cortes".
-Ícone de tesoura estilizada cortando um botão de play ou tira de filme.
-Cores: vermelho (#E50000), branco e preto. Fundo escuro (#111111).
-Estilo vetor limpo, sem detalhes excessivos, funciona pequeno.
-Nome "FUTEBOL EM CORTES" em fonte bold condensada abaixo do ícone.
-Formato quadrado.
+No Hacker Libertário, você encontra ideias, ferramentas e debates que ajudam a entender como a tecnologia funciona e quem controla os sistemas que usamos. Trechos de entrevistas, podcasts e análises sobre software livre, automação, segurança e cultura hacker.
+
+Inscreva-se para acompanhar conversas que ampliam sua autonomia digital.
+
+Conteúdo de terceiros é publicado com os devidos créditos na descrição. Para assuntos relacionados a direitos autorais, entre em contato pelo canal.
 ```
 
----
+### Palavras-chave do canal
 
-## Banner do Canal (2560×1440px)
+Use como conjunto de referência, sem repetir palavras artificialmente:
 
-O banner aparece em tamanhos diferentes por dispositivo:
-- **Desktop:** área central de 1546×423px é sempre visível
-- **TV:** imagem completa 2560×1440px
-- **Mobile:** crop central ~563×423px
-
-**Dica:** Mantenha texto e elementos importantes dentro da faixa central de 1546×423px.
-
-### Prompt — Banner
-
-```
-YouTube channel banner 2560x1440px for "Futebol em Cortes".
-Dark background (#111111). Bold red accent (#E50000).
-Left side: large stylized scissors or cut/slash graphic element.
-Center (safe zone): Channel name "FUTEBOL EM CORTES" in massive bold white condensed typography.
-Below name: tagline "Os melhores momentos da internet" in smaller white text.
-Right side: abstract motion blur or dynamic lines suggesting speed and action.
-Cinematic, modern, high energy. No stock photos of people. Vector/graphic style.
+```text
+hacker libertário, cultura hacker, inteligência artificial, IA, Linux, open source, software livre, programação, privacidade digital, soberania digital, segurança da informação, automação, tecnologia, desenvolvimento de software, filosofia hacker
 ```
 
-### Versão em Português:
+### Hashtags de referência
 
-```
-Banner para canal do YouTube "Futebol em Cortes". 2560×1440px.
-Fundo preto (#111111) com detalhes em vermelho vivo (#E50000).
-Lado esquerdo: elemento gráfico de tesoura estilizada ou traço de corte diagonal.
-Centro (zona segura): nome "FUTEBOL EM CORTES" em tipografia bold condensada branca, bem grande.
-Abaixo do nome: tagline "Os melhores momentos da internet" em branco menor.
-Lado direito: linhas de movimento abstrato ou velocidade.
-Estilo gráfico moderno, energia alta, sem fotos de pessoas.
+Use somente as que combinarem com o vídeo e mantenha o conjunto enxuto:
+
+```text
+#Hacker #Linux #OpenSource
 ```
 
----
+## Regras de SEO para cada vídeo
 
-## Ferramentas Recomendadas
+1. **Título:** comece pela ferramenta, conceito, pessoa ou problema técnico que aparece no
+   trecho; use uma promessa específica, uma pergunta ou uma contradição. Não copie o título da
+   fonte e não desperdice espaço com “Shorts”, “corte”, “vídeo longo” ou duração.
+2. **Descrição:** as primeiras linhas devem explicar o insight com a palavra-chave principal.
+   Depois, inclua o contexto factual presente na transcrição, um CTA curto para inscrição e,
+   quando relevante, até três hashtags. A linha de créditos entra automaticamente pelo pipeline.
+3. **Tags:** combine termos amplos e específicos do trecho, em PT-BR, sem `#`, sem duplicatas e
+   sem palavras-chave desconectadas do assunto. Para vídeos longos, não use `shorts` ou `cortes`.
+4. **Veracidade:** nomes de ferramentas, versões, autores, vulnerabilidades, números e acusações
+   só podem aparecer quando estiverem no contexto ou na transcrição disponíveis para a IA.
 
-| Ferramenta | Grátis? | Melhor para | Link |
-|------------|---------|-------------|------|
-| **Ideogram** | Sim (limitado) | Logo com texto (melhor para letras) | ideogram.ai |
-| **DALL-E (ChatGPT)** | Com assinatura | Logo e banner, bom controle | chat.openai.com |
-| **Adobe Firefly** | Sim (créditos) | Banner com estilo editorial | firefly.adobe.com |
-| **Canva** | Sim | Montar banner com template | canva.com |
-| **Midjourney** | Pago | Qualidade mais alta geral | midjourney.com |
+### Estrutura recomendada de descrição
 
-### Fluxo recomendado:
-1. Gere o logo no **Ideogram** (melhor para texto em imagem — grátis)
-2. Monte o banner no **Canva** usando o logo gerado + template "YouTube Channel Art"
-3. Exporte logo como PNG 800×800 e banner como PNG 2560×1440
+```text
+[Resumo claro do insight em uma ou duas frases.]
 
----
+[Contexto: quem fala, qual problema é discutido e qual conclusão aparece no trecho.]
 
-## Onde fazer upload
+Inscreva-se no Hacker Libertário para acompanhar tecnologia, IA, Linux e software livre.
 
-Após gerar:
+[Créditos gerados pelo pipeline]
+#Hacker #Linux #OpenSource
+```
 
-**Logo:**
-- YouTube Studio → Personalização → Identidade visual → Foto do perfil
-- Upload: PNG 800×800px
+As instruções acima já estão incorporadas em `clip-processor/src/metadata_generator.py`, que
+gera os metadados dos próximos vídeos e remove hashtags/duplicatas acidentais das tags.
 
-**Banner:**
-- YouTube Studio → Personalização → Identidade visual → Imagem do banner
-- Upload: PNG ou JPG 2560×1440px (máx 6MB)
+Os prompts ativos de seleção, metadata e thumbnail estão catalogados em
+[`Docs/SISTEMA-IA-SELECAO.md`](../../Docs/SISTEMA-IA-SELECAO.md). Alterar este arquivo não altera
+o prompt executado pelo worker.
+
+## Checklist de publicação
+
+- [ ] Foto do perfil atualizada com `assets/channels/hacker-libertario/logo.png`
+- [ ] Nome do canal: **Hacker Libertário**
+- [ ] Descrição “Sobre” atualizada com o texto acima
+- [ ] Palavras-chave revisadas no YouTube Studio
+- [ ] Título, descrição, tags e thumbnail revisados antes de publicar

@@ -192,7 +192,9 @@ if __name__ == '__main__':
     log(f'[ACQU] POSTGRES_HOST: {os.environ.get("POSTGRES_HOST", "não configurado")}')
     log(f'[ACQU] REDIS_HOST: {os.environ.get("REDIS_HOST", "não configurado")}')
     log(f'[ACQU] PIPELINE_ENABLED: {pipeline_enabled()}')
+    log(f'[ACQU] BURNED_SUBTITLE_DETECTION: {os.environ.get("BURNED_SUBTITLE_DETECTION", "true")}')
     log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")}')
+    log(f'[ACQU] YOUTUBE_WAIT_FOR_HD: {os.environ.get("YOUTUBE_WAIT_FOR_HD", "true")}')
     log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
     log(
         f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)'

@@ -14,7 +14,7 @@ from src.metadata_generator import append_credits, resolve_credit_handle
 from src.quota_manager import QuotaManager
 from src.related_video import append_related_video, related_video_from_clip
 from src.telegram_notifier import notify
-from src.uploader import YouTubeUploader
+from src.uploader import CaptionNotReadyError, PostUploadError, YouTubeUploader
 
 NON_TERMINAL_CLIP_STATUSES = ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')
 
@@ -123,7 +123,7 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
     """
     with conn.cursor() as cur:
         cur.execute(
-            'SELECT gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
+            'SELECT gc.id, gc.youtube_video_id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, '
             'sv.local_path AS source_local_path, sv.format AS format, '
             'sv.youtube_video_id AS source_youtube_video_id, '
@@ -181,6 +181,42 @@ def _has_longo_waiting(clips: list[dict]) -> bool:
     return any((c.get('format') or 'curto') == 'longo' for c in clips)
 
 
+def _is_transient_error(exc: Exception) -> bool:
+    """Identifica se um erro de upload é temporário e deve ser retentado."""
+    status = getattr(getattr(exc, 'resp', None), 'status', None)
+    if status is not None:
+        if int(status) in {429, 500, 502, 503, 504}:
+            return True
+        if int(status) == 403:
+            msg = str(exc).lower()
+            if 'quota' in msg or 'ratelimit' in msg or 'rate limit' in msg:
+                return True
+    msg = str(exc).lower()
+    if any(
+        term in msg
+        for term in (
+            'timeout',
+            'connection',
+            'network',
+            'quota',
+            'temporarily unavailable',
+            'service unavailable',
+            'broken pipe',
+        )
+    ):
+        return True
+    return isinstance(exc, (TimeoutError, ConnectionError, OSError))
+
+
+def _mark_clip_transient_failure(conn, clip_id: int, status: str, error_msg: str) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            'UPDATE generated_clips SET status = %s, upload_error = %s WHERE id = %s',
+            (status, f'[Transitório] {error_msg[:1000]}', clip_id),
+        )
+    conn.commit()
+
+
 def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
     """Publica uma sequência de clips com um uploader/quota_manager dado."""
     current_status = _publishable_status()
@@ -227,9 +263,21 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
                     'title': clip.get('title'),
                 },
             )
+        except CaptionNotReadyError as exc:
+            _mark_clip_needs_reprocessing(conn, clip_id, str(exc))
+            _log(f'Clip {clip_id} voltou para reprocessamento: {exc}')
+        except PostUploadError as exc:
+            _mark_clip_pending_after_upload(conn, clip_id, current_status, exc.video_id, str(exc))
+            _log(f'Clip {clip_id} aguardando finalização do vídeo {exc.video_id}: {exc}')
         except Exception as exc:
-            _mark_clip_failed(conn, clip_id, str(exc))
-            _log(f'Falha ao publicar clip {clip_id}: {exc}')
+            if _is_transient_error(exc):
+                _mark_clip_transient_failure(conn, clip_id, current_status, str(exc))
+                _log(
+                    f'Aviso: erro transitório ao publicar clip {clip_id} (mantido {current_status} para retentativa): {exc}'
+                )
+            else:
+                _mark_clip_failed(conn, clip_id, str(exc))
+                _log(f'Falha definitiva ao publicar clip {clip_id}: {exc}')
 
     return published_count
 
@@ -266,9 +314,23 @@ def _publish_one(conn, clip, uploader, quota_manager, now, *, longo_waiting: boo
             },
         )
         return 1
+    except CaptionNotReadyError as exc:
+        _mark_clip_needs_reprocessing(conn, clip_id, str(exc))
+        _log(f'Clip {clip_id} voltou para reprocessamento: {exc}')
+        return 0
+    except PostUploadError as exc:
+        _mark_clip_pending_after_upload(conn, clip_id, current_status, exc.video_id, str(exc))
+        _log(f'Clip {clip_id} aguardando finalização do vídeo {exc.video_id}: {exc}')
+        return 0
     except Exception as exc:
-        _mark_clip_failed(conn, clip_id, str(exc))
-        _log(f'Falha ao publicar clip {clip_id}: {exc}')
+        if _is_transient_error(exc):
+            _mark_clip_transient_failure(conn, clip_id, current_status, str(exc))
+            _log(
+                f'Aviso: erro transitório ao publicar clip {clip_id} (mantido {current_status} para retentativa): {exc}'
+            )
+        else:
+            _mark_clip_failed(conn, clip_id, str(exc))
+            _log(f'Falha definitiva ao publicar clip {clip_id}: {exc}')
         return 0
 
 
@@ -276,7 +338,7 @@ def _fetch_pending_clips(conn) -> list[dict]:
     with conn.cursor() as cur:
         cur.execute(
             'SELECT '
-            'gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
+            'gc.id, gc.youtube_video_id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, sv.local_path AS source_local_path, '
             'sv.format AS format, sv.youtube_video_id AS source_youtube_video_id, '
             '(SELECT rgc.youtube_video_id FROM generated_clips rgc '
@@ -361,6 +423,33 @@ def _mark_clip_published(conn, clip_id: int, youtube_video_id: str) -> None:
     conn.commit()
 
 
+def _mark_clip_pending_after_upload(
+    conn,
+    clip_id: int,
+    status: str,
+    youtube_video_id: str,
+    error: str,
+) -> None:
+    """Persiste o ID de um upload parcial para permitir retomada idempotente."""
+    with conn.cursor() as cur:
+        cur.execute(
+            'UPDATE generated_clips '
+            'SET status=%s, youtube_video_id=%s, upload_error=%s WHERE id=%s',
+            (status, youtube_video_id, error[:2000], clip_id),
+        )
+    conn.commit()
+
+
+def _mark_clip_needs_reprocessing(conn, clip_id: int, error: str) -> None:
+    """Devolve o clip ao corte para gerar o SRT obrigatório."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE generated_clips SET status='pending_cut', upload_error=%s WHERE id=%s",
+            (error[:2000], clip_id),
+        )
+    conn.commit()
+
+
 def _mark_clip_failed(conn, clip_id: int, error: str) -> None:
     with conn.cursor() as cur:
         cur.execute(
@@ -405,7 +494,12 @@ def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: 
         clip_path = clip.get('clip_path')
         if clip_path:
             prefix = clip_path[:-4] if clip_path.endswith('.mp4') else clip_path
-            for candidate in (clip_path, f'{prefix}_raw.mp4', f'{prefix}_subtitled.mp4'):
+            for candidate in (
+                clip_path,
+                f'{prefix}.srt',
+                f'{prefix}_raw.mp4',
+                f'{prefix}_subtitled.mp4',
+            ):
                 if os.path.exists(candidate):
                     try:
                         os.remove(candidate)

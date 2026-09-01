@@ -123,8 +123,8 @@ function MediaStatus({ configuration }: { configuration: PageProps['mediaConfigu
             <CardHeader>
                 <CardTitle>{configuration.ready ? 'Biblioteca pronta' : 'Configure a identidade dos vídeos'}</CardTitle>
                 <CardDescription>
-                    O pipeline escolhe automaticamente a mídia por canal e formato. Uma configuração global funciona
-                    como fallback para qualquer canal sem regra própria.
+                    O pipeline escolhe automaticamente a identidade dos vídeos longos por canal e formato. Shorts são
+                    verticais e não recebem intro nem encerramento.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -144,7 +144,7 @@ function MediaStatus({ configuration }: { configuration: PageProps['mediaConfigu
                 {!configuration.ready && (
                     <p className="mt-4 text-sm text-muted-foreground">
                         Adicione pelo menos uma intro, um encerramento e uma música antes de ligar o processamento
-                        automático.
+                        automático de vídeos longos.
                     </p>
                 )}
             </CardContent>
@@ -202,8 +202,9 @@ function MediaUploadForm({ destinationChannels }: { destinationChannels: Destina
             <CardHeader>
                 <CardTitle>Adicionar mídia</CardTitle>
                 <CardDescription>
-                    Envie um vídeo ou imagem para intro/encerramento, ou um arquivo de áudio para trilha. O arquivo fica
-                    no volume compartilhado com o worker.
+                    Envie um vídeo ou imagem para intro/encerramento, ou um arquivo de áudio para trilha. A identidade é
+                    aplicada somente aos vídeos longos; Shorts permanecem verticais sem intro nem encerramento. O
+                    arquivo fica no volume compartilhado com o worker.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -307,7 +308,7 @@ function MediaUploadForm({ destinationChannels }: { destinationChannels: Destina
                                 onChange={(e) => setData('music_volume', e.target.value)}
                             />
                             <FieldDescription>
-                                0.12 = 12% do volume original, recomendado para não cobrir as falas.
+                                O valor recebe +20% no render (0.12 resulta em 14,4%); a trilha entra nos 15 s finais.
                             </FieldDescription>
                             <FormError message={errors.music_volume} />
                         </Field>
@@ -342,7 +343,8 @@ function MediaLibrary({ assets }: { assets: MediaAsset[] }) {
             <CardHeader>
                 <CardTitle>Biblioteca configurada</CardTitle>
                 <CardDescription>
-                    Ative mais de uma mídia no mesmo escopo para o worker alternar entre elas automaticamente.
+                    Ative mais de uma mídia no mesmo escopo para o worker alternar entre elas automaticamente nos vídeos
+                    longos.
                 </CardDescription>
             </CardHeader>
             <CardContent>

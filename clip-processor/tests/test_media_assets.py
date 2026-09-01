@@ -58,8 +58,10 @@ def test_choose_media_asset_rotates_equivalent_assets_by_clip_id():
     assert result == candidates[1]
 
 
-def test_resolve_media_assets_rolls_back_optional_table_failure():
+def test_resolve_media_assets_rolls_back_optional_table_failure(tmp_path, monkeypatch):
     """A ausência da tabela opcional não pode abortar a transação do clip."""
+    monkeypatch.setattr(media_assets, 'AUDIO_ROOT', tmp_path / 'empty-audio')
+    monkeypatch.setattr(media_assets, 'CHANNELS_ROOT', tmp_path / 'empty-channels')
     conn = MagicMock()
     cursor = MagicMock()
     cursor.__enter__.return_value = cursor
@@ -70,12 +72,26 @@ def test_resolve_media_assets_rolls_back_optional_table_failure():
     result = resolve_media_assets(
         conn,
         destination_channel_id=None,
-        video_format='curto',
+        video_format='longo',
         clip_id=84,
     )
 
     assert result == {}
     assert conn.rollback.call_count == 3
+
+
+def test_resolve_media_assets_skips_all_assets_for_shorts():
+    conn = MagicMock()
+
+    result = resolve_media_assets(
+        conn,
+        destination_channel_id=None,
+        video_format='curto',
+        clip_id=84,
+    )
+
+    assert result == {}
+    conn.cursor.assert_not_called()
 
 
 def test_resolve_filesystem_assets_prefers_video_and_rotates_audio(tmp_path, monkeypatch):
@@ -117,10 +133,30 @@ def test_resolve_filesystem_assets_uses_images_when_video_is_missing(tmp_path, m
 
     result = resolve_filesystem_media_assets(
         channel_slug='canal',
-        video_format='curto',
+        video_format='longo',
         clip_id=0,
     )
 
     assert result['intro']['absolute_path'] == str(channel_root / 'intro.jpg')
     assert result['outro']['absolute_path'] == str(channel_root / 'encerramento.jpg')
     assert 'music' not in result
+
+
+def test_resolve_filesystem_assets_skips_identity_for_shorts(tmp_path, monkeypatch):
+    channels_root = tmp_path / 'channels'
+    channel_root = channels_root / 'canal'
+    channel_root.mkdir(parents=True)
+    (channel_root / 'intro.mp4').write_bytes(b'intro')
+    (channel_root / 'encerramento.mp4').write_bytes(b'outro')
+
+    monkeypatch.setattr(media_assets, 'ASSETS_ROOT', tmp_path)
+    monkeypatch.setattr(media_assets, 'CHANNELS_ROOT', channels_root)
+    monkeypatch.setattr(media_assets, 'AUDIO_ROOT', tmp_path / 'audio')
+
+    result = resolve_filesystem_media_assets(
+        channel_slug='canal',
+        video_format='curto',
+        clip_id=0,
+    )
+
+    assert result == {}

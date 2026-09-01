@@ -1,187 +1,98 @@
-# Estados e transições do pipeline
+# Estados e transições
 
-Fonte de verdade da fila: **PostgreSQL**, colunas `source_videos.status` e `generated_clips.status`.
-O Redis **não** guarda fila (ver [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md)).
+> Tipo: referência as-built · Atualizado: 2026-08-26
 
-Este documento existe porque estado preso já lotou o SSD: um vídeo travado segura o `.mp4` bruto em
-disco **e** uma vaga da janela de download, e com as duas janelas cheias de linha morta o pipeline
-para de baixar qualquer coisa. Incidente de 27/07/2026, detalhado em [`../CLAUDE.md`](../CLAUDE.md).
+A fila está no PostgreSQL, nas colunas `source_videos.status` e
+`generated_clips.status`. Redis não é fila.
 
-Verificado no código em **13/08/2026**.
+## Vídeo fonte: `source_videos.status`
 
----
+Valores da migration `2026_08_26_000001_create_source_videos_table.php`:
 
-## `source_videos.status`
+~~~text
+pending → downloading → downloaded → transcribing → selecting
+                                                        │
+                                                        ├─ clips gerados → (aguarda clips)
+                                                        ├─ 0 clips válidos → failed
+                                                        └─ clips terminais + ≥1 published → published
+~~~
 
-Os valores permitidos estão na migration `2026_08_26_000001_create_source_videos_table.php`:
-`pending`, `downloading`, `downloaded`, `transcribing`, `selecting`, `cutting`, `publishing`,
-`published`, `failed`.
-
-```mermaid
-stateDiagram-v2
-    [*] --> pending: RSS / URL manual
-    pending --> downloading: _download_pending_videos
-    downloading --> downloaded: download OK
-    downloading --> pending: pausado no painel
-    downloading --> failed: _discard_failed_download
-    downloaded --> transcribing: _process_ai_pipeline
-    transcribing --> downloaded: pausado após transcrever
-    transcribing --> failed: Whisper falhou
-    downloaded --> selecting
-    transcribing --> selecting: transcrição OK
-    selecting --> failed: 0 momentos válidos
-    selecting --> published: publisher finaliza o vídeo
-    downloading --> pending: recover_stuck_downloads (boot + 30min)
-    selecting --> downloaded: recover_stuck_selecting (travado 2h / sem clip)
-    selecting --> failed: recover_stuck_selecting (local_path NULL + 2h)
-    published --> [*]
-    failed --> [*]
-```
-
-| De | Para | Quem escreve | Observação |
-|---|---|---|---|
-| — | `pending` | [`db.py:101`](../clip-processor/src/db.py#L101) `insert_video`; [`processar.py:139`](../clip-processor/src/processar.py#L139) | `INSERT IGNORE`, idempotente |
-| `pending` | `downloading` | [`pipeline_runner.py:169`](../clip-processor/src/pipeline_runner.py#L169) | |
-| `downloading` | `downloaded` | [`pipeline_runner.py:173`](../clip-processor/src/pipeline_runner.py#L173) | grava `local_path` |
-| `downloading` | `pending` | [`pipeline_runner.py:183`](../clip-processor/src/pipeline_runner.py#L183) | só se o vídeo foi pausado durante o download |
-| `downloading` | `failed` | [`pipeline_runner.py:110`](../clip-processor/src/pipeline_runner.py#L110) `_discard_failed_download` | apaga o arquivo e zera `local_path` |
-| `downloaded` | `transcribing` | [`rss_poller.py:115`](../clip-processor/src/rss_poller.py#L115) | |
-| `transcribing` | `failed` | [`rss_poller.py:133`](../clip-processor/src/rss_poller.py#L133) | legenda do YouTube indisponível e Groq falhou |
-| `transcribing` | `downloaded` | [`rss_poller.py:124`](../clip-processor/src/rss_poller.py#L124) | pausado depois de transcrever |
-| `transcribing` | `selecting` | [`rss_poller.py:130`](../clip-processor/src/rss_poller.py#L130) | |
-| `selecting` | `failed` | [`rss_poller.py:148`](../clip-processor/src/rss_poller.py#L148) | IA devolveu 0 momentos |
-| `selecting` | `published` | [`publisher.py:368`](../clip-processor/src/publisher.py#L368) | quando todos os clips terminam |
-
-**`selecting` é o estado final de sucesso do ramo de IA.** Nada no ramo de ingestão o move adiante:
-o vídeo fica em `selecting` enquanto os clips dele são cortados e publicados, e só vira `published`
-lá no fim, pelo publisher.
-
-### `cutting` e `publishing` em `source_videos`: valores mortos
-
-Os dois estão no ENUM e `cutting` é lido como guard em
-[`queue_controls.py:157`](../clip-processor/src/queue_controls.py#L157) (`can_delete_raw`), mas
-**nenhum código escreve esses valores em `source_videos`**. Consequência prática: o guard de
-"arquivo em uso" do sidecar nunca dispara por eles. É por isso que
-[`pipeline_runner.py:90`](../clip-processor/src/pipeline_runner.py#L90) (`_clips_need_raw`) checa
-`generated_clips.status` na mão em vez de confiar no status do vídeo.
-
----
-
-## `generated_clips.status`
-
-Os valores finais estão na migration `2026_08_26_000003_create_generated_clips_table.php`:
-`pending_cut`, `pending`, `cutting`, `publishing`, `published`, `failed`, `approved`, `rejected`.
-Default `pending_cut`.
-
-```mermaid
-stateDiagram-v2
-    [*] --> pending_cut: insert_selected_moments
-    pending_cut --> cutting: process_clip
-    cutting --> pending: corte + metadata OK
-    cutting --> failed: except do process_clip
-    cutting --> pending_cut: pause_video aborta o ffmpeg
-    cutting --> pending_cut: recover_cutting_on_boot (novo processo)
-    pending --> approved: painel (aprovação manual)
-    pending --> rejected: painel / rejeitar.py / ttl_worker
-    approved --> rejected: painel / rejeitar.py
-    pending --> publishing: MANUAL_APPROVAL_REQUIRED=false
-    approved --> publishing: MANUAL_APPROVAL_REQUIRED=true
-    publishing --> published: upload OK
-    publishing --> failed: upload levantou exceção
-    published --> [*]
-    failed --> [*]
-    rejected --> [*]
-```
-
-| De | Para | Quem escreve | Observação |
-|---|---|---|---|
-| — | `pending_cut` | [`selector.py:298`](../clip-processor/src/selector.py#L298) `insert_selected_moments` | |
-| `pending_cut` | `cutting` | [`video_processor.py:200`](../clip-processor/src/video_processor.py#L200) | |
-| `cutting` | `pending` | [`video_processor.py:246`](../clip-processor/src/video_processor.py#L246) | após gravar `clip_path` e metadata |
-| `cutting` | `failed` | [`video_processor.py:253`](../clip-processor/src/video_processor.py#L253) | qualquer exceção do FFmpeg/metadata |
-| `cutting` | `pending_cut` | [`queue_controls.py:82`](../clip-processor/src/queue_controls.py#L82) | pause mata o ffmpeg e devolve pra fila |
-| `pending` | `approved` | **só o painel** (`UPDATE` direto) | o Python nunca escreve `approved` |
-| `pending`/`approved` | `rejected` | [`rejeitar.py:77`](../clip-processor/src/rejeitar.py#L77); [`ttl_worker.py:51`](../clip-processor/src/ttl_worker.py#L51) | `rejeitar` apaga o MP4 final e **preserva** o raw do vídeo fonte |
-| publicável | `publishing` | [`publisher.py:275`](../clip-processor/src/publisher.py#L275) `_transition_to_publishing` | `UPDATE ... WHERE status=?` com guard de corrida |
-| `publishing` | `published` | [`publisher.py:292`](../clip-processor/src/publisher.py#L292) | grava `youtube_video_id`, `published_at` |
-| `publishing` | `failed` | [`publisher.py:303`](../clip-processor/src/publisher.py#L303) | motivo em `upload_error` (2000 chars) |
-
-**Qual estado é "publicável" depende de env var.**
-[`publisher.py:21`](../clip-processor/src/publisher.py#L21) `_publishable_status()`:
-`MANUAL_APPROVAL_REQUIRED=true` ⇒ só `approved`; qualquer outro valor (default `false`) ⇒ publica
-`pending` direto, sem revisão humana.
-
----
-
-## Recuperação automática: o que tem e o que não tem
-
-`run_recovery_once` ([`main.py:51`](../clip-processor/src/main.py#L51)) roda **no boot**
-([`main.py:153`](../clip-processor/src/main.py#L153)) **e como job periódico a cada 30 min**
-(job id `state_recovery`, [`main.py:127`](../clip-processor/src/main.py#L127)). Antes de 13/08/2026
-rodava só no boot — o que travasse depois do container subir ficava preso até o próximo restart,
-na prática dias. Falha do recovery é logada e engolida de propósito
-([`main.py:67`](../clip-processor/src/main.py#L67)): também cobre a janela do `Errno 111`
-(clip-processor sobe antes do PostgreSQL), em que o recovery de boot morre no `except`.
-
-| Estado | Recuperação | Onde |
+| Estado | Quem escreve | Significado |
 |---|---|---|
-| `source_videos.downloading` | ✅ → `pending`, sem condição de tempo | [`db.py:127`](../clip-processor/src/db.py#L127) |
-| `source_videos.selecting`, com arquivo, sem update há 2h | ✅ → `downloaded` (reprocessa a IA) | [`db.py:183`](../clip-processor/src/db.py#L183) |
-| `source_videos.selecting`, com arquivo, sem nenhum clip gerado | ✅ → `downloaded`, imediato (não espera 2h) | [`db.py:190`](../clip-processor/src/db.py#L190) |
-| `source_videos.selecting`, `local_path IS NULL`, sem update há 2h | ✅ → `failed` | [`db.py:200`](../clip-processor/src/db.py#L200) |
-| `source_videos.transcribing` | ❌ **nenhuma** | — |
-| `generated_clips.cutting` | ✅ → `pending_cut`, somente no boot | [`db.py`](../clip-processor/src/db.py#L238) |
-| `generated_clips.publishing` | ⚠️ → `pending` após 15min | [`db.py`](../clip-processor/src/db.py#L214); confirme o YouTube antes |
+| `pending` | RSS, URL manual, pause/recovery | aguardando janela de download |
+| `downloading` | `pipeline_runner.py` | download em andamento |
+| `downloaded` | download concluído ou pause após transcrição | raw disponível |
+| `transcribing` | `rss_poller.py` | transcrição em andamento |
+| `selecting` | `rss_poller.py` | seleção IA em andamento ou clips aguardando corte/publicação |
+| `published` | `publisher.py` | fonte finalizada; raw e clips foram limpos |
+| `failed` | download, transcrição, seleção ou processamento | etapa sem recuperação automática |
 
-`SELECTING_STUCK_HOURS = 2` em [`db.py:153`](../clip-processor/src/db.py#L153). A cadência de 30 min
-do job é menor que isso de propósito: pega o travamento pouco depois de ele passar do limite.
+Os valores `cutting` e `publishing` existem no enum por compatibilidade, mas o
+código atual não os escreve em `source_videos`. O status do corte e do upload fica no clip.
 
-### A terceira query (`local_path IS NULL` → `failed`)
+## Clip: `generated_clips.status`
 
-Acrescentada em 13/08/2026. A limpeza de disco (`delete_source_video_file` e `purge_old_videos` no
-sidecar) zera `local_path` **sem tocar em `status`**. O registro ficava num estado que as duas
-primeiras queries nunca alcançavam — as duas exigem `local_path IS NOT NULL` — e nenhum restart
-resolvia. Sem o raw em disco não existe seleção para reprocessar, então o destino honesto é `failed`:
-libera a vaga da janela e mantém o registro no banco com os clips que já tinham sido gerados.
+Valores da migration `2026_08_26_000003_create_generated_clips_table.php`:
 
-### O que fazer com o que não tem recuperação
+~~~text
+pending_cut → cutting → pending ──┐
+                       └→ failed  │
+pending ──────────────────────────┼→ publishing → published
+approved ─────────────────────────┘
+pending/approved → rejected
+~~~
 
-`transcribing` travado continua sem recuperação automática. `cutting` só é recuperado quando um novo
-processo sobe; `publishing` tem recovery periódico, mas exige conferência do YouTube. Diagnóstico e
-destrave manual em [`RUNBOOK.md`](RUNBOOK.md#estado-preso-sem-recuperação-automática).
+| De | Para | Quem escreve | Condição |
+|---|---|---|---|
+| — | `pending_cut` | seleção IA | momento com score ≥ 7 |
+| `pending_cut` | `cutting` | `video_processor.process_clip` | início do render |
+| `cutting` | `pending` | `video_processor.py` | corte, metadata e thumbnail concluídos |
+| `cutting` | `failed` | `video_processor.py` | qualquer exceção |
+| `pending` | `approved` | painel ou Telegram | aprovação manual |
+| `pending` | `publishing` | `publisher.py` | `MANUAL_APPROVAL_REQUIRED=false` |
+| `approved` | `publishing` | `publisher.py` | aprovação manual concluída |
+| `publishing` | `published` | `publisher.py` | upload e thumbnail concluídos |
+| `publishing` | `pending`/`approved` | `publisher.py` | upload parcial; preserva ID para retomada |
+| `publishing` | `pending` | recovery | status sem update há mais de 15 min |
+| `pending`/`approved` | `rejected` | painel, Telegram ou rejeição interna | remove MP4 final; preserva raw |
+| `failed` | `pending_cut` ou publicável | painel | reprocessamento; depende de `clip_path` |
 
----
+A geração de clips limita-se a 3 por vídeo curto e 1 por vídeo longo. A inserção remove overlaps e
+repetições antes de gravar os registros.
 
-## Estados × ocupação da janela de download
+## Recovery
 
-A janela conta vídeos "ocupando disco" por formato
-([`pipeline_runner.py:57`](../clip-processor/src/pipeline_runner.py#L57)). Um vídeo ocupa vaga se
-**qualquer** uma destas for verdadeira:
-
-- `source_videos.local_path IS NOT NULL`, **ou**
-- `source_videos.status` em `downloading`, `downloaded`, `transcribing`, `selecting`, `cutting`, `publishing`, **ou**
-- tem clip em `pending_cut`, `pending`, `cutting` ou `approved`.
-
-Por isso `failed` com `local_path` preenchido travava o pipeline: satisfazia a primeira condição
-para sempre. Foi o que `_discard_failed_download` resolveu — 58 vídeos `failed` seguravam 4.1 GB e
-zeraram o déficit de download.
-
-`published` e `rejected` não ocupam vaga. `failed` só ocupa se `local_path` ainda estiver preenchido.
-
----
-
-## Estados terminais e o que sobra em disco
-
-| Estado terminal | Raw do vídeo fonte | Clip final |
+| Situação | Frequência | Ação |
 |---|---|---|
-| `source_videos.published` | apagado por [`publisher.py:331`](../clip-processor/src/publisher.py#L331) | apagado por [`publisher.py:345`](../clip-processor/src/publisher.py#L345), com `clip_path`/`thumbnail_path` zerados |
-| `source_videos.failed` (download) | apagado por `_discard_failed_download` | não existe |
-| `source_videos.failed` (IA) | **fica em disco**, `local_path` preenchido | não existe |
-| `generated_clips.rejected` via `rejeitar.py` | **preservado de propósito** (permite recorte futuro) | MP4 apagado |
-| `generated_clips.failed` | fica com o vídeo fonte | intermediários podem sobrar |
+| `source_videos.downloading` | boot + a cada 30 min | volta para `pending` |
+| `source_videos.selecting` com raw e sem progresso por 2 h | a cada 30 min | volta para `downloaded` |
+| `source_videos.selecting` sem raw por 2 h | a cada 30 min | vai para `failed` |
+| `source_videos.selecting` sem clips e com raw | a cada 30 min | volta para `downloaded` |
+| `generated_clips.publishing` sem update por 15 min | a cada 30 min | volta para `pending` |
+| `generated_clips.cutting` | somente no boot | volta para `pending_cut` |
+| `source_videos.transcribing` | — | não há recovery automático |
 
-`_maybe_finalize_source_video` ([`publisher.py:314`](../clip-processor/src/publisher.py#L314)) só
-roda quando **nenhum** clip do vídeo está em estado não-terminal (`pending_cut`, `cutting`,
-`pending`, `approved`, `publishing` — lista em
-[`publisher.py:18`](../clip-processor/src/publisher.py#L18)) **e** ao menos um publicou. Se nenhum
-clip publicou, nada é apagado e o raw fica.
+O corte não é recuperado no job periódico porque pode durar mais que 30 minutos. Durante pause, o
+pipeline mata `yt-dlp`/FFmpeg quando possível e devolve o trabalho ao estado apropriado.
+
+## Janela, pausa e limpeza
+
+- A janela de download conta fontes com raw local ou status ativo e clips em
+  `pending_cut`, `cutting`, `pending` e `approved`.
+- `pause` marca `source_videos.paused=true`. Download é abortado e volta a
+  `pending`; transcrição/seleção cooperam entre etapas; cortes em andamento voltam a
+  `pending_cut`.
+- O raw só pode ser removido quando nenhum clip da fonte precisa dele.
+- O publisher finaliza a fonte apenas com zero clips não terminais e pelo menos um clip publicado.
+  Então remove raw, MP4s, SRTs, intermediários e thumbnails, zera caminhos e marca a fonte como
+  `published`.
+- Sempre confira status e caminho real antes de apagar. O guard de `source_videos.status`
+  sozinho não detecta todos os casos de clip em uso; consulte também `generated_clips.status`.
+
+## Fontes de verdade
+
+- estados permitidos: migrations em `painel/database/migrations/`;
+- transições: `clip-processor/src/db.py`, `pipeline_runner.py`,
+  `rss_poller.py`, `video_processor.py`, `publisher.py` e
+  `queue_controls.py`;
+- operação segura: [`../CLAUDE.md`](../CLAUDE.md).

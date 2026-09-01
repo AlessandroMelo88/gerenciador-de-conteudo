@@ -1,126 +1,171 @@
 # Canal de Cortes
 
-Pipeline automatizado que monitora canais de futebol no YouTube, corta os melhores momentos com IA e publica os clips (shorts e vídeos longos) em canais próprios — sem intervenção manual no fluxo padrão.
+> **Status:** as-built · **Atualizado:** 2026-08-27
 
-## Visão geral
+Pipeline que monitora canais do YouTube, baixa vídeos, transcreve, escolhe trechos com IA, gera
+clips, prepara metadata e publica em canais de destino. O fluxo normal é automático; o painel e o
+Telegram servem para observar, aprovar e corrigir.
 
-O sistema é composto por dois serviços principais rodando em Docker:
+## Fluxo em uma linha
 
-- **`clip-processor`** (Python) — daemon que roda o pipeline completo: monitora RSS dos canais fonte, baixa vídeos novos, usa primeiro as legendas do YouTube (Groq Whisper como fallback), seleciona os melhores momentos com IA (Claude, com fallback para Groq/LLaMA), corta os clips, queima legenda somente nos Shorts, aplica marca d'água e publica no YouTube respeitando uma cota diária de uploads.
-- **`painel`** (Laravel + Inertia.js + React + shadcn UI) — painel administrativo web onde o operador acompanha e controla o pipeline: aprova/rejeita clips, cadastra canais fonte e destino, processa vídeos manualmente e limpa vídeos antigos do disco/banco.
+~~~text
+RSS → dedup → PostgreSQL/pending → yt-dlp → legenda ou Whisper → seleção IA
+→ FFmpeg → metadata/thumbnail → pending ou approved → cota/OAuth → YouTube
+~~~
 
-Os dois se comunicam por um sidecar HTTP interno (`clip-processor`, porta 8090, sem exposição no host) — o painel nunca acessa o banco/disco do pipeline diretamente para ações de escrita, sempre via essa API interna autenticada por token compartilhado.
+## Componentes
 
-## Como o pipeline funciona
+| Componente | Responsabilidade | Fonte principal |
+|---|---|---|
+| `clip-processor` | scheduler, RSS, download, transcrição, seleção, FFmpeg e publicação | `clip-processor/src/` |
+| `painel` | UI, autenticação, configuração, aprovação e controles | `painel/` |
+| PostgreSQL 16 | estado, fila, relacionamentos e metadata | `painel/database/migrations/` |
+| Redis 7 | dedup, cota diária e idempotência de avisos | `dedup.py`, `quota_manager.py`, `ttl_worker.py` |
+| sidecar Flask | ponte autenticada entre painel e processador | `clip-processor/src/internal_api.py` |
 
-1. **Descoberta** — `rss_poller.py` varre o feed RSS de cada canal fonte cadastrado (ativo e não-blacklistado) e insere vídeos novos em `source_videos`.
-2. **Classificação de formato** — cada vídeo é classificado automaticamente como `curto`
-   (fonte menor que 7 min, shorts verticais) ou `longo` (fonte a partir de 7 min, corte
-   único horizontal de 7–20 min).
-3. **Download** — a cada ciclo, o pipeline repõe até 4 vídeos `longo` + 6 `curto`
-   ocupando disco (por padrão), priorizando sempre a notícia mais recente
-   (`published_at DESC`), não a ordem de descoberta.
-4. **Transcrição** — o pipeline tenta primeiro as legendas do YouTube; só envia o áudio ao Whisper Groq quando não há legenda utilizável.
-5. **Seleção de momentos** — a IA (Claude, com fallback Groq/LLaMA) escolhe os melhores trechos do vídeo, com uma pontuação (score) de 0 a 10; abaixo de um limiar, o momento é descartado.
-6. **Corte e pós-produção** — cada momento vira um clip: Shorts são convertidos para vertical e recebem legenda queimada (SRT → libass); vídeos longos permanecem horizontais e seguem sem legenda. O worker escolhe intro e encerramento em `assets/channels/<canal>`, uma faixa completa em `assets/audio`, aplica um trecho musical no encerramento, marca d'água do canal-destino quando existir e gera a thumbnail com uma frase curta e literal do corte.
-7. **Metadata** — título, descrição e tags são gerados por IA para SEO; em uma chamada dedicada, a IA escolhe `thumbnail_text` com potencial de clique, sempre como frase literal e contínua da transcrição. Se não houver chamada válida ou o overlay falhar, o clip não avança para publicação.
-8. **Aprovação** — por padrão o clip vai direto para `pending` (100% automático); pode ser configurado para exigir aprovação manual via painel ou Telegram antes de publicar.
-9. **Publicação** — respeitando a cota diária de uploads por canal-destino (`MAX_UPLOADS_PER_DAY`) e uma janela de horário (19h–22h), os clips aprovados são publicados no YouTube em ordem justa entre os canais fonte (round-robin), para que um canal com muitos vídeos represados não monopolize a cota por dias seguidos.
-10. **Créditos** — a descrição do clip publicado inclui automaticamente crédito ao canal fonte (`@handle`), quando configurado.
+O Compose da raiz é isolado deste projeto. PostgreSQL, Redis e o sidecar não têm portas publicadas
+no host; a aplicação web fica em `http://localhost:8088` por padrão.
 
-## O painel (Inertia.js + React + shadcn UI)
+O Compose atual monta `./clip-processor/src:/app/src` no worker. Assim, alterações Python entram
+no container após reiniciar `clip-processor`; mudanças no Dockerfile, dependências ou pacotes do
+sistema ainda exigem rebuild.
 
-- **Dashboard** — fila de aprovação, fila aguardando cota diária, últimas falhas e o consumo de cota de uploads do dia por canal-destino.
-- **Canais Destino** — canais do YouTube onde os clips são publicados (nome, nicho, OAuth, template de créditos).
-- **Configurações** — compatibilidade com a biblioteca legada cadastrada no painel; a identidade canônica fica versionada em `assets/channels/<canal>` e `assets/audio`.
-- **Canais Fonte** — canais monitorados via RSS (ativo/blacklisted, nicho, handle).
-- **Vídeos** — todo vídeo bruto já baixado/tentado, com filtro por status e data de publicação, e uma ferramenta de limpeza que apaga do banco vídeos antigos nunca processados e libera do disco o arquivo bruto de vídeos que já geraram clip e não precisam mais dele.
-- **Processar Vídeo** — envio manual de uma URL específica do YouTube pro pipeline, fora do monitoramento automático.
-- **Documentação** — página de ajuda dentro do próprio painel explicando cada seção.
+## Funcionamento
 
-## Stack técnica
+1. **Descoberta:** `rss_poller.py` consulta canais ativos e não blacklistados. IDs repetidos são
+   ignorados; títulos com termos de apostas/cassino são bloqueados.
+2. **Classificação:** `curto` quando a fonte tem menos de 420 s; `longo` a partir de 420 s.
+3. **Download:** `yt-dlp` baixa até 1080p, com três tentativas, proteção de 2 GB livres e limpeza
+   de artefatos incompletos. A janela padrão é 6 vídeos curtos e 4 longos.
+4. **Transcrição:** tenta somente legendas manuais em português do YouTube; sem legenda, usa Groq
+   Whisper `whisper-large-v3-turbo`. O resultado fica em `<video_id>_transcript.json`.
+5. **Seleção:** a IA escolhe até 3 trechos curtos com 30 s exatos ou 1 trecho longo de 420–1200 s.
+   O prompt vem do perfil ativo do canal-fonte; o Python valida bordas, publicidade, duplicidade,
+   duração e score mínimo 7.
+6. **Pós-produção:** Shorts são janelas exatas de 30 s, verticais 1080×1920, com legenda e
+   marca d’água compostas em um único passe FFmpeg — a menos que o vídeo fonte já traga legenda
+   gravada, detectada por OCR cruzado com a transcrição. Longos são
+   horizontais, sem legenda queimada, e exigem intro, encerramento e música configurados.
+7. **Metadata:** usa o perfil ativo do canal-destino para gerar título, descrição, tags e a chamada
+   literal da thumbnail; o sistema valida essa frase contra a transcrição.
+8. **Publicação:** o clip fica `pending` no modo automático ou `approved` quando a aprovação manual
+   está habilitada. O publisher aplica roteamento por perfil/nicho, cota, janela horária e OAuth.
+9. **Finalização:** após publicação, envia evento ao Telegram e remove arquivos que não são mais
+   necessários quando todos os clips do vídeo terminam.
 
-- **clip-processor**: Python, APScheduler (agendamento), yt-dlp (download/metadados/legendas), Whisper via Groq (fallback de transcrição), Anthropic Claude (seleção de momentos + metadata), FFmpeg (corte/legenda/watermark), psycopg2, Redis (deduplicação + cota diária + cache de sessão do pipeline).
-- **painel**: Laravel, Inertia.js, React, Tailwind CSS, shadcn UI, PostgreSQL.
-- **Infraestrutura**: Docker Compose (PostgreSQL, Redis, painel PHP/Nginx, clip-processor), rede interna dedicada para o sidecar HTTP entre painel e clip-processor.
+## Formatos
 
-## Configuração
+| Formato | Seleção | Saída |
+|---|---|---|
+| `curto` | até 3 trechos, 30 s exatos | vertical 9:16 em 1080×1920, legenda oficial e render único |
+| `longo` | 1 trecho contínuo, 420–1200 s | horizontal, legenda oficial sem queimar, intro/outro/música obrigatórios |
 
-Copie `.env.example` para `.env` na raiz do projeto e preencha as chaves necessárias:
+O nicho continua em `source_channels.target_niche` e `destination_channels.niche`, mas a
+seleção editorial é governada por `prompt_profiles`. Cada canal pode apontar para um perfil ativo
+compatível com seu nicho. O perfil do canal-fonte controla seleção; o perfil do canal-destino
+controla metadata e thumbnail. A publicação só encontra destino com o mesmo perfil quando a fonte
+já está configurada. Futebol, Conteúdo de Inteligência e Podcast são semeados pela migration;
+novos nichos devem adicionar seu próprio perfil.
 
-- `ANTHROPIC_API_KEY` — provider de seleção de momentos, metadata e thumbnail quando preenchido;
-  sem ela, o provider configurado para essas etapas é o Groq. Não há metadata determinística
-  substituta: resposta inválida ou falha marca o clip como `failed`.
-- `GROQ_API_KEY` — transcrição de áudio (Whisper) e fallback de seleção de momentos.
-- `CLIPS_DB_PASSWORD` — senha do usuário PostgreSQL do pipeline.
-- `CLIP_PROCESSOR_INTERNAL_TOKEN` — token compartilhado entre o painel e o sidecar HTTP interno do clip-processor (mesmo valor nos dois lados).
-- `PIPELINE_ENABLED` — deixe `false` no primeiro boot; passe para `true` somente depois de configurar as chaves de IA e o OAuth do canal de destino.
-- Variáveis opcionais (Telegram, Cloudflare Tunnel, TTL de clips pendentes, cota diária de uploads) — ver comentários em `.env.example`.
+## IA e prompts
 
-## Rodando localmente (Compose isolado)
+Os perfis específicos ficam no PostgreSQL, em `prompt_profiles`, e são semeados pela migration
+[`2026_08_27_000000_create_prompt_profiles_table.php`](painel/database/migrations/2026_08_27_000000_create_prompt_profiles_table.php).
+As regras de segurança, fact-check, duração, JSON e pós-validação continuam compartilhadas no
+código para não serem alteradas por um perfil editorial.
 
-O Compose deste repositório usa o projeto `canaldecortes`, a porta `8088`, volumes próprios e a rede padrão gerenciada pelo Compose. Não define `container_name`, não publica PostgreSQL/Redis no host e não reutiliza mounts de outros projetos.
+- [`selector.py`](clip-processor/src/selector.py): resolve `selection_short_prompt` ou
+  `selection_long_prompt` do perfil do canal-fonte, com fallback legado seguro.
+- [`metadata_generator.py`](clip-processor/src/metadata_generator.py): resolve
+  `metadata_short_prompt`, `metadata_long_prompt` e `thumbnail_prompt` do destino, com fallback
+  legado seguro.
+- [`prompt_profiles.py`](clip-processor/src/prompt_profiles.py): normaliza o perfil retornado pelo
+  PostgreSQL e valida compatibilidade com o nicho.
+- [`fact_check_prompt.py`](clip-processor/src/fact_check_prompt.py): instrução comum de pesquisa e
+  classificação de alegações.
 
-Na primeira execução:
+O catálogo completo, os contratos JSON e as regras de cada prompt estão em
+[`Docs/SISTEMA-IA-SELECAO.md`](Docs/SISTEMA-IA-SELECAO.md).
 
-```bash
+Em runtime:
+
+- Claude `claude-haiku-4-5` é tentado quando `ANTHROPIC_API_KEY` está disponível;
+- Groq `openai/gpt-oss-20b` é o fallback da seleção e o caminho usual quando a chave Anthropic está vazia;
+- transcrição usa Groq Whisper;
+- metadata usa o provider escolhido pela configuração; falha de geração marca o clip como failed;
+- thumbnail não tem fallback local: sem frase literal válida, o clip falha.
+
+## Painel e Telegram
+
+O painel oferece:
+
+- dashboard de fila, falhas e cota;
+- cadastro de canais-fonte e canais-destino;
+- aprovação, rejeição, reprocessamento e preview;
+- pausa, retomada, priorização e reordenação da fila;
+- processamento manual de URL;
+- transcrição local isolada com `whisper.cpp`;
+- gestão de assets, marca d’água e senha.
+
+O Telegram aceita `/status`, `/clipes`, `/aprovar <id>`, `/rejeitar <id>`,
+`/processar <url>` e `/ajuda`. Eventos de publicação, falha e TTL são enviados pelo painel.
+
+## Configuração e primeiro boot
+
+~~~bash
 cp .env.example .env
 cp painel/.env.example painel/.env
-# Preencha CLIPS_DB_PASSWORD, APP_KEY e o token interno
-# antes de subir (os valores devem ser longos e aleatórios).
-docker compose up -d --build postgres redis
-docker compose run --rm panel-init
-docker compose up -d php queue scheduler nginx clip-processor
-```
+~~~
 
-O painel fica em [http://localhost:8088](http://localhost:8088). O serviço `clip-processor` sobe com o sidecar HTTP disponível, mas o pipeline permanece pausado enquanto `PIPELINE_ENABLED=false`.
+Preencha, no mínimo, `CLIPS_DB_PASSWORD`, `APP_KEY` no painel e
+`CLIP_PROCESSOR_INTERNAL_TOKEN` com o mesmo valor nos dois arquivos. Configure pelo menos
+`GROQ_API_KEY`; `ANTHROPIC_API_KEY` é opcional. Mantenha `PIPELINE_ENABLED=false` até
+configurar OAuth e os canais de destino.
 
-Depois de configurar `GROQ_API_KEY`/`ANTHROPIC_API_KEY`, colocar o `client_secret.json` em `youtube/` e concluir o OAuth, habilite o processamento:
+~~~bash
+docker compose up -d --build
+docker compose ps
+~~~
 
-```bash
+O `panel-init` aplica as migrations automaticamente. Crie o operador:
+
+~~~bash
+docker compose exec php php artisan painel:create-user
+~~~
+
+O painel abre em `http://localhost:8088`. Depois de colocar `youtube/client_secret.json` no projeto,
+gere o token de cada canal de destino:
+
+~~~bash
+docker compose exec clip-processor python -m src.youtube_oauth --channel <slug>
+~~~
+
+Só então habilite o pipeline:
+
+~~~bash
 sed -i '' 's/^PIPELINE_ENABLED=.*/PIPELINE_ENABLED=true/' .env
 docker compose up -d --force-recreate clip-processor
-```
+~~~
 
-Comandos úteis:
+## Comandos úteis
 
-```bash
+~~~bash
 docker compose ps
-docker compose logs -f nginx php clip-processor
+docker compose logs -f clip-processor
 docker compose exec php php artisan migrate:status
-```
-
-## Desenvolvimento e qualidade
-
-```bash
-make setup-asdf  # instala Node, PHP e Python conforme .tool-versions
-make setup      # venv Python + composer + npm
-make lint       # ruff, Pint, PHPStan, tsc, oxlint, Prettier, shellcheck, yamllint
-make format     # aplica formatação em tudo
+make setup
+make lint
 make test-python
-```
+make test-php
+~~~
 
-Hooks locais com `make hooks` (pre-commit); o mesmo conjunto roda no GitHub Actions (`.github/workflows/ci.yml`). Convenções de commit e changelog em [`CONTRIBUTING.md`](CONTRIBUTING.md); ferramentas, políticas e pendências em [`Docs/DESENVOLVIMENTO.md`](Docs/DESENVOLVIMENTO.md); dívida técnica mapeada em [`Docs/TODO-REFATORACAO.md`](Docs/TODO-REFATORACAO.md).
+Para operação, diagnóstico, backup e restauração, consulte [`Docs/RUNBOOK.md`](Docs/RUNBOOK.md).
 
-## Proteção dos dados
+## Fonte de verdade da documentação
 
-O banco atual é **PostgreSQL 16**. O schema do painel e do pipeline é versionado pelas migrations do Laravel em `painel/database/migrations`; `panel-init` aplica essas migrations antes de iniciar PHP, fila e scheduler. Não troque para SQLite neste stack: o painel Laravel, o worker Python e a fila fazem escritas concorrentes; SQLite é mais adequado para processo único e pode gerar bloqueios (`database is locked`) nesse cenário. A segurança dos dados vem de volume persistente, backup verificável e cópia fora do disco principal.
+1. Código executado e migrations em `painel/database/migrations/`.
+2. `.env.example`, `docker-compose.yml` e arquivos de configuração.
+3. Documentos “as-built” listados em [`Docs/README.md`](Docs/README.md).
+4. ADRs, changelog, bugs, TODOs e planos — histórico ou planejamento, não descrição do runtime.
 
-O backup diário fica no serviço opcional `postgres-backup`, com retenção padrão de 30 dias:
-
-```bash
-docker compose --profile backup up -d postgres-backup
-./scripts/backup-postgres.sh
-```
-
-O backup manual gera `backups/postgres/*.sql.gz` e um arquivo `.sha256`. Por padrão ele fica no mesmo diretório do projeto; para proteger contra falha do disco, configure `POSTGRES_BACKUP_DIR` em `.env` para outro disco ou armazenamento sincronizado e reinicie o serviço de backup. Os backups entram no `.gitignore` e não são enviados ao Git.
-
-Para restaurar, pare o processamento antes e confirme explicitamente a operação:
-
-```bash
-docker compose stop clip-processor queue scheduler
-CONFIRM_RESTORE=I_UNDERSTAND ./scripts/restore-postgres.sh ./backups/postgres/SEU_BACKUP.sql.gz
-docker compose start queue scheduler clip-processor
-```
-
-Não use `docker compose down -v`: isso remove os volumes nomeados do PostgreSQL e do Redis.
+Leia [`Docs/README.md`](Docs/README.md) para o índice completo.

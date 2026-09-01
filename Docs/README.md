@@ -1,148 +1,67 @@
-# Docs — Canal de Cortes
+# Documentação — Canal de Cortes
 
-Índice da documentação. **Comece por aqui em toda conversa nova.**
+> **Tipo:** índice · **Status:** atualizado · **Data:** 2026-08-27
 
-Última atualização: **26/08/2026**
+Use esta página para escolher a referência certa. Documentos marcados como `as-built` descrevem o
+código atual; planos, ADRs, bugs e changelog registram decisões ou histórico.
 
----
+## Leitura recomendada
 
-## O que o sistema é, em um parágrafo
-
-Pipeline automatizado que monitora canais de futebol no YouTube via RSS, corta os melhores momentos com
-IA e publica nos canais próprios. O fluxo é **100% automático** por default, da descoberta ao upload. O
-painel web existe para **observar e corrigir**, não para operar.
-
-Dois serviços: `clip-processor` (daemon Python, faz todo o trabalho) e `painel` (Laravel + Inertia +
-React, só interface). Dois formatos de saída, decididos pela duração do vídeo fonte: **`curto`**
-(fonte < 7 min ⇒ até 3 shorts verticais de 30 s a 3 min) e **`longo`** (fonte ≥ 7 min ⇒ um corte
-horizontal de 7 a 20 min).
-
----
-
-## Onde está cada coisa
-
-### Ponto de partida
-
-| Documento | Responde |
+| Objetivo | Documento |
 |---|---|
-| [`../ARCHITECTURE.md`](../ARCHITECTURE.md) | Arquitetura as-built: topologia dos containers, a fronteira painel ↔ pipeline, decisões e dívida técnica. **Primeira leitura de quem chega agora** |
-| [`../CLAUDE.md`](../CLAUDE.md) | As 7 regras de operação destrutiva e os incidentes que as geraram. **Ler antes de apagar qualquer coisa** |
-| [`RUNBOOK.md`](RUNBOOK.md) | Comandos do dia a dia: está de pé? por que parou? como reiniciar sem travar clip? como limpar disco em duas etapas? |
-| [`BUGS.md`](BUGS.md) | Backlog com status FEITO / PARCIAL / ABERTO / SUSPEITA, evidência e onde corrigir |
-| [`DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md) | Setup do host, `make lint/format/test`, o que cada ferramenta (ruff, Pint, PHPStan, Prettier, oxlint, pre-commit, CI) verifica e bloqueia, políticas de baseline, como fechar versão |
-| [`TODO-REFATORACAO.md`](TODO-REFATORACAO.md) | Auditoria de 25/08/2026: onde o código pode ser melhor refatorado, por prioridade, com `arquivo:linha`, esforço e risco — Python, PHP e React |
-| [`ADR/`](ADR/README.md) | Registros de decisão de arquitetura (compose isolado, fila no banco, fallback de IA, schema gerido por migrations, ferramentas de qualidade, motor de banco) |
-| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) · [`../CHANGELOG.md`](../CHANGELOG.md) · [`../CHANGELOG.d/`](../CHANGELOG.d/README.md) | Convenções de branch/commit, release notes e fragmentos de changelog |
+| Entender o sistema | [`../README.md`](../README.md) e [`../ARCHITECTURE.md`](../ARCHITECTURE.md) |
+| Operar ou diagnosticar | [`RUNBOOK.md`](RUNBOOK.md) e [`../CLAUDE.md`](../CLAUDE.md) |
+| Entender a fila | [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) |
+| Entender IA, perfis e prompts | [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) |
+| Alterar código | [`DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md) e [`../CONTRIBUTING.md`](../CONTRIBUTING.md) |
 
-### Como o sistema funciona, por subsistema
+## Referências as-built
 
-| Documento | Responde |
+| Documento | Escopo | Fonte de verdade |
+|---|---|---|
+| [`PIPELINE-E-SCHEDULER.md`](PIPELINE-E-SCHEDULER.md) | boot, ciclos e recovery | `src/main.py`, `pipeline_runner.py` |
+| [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md) | RSS, dedup, download e janela | `rss_poller.py`, `dedup.py`, `downloader.py` |
+| [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | legendas, Groq Whisper e transcrição local | `transcriber.py`, `transcription_job.py` |
+| [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) | prompts, providers e validação | `selector.py`, `metadata_generator.py` |
+| [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg, assets e artefatos | `video_processor.py`, `media_*.py` |
+| [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md) | quota, OAuth e upload | `publisher.py`, `quota_manager.py`, `uploader.py` |
+| [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | API interna e controles | `internal_api.py`, `queue_controls.py` |
+| [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | mapa dos módulos Python | `clip-processor/src/` |
+| [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | rotas, páginas e controllers | `painel/routes/`, `painel/app/` |
+| [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | schema e donos das escritas | `painel/database/migrations/` |
+| [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) | estados, transições e recovery | migrations + código Python/PHP |
+
+## Operação e desenvolvimento
+
+| Documento | Uso |
 |---|---|
-| [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) | Máquina de estados de `source_videos` e `generated_clips`, quem escreve cada transição, **o que tem e o que não tem recuperação automática**, e o que ocupa vaga na janela de download |
-| [`PIPELINE-E-SCHEDULER.md`](PIPELINE-E-SCHEDULER.md) | Quais jobs rodam em que cadência, o que cada ciclo executa, por que `rss_poller` faz mais que polling, e a armadilha do rebuild |
-| [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md) | Descoberta via RSS, dedup, filtro de título, detecção de formato, janela de download por formato, filtro de frescor, disk guard, limpeza de órfãos |
-| [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | Legendas do YouTube antes do Groq Whisper e a Transcrição Local com whisper.cpp, que é uma feature separada |
-| [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) | Seleção de cortes por IA: prompts por formato, score, limites de duração, Claude Haiku → fallback Groq LLaMA 3.3-70b |
-| [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg: corte por formato, legendas, intros/encerramentos/músicas configuráveis, marca d'água, thumbnail e artefatos em disco |
-| [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md) | Quem é publicável, roteamento por nicho, round-robin, cota diária (teto rígido de 6), janela 19h–22h, OAuth por canal, TTL de clip |
-| [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | As 10 rotas do sidecar HTTP 8090, auth fail-closed, controles de fila (pause/resume/reorder/prioritize), rejeição de clip, eventos para o Telegram |
-| [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, migrations Laravel, ausência de `ON DELETE CASCADE`, divergência banco × disco |
-| [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | Índice módulo a módulo do daemon (21 módulos), padrões comuns de código, o que o Redis guarda, tabela de env vars |
-| [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | Rotas, controllers e páginas do Laravel/Inertia; como ler cada card do Dashboard |
+| [`RUNBOOK.md`](RUNBOOK.md) | saúde, logs, reinício, fila, disco e backup |
+| [`DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md) | setup, lint, testes, CI e release |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | branches, commits e changelog |
+| [`../CLAUDE.md`](../CLAUDE.md) | regras de segurança para operações destrutivas |
+| [`ADR/README.md`](ADR/README.md) | decisões de arquitetura aceitas ou substituídas |
 
-### Infra
+## Histórico e planejamento
 
-| Documento | Responde |
+Estes arquivos não devem ser usados para inferir o comportamento atual sem conferir o código:
+
+| Documento | Natureza |
 |---|---|
-| [`PLANO-ORACLE.md`](PLANO-ORACLE.md) | Migração para Oracle Cloud Always Free: decisão, como o custo zero é garantido, riscos e checklist por fase |
+| [`BUGS.md`](BUGS.md) | backlog e incidentes; itens podem estar desatualizados |
+| [`TODO-REFATORACAO.md`](TODO-REFATORACAO.md) | auditoria técnica datada |
+| [`PLANO-ORACLE.md`](PLANO-ORACLE.md) | migração futura; não iniciada |
+| [`PLANO-PROMPTS-EDITAVEIS.md`](PLANO-PROMPTS-EDITAVEIS.md) | editor/versionamento futuro; perfis-base já implementados |
+| [`../CHANGELOG.md`](../CHANGELOG.md) e [`../CHANGELOG.d/`](../CHANGELOG.d/README.md) | histórico de mudanças |
+| [`ADR/`](ADR/README.md) | decisões preservadas, inclusive as substituídas |
 
-### Planos (nada implementado)
+`.planning/` contém planejamento GSD. `graphify-out/` contém o grafo do projeto. Nenhum dos dois
+substitui o código executado.
 
-| Documento | Responde |
-|---|---|
-| [`PLANO-PROMPTS-EDITAVEIS.md`](PLANO-PROMPTS-EDITAVEIS.md) | Como tornar os prompts de seleção editáveis pelo painel, sem editar Python e sem rebuild, com métricas para comparar versões |
+## Regras de manutenção
 
-`.planning/` é do fluxo GSD (roadmap por fase) e **não** é fonte de verdade do estado atual.
-`.planning/research/ARCHITECTURE.md` é pesquisa de junho/2026 e descreve um futuro que não aconteceu
-(migração do bot para o n8n, painel em Filament) — ignorar.
-
----
-
-## Estado atual em uma tela
-
-**Stack do painel:** Laravel 13 + Inertia 3 + **React 19** + shadcn/ui + Tailwind 4 + Vite 8 +
-TypeScript, desde o commit `dca6e44`. **O Filament foi removido por completo** — qualquer menção a ele
-em README, nome de arquivo ou teste é resíduo, não estado atual.
-
-**Infra:** roda 100% local em Docker, no `docker-compose.yml` da raiz deste repositório, com
-PostgreSQL 16, Redis, painel PHP/Nginx e `clip-processor` isolados. Migração para Oracle **não
-iniciada** — os pré-requisitos de código (fase 1) estão em andamento.
-
-**Problema que motivou a migração:** SSD de 228 GB chegou a 85% de uso e derrubou o Docker. Parte era
-volume real, parte era vazamento de arquivo.
-
-**Nota histórica:** a Oracle anunciou em 2026 a redução do Always Free de 4 OCPU/24 GB para
-2 OCPU/12 GB. O plano de Oracle continua não iniciado; consultar
-[`PLANO-ORACLE.md`](PLANO-ORACLE.md) antes de provisionar qualquer recurso.
-
-**Bugs:** 4 corrigidos, 1 parcial, 5 abertos, 1 suspeita. Detalhe e prioridade em
-[`BUGS.md`](BUGS.md).
-
-### Corrigido em 12–13/08/2026
-
-| O quê | Onde |
-|---|---|
-| `_raw.mp4` e `_subtitled.mp4` passaram a ser apagados na finalização do vídeo fonte | `publisher.py` (commit `5009112`) |
-| Download falho apaga o arquivo e zera `local_path` — antes vazava disco e entupia a janela para sempre (58 vídeos, 4.1 GB, pipeline parado) | `_discard_failed_download` em `pipeline_runner.py` |
-| Recovery de estado preso virou job periódico de 30 min, não só no boot | `main.py`, job `state_recovery` |
-| `selecting` com `local_path IS NULL` sem update há 2 h agora vai para `failed` — antes ficava preso para sempre | terceira query de `recover_stuck_selecting` em `db.py` |
-| `MIN_SHORTFORM_SECONDS` subiu de 15 s para **30 s** e o prompt do modo curto foi reescrito | `selector.py` |
-| `cutting` interrompido por restart volta para `pending_cut` no boot — o recovery periódico não toca em encodes em andamento | `recover_cutting_on_boot` em `db.py` + `run_recovery_once` em `main.py` |
-
-### Os dois que mais doem hoje
-
-1. **`transcribing` ainda não tem recuperação automática** — o que travar ali fica preso para sempre e
-   segura arquivo em disco (bug 4). `cutting` é recuperado no boot e `publishing` tem recovery periódico.
-2. **O container não honra SIGTERM:** todo `docker stop` termina em `Exited (137)` / SIGKILL porque o
-   `BlockingScheduler` não retorna do `shutdown` (bug 11). Junto com o item 1, cada restart pode criar
-   um estado preso novo. Por isso o [`RUNBOOK.md`](RUNBOOK.md#reiniciar-o-clip-processor-com-segurança)
-   manda conferir o que está em trânsito antes de parar o container.
-
----
-
-## As três armadilhas que pegam todo mundo
-
-1. **Editar `clip-processor/src/` não muda nada sem rebuild.** Não há bind mount; a imagem embute o
-   código. Em 13/08/2026 o container rodava código de 01/08 contra um host em 12/08. **Conferir a data
-   da imagem antes de investigar qualquer bug.**
-   ```bash
-   docker compose build clip-processor && docker compose up -d clip-processor
-   ```
-2. **A fila não mora no Redis.** Fila = PostgreSQL. O Redis só tem dedup, cota e idempotência de aviso.
-   Apagar as chaves `video:*` **ressuscita todo o backlog** no próximo poll. Nunca `FLUSHALL`.
-3. **Ao cruzar banco × disco, filtrar pela chave, nunca pelo nome do arquivo.** `<id>.srt` e
-   `<id>_raw.mp4` não estão em coluna nenhuma — comparar nomes os marca como órfãos e apaga arquivo de
-   clip vivo.
-
-Bônus: **`ANTHROPIC_API_KEY` está vazia na operação normal.** O código tenta Claude primeiro em todos os
-caminhos de IA, mas quem roda de fato em produção é o **fallback Groq LLaMA 3.3-70b**. Ao ler
-`selector.py` ou `metadata_generator.py`, o caminho Anthropic é o que **não** executa.
-
----
-
-## Como atualizar estes documentos
-
-Regra única: **status mora no documento, não na cabeça de ninguém.**
-
-- Corrigiu um bug → muda o status em `BUGS.md` para FEITO, com data e commit. **Não renumerar** os
-  itens; outros documentos linkam por número.
-- Concluiu uma fase da migração → marca o checkbox em `PLANO-ORACLE.md`.
-- Mudou comportamento de um subsistema → atualiza o `SISTEMA-*.md` dele; se mexeu em estado ou
-  transição, também `ESTADOS-E-TRANSICOES.md`; se for estrutural, `ARCHITECTURE.md`.
-- Descobriu incidente novo de operação destrutiva → `CLAUDE.md`, não aqui.
-- Tomou uma decisão de arquitetura → novo `ADR/NNNN-*.md` (nunca editar um aceito; substituir).
-- Concluiu um item do `TODO-REFATORACAO.md` → marca FEITO com data e commit, sem renumerar.
-- Toda mudança relevante → fragmento em `CHANGELOG.d/` (ver `CHANGELOG.d/README.md`).
-
-Ao citar código, usar sempre `arquivo:linha` clicável. Datas sempre absolutas (`13/08/2026`), nunca
-relativas ("semana passada") — estes arquivos são lidos meses depois.
+- comportamento alterado → atualize o documento do subsistema;
+- mudança de estado → atualize `ESTADOS-E-TRANSICOES.md`;
+- decisão estrutural → crie um ADR novo, sem editar um ADR aceito;
+- mudança relevante → adicione fragmento em `CHANGELOG.d/`;
+- use datas absolutas no formato `YYYY-MM-DD`;
+- em conflito, prefira código, migrations, Compose e `.env.example`, nessa ordem.

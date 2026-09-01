@@ -1,152 +1,147 @@
-# Sistema — `painel/`
+# Painel administrativo
 
-Referência de rotas, controllers e páginas. Visão conceitual em [`../ARCHITECTURE.md`](../ARCHITECTURE.md) seções 3 e 7.
-O lado Python da fronteira está em [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md).
+> Tipo: referência as-built · Atualizado: 2026-08-27
+> Fontes: `painel/routes/web.php`, `painel/app/Http/Controllers/` e
+> `painel/resources/js/pages/`
 
-Última atualização: **26/08/2026**
+## Stack e acesso
 
----
+- Laravel 13 + Inertia Laravel 3;
+- React 19 + TypeScript;
+- Tailwind CSS 4 + shadcn/ui;
+- Nginx + PHP-FPM em Docker;
+- autenticação por sessão; páginas operacionais exigem login;
+- URL padrão: `http://localhost:8088`;
+- `/` redireciona para `/painel` ou `/login`.
 
-## O que é
-
-**Laravel 13 + Inertia 3 + React 19 + shadcn/ui + Tailwind 4 + Vite 8 + TypeScript.** Dark mode fixo via `class="dark"` no `<html>`.
-
-O Filament foi removido por completo no commit `dca6e44`; a stack atual não depende dele.
-
-**O painel é para observar e corrigir, não para operar.** O fluxo normal é 100% automático, da descoberta via RSS até o upload.
-
----
-
-## A regra da fronteira
-
-Esta é a decisão que mais confunde quem chega agora:
-
-- Para **ler** → o painel vai direto na fonte (PostgreSQL, Redis, disco)
-- Para **agir sobre disco ou processo** → o painel **nunca** toca no filesystem do pipeline; chama o sidecar HTTP em `clip-processor:8090` via `ClipProcessorClient`
-- **Exceção:** transição de status simples o painel escreve direto no PostgreSQL (ex.: `approve()` faz `UPDATE generated_clips SET status='approved'`)
-
-Isso substituiu o padrão anterior de `docker exec` / socket do Docker.
-
-**Consequência:** com o `clip-processor` parado, tudo que passa pelo sidecar falha — apagar arquivo, purgar antigos, resolver canal, processar URL.
-
----
-
-## Rotas
-
-Todas em `routes/web.php`. Grupo `['web','auth']` salvo indicação.
-
-### Dashboard — `DashboardController`
-
-| Método | Rota | Faz |
-|---|---|---|
-| GET | `/painel` | Página principal |
-| POST | `/painel/clips/{clip}/approve` · `/reject` · `/reprocess` | Ações por clip |
-| POST | `/painel/clips/bulk-approve` · `bulk-reject` | Ações em massa |
-| POST | `/painel/videos/reorder` | Reordena a fila ociosa (drag) |
-| POST | `/painel/videos/{video}/pause` · `/resume` · `/prioritize` | Controle de fila |
-| POST | `/painel/videos/{video}/delete` · `/bulk-delete` | Apaga **arquivo**, não a linha |
-
-### Vídeos — `SourceVideoController`
-
-| Método | Rota | Faz |
-|---|---|---|
-| GET | `/painel/videos` | Listagem filtrável (tabs ativos/falharam/todos, filtro "seguro apagar", busca, data) + cards de métrica |
-| POST | `/painel/videos/{video}/delete-file` · `/bulk-delete-files` | Apaga arquivo via sidecar |
-| POST | `/painel/videos/purge-old` | **Única ação que apaga linha do banco**, por data |
-
-Desde 12/08/2026 (commit `2af0657`) a página recebe dois blocos de métrica montados no controller
-(`storageMetrics` e `downloadWindowMetrics` em `SourceVideoController`), renderizados por
-`video-summary-cards.tsx`: espaço livre/usado/total em GB e % de uso do volume de vídeos, mais a
-ocupação da janela de download. A limpeza por data ganhou atalhos de período.
-
-O espaço vem de `disk_free_space` sobre o disco `clips-videos` — é o **disco do host**, o mesmo que o
-disk guard de 2 GB do downloader mede. Número alto ali é o sintoma que precede o pipeline parar de
-baixar.
-
-### Canais
-
-`DestinationChannelController` (`/painel/canais-destino`): CRUD, `POST .../watermark` para upload de marca d'água, badge de OAuth expirado.
-`SourceChannelController` (`/painel/canais-fonte`): CRUD por URL — resolve o canal via sidecar (yt-dlp), tabs por nicho, toggles de ativo/blacklist.
-`NicheController`: só `POST /painel/niches`.
-
-### Outros
-
-| Rota | Controller | Faz |
-|---|---|---|
-| `/painel/processar-video` | `ProcessVideoController` | Enfileira URL manual |
-| `/painel/transcricoes` | `TranscriptionController` | Transcrição local (whisper.cpp); `/download` baixa o resultado |
-| `/painel/configuracoes` | `SettingsController` | Biblioteca de mídia (intro, encerramento e música), status da configuração e atualização de senha |
-| `POST /painel/configuracoes/midia` | `MediaAssetController` | Upload de asset com escopo por canal/formato |
-| `PATCH /painel/configuracoes/midia/{mediaAsset}` | `MediaAssetController` | Ativa, pausa ou ajusta o escopo/prioridade do asset |
-| `DELETE /painel/configuracoes/midia/{mediaAsset}` | `MediaAssetController` | Apaga o arquivo do disk `branding` e o registro |
-| `/painel/documentacao` | `DocumentationController` | Ajuda estática |
-| `/painel/clips/{clip}/preview` | closure | Serve o MP4 do clip para o `<video>` da fila |
-
-### Públicas, sem CSRF
-
-Registradas em `bootstrap/app.php`:
-- `POST /telegramcanal` — webhook do bot
-- `POST /internal/pipeline-event` — eventos vindos do `telegram_notifier.py`, mesmo `X-Internal-Token`
-
----
+O painel lê PostgreSQL, Redis e volumes compartilhados para exibir dados. Ações que alteram fila,
+processos ou arquivos passam pelo [`sidecar`](SISTEMA-SIDECAR.md).
 
 ## Páginas
 
-`resources/js/pages/`: `Dashboard`, `SourceVideos`, `SourceChannels`, `DestinationChannels`, `ProcessVideo`, `TranscricaoLocal`, `Settings`, `Documentation`, `Login`.
+| URL | Página | Responsabilidade |
+|---|---|---|
+| `/painel` | Dashboard | fila, quota, janela ativa, falhas, aprovação e preview |
+| `/painel/canais-fonte` | Canais fonte | canais RSS, nicho, perfil de prompt, ativo e blacklist |
+| `/painel/canais-destino` | Canais destino | destinos, nicho, perfil de prompt, OAuth, crédito e watermark |
+| `/painel/videos` | Vídeos | fontes, status, busca, uso, limpeza e ordenação |
+| `/painel/processar-video` | Processar vídeo | enfileira URLs e escolhe `curto`/`longo` |
+| `/painel/transcricoes` | Transcrição local | cria jobs `whisper.cpp` e baixa SRT |
+| `/painel/configuracoes` | Configurações | senha e biblioteca de mídia |
+| `/painel/documentacao` | Documentação | ajuda resumida embutida na UI |
 
-Não há layout compartilhado do Inertia — cada página compõe `AppSidebar` + `SiteHeader`, e o reuso de cabeçalho é via `page-header.tsx`.
+## Dashboard
 
-### Como ler o Dashboard
+Exibe:
 
-Os quatro cards e as três listas confundem com frequência. O que cada um é:
+- quota usada por canal-destino;
+- clips `pending` aguardando aprovação;
+- clips `approved` aguardando publicação/quota;
+- últimas falhas de clips;
+- contagem de fontes falhas;
+- janela ativa de download, com formato, prioridade, score e possibilidade de apagar;
+- preview do MP4 final por volume compartilhado.
 
-| Elemento | O que realmente é |
+A cota mostrada pelo painel lê a chave Redis do destino. O processador é a fonte de decisão para
+publicação; o card serve para observação.
+
+Ações de clip:
+
+| Ação | Efeito |
 |---|---|
-| **Janela de download ativa** | Vídeos que **já baixaram e têm .mp4 em disco agora**. Não é fila de download. Teto: 6 `curto` + 4 `longo` |
-| **Backlog download** | Vídeos `pending`, **sem arquivo**. Não aparecem na lista acima, e nenhum botão do painel apaga essas linhas (bug 6) |
-| **Fila de aprovação** | Clips já cortados esperando aprovação. Só tem conteúdo se `MANUAL_APPROVAL_REQUIRED=true` |
-| **Na fila (aguardando cota)** | Clips aprovados esperando vaga de upload |
-| **Publicados (7d)** | Histórico do que foi ao ar |
+| aprovar | `pending` → `approved` |
+| rejeitar | chama sidecar; marca rejeitado e remove MP4 final |
+| reprocessar | `failed` → `pending_cut` se não há MP4, ou status publicável se há |
+| preview | serve `clip_path` pelo volume; não reprocessa |
 
-O botão "Apagar" da janela de download apaga **o arquivo**, não o registro — vídeo sem `local_path` é ignorado como *skipped*.
+## Canais fonte
 
----
+Adicionar canal:
 
-## Autenticação
+1. operador informa URL, nicho e perfil de prompt;
+2. sidecar resolve ID, nome e handle via yt-dlp;
+3. painel grava `source_channels`, `rss_url` e `prompt_profile_id`.
 
-Guard `web` (session, driver `database`), único guard — não há Sanctum nem API. Logout é **`POST /logout`**, nunca GET.
+O seletor mostra apenas perfis ativos compatíveis com o nicho. Em “Automático pelo nicho”, o
+backend resolve o perfil semeado por `slug`, `niche` ou `niche_aliases`; um perfil incompatível ou
+inativo é rejeitado.
 
-**Não existe registro público.** O operador é criado por `php artisan painel:create-user` (senha ≥ 10 chars, nunca ecoada); reset por `painel:reset-password {email}`.
+Atualizações permitem desativar ou colocar em blacklist. Blacklist afeta novas entradas do RSS; não
+remove automaticamente vídeos já inseridos. Canal com vídeos relacionados não pode ser apagado.
 
----
+## Canais destino
 
-## Banco
+Campos principais: slug, nome, nicho, perfil de prompt, ID do YouTube, template de crédito e ativo.
 
-O painel mapeia com Eloquent e `$table` explícito as tabelas do pipeline, que também são geridas pelas
-migrations do Laravel em `painel/database/migrations`. O `panel-init` aplica todas antes do runtime.
+- nicho define o roteamento da publicação;
+- perfil define os prompts do canal: fonte usa seleção, destino usa metadata e thumbnail; deve ser compatível com o nicho;
+- ativo controla se o publisher usa o destino;
+- watermark é um PNG salvo em `branding/watermark-<slug>.png`;
+- OAuth é gerado no terminal, não no navegador do painel;
+- canal com clips relacionados não pode ser apagado.
 
-Consequências:
-- `php artisan migrate:fresh` reconstrói o schema do pipeline apenas em banco descartável
-- os testes usam `DatabaseTransactions` e o CI aplica as migrations em um banco descartável
+## Vídeos e controles
 
-Tabelas de domínio do painel: `niches` (migration Laravel, seeda `futebol` e `podcast`) e `media_assets` (biblioteca de pós-produção). Não há FK ligando `source_channels.target_niche` a `niches` — segue VARCHAR livre.
+A página lista `source_videos` com abas `ativos`, `falharam` e
+`todos`, além de status, período, busca e filtro seguro para apagar. A aba
+`ativos` mostra somente fontes pendentes ou em processamento; fontes concluídas
+(`published`) ficam no histórico em `todos`.
 
----
+Ações de fila: pause, resume, prioritize, reorder. Exclusão de arquivos e purga de antigos chamam
+o sidecar, que valida guards no processador. O painel não deve apagar raw diretamente.
 
-## Armadilhas conhecidas
+A janela exibida usa, por padrão, 6 fontes curtas e 4 longas, mas a seleção real é feita pelo código
+Python conforme [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md).
 
-1. `MAX_UPLOADS_PER_DAY` é limitado a 6 no painel e no worker; mudanças no teto precisam
-   atualizar os dois contratos.
-2. Os dois canais-destino semeados pela migration usam IDs do YouTube de placeholder e permanecem
-   inativos até o operador substituí-los por IDs reais.
-3. O webhook do Telegram depende de `TELEGRAM_WEBHOOK_SECRET`; sem o secret no header, a
-   requisição é rejeitada. O endpoint interno usa o mesmo princípio com
-   `CLIP_PROCESSOR_INTERNAL_TOKEN`.
+## Processar vídeo
 
----
+Aceita várias URLs, remove duplicatas e exige formato `curto` ou `longo`. Cada
+URL é enviada ao sidecar; o endpoint apenas cria/retorna uma fonte `pending`. Download,
+transcrição, seleção, corte e publicação continuam no pipeline normal.
 
-## Testes
+## Transcrição local
 
-35 testes, 13 arquivos (Pest 4). Cobrem comandos do Telegram, aprovação/rejeição, eventos de pipeline, guards de auth, CRUD de canais e comandos Artisan.
+O formulário envia uma URL ao sidecar e recebe um job assíncrono. O painel lista os últimos 20 jobs,
+progresso persistido e erro; somente jobs `done` disponibilizam download do SRT. Esse fluxo
+não cria clips.
 
-**Sem cobertura:** `SettingsController`, `ProcessVideoController`, `SourceVideoController` (o mais complexo depois do Dashboard), `NicheController` e a rota `clips.preview`. Nenhum teste de frontend.
+## Configurações e mídia
+
+A biblioteca do painel aceita:
+
+- `intro` e `outro`: MP4/MOV/WEBM ou imagem;
+- `music`: MP3/WAV/M4A/OGG;
+- escopo opcional por destino e formato;
+- prioridade, ativo, duração de imagem e volume da música.
+
+O volume informado para a música recebe ganho de 20% no render, limitado a 100%; a trilha é aplicada
+nos 15 segundos finais do vídeo longo, com fade-in e volume final nos 8 segundos finais.
+
+O longo exige um asset de cada tipo. O processador prefere filesystem canônico por canal e usa a
+biblioteca como fallback; detalhes em [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md).
+
+A senha exige senha atual e nova senha com pelo menos 10 caracteres.
+
+## Rotas de sessão e integração
+
+- `/login`: GET/POST de autenticação;
+- `/logout`: POST autenticado;
+- `/telegramcanal`: webhook protegido por segredo do Telegram e allowlist de chat;
+- `/internal/pipeline-event`: evento do processador protegido pelo token compartilhado.
+
+A lista completa das rotas de negócio está no arquivo `painel/routes/web.php`; ações internas
+estão no [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md).
+
+## Telegram
+
+Com token e chat configurados, o painel processa:
+
+- `/status`;
+- `/clipes`;
+- `/aprovar <id>`;
+- `/rejeitar <id>`;
+- `/processar <url>`;
+- `/ajuda`.
+
+O scheduler Laravel executa `painel:daily-summary` às 18:00 no timezone da aplicação e
+envia mensagem somente quando há clips `pending`.

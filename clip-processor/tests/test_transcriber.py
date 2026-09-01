@@ -89,6 +89,31 @@ class TestTranscribeVideo:
         assert result['source'] == 'youtube_captions'
         assert result['segments'][0]['text'] == 'Legenda publicada'
 
+    def test_player_transcript_ignores_automatic_portuguese_caption(self, sample_video_id, mocker):
+        player_response = {
+            'captions': {
+                'playerCaptionsTracklistRenderer': {
+                    'captionTracks': [
+                        {
+                            'languageCode': 'pt-BR',
+                            'kind': 'asr',
+                            'baseUrl': 'https://caption/automatic',
+                        }
+                    ]
+                }
+            }
+        }
+        fetch = mocker.patch(
+            'src.transcriber._fetch_youtube_player_response', return_value=player_response
+        )
+        urlopen = mocker.patch('src.transcriber.urlopen')
+
+        result = _download_youtube_player_transcript(sample_video_id)
+
+        assert result is None
+        fetch.assert_called_once()
+        urlopen.assert_not_called()
+
     def test_parse_vtt_returns_timestamped_segments(self):
         payload = """WEBVTT
 
@@ -143,7 +168,7 @@ Segundo trecho
         assert result == youtube_transcript
         groq_factory.assert_not_called()
 
-    def test_download_youtube_caption_falls_back_to_automatic(self, tmp_path, sample_video_id):
+    def test_download_youtube_caption_ignores_automatic(self, tmp_path, sample_video_id):
         options_seen = []
 
         class FakeYoutubeDL:
@@ -177,13 +202,10 @@ Segundo trecho
         ):
             result = _download_youtube_transcript(sample_video_id)
 
-        assert result is not None
-        assert result['source'] == 'youtube_automatic_captions'
-        assert result['segments'][0]['text'] == 'Legenda automática'
+        assert result is None
         assert options_seen[0]['writesubtitles'] is True
         assert options_seen[0]['writeautomaticsub'] is False
-        assert options_seen[1]['writesubtitles'] is False
-        assert options_seen[1]['writeautomaticsub'] is True
+        assert len(options_seen) == 1
 
     def test_transcription_returns_segments(self, mock_db_conn, sample_video_id, tmp_path):
         """AI-01: Groq Whisper retorna dict com texto e lista de segmentos com start/end/text."""
@@ -278,6 +300,49 @@ Segundo trecho
         ffmpeg_cmd = mock_run.call_args[0][0]
         assert 'ffmpeg' in ffmpeg_cmd
         assert '-vn' in ffmpeg_cmd  # sem vídeo — só áudio
+
+    def test_oversized_audio_is_split_and_timestamps_are_offset(
+        self, mock_db_conn, sample_video_id, tmp_path
+    ):
+        """Áudios que ainda excedem o limite do Groq são enviados em partes."""
+        video_path = str(tmp_path / f'{sample_video_id}.mp4')
+        audio_path = str(tmp_path / f'{sample_video_id}_audio.mp3')
+        chunk_paths = [
+            str(tmp_path / f'{sample_video_id}_chunk_000.mp3'),
+            str(tmp_path / f'{sample_video_id}_chunk_001.mp3'),
+        ]
+        for chunk_path in chunk_paths:
+            Path(chunk_path).write_bytes(b'fake_mp3_content')
+
+        def fake_response(text, start):
+            segment = MagicMock(start=start, end=start + 5.0, text=text)
+            return MagicMock(text=text, segments=[segment])
+
+        mock_groq = MagicMock()
+        mock_groq.audio.transcriptions.create.side_effect = [
+            fake_response('Parte um', 0.0),
+            fake_response('Parte dois', 2.0),
+        ]
+
+        with (
+            patch('src.transcriber._prepare_audio', return_value=(audio_path, True)),
+            patch(
+                'src.transcriber._split_audio',
+                return_value=(chunk_paths, str(tmp_path / 'chunks')),
+            ) as split_audio,
+            patch('src.transcriber.os.path.getsize', side_effect=[25_000_000, 21_000_000]),
+            patch('src.transcriber.os.path.exists', return_value=True),
+            patch('src.transcriber.os.remove'),
+            patch('src.transcriber.shutil.rmtree'),
+        ):
+            result = transcribe_video(sample_video_id, video_path, groq_client=mock_groq)
+
+        assert result is not None
+        assert split_audio.called
+        assert mock_groq.audio.transcriptions.create.call_count == 2
+        assert result['text'] == 'Parte um\nParte dois'
+        assert result['segments'][1]['start'] == 902.0
+        assert result['segments'][1]['end'] == 907.0
 
     def test_api_failure_marks_video_failed(self, mock_db_conn, sample_video_id, tmp_path):
         """AI-01: Falha na API Groq retorna None (chamador marca vídeo como failed)."""

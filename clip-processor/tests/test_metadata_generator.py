@@ -12,6 +12,7 @@ import pytest
 from src.metadata_generator import (
     _build_prompt,
     _build_thumbnail_prompt,
+    _get_thumbnail_system_prompt,
     _normalize_metadata,
     append_credits,
     generate_metadata,
@@ -30,6 +31,29 @@ SAMPLE_CONTEXT = {
 
 
 class TestMetadataGenerator:
+    def test_database_profile_replaces_legacy_metadata_identity(self):
+        prompt = _build_prompt(
+            {
+                **SAMPLE_CONTEXT,
+                'niche': 'futebol',
+                'prompt_profile': {
+                    'metadata_short_prompt': 'PERFIL DE METADATA DE INTELIGÊNCIA',
+                },
+            }
+        )
+
+        assert 'PERFIL DE METADATA DE INTELIGÊNCIA' in prompt
+        assert 'Hacker Libertário' not in prompt
+
+    def test_thumbnail_profile_is_sent_to_both_prompt_layers(self):
+        context = {
+            **SAMPLE_CONTEXT,
+            'prompt_profile': {'thumbnail_prompt': 'Destaque uma descoberta técnica literal.'},
+        }
+
+        assert 'Destaque uma descoberta técnica literal.' in _build_thumbnail_prompt(context)
+        assert 'Destaque uma descoberta técnica literal.' in _get_thumbnail_system_prompt(context)
+
     def test_prompt_requires_new_seo_title_and_explanatory_description(self):
         prompt = _build_prompt(
             {
@@ -41,6 +65,14 @@ class TestMetadataGenerator:
         assert 'nunca copie, repita ou use esse título como título final' in prompt
         assert 'descrição deve ser completa e boa para SEO' in prompt
         assert 'FABIO AKITA - Flow #588' in prompt
+
+    def test_hacker_prompt_uses_channel_positioning_and_actionable_seo(self):
+        prompt = _build_prompt({**SAMPLE_CONTEXT, 'niche': 'hacker-libertario'})
+
+        assert 'Hacker Libertário' in prompt
+        assert 'palavra-chave principal' in prompt
+        assert 'no máximo 3 hashtags relevantes' in prompt
+        assert 'Linux' in prompt
 
     def test_original_source_title_is_rejected_without_fallback(self):
         with pytest.raises(ValueError, match='repetiu o título original'):
@@ -102,6 +134,18 @@ class TestMetadataGenerator:
         with pytest.raises(ValueError, match='não retornou um título'):
             _normalize_metadata({'title': '', 'description': '', 'tags': []}, SAMPLE_CONTEXT)
 
+    def test_tags_are_normalized_without_hashtags_or_duplicates(self):
+        metadata = _normalize_metadata(
+            {
+                'title': 'A polêmica do clássico que dividiu o estúdio',
+                'description': 'O debate explica o lance e as opiniões do estúdio.',
+                'tags': ['#Linux', 'linux', 'Open Source', '#open source'],
+            },
+            SAMPLE_CONTEXT,
+        )
+
+        assert metadata['tags'] == ['Linux', 'Open Source']
+
     def test_generate_metadata_returns_only_seo_metadata(self):
         mock_anthropic = MagicMock()
         response = MagicMock()
@@ -149,7 +193,7 @@ class TestMetadataGenerator:
         assert kwargs['output_config']['format']['schema']['required'] == ['thumbnail_text']
         assert 'Sua única tarefa' in kwargs['system']
 
-    def test_non_literal_thumbnail_text_fails_without_local_fallback(self):
+    def test_non_literal_thumbnail_text_uses_literal_transcript_fallback(self):
         mock_anthropic = MagicMock()
         response = MagicMock()
         response.content = [
@@ -163,8 +207,10 @@ class TestMetadataGenerator:
         ]
         mock_anthropic.messages.create.return_value = response
 
-        with pytest.raises(ValueError, match='sequência literal'):
-            generate_thumbnail_text(SAMPLE_CONTEXT, anthropic_client=mock_anthropic)
+        thumbnail_text = generate_thumbnail_text(SAMPLE_CONTEXT, anthropic_client=mock_anthropic)
+
+        assert thumbnail_text == 'Foi pênalti ou não foi? O debate esquentou'
+        assert thumbnail_text in SAMPLE_CONTEXT['transcript_excerpt']
 
     def test_thumbnail_provider_failure_is_not_replaced_by_another_provider(
         self, mocker, monkeypatch
@@ -182,7 +228,7 @@ class TestMetadataGenerator:
         mock_claude.assert_called_once_with(SAMPLE_CONTEXT, None)
         mock_groq.assert_not_called()
 
-    def test_title_over_100_chars_fails_without_rewriting(self):
+    def test_title_over_100_chars_is_trimmed_to_youtube_limit(self):
         mock_anthropic = MagicMock()
         response = MagicMock()
         response.content = [
@@ -198,8 +244,31 @@ class TestMetadataGenerator:
         ]
         mock_anthropic.messages.create.return_value = response
 
-        with pytest.raises(ValueError, match='excede 100 caracteres'):
-            generate_metadata(SAMPLE_CONTEXT, anthropic_client=mock_anthropic)
+        metadata = generate_metadata(SAMPLE_CONTEXT, anthropic_client=mock_anthropic)
+
+        assert len(metadata['title']) <= 100
+
+    def test_thumbnail_text_over_limits_is_trimmed_without_leaving_transcript(self):
+        mock_anthropic = MagicMock()
+        response = MagicMock()
+        response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'thumbnail_text': (
+                            'Foi pênalti ou não foi? O debate esquentou no estúdio agora'
+                        ),
+                    }
+                )
+            )
+        ]
+        mock_anthropic.messages.create.return_value = response
+
+        thumbnail_text = generate_thumbnail_text(SAMPLE_CONTEXT, anthropic_client=mock_anthropic)
+
+        assert thumbnail_text == 'Foi pênalti ou não foi? O debate esquentou no estúdio'
+        assert len(thumbnail_text) <= 64
+        assert len(thumbnail_text.split()) <= 10
 
     def test_long_video_metadata_does_not_use_shorts_tags(self):
         mock_anthropic = MagicMock()
@@ -269,7 +338,31 @@ class TestMetadataGenerator:
         assert 'Verificação de fake news' in kwargs['system']
         assert 'pesquise na internet' in kwargs['messages'][0]['content']
 
-    def test_selection_fact_check_verdict_is_carried_to_description(self):
+    def test_positive_selection_fact_check_is_carried_to_description(self):
+        mock_anthropic = MagicMock()
+        response = MagicMock()
+        response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'title': 'Titulo',
+                        'description': 'Descricao factual',
+                        'tags': ['futebol'],
+                    }
+                )
+            )
+        ]
+        mock_anthropic.messages.create.return_value = response
+
+        metadata = generate_metadata(
+            {**SAMPLE_CONTEXT, 'reason': 'Análise | Fake news: positivo'},
+            anthropic_client=mock_anthropic,
+        )
+
+        assert metadata['description'].endswith('Fact Check: E os fatos reais.')
+        assert metadata['description'] == 'Descricao factual\n\nFact Check: E os fatos reais.'
+
+    def test_negative_selection_fact_check_is_not_added_to_description(self):
         mock_anthropic = MagicMock()
         response = MagicMock()
         response.content = [
@@ -290,7 +383,20 @@ class TestMetadataGenerator:
             anthropic_client=mock_anthropic,
         )
 
-        assert metadata['description'].endswith('Verificação de fake news: negativo')
+        assert metadata['description'] == 'Descricao factual'
+        assert 'Fake news' not in metadata['description']
+
+    def test_generated_fact_check_label_is_removed_without_positive_verdict(self):
+        metadata = _normalize_metadata(
+            {
+                'title': 'Titulo',
+                'description': 'Descricao factual\nFake news: negativo\nContinuação da descrição',
+                'tags': ['futebol'],
+            },
+            SAMPLE_CONTEXT,
+        )
+
+        assert metadata['description'] == 'Descricao factual\nContinuação da descrição'
 
 
 class TestMetadataPersistence:

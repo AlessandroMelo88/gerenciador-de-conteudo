@@ -7,7 +7,7 @@ Exporta:
 
 Comportamento:
   - Verifica espaço em disco (mínimo 2GB) antes de baixar
-  - Usa formato 720p (bestvideo[height<=720]+bestaudio/best) em mp4
+  - Usa a melhor fonte disponível até 1080p em mp4
   - Tenta até 3 vezes para erros transientes
   - Retorna False imediatamente para erros permanentes (private, removed, unavailable, geo)
   - Aborta se o vídeo foi pausado via painel (progress_hook + check entre retries)
@@ -29,7 +29,20 @@ from src.queue_controls import PauseAborted
 
 VIDEOS_DIR = '/app/videos'
 MIN_FREE_BYTES = 2 * 1024**3  # 2 GB
-PERMANENT_ERRORS = ('private', 'removed', 'unavailable', 'geo')
+# Respostas definitivas para o ciclo atual. Estreias futuras e lives ainda não
+# iniciadas não são falhas transitórias: repetir em intervalos de 60s só segura
+# a fila. O item permanece registrado como falho para revisão/reprocessamento
+# explícito quando o conteúdo ficar disponível.
+PERMANENT_ERRORS = (
+    'private',
+    'removed',
+    'unavailable',
+    'geo',
+    'premieres in',
+    'is a live event',
+    'has not started',
+    'not currently available',
+)
 
 # Sufixos de trabalho do yt-dlp. Nenhum deles é artefato final — o download
 # bem-sucedido sempre termina em `<video_id>.mp4` sem sufixo intermediário.
@@ -120,7 +133,7 @@ def cleanup_stale_downloads(
 
 
 def download_video(video_id: str, output_path: str | None = None) -> bool:
-    """Baixa um vídeo do YouTube em formato 720p mp4.
+    """Baixa um vídeo do YouTube em até 1080p mp4.
 
     Returns:
         True se download bem-sucedido, False caso contrário (inclui pause).
@@ -155,7 +168,7 @@ def download_video(video_id: str, output_path: str | None = None) -> bool:
             pass
 
     ydl_opts = {
-        'format': 'bestvideo[height<=720]+bestaudio/best',
+        'format': 'bestvideo[height<=1080]+bestaudio/best',
         'merge_output_format': 'mp4',
         'outtmpl': output_path,
         'quiet': True,

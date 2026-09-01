@@ -43,7 +43,7 @@ class SourceVideoController extends Controller
         match ($tab) {
             'falharam' => $query->where('status', 'failed'),
             'todos' => null,
-            default => $query->where('status', '!=', 'failed'),
+            default => $query->whereNotIn('status', ['failed', 'published']),
         };
 
         if ($request->filled('status')) {

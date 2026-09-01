@@ -15,6 +15,7 @@ const CHAIN = [
     'Transcreve',
     'IA seleciona momentos',
     "Corta + pós-produção por formato + marca d'água",
+    'Gera metadata + thumbnail',
 ];
 
 export default function Documentation() {
@@ -35,7 +36,7 @@ export default function Documentation() {
                         Como o pipeline funciona, resumido
                     </div>
                     <p className="mb-3 text-sm text-muted-foreground">
-                        Se você não mexer em nada, o sistema publica sozinho, em loop:
+                        Com MANUAL_APPROVAL_REQUIRED=false, o sistema publica sozinho, em loop:
                     </p>
                     <div className="flex flex-wrap items-center gap-1.5 text-sm">
                         {CHAIN.map((step) => (
@@ -44,7 +45,7 @@ export default function Documentation() {
                                 <span className="text-muted-foreground">→</span>
                             </span>
                         ))}
-                        <Badge className="bg-amber-500 text-amber-950">Fila de aprovação</Badge>
+                        <Badge className="bg-amber-500 text-amber-950">Fila / aprovação opcional</Badge>
                         <span className="text-muted-foreground">→</span>
                         <Badge className="bg-emerald-500 text-emerald-950">Publica (cota diária)</Badge>
                     </div>
@@ -65,12 +66,14 @@ export default function Documentation() {
                                         canal-destino, e o limite diário.
                                     </li>
                                     <li>
-                                        <strong>Fila de aprovação</strong> — clips prontos e cortados, esperando você
-                                        aprovar ou rejeitar; Shorts recebem legenda e vídeos longos não.
+                                        <strong>Fila de clips</strong> — clips prontos e cortados; com aprovação manual
+                                        ligada, ficam esperando você aprovar ou rejeitar. Shorts recebem legenda
+                                        queimada — a não ser que o vídeo fonte já venha legendado — e vídeos longos
+                                        recebem legenda oficial, sem texto queimado no quadro.
                                     </li>
                                     <li>
-                                        <strong>Na fila (aguardando cota)</strong> — já aprovados, publicando sozinhos
-                                        assim que a cota diária liberar.
+                                        <strong>Na fila (aguardando cota)</strong> — clips elegíveis que serão
+                                        publicados assim que a janela e a cota diária permitirem.
                                     </li>
                                     <li>
                                         <strong>Últimas falhas</strong> — clips que quebraram em algum passo do
@@ -156,8 +159,9 @@ export default function Documentation() {
                                     </li>
                                     <li>
                                         O formato curto/longo é decidido automaticamente pela duração de cada vídeo
-                                        (≥7min vira longo horizontal sem legendas; senão vira até 3 shorts verticais com
-                                        legendas) — não é escolhido por canal.
+                                        (≥420s (7min) vira longo horizontal com legenda oficial; senão vira até 3 shorts
+                                        verticais com legendas queimadas, sem intro nem encerramento) — não é escolhido
+                                        por canal.
                                     </li>
                                 </ul>
                             </div>

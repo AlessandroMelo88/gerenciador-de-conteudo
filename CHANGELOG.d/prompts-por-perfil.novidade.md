@@ -1,0 +1,1 @@
+**Perfis de prompt por nicho** — `prompt_profiles` semeia Futebol, Conteúdo de Inteligência e Podcast, associa perfis ativos a canais-fonte/destino, separa seleção de metadata/thumbnail e impede roteamento entre perfis incompatíveis com fallback seguro para canais legados

@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
 from src.publisher import publish_pending_clips
+from src.uploader import CaptionNotReadyError, PostUploadError
 
 TZ_SP = ZoneInfo('America/Sao_Paulo')
 
@@ -144,6 +145,48 @@ class TestPublishPendingClips:
 
         assert result == 0
         mock_quota_instance.record_upload.assert_not_called()
+
+    def test_partial_upload_keeps_same_youtube_id_for_retry(self):
+        """Falha após videos.insert mantém o clip pendente com o ID já criado."""
+        conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
+        redis = MagicMock()
+        uploader = MagicMock()
+        uploader.upload_clip.side_effect = PostUploadError('yt_partial_01', 'legenda falhou')
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            MockQuota.return_value.can_upload.return_value = True
+            result = publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
+
+        assert result == 0
+        assert any(
+            'youtube_video_id=%s' in str(call.args[0]) and 'status=%s' in str(call.args[0])
+            for call in cursor.execute.call_args_list
+        )
+        partial_update = next(
+            call
+            for call in cursor.execute.call_args_list
+            if 'youtube_video_id=%s' in str(call.args[0])
+        )
+        assert partial_update.args[1][1] == 'yt_partial_01'
+
+    def test_missing_caption_returns_clip_to_processing_queue(self):
+        """SRT ausente pede reprocessamento, sem criar publicação sem legenda."""
+        conn, cursor = make_conn_with_clips([SAMPLE_CLIP])
+        redis = MagicMock()
+        uploader = MagicMock()
+        uploader.upload_clip.side_effect = CaptionNotReadyError('SRT não encontrado')
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            MockQuota.return_value.can_upload.return_value = True
+            result = publish_pending_clips(conn, redis, uploader=uploader, now=dt_sp(20))
+
+        assert result == 0
+        reprocess_update = next(
+            call
+            for call in cursor.execute.call_args_list
+            if "status='pending_cut'" in str(call.args[0])
+        )
+        assert reprocess_update.args[1][0] == 'SRT não encontrado'
 
     def test_quota_blocked_leaves_clip_as_pending(self):
         """Quando quota/janela bloqueada, clip deve continuar como pending."""

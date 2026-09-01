@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\DestinationChannel;
+use App\Models\PromptProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -23,6 +24,9 @@ it('creates a destination_channel with niche via Select field', function () {
     expect(DestinationChannel::query()->count())->toBe($countBefore + 1);
     $channel = DestinationChannel::query()->where('slug', 'novo-canal-teste')->first();
     expect($channel->niche)->toBe('podcast');
+    expect($channel->prompt_profile_id)->toBe(
+        PromptProfile::query()->where('slug', 'podcast')->value('id')
+    );
 });
 
 it('exposes OAuth status in the destination channels page props', function () {

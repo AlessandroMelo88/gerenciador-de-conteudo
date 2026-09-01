@@ -14,13 +14,24 @@ from src.dedup import is_seen, mark_failed_redis
 
 class TestIsSeen:
     def test_redis_hit(self, mock_redis, mock_db_conn):
-        """redis.set() retorna None (chave existia = NX falhou) → is_seen() retorna True."""
+        """Redis HIT confirmado no PostgreSQL → vídeo já visto."""
         # NX=True: set retorna None se chave já existe
         mock_redis.set.return_value = None
+        mock_db_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = {'id': 42}
 
         result = is_seen('dQw4w9WgXcQ', mock_redis, mock_db_conn)
 
         assert result is True
+
+    def test_stale_redis_hit_is_reingested_when_postgres_misses(self, mock_redis, mock_db_conn):
+        """Chave órfã no Redis não pode esconder fonte ausente no banco."""
+        mock_redis.set.return_value = None
+        mock_db_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = None
+
+        result = is_seen('dQw4w9WgXcQ', mock_redis, mock_db_conn)
+
+        assert result is False
+        mock_redis.delete.assert_called_once_with('video:dQw4w9WgXcQ')
 
     def test_redis_miss_postgres_miss(self, mock_redis, mock_db_conn):
         """redis.set() retorna True (chave nova), PostgreSQL fetchone() retorna None

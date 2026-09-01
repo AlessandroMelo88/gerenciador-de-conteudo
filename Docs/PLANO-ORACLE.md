@@ -1,5 +1,9 @@
 # Plano de migração — Oracle Cloud (Always Free)
 
+> **Tipo:** plano futuro/histórico · **Status atual:** não iniciado. Este arquivo não descreve o
+> runtime atual: a operação documentada hoje usa Compose local/isolado e PostgreSQL 16. Consulte
+> [README.md](README.md) e [RUNBOOK.md](RUNBOOK.md) antes de executar qualquer procedimento.
+
 **Objetivo:** tirar o pipeline do SSD da máquina local e deixar na máquina só o código de desenvolvimento.
 **Restrição inegociável:** custo R$ 0. Nenhuma cobrança no cartão, em nenhum cenário.
 

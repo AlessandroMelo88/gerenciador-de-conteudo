@@ -7,8 +7,8 @@ Exporta:
 
 Lógica:
   1. Tenta setar chave no Redis com NX (not exists) e TTL de 30 dias
-  2. Se Redis retorna None → chave já existia → vídeo visto → True
-  3. Se Redis levanta RedisError → fallback para PostgreSQL
+  2. Consulta PostgreSQL como fonte de verdade, inclusive quando Redis retorna HIT
+  3. Se Redis levanta RedisError → usa diretamente PostgreSQL
   4. PostgreSQL: SELECT id WHERE youtube_video_id = %s → True se existe, False se não
 """
 
@@ -39,12 +39,16 @@ def is_seen(video_id: str, redis_client, db_conn) -> bool:
     """
     key = f'video:{video_id}'
 
+    redis_hit = False
     try:
         result = redis_client.set(key, 1, ex=REDIS_TTL, nx=True)
         if result is None:
             # set() com NX retorna None se a chave já existia
             _log(f'Redis HIT: {video_id} já visto')
-            return True
+            # Redis é apenas um acelerador. A linha pode ter sido removida do
+            # PostgreSQL por uma limpeza/reset; nesse caso a chave ficou órfã
+            # e não pode bloquear a reingestão do item que ainda está no feed.
+            redis_hit = True
         # set() retornou True (truthy): chave foi criada agora → vídeo potencialmente novo
         # Mas ainda precisamos checar no PostgreSQL (caso Redis tenha sido limpo)
         # Conforme behavior: redis miss vai para o fallback PostgreSQL
@@ -59,6 +63,13 @@ def is_seen(video_id: str, redis_client, db_conn) -> bool:
     if row is not None:
         _log(f'PostgreSQL HIT: {video_id} encontrado no banco')
         return True
+
+    if redis_hit:
+        try:
+            redis_client.delete(key)
+            _log(f'Chave Redis órfã removida para reingestão: {key}')
+        except redis.RedisError as exc:
+            _log(f'AVISO: não foi possível remover chave Redis órfã {key}: {exc}')
 
     _log(f'MISS: {video_id} é um vídeo novo')
     return False

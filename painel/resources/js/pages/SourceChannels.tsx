@@ -3,6 +3,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
+import { PromptProfileSelect, type PromptProfile } from '@/components/prompt-profile-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -18,6 +19,8 @@ type SourceChannel = {
     channelName: string;
     channelHandle: string | null;
     targetNiche: string;
+    promptProfileId: number | null;
+    promptProfileName: string | null;
     active: boolean;
     blacklisted: boolean;
     createdAt: string | null;
@@ -26,15 +29,17 @@ type SourceChannel = {
 type PageProps = {
     channels: SourceChannel[];
     niches: Niche[];
+    promptProfiles: PromptProfile[];
     activeTab: string;
     auth: { user: { name: string; email: string } | null };
 };
 
-function CreateChannelDialog({ niches }: { niches: Niche[] }) {
+function CreateChannelDialog({ niches, promptProfiles }: { niches: Niche[]; promptProfiles: PromptProfile[] }) {
     const [open, setOpen] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         url: '',
         target_niche: 'futebol',
+        prompt_profile_id: '',
     });
 
     function submit(e: React.FormEvent) {
@@ -78,6 +83,21 @@ function CreateChannelDialog({ niches }: { niches: Niche[] }) {
                             onChange={(v) => setData('target_niche', v)}
                         />
                     </Field>
+                    <Field>
+                        <FieldLabel>Perfil de prompt</FieldLabel>
+                        <PromptProfileSelect
+                            profiles={promptProfiles}
+                            value={data.prompt_profile_id}
+                            niche={data.target_niche}
+                            onChange={(v) => setData('prompt_profile_id', v)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Controla seleção, metadata e thumbnail. No automático, o perfil é resolvido pelo nicho.
+                        </p>
+                        {errors.prompt_profile_id && (
+                            <p className="text-sm text-destructive">{errors.prompt_profile_id}</p>
+                        )}
+                    </Field>
                     <DialogFooter>
                         <Button type="submit" disabled={processing}>
                             Adicionar
@@ -91,7 +111,7 @@ function CreateChannelDialog({ niches }: { niches: Niche[] }) {
 
 export default function SourceChannels() {
     const { props } = usePage<PageProps>();
-    const { channels, niches, activeTab, auth } = props;
+    const { channels, niches, promptProfiles, activeTab, auth } = props;
 
     return (
         <>
@@ -100,7 +120,7 @@ export default function SourceChannels() {
                 title="Canais Fonte"
                 user={auth.user}
                 description="Canais do YouTube que o robô monitora pra encontrar conteúdo bruto. Formato curto/longo é decidido automaticamente pela duração do vídeo, não por canal."
-                actions={<CreateChannelDialog niches={niches} />}
+                actions={<CreateChannelDialog niches={niches} promptProfiles={promptProfiles} />}
             >
                 <Tabs
                     value={activeTab}
@@ -123,6 +143,7 @@ export default function SourceChannels() {
                                 <TableHead>Nome</TableHead>
                                 <TableHead>Handle</TableHead>
                                 <TableHead>Nicho</TableHead>
+                                <TableHead>Perfil de prompt</TableHead>
                                 <TableHead>Ativo</TableHead>
                                 <TableHead>Blacklisted</TableHead>
                                 <TableHead>Criado</TableHead>
@@ -136,6 +157,20 @@ export default function SourceChannels() {
                                     <TableCell className="text-muted-foreground">{c.channelHandle ?? '—'}</TableCell>
                                     <TableCell>
                                         <Badge variant="secondary">{c.targetNiche}</Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <PromptProfileSelect
+                                            profiles={promptProfiles}
+                                            value={c.promptProfileId ? String(c.promptProfileId) : ''}
+                                            niche={c.targetNiche}
+                                            onChange={(value) =>
+                                                router.put(
+                                                    `/painel/canais-fonte/${c.id}`,
+                                                    { prompt_profile_id: value || null },
+                                                    { preserveScroll: true },
+                                                )
+                                            }
+                                        />
                                     </TableCell>
                                     <TableCell>
                                         <Switch

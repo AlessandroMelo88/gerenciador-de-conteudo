@@ -169,13 +169,16 @@ def _resolve_audio_asset(clip_id: int) -> Path | None:
 def resolve_filesystem_media_assets(
     *, channel_slug: str | None, video_format: str, clip_id: int
 ) -> dict[str, dict[str, object]]:
-    """Resolve a identidade canônica em ``assets/channels`` e ``assets/audio``.
+    """Resolve a identidade canônica dos vídeos longos.
 
     Dentro de cada canal, o vídeo é preferido à imagem para intro e
     encerramento. A imagem é o fallback para canais que ainda não têm a versão
     em vídeo. As faixas de ``audio`` são alternadas de forma determinística pelo
     id do clip, para que a seleção seja reproduzível.
     """
+    if video_format != 'longo':
+        return {}
+
     resolved: dict[str, dict[str, object]] = {}
     for kind in ('intro', 'outro'):
         path = _resolve_channel_asset(channel_slug, kind)
@@ -190,7 +193,7 @@ def resolve_filesystem_media_assets(
             'source': 'filesystem',
         }
 
-    music_path = _resolve_audio_asset(clip_id) if video_format == 'longo' else None
+    music_path = _resolve_audio_asset(clip_id)
     if music_path is not None:
         resolved['music'] = {
             'kind': 'music',
@@ -212,13 +215,15 @@ def resolve_media_assets(
     clip_id: int,
     channel_slug: str | None = None,
 ) -> dict[str, dict[str, object]]:
-    """Busca e valida intro, encerramento e música para um clip.
+    """Busca e valida a identidade de um vídeo longo.
 
     A estrutura de arquivos por canal é preferida. A tabela ``media_assets``
     permanece como fallback compatível com a configuração antiga do painel.
-    Falha de leitura da tabela ou arquivo ausente não interrompe a produção de
-    Shorts; o motivo fica no log.
+    Shorts não carregam intro, encerramento ou música.
     """
+    if video_format != 'longo':
+        return {}
+
     resolved = resolve_filesystem_media_assets(
         channel_slug=channel_slug,
         video_format=video_format,

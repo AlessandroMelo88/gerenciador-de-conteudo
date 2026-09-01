@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Niche;
+use App\Models\PromptProfile;
 use App\Models\SourceChannel;
 use App\Services\ClipProcessorClient;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +19,7 @@ class SourceChannelController extends Controller
     {
         $tab = $request->query('tab', 'todos');
 
-        $query = SourceChannel::query()->orderByDesc('created_at');
+        $query = SourceChannel::query()->with('promptProfile')->orderByDesc('created_at');
         if ($tab !== 'todos') {
             $query->where('target_niche', $tab);
         }
@@ -29,11 +30,25 @@ class SourceChannelController extends Controller
                 'channelName' => $c->channel_name,
                 'channelHandle' => $c->channel_handle,
                 'targetNiche' => $c->target_niche,
+                'promptProfileId' => $c->prompt_profile_id,
+                'promptProfileName' => $c->promptProfile?->name,
                 'active' => $c->active,
                 'blacklisted' => $c->blacklisted,
                 'createdAt' => $c->created_at ? Carbon::parse($c->created_at)->diffForHumans() : null,
             ]),
             'niches' => Niche::query()->orderBy('label')->get(['slug', 'label']),
+            'promptProfiles' => PromptProfile::query()
+                ->active()
+                ->orderBy('name')
+                ->get(['id', 'slug', 'name', 'niche', 'niche_aliases'])
+                ->map(fn (PromptProfile $profile) => [
+                    'id' => $profile->id,
+                    'slug' => $profile->slug,
+                    'name' => $profile->name,
+                    'niche' => $profile->niche,
+                    'nicheAliases' => $profile->niche_aliases ?? [],
+                ])
+                ->values(),
             'activeTab' => $tab,
         ]);
     }
@@ -43,7 +58,18 @@ class SourceChannelController extends Controller
         $data = $request->validate([
             'url' => ['required', 'string'],
             'target_niche' => ['required', 'string'],
+            'prompt_profile_id' => ['nullable', 'integer', 'exists:prompt_profiles,id'],
         ]);
+
+        $promptProfileId = PromptProfile::resolveId(
+            isset($data['prompt_profile_id']) ? (int) $data['prompt_profile_id'] : null,
+            $data['target_niche'],
+        );
+        if ($promptProfileId === null) {
+            return back()
+                ->withErrors(['prompt_profile_id' => 'O nicho precisa de um perfil de prompt ativo.'])
+                ->withInput();
+        }
 
         try {
             $resolved = $client->resolveChannel($data['url']);
@@ -61,6 +87,7 @@ class SourceChannelController extends Controller
             'active' => true,
             'blacklisted' => false,
             'target_niche' => $data['target_niche'],
+            'prompt_profile_id' => $promptProfileId,
         ]);
 
         return back()->with('success', "Canal \"{$resolved['channel_name']}\" adicionado");
@@ -71,7 +98,21 @@ class SourceChannelController extends Controller
         $data = $request->validate([
             'blacklisted' => ['sometimes', 'boolean'],
             'active' => ['sometimes', 'boolean'],
+            'prompt_profile_id' => ['sometimes', 'nullable', 'integer', 'exists:prompt_profiles,id'],
         ]);
+
+        if (array_key_exists('prompt_profile_id', $data)) {
+            $promptProfileId = PromptProfile::resolveId(
+                $data['prompt_profile_id'] === null ? null : (int) $data['prompt_profile_id'],
+                $sourceChannel->target_niche,
+            );
+            if ($promptProfileId === null) {
+                return back()->withErrors([
+                    'prompt_profile_id' => 'Selecione um perfil de prompt ativo.',
+                ]);
+            }
+            $data['prompt_profile_id'] = $promptProfileId;
+        }
 
         $sourceChannel->update($data);
 

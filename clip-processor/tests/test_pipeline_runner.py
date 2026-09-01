@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 from src.pipeline_runner import (
     DOWNLOAD_WINDOW_CURTO,
     DOWNLOAD_WINDOW_LONGO,
+    PIPELINE_LOCK_TIMEOUT_SECONDS,
+    PUBLISH_LOCK_TIMEOUT_SECONDS,
     _discard_failed_download,
     _download_pending_videos,
     _select_pending_videos,
@@ -16,6 +18,25 @@ from src.pipeline_runner import (
 
 
 class TestRunPipelineOnce:
+    def test_lock_timeouts_cover_slow_encodes(self):
+        """Locks devem durar mais que uma composição em preset=slow."""
+        assert PIPELINE_LOCK_TIMEOUT_SECONDS >= 7200
+        assert PUBLISH_LOCK_TIMEOUT_SECONDS >= 7200
+
+    def test_skips_when_another_full_cycle_holds_the_ingest_lock(self):
+        """Ciclos manuais não podem concorrer com o ciclo agendado."""
+        mock_conn = MagicMock()
+        mock_redis = MagicMock()
+
+        with (
+            patch('src.pipeline_runner._acquire_redis_lock', return_value=False),
+            patch('src.pipeline_runner.poll_all_channels') as mock_poll,
+        ):
+            result = run_pipeline_once(db_conn=mock_conn, redis_client=mock_redis)
+
+        assert result is None
+        mock_poll.assert_not_called()
+
     def test_calls_poll_then_download_then_publish(self):
         """Deve chamar poll → download → publish em ordem."""
         call_order = []

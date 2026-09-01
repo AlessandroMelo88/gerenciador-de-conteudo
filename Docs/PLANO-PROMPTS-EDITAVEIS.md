@@ -1,16 +1,22 @@
 # Plano — Prompts de IA editáveis pelo painel
 
 **Data:** 13/08/2026
-**Status:** plano, nada implementado
+**Status:** parcialmente substituído: perfis por nicho implementados; editor/versionamento ainda são plano
 **Objetivo:** o dono do projeto ver e editar, pelo painel, as instruções que a IA usa para escolher
 os cortes — sem editar Python e sem `docker compose build` — e acompanhar métricas para saber se
 um prompt novo é melhor que o anterior.
 
+> **Nota:** esta é uma proposta futura e contém valores do snapshot de 2026-08-13. O runtime atual
+> já usa `prompt_profiles` para separar os textos editoriais por nicho, sem editor, versionamento
+> ou métricas por versão. O catálogo ativo, os providers e os schemas estão em
+> [SISTEMA-IA-SELECAO.md](SISTEMA-IA-SELECAO.md). Não use este plano para configurar produção.
+
 ---
 
-## 1. Situação atual (verificada em 13/08/2026)
+## 1. Snapshot histórico (verificado em 13/08/2026)
 
-A seleção de momentos roda em `clip-processor/src/selector.py`. Provider real em produção é o
+No snapshot deste plano, a seleção de momentos rodava em `clip-processor/src/selector.py`. O provider real
+registrado era o
 **Groq LLaMA 3.3-70b** (`llama-3.3-70b-versatile`, `clip-processor/src/selector.py:104`), porque
 `ANTHROPIC_API_KEY` está vazia na operação normal — o caminho Anthropic
 (`clip-processor/src/selector.py:93`) existe mas cai no fallback.
@@ -19,7 +25,7 @@ O que está hardcoded:
 
 | Constante | Local | Valor |
 |---|---|---|
-| `SYSTEM_PROMPT` | `clip-processor/src/selector.py:15` | prompt do formato **curto** (≤3 momentos, 30–180s) |
+| `SYSTEM_PROMPT` | `clip-processor/src/selector.py:15` | prompt do formato **curto** (≤3 momentos, 30s exatos) |
 | `LONG_SYSTEM_PROMPT` | `clip-processor/src/selector.py:38` | prompt do formato **longo** (1 segmento, 420–1200s) |
 | `MIN_SHORTFORM_SECONDS` | `clip-processor/src/selector.py:58` | 30 |
 | `MAX_SHORTFORM_SECONDS` | `clip-processor/src/selector.py:59` | 180 |
@@ -28,10 +34,10 @@ O que está hardcoded:
 | `MAX_CHARS` (truncagem da transcrição) | `clip-processor/src/selector.py:223` | 8000 curto / 20000 longo |
 | corte por score | `clip-processor/src/selector.py:315` | `score < 7` descarta |
 
-O container **não tem bind mount para `src/`** — os volumes do serviço são só `youtube/`, `videos/`
-e `branding/` (`../docker-compose.yml`, serviço `clip-processor`). A imagem embute o código no
-build, então qualquer palavra alterada exige `docker compose build clip-processor && docker compose
-up -d clip-processor`.
+No snapshot deste plano, o container **não tinha bind mount para `src/`** — os volumes eram só
+`youtube/`, `videos/` e `branding/`. O Compose atual monta
+`./clip-processor/src:/app/src`, então esse risco de divergência imagem↔repositório não descreve mais
+a execução local atual.
 
 **Esse atrito já custou caro:** o ajuste de duração foi commitado em 12/08/2026 mas o container
 seguia rodando a imagem de 01/08/2026 — 11 dias em que o código "correto" no repositório não tinha
@@ -425,7 +431,7 @@ padrão já usado em `clip-queue-tabs.tsx`). Dentro de cada aba, quatro blocos:
   `humor`; no longo: `segmento CONTÍNUO`, `análise tática do início ao fim`, `resposta longa e
   coesa`, `debate que se desenvolve`). Render como lista de `Badge` — é a leitura de 5 segundos
   que ele quer, sem ler o prompt inteiro.
-- Régua de duração e quantidade em `Badge`: `30–180 s`, `até 3 momentos`, `score mínimo 7`.
+- Régua de duração e quantidade em `Badge`: `30 s exatos`, `até 3 momentos`, `score mínimo 7`.
 - Prompt efetivo completo em `ScrollArea` com fonte monoespaçada, marcando visualmente o
   **trecho fixo** (contrato JSON e regra de duração) em cinza, para ficar claro o que não se edita.
 - **Selo de sincronia:** ao lado, o que o sidecar respondeu em `GET /internal/ai-config` — a
@@ -501,8 +507,8 @@ e `taxa de aprovação` (mede se o dono gosta do resultado). O resto é diagnós
 
 ## 9. Fases de execução
 
-Cada fase é entregável sozinha e tem critério verificável. **Só a Fase 2 exige rebuild — e é o
-último rebuild obrigatório para mexer em prompt.**
+Cada fase é entregável sozinha e tem critério verificável. No snapshot original, a Fase 2 exigia
+rebuild; no Compose atual, o código Python montado dispensa rebuild para alterações de prompt.
 
 ### Fase 1 — Ver o que está rodando (read-only)
 Sem banco novo, sem edição.
@@ -523,10 +529,10 @@ Sem banco novo, sem edição.
   cauda JSON) e as constantes atuais.
 - `clip-processor/src/prompt_store.py` + refatoração de `selector.py` (seção 5.2) + testes Pest/
   pytest do fallback.
-- **Pronto quando:** `UPDATE ai_prompt_versions SET body = ... ` na mão faz o **próximo** vídeo usar
-  o texto novo, com `[PROMPT] versão N carregada` no log e **sem rebuild**; e `docker compose stop
-  mysql` no ambiente de teste não impede a seleção de rodar com o prompt hardcoded (log
-  `usando hardcoded`). Testes atuais de `test_selector.py` continuam verdes.
+- **Pronto quando:** `UPDATE ai_prompt_versions SET body = ...` na mão faz o **próximo** vídeo usar
+  o texto novo, com `[PROMPT] versão N carregada` no log e **sem rebuild**; e `docker compose stop mysql`
+  no ambiente de teste não impede a seleção de rodar com o prompt hardcoded (log `usando hardcoded`).
+  Testes atuais de `test_selector.py` continuam verdes.
 - Após esta fase a Fase 1 passa a comparar banco × imagem e acende o selo de divergência.
 
 ### Fase 3 — Instrumentação de métricas

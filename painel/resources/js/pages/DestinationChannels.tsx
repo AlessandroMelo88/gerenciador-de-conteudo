@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
+import { PromptProfileSelect, type PromptProfile } from '@/components/prompt-profile-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -19,6 +20,8 @@ type DestinationChannel = {
     slug: string;
     name: string;
     niche: string;
+    promptProfileId: number | null;
+    promptProfileName: string | null;
     youtubeChannelId: string;
     creditTemplate: string | null;
     active: boolean;
@@ -29,6 +32,7 @@ type DestinationChannel = {
 type PageProps = {
     channels: DestinationChannel[];
     niches: Niche[];
+    promptProfiles: PromptProfile[];
     auth: { user: { name: string; email: string } | null };
     flash: { success: string | null; error: string | null };
 };
@@ -42,10 +46,12 @@ const OAUTH_LABEL: Record<string, string> = {
 function ChannelDialog({
     channel,
     niches,
+    promptProfiles,
     trigger,
 }: {
     channel?: DestinationChannel;
     niches: Niche[];
+    promptProfiles: PromptProfile[];
     trigger: React.ReactNode;
 }) {
     const [open, setOpen] = useState(false);
@@ -54,6 +60,7 @@ function ChannelDialog({
         slug: channel?.slug ?? '',
         name: channel?.name ?? '',
         niche: channel?.niche ?? '',
+        prompt_profile_id: channel?.promptProfileId ? String(channel.promptProfileId) : '',
         youtube_channel_id: channel?.youtubeChannelId ?? '',
         credit_template: channel?.creditTemplate ?? 'Créditos: @{channel_handle}',
         active: channel?.active ?? true,
@@ -101,6 +108,21 @@ function ChannelDialog({
                         <FieldLabel>Nicho</FieldLabel>
                         <NicheCombobox niches={niches} value={data.niche} onChange={(v) => setData('niche', v)} />
                         {errors.niche && <p className="text-sm text-destructive">{errors.niche}</p>}
+                    </Field>
+                    <Field>
+                        <FieldLabel>Perfil de prompt</FieldLabel>
+                        <PromptProfileSelect
+                            profiles={promptProfiles}
+                            value={data.prompt_profile_id}
+                            niche={data.niche}
+                            onChange={(v) => setData('prompt_profile_id', v)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Define os prompts de seleção, metadata e thumbnail deste canal.
+                        </p>
+                        {errors.prompt_profile_id && (
+                            <p className="text-sm text-destructive">{errors.prompt_profile_id}</p>
+                        )}
                     </Field>
                     <Field>
                         <FieldLabel htmlFor="ytid">YouTube Channel ID (UC...)</FieldLabel>
@@ -202,7 +224,7 @@ function CopyCommand({ slug }: { slug: string }) {
 
 export default function DestinationChannels() {
     const { props } = usePage<PageProps>();
-    const { channels, niches, auth } = props;
+    const { channels, niches, promptProfiles, auth } = props;
 
     return (
         <>
@@ -211,7 +233,13 @@ export default function DestinationChannels() {
                 title="Canais Destino"
                 user={auth.user}
                 description="Canais do YouTube onde os clips são publicados."
-                actions={<ChannelDialog niches={niches} trigger={<Button>Novo Canal Destino</Button>} />}
+                actions={
+                    <ChannelDialog
+                        niches={niches}
+                        promptProfiles={promptProfiles}
+                        trigger={<Button>Novo Canal Destino</Button>}
+                    />
+                }
             >
                 <div className="overflow-x-auto rounded-lg border">
                     <Table>
@@ -220,6 +248,7 @@ export default function DestinationChannels() {
                                 <TableHead>Slug</TableHead>
                                 <TableHead>Nome</TableHead>
                                 <TableHead>Nicho</TableHead>
+                                <TableHead>Perfil de prompt</TableHead>
                                 <TableHead>OAuth</TableHead>
                                 <TableHead>Ativo</TableHead>
                                 <TableHead>YT Channel ID</TableHead>
@@ -233,6 +262,9 @@ export default function DestinationChannels() {
                                     <TableCell>{c.name}</TableCell>
                                     <TableCell>
                                         <Badge variant="secondary">{c.niche}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                        {c.promptProfileName ?? 'Sem perfil'}
                                     </TableCell>
                                     <TableCell>
                                         <Badge
@@ -273,6 +305,7 @@ export default function DestinationChannels() {
                                             <ChannelDialog
                                                 channel={c}
                                                 niches={niches}
+                                                promptProfiles={promptProfiles}
                                                 trigger={
                                                     <Button variant="outline" size="sm">
                                                         Editar

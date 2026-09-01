@@ -35,7 +35,7 @@ make changelog-preview                 # mostra a seção [Unreleased] montada
 make changelog-release VERSION=v0.2.0  # move os fragmentos para o CHANGELOG.md e os apaga
 ```
 
-O `release` cria `## [vX.Y.Z (AAAA-MM-DD)](<link de compare>)` logo abaixo de `[Unreleased]`,
+O `release` cria um cabeçalho de versão com link de comparação logo abaixo de `[Unreleased]`,
 usando a versão anterior encontrada no próprio CHANGELOG para montar o link
 (`.../releases/tag/vX.Y.Z` quando é a primeira). Ele **não** faz bump de versão nem tag —
 o fluxo completo de fechar versão está em `Docs/DESENVOLVIMENTO.md`.

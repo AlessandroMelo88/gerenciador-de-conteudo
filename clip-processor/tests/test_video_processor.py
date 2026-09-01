@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from src.video_processor import (
+    _build_clip_context,
     burn_subtitles,
     cut_clip,
     extract_thumbnail,
@@ -30,6 +31,36 @@ SAMPLE_TRANSCRIPT = {
 
 
 class TestVideoProcessor:
+    def test_build_clip_context_keeps_matching_prompt_profile(self):
+        context = _build_clip_context(
+            {
+                'start_time': 100.0,
+                'end_time': 140.0,
+                'destination_niche': 'tecnologia',
+                'prompt_profile_slug': 'conteudo-inteligencia',
+                'prompt_profile_niche': 'hacker-libertario',
+                'prompt_profile_niche_aliases': ['tecnologia'],
+                'prompt_profile_metadata_short_prompt': 'Metadata técnica.',
+            },
+            SAMPLE_TRANSCRIPT,
+        )
+
+        assert context['prompt_profile']['slug'] == 'conteudo-inteligencia'
+
+    def test_build_clip_context_discards_profile_from_another_niche(self):
+        context = _build_clip_context(
+            {
+                'start_time': 100.0,
+                'end_time': 140.0,
+                'destination_niche': 'futebol',
+                'prompt_profile_slug': 'conteudo-inteligencia',
+                'prompt_profile_niche': 'hacker-libertario',
+            },
+            SAMPLE_TRANSCRIPT,
+        )
+
+        assert context['prompt_profile'] is None
+
     def test_cut_clip_uses_ffmpeg_with_exact_timestamps(self, tmp_path, mocker):
         mock_run = mocker.patch('src.video_processor.subprocess.run')
         output = tmp_path / 'clip.mp4'
@@ -42,6 +73,12 @@ class TestVideoProcessor:
         assert cmd[cmd.index('-ss') + 1] == '100.0'
         assert '-to' in cmd
         assert cmd[cmd.index('-to') + 1] == '220.0'
+        assert cmd[cmd.index('-preset') + 1] == 'slow'
+        assert cmd[cmd.index('-crf') + 1] == '14'
+        assert cmd[cmd.index('-profile:v') + 1] == 'high'
+        assert cmd[cmd.index('-level:v') + 1] == '4.2'
+        assert cmd[cmd.index('-b:a') + 1] == '320k'
+        assert cmd[cmd.index('-ar') + 1] == '48000'
 
     def test_cut_clip_preserves_horizontal_frame_in_vertical_layout(self, tmp_path, mocker):
         mock_run = mocker.patch('src.video_processor.subprocess.run')
@@ -127,8 +164,11 @@ class TestVideoProcessor:
         cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = clip_row
 
-        mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/10_raw.mp4')
+        mock_render = mocker.patch(
+            'src.video_processor.render_short_clip', return_value='/app/clips/10.mp4'
+        )
         mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/10.srt')
+        mocker.patch('src.video_processor.has_burned_subtitles', return_value=False)
         mocker.patch(
             'src.video_processor.burn_subtitles', return_value='/app/clips/10_subtitled.mp4'
         )
@@ -156,6 +196,7 @@ class TestVideoProcessor:
         mocker.patch('src.video_processor.os.rename')  # slug=None → rename subtitled → final
 
         assert process_clip(mock_db_conn, 10) is True
+        mock_render.assert_called_once()
         mock_thumbnail.assert_called_once()
         mock_overlay.assert_called_once_with(
             '/app/videos/thumbnails/10.jpg',
@@ -174,6 +215,7 @@ class TestVideoProcessor:
                     'segments': [
                         {'start': 100.0, 'end': 103.2, 'text': 'Começo.'},
                         {'start': 104.0, 'end': 108.5, 'text': 'Última frase completa.'},
+                        {'start': 110.0, 'end': 140.0, 'text': 'Continuação completa.'},
                     ]
                 }
             ),
@@ -187,17 +229,19 @@ class TestVideoProcessor:
             'local_path': '/app/videos/source.mp4',
             'transcript_path': str(transcript_path),
             'start_time': 100.0,
-            'end_time': 107.0,
+            'end_time': 137.0,
             'score': 9,
             'reason': 'Explicação',
+            'format': 'curto',
             'destination_channel_slug': None,
         }
         cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = clip_row
-        mock_cut = mocker.patch(
-            'src.video_processor.cut_clip', return_value='/app/clips/11_raw.mp4'
+        mock_render = mocker.patch(
+            'src.video_processor.render_short_clip', return_value='/app/clips/11.mp4'
         )
         mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/11.srt')
+        mocker.patch('src.video_processor.has_burned_subtitles', return_value=False)
         mocker.patch(
             'src.video_processor.burn_subtitles', return_value='/app/clips/11_subtitled.mp4'
         )
@@ -218,9 +262,68 @@ class TestVideoProcessor:
         mocker.patch('src.video_processor.os.rename')
 
         assert process_clip(mock_db_conn, 11) is True
-        assert mock_cut.call_args.args[2] == 108.5
+        assert mock_render.call_args.args[2] == 130.0
 
-    def test_process_longform_skips_subtitles(self, tmp_path, mock_db_conn, mocker):
+    def test_process_short_skips_burn_when_source_already_has_subtitles(
+        self, tmp_path, mock_db_conn, mocker
+    ):
+        transcript_path = tmp_path / 'transcript.json'
+        transcript_path.write_text(json.dumps(SAMPLE_TRANSCRIPT), encoding='utf-8')
+
+        clip_row = {
+            'id': 12,
+            'source_video_id': 1,
+            'youtube_video_id': 'vid001aaaaaa',
+            'source_title': 'Debate com legenda gravada',
+            'local_path': '/app/videos/source.mp4',
+            'transcript_path': str(transcript_path),
+            'start_time': 100.0,
+            'end_time': 140.0,
+            'score': 9,
+            'reason': 'Debate acalorado',
+            'format': 'curto',
+            'destination_channel_slug': None,
+        }
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = clip_row
+
+        mock_detect = mocker.patch('src.video_processor.has_burned_subtitles', return_value=True)
+        mock_srt = mocker.patch(
+            'src.video_processor.generate_srt', return_value='/app/videos/clips/12.srt'
+        )
+        mock_burn = mocker.patch('src.video_processor.burn_subtitles')
+        mock_render = mocker.patch(
+            'src.video_processor.render_short_clip', return_value='/app/videos/clips/12.mp4'
+        )
+        mocker.patch(
+            'src.video_processor.extract_thumbnail', return_value='/app/videos/thumbnails/12.jpg'
+        )
+        mocker.patch(
+            'src.video_processor.generate_metadata',
+            return_value={'title': 'Titulo', 'description': 'Descricao', 'tags': []},
+        )
+        mocker.patch('src.video_processor.generate_thumbnail_text', return_value='Frase forte')
+        mocker.patch(
+            'src.video_processor.overlay_thumbnail_text',
+            side_effect=lambda input_path, text, output_path: input_path,
+        )
+        mocker.patch('src.video_processor.os.replace')
+        mocker.patch('src.video_processor.update_clip_metadata')
+        mocker.patch('src.video_processor.os.rename')
+
+        assert process_clip(mock_db_conn, 12) is True
+        mock_detect.assert_called_once_with(
+            '/app/videos/source.mp4', SAMPLE_TRANSCRIPT, 100.0, 130.0
+        )
+        mock_burn.assert_not_called()
+        # A legenda oficial continua saindo: só o texto queimado é dispensado.
+        mock_srt.assert_called_once()
+        mock_render.assert_called_once()
+        assert mock_render.call_args.kwargs['subtitle_path'] is None
+
+    def test_process_longform_generates_official_srt_without_burning(
+        self, tmp_path, mock_db_conn, mocker
+    ):
         transcript_path = tmp_path / 'transcript.json'
         transcript_path.write_text(json.dumps(SAMPLE_TRANSCRIPT), encoding='utf-8')
 
@@ -278,7 +381,13 @@ class TestVideoProcessor:
             '/app/videos/clips/12_raw.mp4',
             fmt='longo',
         )
-        mock_srt.assert_not_called()
+        mock_srt.assert_called_once_with(
+            SAMPLE_TRANSCRIPT,
+            100.0,
+            220.0,
+            '/app/videos/clips/12.srt',
+            time_offset=0.0,
+        )
         mock_burn.assert_not_called()
         mock_rename.assert_called_once_with(
             '/app/videos/clips/12_raw.mp4', '/app/videos/clips/12.mp4'
@@ -303,7 +412,7 @@ class TestVideoProcessor:
         execute_calls = [str(call) for call in cursor.execute.call_args_list]
         assert any('failed' in call for call in execute_calls)
 
-    def test_process_clip_applies_configured_media_after_watermark(
+    def test_process_clip_does_not_apply_configured_media_to_shorts(
         self, tmp_path, mock_db_conn, mocker
     ):
         transcript_path = tmp_path / 'transcript.json'
@@ -327,17 +436,18 @@ class TestVideoProcessor:
         cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = clip_row
 
-        mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/30_raw.mp4')
         mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/30.srt')
+        mocker.patch('src.video_processor.has_burned_subtitles', return_value=False)
         mocker.patch(
             'src.video_processor.burn_subtitles', return_value='/app/clips/30_subtitled.mp4'
         )
-        mocker.patch('src.video_processor.os.rename')
+        mocker.patch('src.video_processor.render_short_clip', return_value='/app/clips/30.mp4')
         assets = {'intro': {'absolute_path': '/app/branding/intro.mp4'}}
-        mocker.patch('src.video_processor.resolve_media_assets', return_value=assets)
+        resolve = mocker.patch('src.video_processor.resolve_media_assets', return_value=assets)
         compose = mocker.patch(
             'src.video_processor.compose_media', return_value='/app/videos/clips/30_branded.mp4'
         )
+        related = mocker.patch('src.video_processor.related_video_from_clip')
         replace = mocker.patch('src.video_processor.os.replace')
         mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/30.jpg')
         mocker.patch(
@@ -354,14 +464,12 @@ class TestVideoProcessor:
         mocker.patch('src.video_processor.update_clip_metadata')
 
         assert process_clip(mock_db_conn, 30) is True
-        compose.assert_called_once_with(
-            '/app/videos/clips/30.mp4',
-            '/app/videos/clips/30_branded.mp4',
-            'curto',
-            assets,
+        resolve.assert_not_called()
+        related.assert_not_called()
+        compose.assert_not_called()
+        replace.assert_called_once_with(
+            '/app/videos/thumbnails/30.jpg', '/app/videos/thumbnails/30.jpg'
         )
-        replace.assert_any_call('/app/videos/clips/30_branded.mp4', '/app/videos/clips/30.mp4')
-        assert replace.call_count == 2
 
 
 class TestSubtitles:
@@ -483,13 +591,13 @@ class TestProcessClipWithWatermark:
         cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = clip_row
 
-        mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/20_raw.mp4')
         mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/20.srt')
+        mocker.patch('src.video_processor.has_burned_subtitles', return_value=False)
         mocker.patch(
             'src.video_processor.burn_subtitles', return_value='/app/clips/20_subtitled.mp4'
         )
-        mock_watermark = mocker.patch(
-            'src.video_processor.overlay_watermark', return_value='/app/clips/20.mp4'
+        mock_render = mocker.patch(
+            'src.video_processor.render_short_clip', return_value='/app/clips/20.mp4'
         )
         mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/20.jpg')
         mocker.patch(
@@ -512,12 +620,9 @@ class TestProcessClipWithWatermark:
         result = process_clip(mock_db_conn, 20)
 
         assert result is True
-        mock_watermark.assert_called_once()
-        call_args = mock_watermark.call_args
-        assert (
-            '/app/branding/watermark-futebol-br.png' in call_args.args
-            or '/app/branding/watermark-futebol-br.png' in str(call_args)
-        ), f'overlay_watermark deve receber watermark-futebol-br.png. Args: {call_args}'
+        mock_render.assert_called_once()
+        call_args = mock_render.call_args
+        assert '/app/branding/watermark-futebol-br.png' in call_args.kwargs['watermark_path']
 
     def test_process_clip_skips_watermark_when_slug_is_null(self, tmp_path, mock_db_conn, mocker):
         """MCAN-02: destination_channel_slug NULL → os.rename é usado, overlay_watermark NÃO chamado."""
@@ -540,12 +645,14 @@ class TestProcessClipWithWatermark:
         cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         cursor.fetchone.return_value = clip_row
 
-        mocker.patch('src.video_processor.cut_clip', return_value='/app/clips/21_raw.mp4')
         mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/21.srt')
+        mocker.patch('src.video_processor.has_burned_subtitles', return_value=False)
         mocker.patch(
             'src.video_processor.burn_subtitles', return_value='/app/clips/21_subtitled.mp4'
         )
-        mock_watermark = mocker.patch('src.video_processor.overlay_watermark')
+        mock_render = mocker.patch(
+            'src.video_processor.render_short_clip', return_value='/app/clips/21.mp4'
+        )
         mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/21.jpg')
         mocker.patch(
             'src.video_processor.generate_metadata',
@@ -562,10 +669,9 @@ class TestProcessClipWithWatermark:
         )
         mocker.patch('src.video_processor.os.replace')
         mocker.patch('src.video_processor.update_clip_metadata')
-        mock_rename = mocker.patch('src.video_processor.os.rename')
 
         result = process_clip(mock_db_conn, 21)
 
         assert result is True
-        mock_watermark.assert_not_called()
-        mock_rename.assert_called_once()
+        mock_render.assert_called_once()
+        assert mock_render.call_args.kwargs['watermark_path'] is None

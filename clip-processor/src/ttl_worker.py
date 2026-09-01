@@ -49,7 +49,8 @@ def run_ttl_once(conn=None, redis_client=None) -> dict:
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE generated_clips SET status='rejected' "
-                "WHERE status='pending' AND created_at < NOW() - (%s * INTERVAL '1 hour')",
+                "WHERE status='pending' AND youtube_video_id IS NULL "
+                "AND created_at < NOW() - (%s * INTERVAL '1 hour')",
                 (TTL_HOURS,),
             )
             expired_count = cur.rowcount
@@ -66,6 +67,7 @@ def run_ttl_once(conn=None, redis_client=None) -> dict:
             cur.execute(
                 'SELECT id, title FROM generated_clips '
                 "WHERE status='pending' "
+                'AND youtube_video_id IS NULL '
                 "AND created_at < NOW() - (%s * INTERVAL '1 hour') "
                 "AND created_at > NOW() - (%s * INTERVAL '1 hour')",
                 (WARN_HOURS, TTL_HOURS),

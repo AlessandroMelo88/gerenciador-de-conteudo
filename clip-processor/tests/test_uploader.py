@@ -7,7 +7,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.uploader import YouTubeUploader
+from src.uploader import PostUploadError, YouTubeUploader
+
+
+@pytest.fixture(autouse=True)
+def mock_media_contract_for_fake_files(monkeypatch):
+    """Os testes de API usam bytes falsos; o contrato real é coberto separadamente."""
+    monkeypatch.setattr(
+        'src.uploader.validate_short_media',
+        lambda path: {'duration': 30.0, 'width': 1080, 'height': 1920},
+    )
 
 
 def make_youtube_mock(video_id='yt_test_abc123'):
@@ -41,6 +50,25 @@ def make_uploader(token_file='/fake/token.json', video_id='yt_test_abc123'):
 
 
 class TestUploadClip:
+    def test_short_media_contract_runs_before_youtube_upload(self, tmp_path, mocker):
+        """Um arquivo fora do contrato é bloqueado antes de criar vídeo no YouTube."""
+        clip_file = tmp_path / 'clip.mp4'
+        clip_file.write_bytes(b'fake_mp4')
+        yt = make_youtube_mock('blocked_vid')
+        uploader = YouTubeUploader(token_file='/fake/token.json', service=yt)
+        mocker.patch('src.uploader.validate_short_media', side_effect=ValueError('mídia inválida'))
+
+        with pytest.raises(ValueError, match='mídia inválida'):
+            uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Short inválido',
+                    'format': 'curto',
+                }
+            )
+
+        yt.videos.return_value.insert.assert_not_called()
+
     def test_successful_upload_returns_video_id(self, tmp_path):
         """Upload bem-sucedido deve retornar o youtube_video_id."""
         clip_file = tmp_path / 'clip.mp4'
@@ -64,6 +92,192 @@ class TestUploadClip:
             )
 
         assert result == 'abc_vid_id'
+
+    def test_production_clip_uploads_official_caption_before_publication(
+        self, tmp_path, monkeypatch
+    ):
+        """Clips do pipeline devem publicar a faixa pt-BR revisada antes de ficarem públicos."""
+        clip_file = tmp_path / 'clip.mp4'
+        clip_file.write_bytes(b'fake_mp4')
+        srt_file = tmp_path / 'clip.srt'
+        srt_file.write_text(
+            '1\n00:00:00,000 --> 00:00:02,000\nSenior cansado\n',
+            encoding='utf-8',
+        )
+        monkeypatch.setenv('YOUTUBE_WAIT_FOR_HD', 'false')
+
+        yt = make_youtube_mock('caption_vid')
+        media_factory = MagicMock(side_effect=lambda path, **kwargs: {'path': path, **kwargs})
+        uploader = YouTubeUploader(
+            token_file='/fake/token.json',
+            service=yt,
+            media_upload_factory=media_factory,
+        )
+
+        result = uploader.upload_clip(
+            {
+                'clip_path': str(clip_file),
+                'title': 'Clip com legenda oficial',
+                'format': 'curto',
+            }
+        )
+
+        assert result == 'caption_vid'
+        insert_kwargs = yt.captions.return_value.insert.call_args.kwargs
+        assert insert_kwargs['part'] == 'snippet'
+        assert insert_kwargs['body']['snippet'] == {
+            'videoId': 'caption_vid',
+            'language': 'pt-BR',
+            'name': 'Português (Brasil) — Legenda revisada',
+            'isDraft': False,
+        }
+        assert insert_kwargs['sync'] is False
+        assert insert_kwargs['media_body']['path'] == str(srt_file)
+        assert (
+            yt.videos.return_value.insert.call_args.kwargs['body']['status']['privacyStatus']
+            == 'private'
+        )
+        assert (
+            yt.videos.return_value.update.call_args.kwargs['body']['status']['privacyStatus']
+            == 'public'
+        )
+
+    def test_production_clip_requires_srt_before_video_insert(self, tmp_path):
+        """Um clip de produção sem SRT não pode ser publicado sem legenda oficial."""
+        clip_file = tmp_path / 'clip.mp4'
+        clip_file.write_bytes(b'fake_mp4')
+        yt = make_youtube_mock('no_srt_vid')
+        uploader = YouTubeUploader(token_file='/fake/token.json', service=yt)
+
+        with pytest.raises(FileNotFoundError, match='Arquivo de legenda não encontrado'):
+            uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Clip sem SRT',
+                    'format': 'longo',
+                }
+            )
+
+        yt.videos.return_value.insert.assert_not_called()
+
+    def test_partial_upload_is_reused_after_caption_failure(self, tmp_path, monkeypatch):
+        """Falha na legenda salva o ID e uma retomada não cria vídeo duplicado."""
+        clip_file = tmp_path / 'clip.mp4'
+        clip_file.write_bytes(b'fake_mp4')
+        srt_file = tmp_path / 'clip.srt'
+        srt_file.write_text('1\n00:00:00,000 --> 00:00:01,000\nTexto\n', encoding='utf-8')
+        monkeypatch.setenv('YOUTUBE_WAIT_FOR_HD', 'false')
+
+        yt = make_youtube_mock('partial_vid')
+        yt.captions.return_value.insert.return_value.execute.side_effect = RuntimeError(
+            'caption scope missing'
+        )
+        media_factory = MagicMock(side_effect=lambda path, **kwargs: {'path': path, **kwargs})
+        uploader = YouTubeUploader(
+            token_file='/fake/token.json',
+            service=yt,
+            media_upload_factory=media_factory,
+        )
+        clip = {
+            'clip_path': str(clip_file),
+            'title': 'Clip parcial',
+            'format': 'curto',
+            'subtitle_path': str(srt_file),
+        }
+
+        with pytest.raises(PostUploadError) as error:
+            uploader.upload_clip(clip)
+        assert error.value.video_id == 'partial_vid'
+
+        yt.captions.return_value.insert.return_value.execute.side_effect = None
+        clip['youtube_video_id'] = error.value.video_id
+        assert uploader.upload_clip(clip) == 'partial_vid'
+        yt.videos.return_value.insert.assert_called_once()
+
+    def test_existing_caption_track_is_updated_on_retry(self, tmp_path, monkeypatch):
+        """Retry após 409 atualiza a mesma faixa em vez de criar uma segunda."""
+        import googleapiclient.errors
+
+        clip_file = tmp_path / 'clip.mp4'
+        clip_file.write_bytes(b'fake_mp4')
+        srt_file = tmp_path / 'clip.srt'
+        srt_file.write_text('1\n00:00:00,000 --> 00:00:01,000\nTexto novo\n', encoding='utf-8')
+        monkeypatch.setenv('YOUTUBE_WAIT_FOR_HD', 'false')
+
+        yt = make_youtube_mock('existing_caption_vid')
+        yt.captions.return_value.insert.return_value.execute.side_effect = (
+            googleapiclient.errors.HttpError(MagicMock(status=409), b'caption exists')
+        )
+        yt.captions.return_value.list.return_value.execute.return_value = {
+            'items': [
+                {
+                    'id': 'caption_track_01',
+                    'snippet': {
+                        'language': 'pt-BR',
+                        'name': 'Português (Brasil) — Legenda revisada',
+                    },
+                }
+            ]
+        }
+        media_factory = MagicMock(side_effect=lambda path, **kwargs: {'path': path, **kwargs})
+        uploader = YouTubeUploader(
+            token_file='/fake/token.json',
+            service=yt,
+            media_upload_factory=media_factory,
+        )
+
+        assert (
+            uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Retry de legenda',
+                    'format': 'curto',
+                    'subtitle_path': str(srt_file),
+                }
+            )
+            == 'existing_caption_vid'
+        )
+
+        update_kwargs = yt.captions.return_value.update.call_args.kwargs
+        assert update_kwargs['part'] == 'id'
+        assert update_kwargs['body'] == {'id': 'caption_track_01'}
+        assert update_kwargs['media_body']['path'] == str(srt_file)
+
+    def test_hd_processing_finishes_before_publication(self, tmp_path, monkeypatch):
+        """Vídeo de produção só muda para público após processingStatus=succeeded."""
+        clip_file = tmp_path / 'clip.mp4'
+        clip_file.write_bytes(b'fake_mp4')
+        srt_file = tmp_path / 'clip.srt'
+        srt_file.write_text('1\n00:00:00,000 --> 00:00:01,000\nTexto\n', encoding='utf-8')
+        monkeypatch.setenv('YOUTUBE_WAIT_FOR_HD', 'true')
+        monkeypatch.setenv('YOUTUBE_PROCESSING_TIMEOUT_SECONDS', '10')
+        monkeypatch.setenv('YOUTUBE_PROCESSING_POLL_SECONDS', '1')
+
+        yt = make_youtube_mock('hd_vid')
+        yt.videos.return_value.list.return_value.execute.side_effect = [
+            {'items': [{'processingDetails': {'processingStatus': 'processing'}}]},
+            {'items': [{'processingDetails': {'processingStatus': 'succeeded'}}]},
+        ]
+        uploader = YouTubeUploader(token_file='/fake/token.json', service=yt)
+
+        with patch('src.uploader.time.sleep'):
+            assert (
+                uploader.upload_clip(
+                    {
+                        'clip_path': str(clip_file),
+                        'title': 'Clip HD',
+                        'format': 'curto',
+                        'subtitle_path': str(srt_file),
+                    }
+                )
+                == 'hd_vid'
+            )
+
+        assert yt.videos.return_value.list.call_count == 2
+        assert (
+            yt.videos.return_value.update.call_args.kwargs['body']['status']['privacyStatus']
+            == 'public'
+        )
 
     def test_missing_clip_file_raises_file_not_found(self):
         """clip_path inexistente deve levantar FileNotFoundError antes da API."""

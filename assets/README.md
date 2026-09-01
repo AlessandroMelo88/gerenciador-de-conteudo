@@ -21,10 +21,10 @@ fallback. `intro_2.jpg` é mantido como uma variação opcional e não é escolh
 automaticamente.
 
 Para vídeos `longo`, o pipeline exige os três assets: intro, encerramento e uma
-faixa em `audio/`. A música é misturada somente no segmento de encerramento, em
-volume baixo, garantindo que um trecho da faixa apareça no fechamento sem cobrir
-a fala do conteúdo principal. As faixas são alternadas de forma determinística
-pelo id do clip.
+faixa em `audio/`. A música é misturada nos 15 segundos finais do vídeo composto:
+começa bem baixa, sobe durante 7 segundos e permanece no volume final nos 8
+segundos finais. O volume configurado recebe ganho de 20%, limitado a 100%. As
+faixas são alternadas de forma determinística pelo id do clip.
 
 Os arquivos de áudio desta pasta foram copiados de
 `/Users/sierra/Producao_Musical/02_Faixas`. A origem disponibiliza seis WAVs

@@ -6,8 +6,8 @@ Exporta:
   - save_transcript(conn, video_id, transcript) -> str
 
 Convenções:
-  - transcribe_video tenta primeiro as legendas em português já disponíveis no YouTube;
-    Groq só é usado quando nenhuma legenda utilizável é encontrada
+  - transcribe_video tenta primeiro as legendas manuais em português já disponíveis no YouTube;
+    faixas ASR automáticas são ignoradas e Groq é usado quando nenhuma faixa manual é encontrada
   - groq_client=None cria cliente de produção; injetado em testes (padrão do projeto)
   - db_conn=None: save_transcript recebe conn explícito — quem chama fecha a conexão
   - Logging via _log() com tag [AI]
@@ -17,6 +17,7 @@ import html
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 from datetime import datetime
@@ -31,6 +32,10 @@ VIDEOS_DIR = '/app/videos'
 YOUTUBE_CAPTION_LANGS = ('pt-BR', 'pt', 'pt.*')
 YOUTUBE_PLAYER_CLIENT_VERSION = '20.10.38'
 YOUTUBE_REQUEST_TIMEOUT_SECONDS = 20
+# Groq rejects uploads around 25 MB. Keep a generous margin because the
+# multipart request itself adds a small amount of overhead.
+GROQ_SAFE_FILE_BYTES = 20_000_000
+TRANSCRIPTION_CHUNK_SECONDS = 900
 # Chave pública do cliente do YouTube (não é um segredo). A página pode fornecer
 # uma chave atualizada; esta serve para o player continuar funcionando quando a
 # página de watch responder 429.
@@ -207,20 +212,23 @@ def _caption_language_rank(language_code: str) -> int | None:
 
 
 def _youtube_caption_tracks(player_response: dict) -> list[dict]:
-    """Seleciona faixas pt, priorizando publicação manual sobre ASR."""
+    """Seleciona somente faixas pt publicadas/manualizadas.
+
+    Faixas ``kind=asr`` são a transcrição automática do vídeo-fonte. Usá-las
+    como base cria um efeito cascata: um erro do ASR do youtuber vira texto
+    queimado e também legenda oficial no vídeo de destino. Quando não existe
+    uma faixa manual, ``transcribe_video`` usa o Whisper/Groq como fallback.
+    """
     captions = player_response.get('captions', {}).get('playerCaptionsTracklistRenderer', {})
     manual: list[tuple[int, dict]] = []
-    automatic: list[tuple[int, dict]] = []
     for track in captions.get('captionTracks', []):
         rank = _caption_language_rank(track.get('languageCode', ''))
         if rank is None or not track.get('baseUrl'):
             continue
-        target = automatic if track.get('kind') == 'asr' else manual
-        target.append((rank, track))
+        if track.get('kind') != 'asr':
+            manual.append((rank, track))
 
-    return [track for _rank, track in sorted(manual, key=lambda item: item[0])] + [
-        track for _rank, track in sorted(automatic, key=lambda item: item[0])
-    ]
+    return [track for _rank, track in sorted(manual, key=lambda item: item[0])]
 
 
 def _fetch_youtube_player_response(video_id: str, api_key: str) -> dict:
@@ -350,11 +358,9 @@ def _download_youtube_caption(video_id: str, automatic: bool) -> dict | None:
 
 
 def _download_youtube_transcript(video_id: str) -> dict | None:
-    """Prefere player oficial, depois legenda publicada e, por fim, automática."""
-    return (
-        _download_youtube_player_transcript(video_id)
-        or _download_youtube_caption(video_id, automatic=False)
-        or _download_youtube_caption(video_id, automatic=True)
+    """Busca legenda manual e nunca herda a legenda automática do vídeo-fonte."""
+    return _download_youtube_player_transcript(video_id) or _download_youtube_caption(
+        video_id, automatic=False
     )
 
 
@@ -380,7 +386,7 @@ def _prepare_audio(video_path: str) -> tuple[str, bool]:
             '-ac',
             '1',
             '-b:a',
-            '32k',
+            '16k',
             audio_path,
             '-y',
         ],
@@ -388,6 +394,52 @@ def _prepare_audio(video_path: str) -> tuple[str, bool]:
         capture_output=True,
     )
     return (audio_path, True)
+
+
+def _split_audio(audio_path: str, video_id: str) -> tuple[list[str], str | None]:
+    """Divide áudio grande em partes pequenas para respeitar o limite do Groq.
+
+    Retorna os caminhos dos pedaços e o diretório temporário que deve ser
+    removido pelo chamador. A codificação mono/16 kbit/s mantém os arquivos
+    pequenos sem prejudicar a transcrição de fala.
+    """
+    chunks_dir = tempfile.mkdtemp(prefix=f'.{video_id}_chunks-', dir=VIDEOS_DIR)
+    chunk_pattern = str(Path(chunks_dir) / 'chunk_%03d.mp3')
+    try:
+        subprocess.run(
+            [
+                'ffmpeg',
+                '-i',
+                audio_path,
+                '-map',
+                '0:a:0',
+                '-f',
+                'segment',
+                '-segment_time',
+                str(TRANSCRIPTION_CHUNK_SECONDS),
+                '-reset_timestamps',
+                '1',
+                '-ar',
+                '16000',
+                '-ac',
+                '1',
+                '-c:a',
+                'libmp3lame',
+                '-b:a',
+                '16k',
+                chunk_pattern,
+                '-y',
+            ],
+            check=True,
+            capture_output=True,
+        )
+        chunks = sorted(str(path) for path in Path(chunks_dir).glob('chunk_*.mp3'))
+        if not chunks:
+            raise RuntimeError('ffmpeg não gerou partes de áudio')
+        return chunks, chunks_dir
+    except Exception:
+        shutil.rmtree(chunks_dir, ignore_errors=True)
+        raise
 
 
 def transcribe_video(video_id: str, video_path: str, groq_client=None, db_conn=None) -> dict | None:
@@ -408,6 +460,7 @@ def transcribe_video(video_id: str, video_path: str, groq_client=None, db_conn=N
 
     audio_path = None
     should_delete_audio = False
+    chunks_dir = None
 
     try:
         if groq_client is None:
@@ -423,29 +476,59 @@ def transcribe_video(video_id: str, video_path: str, groq_client=None, db_conn=N
         else:
             file_to_transcribe = video_path
 
-        _log(f'Iniciando transcrição Groq Whisper para {video_id}')
-        with open(file_to_transcribe, 'rb') as f:
-            result = groq_client.audio.transcriptions.create(
-                file=f,
-                model='whisper-large-v3-turbo',
-                response_format='verbose_json',
-                timestamp_granularities=['segment'],
-                language='pt',
-                temperature=0.0,
-            )
-
         def _g(seg, key):
             return seg[key] if isinstance(seg, dict) else getattr(seg, key)
 
-        segments = [
-            {'start': _g(seg, 'start'), 'end': _g(seg, 'end'), 'text': _g(seg, 'text')}
-            for seg in result.segments
-        ]
+        transcription_files = [file_to_transcribe]
+        if (
+            file_to_transcribe == audio_path
+            and os.path.exists(file_to_transcribe)
+            and os.path.getsize(file_to_transcribe) > GROQ_SAFE_FILE_BYTES
+        ):
+            transcription_files, chunks_dir = _split_audio(audio_path, video_id)
+            _log(
+                f'Áudio de {video_id} excede {GROQ_SAFE_FILE_BYTES // 1_000_000}MB — '
+                f'dividido em {len(transcription_files)} partes'
+            )
+
+        all_segments = []
+        text_parts = []
+        for index, transcription_file in enumerate(transcription_files):
+            _log(
+                f'Iniciando transcrição Groq Whisper para {video_id}'
+                + (
+                    f' (parte {index + 1}/{len(transcription_files)})'
+                    if len(transcription_files) > 1
+                    else ''
+                )
+            )
+            with open(transcription_file, 'rb') as f:
+                result = groq_client.audio.transcriptions.create(
+                    file=f,
+                    model='whisper-large-v3-turbo',
+                    response_format='verbose_json',
+                    timestamp_granularities=['segment'],
+                    language='pt',
+                    temperature=0.0,
+                )
+
+            offset = index * TRANSCRIPTION_CHUNK_SECONDS if len(transcription_files) > 1 else 0
+            all_segments.extend(
+                {
+                    'start': _g(seg, 'start') + offset,
+                    'end': _g(seg, 'end') + offset,
+                    'text': _g(seg, 'text'),
+                }
+                for seg in result.segments
+            )
+            text_parts.append(result.text)
+
+        segments = all_segments
 
         _log(f'Transcrição concluída para {video_id}: {len(segments)} segmentos')
         return {
             'video_id': video_id,
-            'text': result.text,
+            'text': '\n'.join(text_parts),
             'segments': segments,
         }
 
@@ -458,6 +541,9 @@ def transcribe_video(video_id: str, video_path: str, groq_client=None, db_conn=N
         if should_delete_audio and audio_path and os.path.exists(audio_path):
             os.remove(audio_path)
             _log(f'Áudio temporário removido: {audio_path}')
+        if chunks_dir:
+            shutil.rmtree(chunks_dir, ignore_errors=True)
+            _log(f'Partes de áudio temporárias removidas: {chunks_dir}')
 
 
 def save_transcript(conn, video_id: str, transcript: dict) -> str:

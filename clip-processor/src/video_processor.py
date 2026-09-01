@@ -3,6 +3,7 @@ video_processor.py — Corte, legendas, thumbnail e processamento de clips.
 
 Exporta:
   - cut_clip(source_path, start_time, end_time, output_path) -> str
+  - render_short_clip(source_path, start_time, end_time, output_path, ...) -> str
   - generate_srt(transcript, start_time, end_time, srt_path) -> str
   - burn_subtitles(input_clip_path, srt_path, output_path, fmt='curto') -> str
   - extract_thumbnail(clip_path, thumbnail_path, at_seconds=None) -> str
@@ -23,10 +24,14 @@ import tempfile
 from datetime import datetime
 
 from src.media_assets import resolve_media_assets
-from src.media_composer import compose_media
+from src.media_composer import compose_media, content_start_offset
+from src.media_contract import SHORTS_DURATION_SECONDS, SHORTS_DURATION_TOLERANCE_SECONDS
 from src.metadata_generator import generate_metadata, generate_thumbnail_text, update_clip_metadata
+from src.prompt_profiles import PROMPT_PROFILE_SQL_COLUMNS, profile_from_row, profile_matches_niche
 from src.related_video import related_video_from_clip
-from src.selector import complete_moment_boundaries
+from src.selector import complete_moment_boundaries, normalize_shortform_moment
+from src.subtitle_detector import has_burned_subtitles
+from src.video_quality import AUDIO_ENCODER_OPTIONS, VIDEO_ENCODER_OPTIONS
 
 VIDEOS_DIR = '/app/videos'
 CLIPS_DIR = '/app/videos/clips'
@@ -44,6 +49,17 @@ SHORTS_VERTICAL_FILTER = (
     '[fg]scale=1080:1920:force_original_aspect_ratio=decrease,setsar=1[fgfit];'
     '[bgblur][fgfit]overlay=(W-w)/2:(H-h)/2:format=auto,setsar=1,format=yuv420p[v]'
 )
+
+
+def _subtitle_filter(srt_path: str) -> str:
+    return (
+        f'subtitles={srt_path}:'
+        "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=38,"
+        'PlayResX=1080,PlayResY=1920,'
+        'PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,'
+        'BackColour=&H60000000,'
+        "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=180'"
+    )
 
 
 def _log(msg: str) -> None:
@@ -89,16 +105,8 @@ def cut_clip(
             '-i',
             source_path,
             *video_args,
-            '-c:v',
-            'libx264',
-            '-preset',
-            'veryfast',
-            '-crf',
-            '23',
-            '-c:a',
-            'aac',
-            '-b:a',
-            '128k',
+            *VIDEO_ENCODER_OPTIONS,
+            *AUDIO_ENCODER_OPTIONS,
             *audio_args,
             '-shortest',
             '-movflags',
@@ -112,8 +120,89 @@ def cut_clip(
     return output_path
 
 
-def generate_srt(transcript: dict, start_time: float, end_time: float, srt_path: str) -> str:
-    """Gera arquivo SRT relativo ao início do clip a partir dos segmentos Whisper."""
+def render_short_clip(
+    source_path: str,
+    start_time: float,
+    end_time: float,
+    output_path: str,
+    subtitle_path: str | None = None,
+    watermark_path: str | None = None,
+) -> str:
+    """Renderiza um Short completo em uma única recodificação de vídeo.
+
+    Cortar, queimar legenda e aplicar watermark em chamadas FFmpeg separadas
+    acumulava perdas de qualidade. Esta função compõe todas as camadas no mesmo
+    filtro e limita a saída a exatamente 30 segundos em 1080x1920.
+    """
+    duration = float(end_time) - float(start_time)
+    if abs(duration - SHORTS_DURATION_SECONDS) > SHORTS_DURATION_TOLERANCE_SECONDS:
+        raise ValueError(f'Short precisa ser renderizado com 30s, recebeu {duration:.2f}s')
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    filter_graph = SHORTS_VERTICAL_FILTER.replace('[v]', '[short_base]')
+    current_label = '[short_base]'
+    if subtitle_path:
+        filter_graph += f';{current_label}{_subtitle_filter(subtitle_path)}[short_captioned]'
+        current_label = '[short_captioned]'
+
+    effective_watermark_path = (
+        watermark_path if watermark_path and os.path.exists(watermark_path) else None
+    )
+    if effective_watermark_path:
+        filter_graph += (
+            ';[1:v]format=rgba[short_watermark];'
+            f'{current_label}[short_watermark]'
+            'overlay=W-w-20:20:eof_action=repeat:format=auto[short_final]'
+        )
+        output_label = '[short_final]'
+    else:
+        output_label = current_label
+        if watermark_path:
+            _log(f'[WATERMARK] Arquivo não encontrado: {watermark_path} — pulo overlay')
+
+    fade_out_start = SHORTS_DURATION_SECONDS - 0.20
+    afade_filter = f'afade=t=in:ss=0:d=0.08,afade=t=out:st={fade_out_start:.2f}:d=0.20'
+    command = [
+        'ffmpeg',
+        '-ss',
+        str(start_time),
+        '-i',
+        source_path,
+    ]
+    if effective_watermark_path:
+        command.extend(['-loop', '1', '-i', effective_watermark_path])
+    command.extend(
+        [
+            '-t',
+            f'{SHORTS_DURATION_SECONDS:.2f}',
+            '-filter_complex',
+            filter_graph,
+            '-map',
+            output_label,
+            '-map',
+            '0:a?',
+            *VIDEO_ENCODER_OPTIONS,
+            *AUDIO_ENCODER_OPTIONS,
+            '-af',
+            afade_filter,
+            '-movflags',
+            '+faststart',
+            output_path,
+            '-y',
+        ]
+    )
+    subprocess.run(command, check=True, capture_output=True)
+    return output_path
+
+
+def generate_srt(
+    transcript: dict,
+    start_time: float,
+    end_time: float,
+    srt_path: str,
+    time_offset: float = 0.0,
+) -> str:
+    """Gera SRT relativo ao clip, com offset opcional da composição final."""
     os.makedirs(os.path.dirname(srt_path), exist_ok=True)
     cues = []
 
@@ -130,7 +219,7 @@ def generate_srt(transcript: dict, start_time: float, end_time: float, srt_path:
         text = str(seg.get('text', '')).strip()
         if not text or cue_end <= cue_start:
             continue
-        cues.append((cue_start, cue_end, text))
+        cues.append((cue_start + time_offset, cue_end + time_offset, text))
 
     with open(srt_path, 'w', encoding='utf-8') as f:
         for index, (cue_start, cue_end, text) in enumerate(cues, start=1):
@@ -161,27 +250,14 @@ def burn_subtitles(
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    subtitle_filter = (
-        f'subtitles={srt_path}:'
-        "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=38,"
-        'PlayResX=1080,PlayResY=1920,'
-        'PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,'
-        'BackColour=&H60000000,'
-        "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=180'"
-    )
     subprocess.run(
         [
             'ffmpeg',
             '-i',
             input_clip_path,
             '-vf',
-            subtitle_filter,
-            '-c:v',
-            'libx264',
-            '-preset',
-            'veryfast',
-            '-crf',
-            '23',
+            _subtitle_filter(srt_path),
+            *VIDEO_ENCODER_OPTIONS,
             '-c:a',
             'copy',
             output_path,
@@ -314,12 +390,7 @@ def overlay_watermark(input_path: str, watermark_path: str, output_path: str) ->
             watermark_path,  # [1] = PNG watermark
             '-filter_complex',
             'overlay=W-w-20:20',  # canto sup direito, margem 20px
-            '-c:v',
-            'libx264',
-            '-preset',
-            'veryfast',
-            '-crf',
-            '23',
+            *VIDEO_ENCODER_OPTIONS,
             '-c:a',
             'copy',
             output_path,
@@ -334,24 +405,67 @@ def overlay_watermark(input_path: str, watermark_path: str, output_path: str) ->
 def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
     """Processa um registro de generated_clips com status pending_cut.
 
-    Pipeline de Shorts: cut → generate_srt → burn_subtitles → watermark → mídia →
-    metadata → thumbnail com chamada. Pipeline longo: cut → watermark → intro +
-    conteúdo + encerramento com trecho musical → metadata → thumbnail com chamada;
-    vídeos longos não recebem SRT nem legendas queimadas.
+    Pipeline de Shorts: render único (quadro vertical + legenda + watermark) →
+    metadata → thumbnail com chamada. Shorts são verticais e não recebem intro,
+    encerramento ou música. Pipeline longo: cut → generate_srt → watermark →
+    intro + conteúdo + encerramento com trecho musical → metadata → thumbnail
+    com chamada. Vídeos longos recebem o SRT para publicação como legenda
+    oficial, mas não têm a legenda queimada no quadro. Em Shorts cujo vídeo fonte
+    já traz legenda gravada, burn_subtitles é pulado: o clip sai só com a legenda
+    que já vinha do vídeo original, mais o SRT como legenda oficial.
     """
     try:
+        # Trava atômica: garante que apenas um worker processe o clip em pending_cut
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE generated_clips SET status = 'cutting' WHERE id = %s AND status = 'pending_cut'",
+                (clip_id,),
+            )
+            if cur.rowcount == 0:
+                _log(
+                    f'Clip {clip_id} já está em processamento ou não está em pending_cut — pulando'
+                )
+                return False
+        conn.commit()
+
         clip = _fetch_clip(conn, clip_id)
         if clip is None:
             _log(f'Clip {clip_id} não encontrado')
             return False
 
-        _update_clip_status(conn, clip_id, 'cutting')
+        transcript_path = clip.get('transcript_path')
+        local_path = clip.get('local_path')
 
-        with open(clip['transcript_path'], encoding='utf-8') as f:
+        if not transcript_path:
+            err = f'Clip {clip_id} sem transcript_path cadastrado'
+            _log(err)
+            _update_clip_failure(conn, clip_id, err)
+            return False
+
+        if not local_path:
+            err = f'Clip {clip_id} sem local_path cadastrado'
+            _log(err)
+            _update_clip_failure(conn, clip_id, err)
+            return False
+
+        if clip.get('start_time') is None or clip.get('end_time') is None:
+            err = f'Clip {clip_id} com start_time ou end_time nulos'
+            _log(err)
+            _update_clip_failure(conn, clip_id, err)
+            return False
+
+        if float(clip['end_time']) <= float(clip['start_time']):
+            err = f'Clip {clip_id} com end_time ({clip["end_time"]}) <= start_time ({clip["start_time"]})'
+            _log(err)
+            _update_clip_failure(conn, clip_id, err)
+            return False
+
+        with open(transcript_path, encoding='utf-8') as f:
             transcript = json.load(f)
 
         # Proteção adicional para clips inseridos antes do ajuste do selector
         # ou criados manualmente: nunca entregar ao FFmpeg um fim no meio da fala.
+        video_format = clip.get('format') or 'curto'
         adjusted_timing = complete_moment_boundaries(
             [
                 {
@@ -361,6 +475,18 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             ],
             transcript.get('segments', []),
         )[0]
+        if video_format == 'curto':
+            transcript_duration = max(
+                (float(segment.get('end', 0)) for segment in transcript.get('segments', [])),
+                default=0.0,
+            )
+            normalized_timing = normalize_shortform_moment(
+                adjusted_timing,
+                transcript_duration=transcript_duration or None,
+            )
+            if normalized_timing is None:
+                raise ValueError(f'Clip curto {clip_id} não possui uma janela válida de 30s')
+            adjusted_timing = normalized_timing
         if (
             adjusted_timing['start_time'] != clip['start_time']
             or adjusted_timing['end_time'] != clip['end_time']
@@ -376,62 +502,79 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
 
         raw_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}_raw.mp4')
         srt_path = os.path.join(CLIPS_DIR, f'{clip_id}.srt')
-        subtitled_path = os.path.join(CLIPS_DIR, f'{clip_id}_subtitled.mp4')
         final_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}.mp4')
         thumbnail_path = os.path.join(THUMBNAILS_DIR, f'{clip_id}.jpg')
-        video_format = clip.get('format') or 'curto'
-
-        cut_clip(
-            clip['local_path'],
-            clip['start_time'],
-            clip['end_time'],
-            raw_clip_path,
-            fmt=video_format,
-        )
-
         if video_format == 'curto':
+            # No Shorts a faixa acompanha o clip sem composição adicional e
+            # também é queimada no quadro — exceto quando o próprio vídeo fonte
+            # já traz a legenda gravada, caso em que queimar de novo deixaria
+            # dois textos na tela. O SRT continua sendo gerado nos dois casos
+            # porque a legenda oficial do YouTube vem dele.
             generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
-            processed_clip_path = burn_subtitles(raw_clip_path, srt_path, subtitled_path)
+            source_has_burned_subtitles = has_burned_subtitles(
+                clip['local_path'], transcript, clip['start_time'], clip['end_time']
+            )
+            if source_has_burned_subtitles:
+                _log(
+                    f'Clip {clip_id}: fonte já tem legenda queimada — mantendo só a legenda oficial'
+                )
+            watermark_path = None
+            if clip.get('destination_channel_slug'):
+                watermark_path = f'/app/branding/watermark-{clip["destination_channel_slug"]}.png'
+            render_short_clip(
+                clip['local_path'],
+                clip['start_time'],
+                clip['end_time'],
+                final_clip_path,
+                subtitle_path=None if source_has_burned_subtitles else srt_path,
+                watermark_path=watermark_path,
+            )
         else:
-            _log(f'Clip {clip_id} longo: legendas desativadas')
+            cut_clip(
+                clip['local_path'],
+                clip['start_time'],
+                clip['end_time'],
+                raw_clip_path,
+                fmt=video_format,
+            )
+            _log('Clip longo: SRT será alinhado após a composição da intro')
             processed_clip_path = raw_clip_path
 
-        # Aplicar watermark se canal-destino tem slug configurado
-        slug = clip.get('destination_channel_slug')
-        if slug:
-            watermark_path = f'/app/branding/watermark-{slug}.png'
-            # overlay_watermark retorna o input se o arquivo não existir (graceful)
-            result_path = overlay_watermark(processed_clip_path, watermark_path, final_clip_path)
-            if result_path == processed_clip_path:
-                # Watermark ausente: renomear para path final
-                os.rename(processed_clip_path, final_clip_path)
-            else:
-                # Watermark aplicado: remover intermediário
-                if os.path.exists(processed_clip_path):
+            # Aplicar watermark ao vídeo longo, que não participa do render
+            # único dos Shorts.
+            slug = clip.get('destination_channel_slug')
+            if slug:
+                watermark_path = f'/app/branding/watermark-{slug}.png'
+                result_path = overlay_watermark(
+                    processed_clip_path, watermark_path, final_clip_path
+                )
+                if result_path == processed_clip_path:
+                    os.rename(processed_clip_path, final_clip_path)
+                elif os.path.exists(processed_clip_path):
                     os.remove(processed_clip_path)
-        else:
-            # Sem canal-destino: renomear o resultado de pós-produção para o final
-            os.rename(processed_clip_path, final_clip_path)
-
-        # Assets visuais vêm de assets/channels/<canal> e a música de assets/audio.
-        # O banco de media_assets continua sendo fallback para instalações antigas.
-        channel_slug = clip.get('destination_channel_slug') or clip.get('source_niche')
-        media_assets = resolve_media_assets(
-            conn,
-            destination_channel_id=clip.get('destination_channel_id'),
-            video_format=video_format,
-            clip_id=clip_id,
-            channel_slug=channel_slug,
-        )
-
-        # O encerramento tem uma área reservada para o próximo vídeo. A escolha
-        # prioriza outro vídeo publicado no canal-destino e cai no vídeo fonte
-        # quando ainda não há histórico próprio.
-        related_video = related_video_from_clip(clip)
-        if related_video and 'outro' in media_assets:
-            media_assets['related_video'] = related_video
+            else:
+                os.rename(processed_clip_path, final_clip_path)
 
         if video_format == 'longo':
+            # Assets visuais vêm de assets/channels/<canal> e a música de
+            # assets/audio. O banco de media_assets continua sendo fallback
+            # para instalações antigas. Shorts não passam por esta etapa.
+            channel_slug = clip.get('destination_channel_slug') or clip.get('source_niche')
+            media_assets = resolve_media_assets(
+                conn,
+                destination_channel_id=clip.get('destination_channel_id'),
+                video_format=video_format,
+                clip_id=clip_id,
+                channel_slug=channel_slug,
+            )
+
+            # O encerramento tem uma área reservada para o próximo vídeo. A
+            # escolha prioriza outro vídeo publicado no canal-destino e cai no
+            # vídeo fonte quando ainda não há histórico próprio.
+            related_video = related_video_from_clip(clip)
+            if related_video and 'outro' in media_assets:
+                media_assets['related_video'] = related_video
+
             missing_assets = [kind for kind in REQUIRED_LONGFORM_ASSETS if kind not in media_assets]
             if missing_assets:
                 missing = ', '.join(missing_assets)
@@ -440,23 +583,36 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
                     'Configure assets/channels/<canal> e assets/audio.'
                 )
 
-        if media_assets:
-            branded_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}_branded.mp4')
-            try:
-                composed_path = compose_media(
-                    final_clip_path,
-                    branded_clip_path,
-                    video_format,
-                    media_assets,
-                )
-                if composed_path != final_clip_path:
-                    os.replace(composed_path, final_clip_path)
-            except Exception as exc:
-                _log(f'Clip {clip_id}: mídia configurada não aplicada — {exc}')
-                if os.path.exists(branded_clip_path):
-                    os.remove(branded_clip_path)
-                if video_format == 'longo':
+            if media_assets:
+                branded_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}_branded.mp4')
+                try:
+                    composed_path = compose_media(
+                        final_clip_path,
+                        branded_clip_path,
+                        video_format,
+                        media_assets,
+                    )
+                    if composed_path != final_clip_path:
+                        os.replace(composed_path, final_clip_path)
+                except Exception as exc:
+                    _log(f'Clip {clip_id}: mídia configurada não aplicada — {exc}')
+                    if os.path.exists(branded_clip_path):
+                        os.remove(branded_clip_path)
                     raise
+
+            # Intro/outro e crossfade alteram a linha do tempo do conteúdo.
+            # Só gerar o SRT depois da composição garante que a legenda oficial
+            # acompanhe a fala na posição correta do vídeo final.
+            generate_srt(
+                transcript,
+                clip['start_time'],
+                clip['end_time'],
+                srt_path,
+                time_offset=content_start_offset(
+                    media_assets,
+                    clip['end_time'] - clip['start_time'],
+                ),
+            )
 
         clip_context = _build_clip_context(clip, transcript)
         metadata = generate_metadata(clip_context, anthropic_client=anthropic_client)
@@ -486,7 +642,7 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
     except Exception as exc:
         _log(f'Erro ao processar clip {clip_id}: {exc}')
         try:
-            _update_clip_status(conn, clip_id, 'failed')
+            _update_clip_failure(conn, clip_id, str(exc))
         except Exception:
             pass
         return False
@@ -499,7 +655,7 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
             'gc.id, gc.source_video_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
             'sv.youtube_video_id AS source_youtube_video_id, sv.title AS source_title, '
             'sv.local_path, sv.transcript_path, sv.format, '
-            'sc.target_niche AS source_niche, '
+            'sc.target_niche AS source_niche, ' + PROMPT_PROFILE_SQL_COLUMNS + ', '
             'dc.id AS destination_channel_id, dc.slug AS destination_channel_slug, '
             'dc.niche AS destination_niche, '
             '(SELECT rgc.youtube_video_id FROM generated_clips rgc '
@@ -520,6 +676,9 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
             'LEFT JOIN destination_channels dc ON dc.id = gc.destination_channel_id '
+            'LEFT JOIN prompt_profiles pp '
+            'ON pp.id = COALESCE(dc.prompt_profile_id, sc.prompt_profile_id) '
+            'AND pp.active = TRUE '
             'WHERE gc.id = %s',
             (clip_id,),
         )
@@ -535,6 +694,16 @@ def _update_clip_status(conn, clip_id: int, status: str) -> None:
     conn.commit()
 
 
+def _update_clip_failure(conn, clip_id: int, error: str) -> None:
+    """Marca a falha do corte e persiste o motivo para diagnóstico no painel."""
+    with conn.cursor() as cur:
+        cur.execute(
+            'UPDATE generated_clips SET status=%s, upload_error=%s WHERE id=%s',
+            ('failed', error[:2000], clip_id),
+        )
+    conn.commit()
+
+
 def _build_clip_context(clip: dict, transcript: dict) -> dict:
     start_time = float(clip['start_time'])
     end_time = float(clip['end_time'])
@@ -545,6 +714,11 @@ def _build_clip_context(clip: dict, transcript: dict) -> dict:
         if seg_end > start_time and seg_start < end_time:
             excerpt_lines.append(str(seg.get('text', '')).strip())
 
+    niche = clip.get('destination_niche') or clip.get('target_niche') or ''
+    prompt_profile = profile_from_row(clip)
+    if prompt_profile and not profile_matches_niche(prompt_profile, niche):
+        prompt_profile = None
+
     return {
         'source_title': clip.get('source_title') or '',
         'reason': clip.get('reason') or '',
@@ -552,7 +726,8 @@ def _build_clip_context(clip: dict, transcript: dict) -> dict:
         'start_time': start_time,
         'end_time': end_time,
         'format': clip.get('format') or 'curto',
-        'niche': clip.get('destination_niche') or clip.get('target_niche') or '',
+        'niche': niche,
+        'prompt_profile': prompt_profile,
         'transcript_excerpt': ' '.join(line for line in excerpt_lines if line),
     }
 

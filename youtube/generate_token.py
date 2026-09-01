@@ -27,7 +27,7 @@ except ImportError:
 
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
-    "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/youtube.force-ssl",
 ]
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))

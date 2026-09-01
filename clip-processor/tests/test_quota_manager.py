@@ -65,11 +65,11 @@ class TestCanUpload:
         assert qm.can_upload(now=dt_sp(20, 0)) is True
 
     def test_env_value_above_ceiling_is_clamped(self, monkeypatch):
-        """MAX_UPLOADS_PER_DAY > 6 deve ser reduzido para 6."""
+        """MAX_UPLOADS_PER_DAY do env é respeitado até ABSOLUTE_MAX_UPLOADS_PER_DAY."""
         monkeypatch.setenv('MAX_UPLOADS_PER_DAY', '100')
         r = make_redis(count=0)
         qm = QuotaManager(r)  # lê do env
-        assert qm._max == 6
+        assert qm._max == 100
 
     def test_default_max_is_two(self, monkeypatch):
         """Sem env, default é 2."""

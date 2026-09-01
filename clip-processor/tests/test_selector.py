@@ -10,11 +10,12 @@ from unittest.mock import MagicMock
 from src.selector import (
     HACKER_LIBERTARIO_LONG_PROMPT,
     HACKER_LIBERTARIO_PROMPT,
-    LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS,
     LONG_SYSTEM_PROMPT,
+    LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS,
     SYSTEM_PROMPT,
     complete_moment_boundaries,
     expand_longform_context,
+    get_system_prompt,
     insert_selected_moments,
     select_moments,
 )
@@ -37,6 +38,54 @@ SAMPLE_MOMENTS = [
 
 
 class TestSelectMoments:
+    def test_database_profile_takes_precedence_over_niche_fallback(self):
+        mock_anthropic = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'moments': [
+                            {
+                                'start_time': 0.0,
+                                'end_time': 60.0,
+                                'score': 9,
+                                'reason': 'Insight técnico',
+                            }
+                        ]
+                    }
+                )
+            )
+        ]
+        mock_anthropic.messages.create.return_value = mock_response
+
+        select_moments(
+            SAMPLE_TRANSCRIPT,
+            anthropic_client=mock_anthropic,
+            niche='futebol',
+            prompt_profile={
+                'slug': 'conteudo-inteligencia',
+                'selection_short_prompt': 'PERFIL DE INTELIGÊNCIA: priorize tecnologia.',
+            },
+        )
+
+        system_prompt = mock_anthropic.messages.create.call_args.kwargs['system']
+        assert 'PERFIL DE INTELIGÊNCIA' in system_prompt
+        assert 'vídeos de futebol brasileiro' not in system_prompt
+
+    def test_long_selection_uses_long_prompt_field(self):
+        system_prompt = get_system_prompt(
+            fmt='longo',
+            niche='futebol',
+            prompt_profile={
+                'selection_short_prompt': 'PROMPT CURTO',
+                'selection_long_prompt': 'PROMPT LONGO DO PERFIL',
+            },
+        )
+
+        assert 'PROMPT LONGO DO PERFIL' in system_prompt
+        assert 'PROMPT CURTO' not in system_prompt
+
     def test_longform_groq_budget_stays_within_free_tier(self, monkeypatch):
         """O seletor longo não deve pedir uma resposta que estoure o TPM do Groq."""
         captured = {}
@@ -215,10 +264,43 @@ class TestSelectMoments:
 
         assert len(result) == 1
         assert result[0]['start_time'] == 100.0
-        assert result[0]['end_time'] == 140.0
+        assert result[0]['end_time'] == 130.0
 
-    def test_end_time_is_completed_to_nearby_transcript_boundary(self, sample_video_id):
-        """Não corta a última palavra quando a IA arredonda o fim da fala para baixo."""
+    def test_shortform_is_normalized_to_exactly_30s(self):
+        mock_anthropic = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'moments': [
+                            {
+                                'start_time': 115.0,
+                                'end_time': 165.0,
+                                'score': 9,
+                                'reason': 'Explicação completa',
+                            }
+                        ]
+                    }
+                )
+            )
+        ]
+        mock_anthropic.messages.create.return_value = mock_response
+
+        result = select_moments(
+            {
+                'segments': [{'start': 0.0, 'end': 240.0, 'text': 'Explicação'}],
+            },
+            anthropic_client=mock_anthropic,
+            fmt='curto',
+        )
+
+        assert len(result) == 1
+        assert result[0]['start_time'] == 115.0
+        assert result[0]['end_time'] == 145.0
+
+    def test_shortform_normalizes_after_completing_transcript_boundary(self, sample_video_id):
+        """A borda é completada e o Short final continua com 30s exatos."""
         mock_anthropic = MagicMock()
         mock_response = MagicMock()
         mock_response.content = [
@@ -247,10 +329,10 @@ class TestSelectMoments:
         result = select_moments(transcript, anthropic_client=mock_anthropic)
 
         assert len(result) == 1
-        assert result[0]['end_time'] == 44.96
+        assert result[0]['end_time'] - result[0]['start_time'] == 30.0
 
-    def test_end_time_snaps_back_when_cut_enters_new_phrase(self, sample_video_id):
-        """Se o end_time pegar apenas 1-2s do início de uma nova frase, recua para o fim da anterior."""
+    def test_shortform_keeps_exact_duration_after_boundary_adjustment(self, sample_video_id):
+        """Mesmo após ajustar uma frase vizinha, a saída curta fica em 30s."""
         mock_anthropic = MagicMock()
         mock_response = MagicMock()
         mock_response.content = [
@@ -286,7 +368,19 @@ class TestSelectMoments:
         result = select_moments(transcript, anthropic_client=mock_anthropic)
 
         assert len(result) == 1
-        assert result[0]['end_time'] == 578.08
+        assert result[0]['end_time'] - result[0]['start_time'] == 30.0
+
+    def test_end_time_snaps_to_segment_end_when_cut_is_inside_a_phrase(self):
+        """Um fim no meio do bloco não pode truncar a última frase."""
+        moments = [{'start_time': 100.0, 'end_time': 106.0, 'score': 9}]
+        transcript_segments = [
+            {'start': 100.0, 'end': 110.0, 'text': 'A explicação continua até o fim.'},
+        ]
+
+        result = complete_moment_boundaries(moments, transcript_segments)
+
+        assert result[0]['start_time'] == 100.0
+        assert result[0]['end_time'] == 110.0
 
     def test_end_time_continues_past_incomplete_transcript_block(self):
         """Uma oração que termina em vírgula avança até a continuação completa."""
@@ -538,6 +632,25 @@ class TestInsertMomentsDestinationChannel:
         assert 42 in params, (
             f'destination_channel_id=42 deve estar nos params do INSERT. Params: {params}'
         )
+
+    def test_destination_must_use_the_source_prompt_profile(self, mock_db_conn):
+        moments = [{'start_time': 0.0, 'end_time': 360.0, 'score': 8, 'reason': 'Insight'}]
+
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.side_effect = [
+            {'target_niche': 'futebol', 'prompt_profile_id': 9},
+            {'id': 42},
+        ]
+
+        assert insert_selected_moments(mock_db_conn, 5, 'abc123', moments) == 1
+
+        destination_lookup = next(
+            call
+            for call in cursor.execute.call_args_list
+            if 'SELECT id FROM destination_channels' in str(call.args[0])
+        )
+        assert 'prompt_profile_id = %s' in destination_lookup.args[0]
+        assert destination_lookup.args[1] == (9,)
 
     def test_destination_channel_id_null_when_niche_is_null(self, mock_db_conn):
         """MCAN-02: Quando target_niche é NULL, destination_channel_id fica NULL (sem erro)."""

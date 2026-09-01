@@ -151,6 +151,7 @@ services:
       REDIS_PORT: 6379
       ASSETS_DIR: ${ASSETS_DIR:-/app/assets}
       PIPELINE_ENABLED: ${PIPELINE_ENABLED:-true}
+      BURNED_SUBTITLE_DETECTION: ${BURNED_SUBTITLE_DETECTION:-true}
       YOUTUBE_CLIENT_SECRETS: ${YOUTUBE_CLIENT_SECRETS:-/app/youtube/client_secret.json}
       LARAVEL_NOTIFY_URL: http://nginx/internal/pipeline-event
       LARAVEL_HOST_HEADER: canaldecortes.local
@@ -162,6 +163,7 @@ services:
       nginx:
         condition: service_started
     volumes:
+      - ./clip-processor/src:/app/src
       - ./videos:/app/videos
       - ./assets:/app/assets:ro
       - ./branding:/app/branding:ro

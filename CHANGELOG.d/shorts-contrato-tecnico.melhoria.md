@@ -1,0 +1,1 @@
+**Shorts com contrato técnico** — o canal Hacker Libertário gera vídeos verticais 9:16 de exatamente 30 segundos em um único render com qualidade uniforme; `ffprobe` bloqueia qualquer arquivo fora do contrato antes do upload e os locks cobrem encodes lentos sem concorrência entre rodadas

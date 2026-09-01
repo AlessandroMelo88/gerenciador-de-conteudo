@@ -1,249 +1,133 @@
 # Publicação no YouTube
 
-Quem decide *o que* publicar, *quando* e *para onde*. Cobre `publisher.py`, `quota_manager.py`,
-`uploader.py`, `youtube_oauth.py` e `ttl_worker.py`.
+> Tipo: referência as-built · Atualizado: 2026-08-27
+> Fontes: `publisher.py`, `quota_manager.py`, `uploader.py` e
+> `youtube_oauth.py`
 
-Verificado no código em **26/08/2026**.
+## Elegibilidade
 
----
+O publisher seleciona somente clips com `clip_path` e `title`:
 
-## Quem é publicável
-
-`_publishable_status()` ([`publisher.py:21`](../clip-processor/src/publisher.py#L21)):
-
-| `MANUAL_APPROVAL_REQUIRED` | Status publicável | Efeito |
-|---|---|---|
-| `true` | `approved` | exige aprovação do operador no painel |
-| qualquer outro (default `false`) | `pending` | publica direto, sem revisão humana |
-
-`approved` **nunca é escrito pelo Python** — vem exclusivamente do painel. Com
-`MANUAL_APPROVAL_REQUIRED=false` a fila de aprovação do painel fica vazia porque nada para em
-`pending` por muito tempo.
-
-Além do status, o clip precisa ter `clip_path IS NOT NULL` e `title IS NOT NULL`
-([`publisher.py:121-122`](../clip-processor/src/publisher.py#L121)).
-
----
-
-## Roteamento fonte → destino
-
-Por **nicho**: `source_channels.target_niche` casa com `destination_channels.niche`. A resolução
-acontece na seleção de momentos (`_lookup_destination_channel_id`,
-[`selector.py:269`](../clip-processor/src/selector.py#L269)) e o resultado fica gravado em
-`generated_clips.destination_channel_id`.
-
-`publish_pending_clips` ([`publisher.py:33`](../clip-processor/src/publisher.py#L33)) itera os canais
-de `destination_channels WHERE active = TRUE` ([`:89`](../clip-processor/src/publisher.py#L89)) e, para
-cada um, instancia `QuotaManager` e `YouTubeUploader` **independentes** — cota é por canal-destino.
-
-### Fallback legado
-
-Se `destination_channels` não tiver nenhum canal ativo, cai num caminho legado
-([`publisher.py:53-57`](../clip-processor/src/publisher.py#L53)) que usa um único uploader/quota e
-busca clips sem filtrar por destino (`_fetch_pending_clips`,
-[`:238`](../clip-processor/src/publisher.py#L238)). Nesse modo o token OAuth vem de
-`YOUTUBE_TOKEN_FILE` / `/app/token.json`, não de `token-<slug>.json`.
-
----
-
-## Ordem da fila: round-robin por canal fonte
-
-`_fetch_pending_clips_for_channel` ([`publisher.py:99`](../clip-processor/src/publisher.py#L99)) busca
-em `created_at ASC` e depois passa por `_round_robin_by_source_channel`
-([`:130`](../clip-processor/src/publisher.py#L130)), que intercala por `source_channels.id`
-preservando a ordem relativa dentro de cada canal.
-
-Por que existe: uma leva represada — dezenas de vídeos presos em `selecting` por semanas que
-destravam de uma vez — furaria a fila FIFO e monopolizaria a cota diária por dias, enquanto canais com
-volume menor ficam represados atrás. Com round-robin, nenhum canal fonte publica dois clips seguidos
-enquanto houver clip pendente de outro canal.
-
----
-
-## Cota diária e janela horária
-
-[`quota_manager.py`](../clip-processor/src/quota_manager.py). Contadores no **Redis**, data em
-`America/Sao_Paulo`, TTL até a meia-noite local (`_seconds_until_next_midnight`,
-[`:136`](../clip-processor/src/quota_manager.py#L136)).
-
-| Chave Redis | Conteúdo |
+| Configuração | Status publicável |
 |---|---|
-| `youtube_uploads:<channel_id>:<YYYY-MM-DD>` | total do dia naquele canal-destino |
-| `youtube_uploads:<channel_id>:<YYYY-MM-DD>:longo` | quantos `longo` no dia |
-| `youtube_uploads:<YYYY-MM-DD>` | total do dia quando não há `channel_id` (fallback legado) |
+| `MANUAL_APPROVAL_REQUIRED=false` (padrão) | `pending` |
+| `MANUAL_APPROVAL_REQUIRED=true` | `approved` |
 
-Montagem das chaves em [`_key`, :127](../clip-processor/src/quota_manager.py#L127) e
-[`_format_key`, :133](../clip-processor/src/quota_manager.py#L133).
+O painel e o Telegram mudam `pending` para `approved`. O publisher usa uma
+transição condicional para evitar corrida com rejeição.
 
-### Limites
+## Roteamento e ordem
 
-| Constante | Valor | Env var |
-|---|---|---|
-| `DEFAULT_MAX_UPLOADS_PER_DAY` | 2 | `MAX_UPLOADS_PER_DAY` |
-| **`ABSOLUTE_MAX_UPLOADS_PER_DAY`** | **6** | — |
-| `DEFAULT_MAX_LONGO_UPLOADS_PER_DAY` | 2 | `MAX_LONGO_UPLOADS_PER_DAY` |
+A seleção resolve `destination_channel_id` pelo casamento entre o perfil ativo do canal-fonte e
+`destination_channels.prompt_profile_id`. Para fontes legadas sem perfil, mantém o casamento por
+`source_channels.target_niche`/`destination_channels.niche`. O publisher itera somente destinos
+ativos e usa um uploader e uma quota por destino.
 
-`_resolve_limit` ([`:105`](../clip-processor/src/quota_manager.py#L105)) faz
-`max(0, min(valor, 6))`: **existe um teto rígido de 6 uploads/dia por canal no código**, independente
-da env var. Setar `MAX_UPLOADS_PER_DAY=20` não tem efeito acima de 6.
+Dentro de cada destino:
 
-`_resolve_longo_limit` ([`:110`](../clip-processor/src/quota_manager.py#L110)) clampa o limite de
-`longo` no total (`min(valor, max_uploads_per_day)`).
+1. ordena por `created_at ASC`;
+2. intercala filas por canal-fonte (round-robin);
+3. verifica janela e quota;
+4. publica um clip por vez.
 
-### Reserva de slot para `longo`
+Se não houver destino ativo, existe caminho legado que usa `YOUTUBE_TOKEN_FILE` ou
+`/app/token.json`.
 
-`can_upload` ([`:59`](../clip-processor/src/quota_manager.py#L59)):
+## Quota
 
-- clip `longo`: publica se `longo_count < max_longo_per_day`;
-- clip `curto`: se houver `longo` publicável esperando na fila (`longo_waiting=True`), o teto do curto
-  passa a ser `max_uploads_per_day − (max_longo_per_day − longo_count)`. Sem `longo` na fila a
-  reserva desaparece e o curto usa o total.
+A data e a janela usam `America/Sao_Paulo`. Contadores ficam no Redis e expiram à meia-noite:
 
-`longo_waiting` é calculado por `_has_longo_waiting` ([`publisher.py:151`](../clip-processor/src/publisher.py#L151))
-sobre os clips **restantes** daquele canal na rodada atual.
-
-`has_capacity` ([`:45`](../clip-processor/src/quota_manager.py#L45)) ignora a reserva de formato e
-existe para distinguir dois casos: cota total esgotada (para o ciclo do canal,
-[`publisher.py:83`](../clip-processor/src/publisher.py#L83)) versus só pular este clip porque a
-reserva de formato o bloqueia.
-
-### Janela horária
-
-`_is_upload_window` ([`:122`](../clip-processor/src/quota_manager.py#L122)): **19h ≤ hora < 22h** em
-São Paulo. Bypass total com `UPLOAD_WINDOW_BYPASS=true`.
-
-Fora da janela, `has_capacity` retorna `False` e **nada publica** — o `publish_cycle` roda a cada
-20 min o dia inteiro, mas só faz trabalho útil nessas 3 horas.
-
-### Sem fallback de Redis
-
-Diferente do dedup, a cota **não** tem fallback para PostgreSQL. Redis fora do ar ⇒
-`self.redis_client.get(...)` levanta ⇒ a publicação para. Contador travado ≠ fila travada: se o
-sintoma é "não sobe mais hoje", conferir `youtube_uploads:<hoje>` e resetar **só** essa chave, nunca
-o dedup.
-
----
-
-## Upload
-
-`YouTubeUploader.upload_clip` ([`uploader.py:86`](../clip-processor/src/uploader.py#L86)):
-
-Antes do upload, o publisher escolhe automaticamente um vídeo relacionado: o último clip publicado no
-mesmo canal-destino, com o vídeo fonte como fallback quando ainda não há histórico. O link é anexado
-ao final da descrição com o rótulo `Assista também`, sem duplicação em retries. O encerramento já foi
-preparado na etapa de vídeo para mostrar esse destino na área reservada. A Data API não oferece um
-método para criar a tela final clicável do Studio, portanto o link da descrição é o vínculo publicado
-automaticamente em todos os formatos.
-
-1. valida `clip_path` e `title`, e que a thumbnail existe se `thumbnail_path` estiver preenchido
-   ([`:89`](../clip-processor/src/uploader.py#L89));
-2. `videos.insert(part='snippet,status')` com upload resumível
-   ([`:101`](../clip-processor/src/uploader.py#L101));
-3. limpa `oauth_expired_flag` ([`:112`](../clip-processor/src/uploader.py#L112));
-4. `thumbnails().set(videoId=...)` se houver thumbnail ([`:120`](../clip-processor/src/uploader.py#L120)).
-
-Corpo do vídeo (`_build_video_body`, [`:218`](../clip-processor/src/uploader.py#L218)):
-
-| Campo | Valor |
+| Chave | Conteúdo |
 |---|---|
-| `title` | truncado em **100 chars** |
-| `categoryId` | `17` (Sports), fixo |
-| `privacyStatus` | `YOUTUBE_PRIVACY_STATUS`, default **`private`** |
-| `selfDeclaredMadeForKids` | `false` |
+| `youtube_uploads:<channel>:<YYYY-MM-DD>` | total do destino |
+| `youtube_uploads:<channel>:<YYYY-MM-DD>:longo` | total de longos |
 
-`tags` aceita string separada por vírgula ou lista (`_parse_tags`,
-[`:232`](../clip-processor/src/uploader.py#L232)).
+| Regra | Valor |
+|---|---:|
+| quota padrão total | 2/dia |
+| teto absoluto total | 6/dia/destino |
+| quota longa padrão no código | 2/dia, limitada pela quota total |
+| valor no `.env.example` | `MAX_LONGO_UPLOADS_PER_DAY=1` |
+| janela | 19:00 inclusive até 22:00 exclusivo |
+| bypass | `UPLOAD_WINDOW_BYPASS=true` |
 
-O default `private` importa: sem `YOUTUBE_PRIVACY_STATUS=public` no `.env`, o pipeline funciona
-inteiro e **nada aparece publicamente no canal**.
+Quando há um longo elegível aguardando, a quota reserva slots para ele. Shorts usam somente o
+saldo que não compromete essa reserva. Redis indisponível interrompe a publicação; não há fallback
+de quota para PostgreSQL.
 
-### Thumbnail sem try/except próprio
+## Upload e finalização
 
-O `thumbnails().set` roda **depois** do `videos.insert` e **fora** de qualquer `try` local. Se ele
-levantar, o vídeo já subiu mas a exceção propaga para o publisher, que marca o clip como `failed`
-([`publisher.py:303`](../clip-processor/src/publisher.py#L303)) com o motivo em `upload_error` — ou
-seja, **clip publicado no YouTube com registro `failed` no banco**.
+`YouTubeUploader.upload_clip`:
 
-Hipótese principal para a suspeita de "thumbnail não aplicada nos longos": 403 do
-`thumbnails().set`, que exige canal verificado. Ver [`BUGS.md`](BUGS.md).
+1. valida MP4, título, thumbnail e SRT;
+2. reutiliza `youtube_video_id` se houver upload parcial;
+3. faz `videos.insert` resumível com categoria `17`;
+4. envia/atualiza legenda oficial `pt-BR`, nome
+   `Português (Brasil) — Legenda revisada`;
+5. aguarda processamento do YouTube quando `YOUTUBE_WAIT_FOR_HD=true`;
+6. aplica `YOUTUBE_PRIVACY_STATUS` (padrão `public`);
+7. envia a thumbnail.
 
----
+Quando o destino final não é `private`, o vídeo começa privado se precisar de legenda ou
+espera HD e só fica público/unlisted após essas etapas. `selfDeclaredMadeForKids` é
+sempre `false`.
 
-## OAuth por canal-destino
+Quando a espera HD está ativa, o worker consulta `processingDetails` até o status
+`succeeded`. O limite padrão é 900 s (`YOUTUBE_PROCESSING_TIMEOUT_SECONDS`) e o intervalo padrão
+é 10 s (`YOUTUBE_PROCESSING_POLL_SECONDS`); timeout, status `failed` ou `terminated` preserva
+o ID do YouTube e deixa o clip retomável.
+
+A legenda oficial é usada em curtos e longos. No curto, ela também está queimada no vídeo — exceto
+quando a fonte já vinha legendada e a queima foi dispensada. No longo, fica como closed caption
+selecionável.
+
+## Erros e idempotência
+
+- SRT ausente ou vazio → `CaptionNotReadyError` → clip volta para `pending_cut`;
+- falha após o vídeo ter sido criado, durante legenda ou processamento → `PostUploadError`;
+  grava o ID, preserva `pending`/`approved` e retoma sem criar outro vídeo;
+- thumbnail com HTTP 403 → aviso; vídeo permanece publicado;
+- outro erro de thumbnail ou upload → clip vira `failed`; confira o YouTube antes de
+  reprocessar para evitar duplicata;
+- refresh OAuth inválido → marca `destination_channels.oauth_expired_flag=true` e
+  lança o erro; upload posterior bem-sucedido limpa a flag.
+
+## OAuth
 
 | Item | Valor |
 |---|---|
-| Token por canal | `/app/youtube/token-<slug>.json` ([`uploader.py:78`](../clip-processor/src/uploader.py#L78)) |
-| Token legado | `YOUTUBE_TOKEN_FILE` ou `/app/token.json` ([`:15`](../clip-processor/src/uploader.py#L15)) |
-| Scope | `https://www.googleapis.com/auth/youtube.upload` ([`:16`](../clip-processor/src/uploader.py#L16)) |
-| Geração | CLI interativo [`youtube_oauth.py`](../clip-processor/src/youtube_oauth.py) |
-| Client secrets | `YOUTUBE_CLIENT_SECRETS=/app/youtube/client_secret.json` (compose) |
+| token por destino | `/app/youtube/token-<slug>.json` |
+| client secrets | `YOUTUBE_CLIENT_SECRETS`, padrão do Compose `/app/youtube/client_secret.json` |
+| scopes | `youtube.upload` e `youtube.force-ssl` |
+| geração | `python -m src.youtube_oauth --channel <slug>` |
 
-O scope é **só upload**. Nada no pipeline lê estatística ou comentário do canal.
+Não versione tokens. O segundo scope permite criar/atualizar a faixa de legendas.
 
-`_load_credentials` ([`:137`](../clip-processor/src/uploader.py#L137)) faz refresh quando o token está
-expirado. Se o refresh falhar com `RefreshError`:
-`_flag_expired` ([`:152`](../clip-processor/src/uploader.py#L152)) grava
-`destination_channels.oauth_expired_flag = TRUE` (o painel mostra o badge) e **re-lança**. Um upload
-bem-sucedido limpa a flag sozinho (`_clear_expired`, [`:175`](../clip-processor/src/uploader.py#L175)).
+## Relacionado e créditos
 
-Ambos são best-effort: se o `channel_slug` for `None` (uso legado) a gravação é silenciosamente
-ignorada, e falha do PostgreSQL só gera log.
+A descrição recebe um link `Assista também` para o último clip publicado no mesmo
+destino; antes de existir histórico, usa o vídeo fonte. O link não é duplicado em retries.
 
----
+Se o destino tiver `credit_template` e a fonte tiver handle/nome, o publisher acrescenta
+crédito ao final da descrição. Sequências `@@` são normalizadas para um único `@`.
 
-## Guard de corrida com a rejeição
+## Finalização da fonte
 
-`_transition_to_publishing` ([`publisher.py:275`](../clip-processor/src/publisher.py#L275)) faz
-`UPDATE ... SET status='publishing' WHERE id=%s AND status=<publicável>` e só segue se
-`rowcount > 0`. Sem isso, um clip rejeitado no painel entre a leitura da fila e o upload subiria mesmo
-assim.
+Depois de cada upload, a fonte é finalizada somente quando:
 
----
+- não há clips em `pending_cut`, `cutting`, `pending`,
+  `approved` ou `publishing`;
+- existe pelo menos um clip `published`.
 
-## Finalização do vídeo fonte
+Então o código remove raw, MP4s, SRTs, intermediários e thumbnails, zera
+`clip_path`/`thumbnail_path` e marca `source_videos.status=published`.
+Se nenhum clip publicar, preserva o raw.
 
-`_maybe_finalize_source_video` ([`publisher.py:314`](../clip-processor/src/publisher.py#L314)) roda
-após cada publicação bem-sucedida. Só age quando **as duas** condições valem:
+## TTL
 
-- nenhum clip do vídeo em estado não-terminal (`pending_cut`, `cutting`, `pending`, `approved`,
-  `publishing` — [`publisher.py:18`](../clip-processor/src/publisher.py#L18)); **e**
-- ao menos um clip `published`.
+O job horário rejeita clips `pending` sem ID do YouTube depois de
+`CLIP_PENDING_TTL_HOURS` (padrão 48 h) e avisa na janela
+`CLIP_PENDING_WARN_HOURS` (padrão 24 h). A chave
+`clip_warned:<clip_id>` evita alertas repetidos.
 
-Aí, na ordem ([`:331-371`](../clip-processor/src/publisher.py#L331)):
-
-1. apaga o `.mp4` bruto do vídeo fonte;
-2. apaga, de cada clip, `clip_path`, `<prefix>_raw.mp4`, `<prefix>_subtitled.mp4` e a thumbnail;
-3. `UPDATE generated_clips SET clip_path = NULL, thumbnail_path = NULL`;
-4. `UPDATE source_videos SET status='published', local_path=NULL`.
-
-Essa cascata é de 12/08/2026 (commit `5009112`) e é o que resolveu o acúmulo de `_raw.mp4`. Todos os
-`os.remove` são `try/except OSError: pass` — falha de remoção é silenciosa, e o `UPDATE` que zera as
-colunas roda de qualquer forma. É o caminho que produz divergência banco × disco na direção
-"coluna nula, arquivo presente".
-
-Se **nenhum** clip publicar (todos `failed`/`rejected`), nada é apagado: o vídeo fica em `selecting`
-com o raw em disco. Estado que só sai dali via recovery ou à mão.
-
----
-
-## TTL de clip pendente
-
-[`ttl_worker.py`](../clip-processor/src/ttl_worker.py), job `clip_pending_ttl` (1 h).
-
-| Constante | Default | Env var |
-|---|---|---|
-| `TTL_HOURS` | 48 | `CLIP_PENDING_TTL_HOURS` |
-| `WARN_HOURS` | 24 | `CLIP_PENDING_WARN_HOURS` |
-
-- Clip `pending` com `created_at` mais velho que 48 h ⇒ `rejected`
-  ([`:51`](../clip-processor/src/ttl_worker.py#L51)).
-- Clip na janela [24 h, 48 h) recebe **um** aviso no Telegram, idempotente via chave Redis
-  `clip_warned:<id>`.
-
-Com `MANUAL_APPROVAL_REQUIRED=false` isso quase nunca dispara — clip `pending` é publicado no ciclo
-seguinte. Passa a importar quando a aprovação manual está ligada ou quando a cota está travada por
-dias.
-
-Atenção: o TTL rejeita por **`created_at`**, não por tempo em `pending`. Um clip que ficou 40 h preso
-em `cutting` e só depois virou `pending` já entra quase expirado.
+O TTL usa `created_at`, não o tempo desde a última mudança de status.

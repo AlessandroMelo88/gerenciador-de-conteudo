@@ -27,8 +27,9 @@ O runtime usa **PostgreSQL 16** como banco único do painel Laravel e do `clip-p
 - O Compose é autocontido e não publica PostgreSQL nem Redis no host.
 - O schema do pipeline e o schema do painel podem ser recriados juntos em banco descartável.
 - A migração exige janela operacional, backup validado e conferência de contagens antes do cutover.
-- As imagens do painel precisam ser reconstruídas quando migrations ou código Laravel mudarem; o
-  worker também precisa de rebuild quando `clip-processor/src` mudar.
+- As imagens do painel precisam ser reconstruídas quando migrations ou código Laravel mudarem. O
+  Compose atual monta `clip-processor/src` no worker, portanto alterações Python exigem restart;
+  Dockerfile, dependências ou pacotes do sistema exigem rebuild.
 
 ## Rollback
 
@@ -39,4 +40,5 @@ Em caso de falha, interromper os consumidores, restaurar o último backup Postgr
 ## Relação com outras decisões
 
 Este ADR substitui a decisão de motor implícita em ADR-0001 e a estratégia de schema registrada em
-ADR-0004. A regra específica de ownership por migrations está detalhada no ADR-0007.
+ADR-0004. O ownership atual do schema está detalhado em [../BANCO-DE-DADOS.md](../BANCO-DE-DADOS.md)
+e nas migrations de painel/database/migrations/.

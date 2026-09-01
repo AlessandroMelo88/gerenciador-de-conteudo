@@ -49,19 +49,78 @@ def _is_blocked_title(title: str) -> bool:
     return any(kw in t for kw in _TITLE_BLOCK_KEYWORDS)
 
 
-from src.db import fetch_used_moments, get_db_connection, insert_video, update_status
+from src.db import (
+    fetch_used_moments,
+    get_db_connection,
+    insert_video,
+    reconcile_source_video_status,
+    update_status,
+)
 from src.dedup import is_seen
+from src.prompt_profiles import PROMPT_PROFILE_SQL_COLUMNS, profile_from_row, profile_matches_niche
 from src.selector import MIN_LONGFORM_SECONDS, insert_selected_moments, select_moments
 from src.transcriber import save_transcript, transcribe_video
 from src.video_processor import process_clip
 
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+SOURCE_FILE_ROOT = os.path.realpath('/app/videos')
+CLIP_STATUSES_NEED_RAW = ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')
 
 
 def _log(msg: str) -> None:
     """Loga mensagem com timestamp para stdout."""
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [ACQU] {msg}')
+
+
+def _release_failed_source_files(conn, video_id: str) -> None:
+    """Remove raw/transcript de uma fonte falha quando nenhum clip os usa.
+
+    Vídeos marcados como ``failed`` pela transcrição ou seleção ainda mantinham
+    ``local_path``. A janela de download conta esse caminho mesmo em estado
+    terminal, então alguns erros de IA acabavam bloqueando downloads novos.
+    Só caminhos dentro de ``/app/videos`` são aceitos e o banco só é limpo
+    depois que todos os arquivos existentes forem removidos.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            'SELECT sv.id, sv.status, sv.local_path, sv.transcript_path, '
+            'EXISTS ('
+            '  SELECT 1 FROM generated_clips gc '
+            '  WHERE gc.source_video_id = sv.id '
+            "  AND gc.status IN ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')"
+            ') AS has_active_clip '
+            'FROM source_videos sv WHERE sv.youtube_video_id = %s',
+            (video_id,),
+        )
+        source = cur.fetchone()
+
+    if not source or source.get('status') != 'failed' or source.get('has_active_clip'):
+        return
+
+    paths = [source.get('local_path'), source.get('transcript_path')]
+    for raw_path in paths:
+        if not raw_path:
+            continue
+        resolved = os.path.realpath(str(raw_path))
+        if not resolved.startswith(f'{SOURCE_FILE_ROOT}{os.sep}'):
+            _log(f'[AI] Arquivo fora da pasta de vídeos não será removido: {raw_path}')
+            return
+        if os.path.exists(resolved):
+            try:
+                os.remove(resolved)
+            except OSError as exc:
+                _log(f'[AI] Não foi possível liberar arquivo de {video_id}: {exc}')
+                return
+
+    with conn.cursor() as cur:
+        cur.execute(
+            'UPDATE source_videos SET local_path=NULL, transcript_path=NULL '
+            "WHERE id=%s AND status='failed'",
+            (source['id'],),
+        )
+    conn.commit()
+    _log(f'[AI] Arquivos de {video_id} liberados após falha terminal')
 
 
 def _detect_format(video_id: str) -> str:
@@ -132,6 +191,7 @@ def _process_ai_pipeline(
         if transcript is None:
             _log(f'[AI] Transcrição falhou para {video_id} — marcando como failed')
             update_status(conn, video_id, 'failed')
+            _release_failed_source_files(conn, video_id)
             return
 
         if is_paused(conn, youtube_video_id=video_id):
@@ -144,12 +204,16 @@ def _process_ai_pipeline(
         # Seleção
         update_status(conn, video_id, 'selecting')
 
-        # Obter source_video_id INT, formato (curto/longo) e nicho para calibrar a IA
+        # Obter source_video_id INT, formato, nicho e perfil para calibrar a IA.
         with conn.cursor() as cur:
             cur.execute(
-                'SELECT sv.id, sv.format, sc.target_niche '
+                'SELECT sv.id, sv.format, sc.target_niche, sc.prompt_profile_id, '
+                + PROMPT_PROFILE_SQL_COLUMNS
+                + ' '
                 'FROM source_videos sv '
                 'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
+                'LEFT JOIN prompt_profiles pp '
+                'ON pp.id = sc.prompt_profile_id AND pp.active = TRUE '
                 'WHERE sv.youtube_video_id = %s',
                 (video_id,),
             )
@@ -160,16 +224,24 @@ def _process_ai_pipeline(
         source_video_id = row['id']
         fmt = row.get('format') or 'curto'
         niche = row.get('target_niche')
+        prompt_profile = profile_from_row(row)
+        if prompt_profile and not profile_matches_niche(prompt_profile, niche):
+            _log(
+                f'[AI] Perfil {prompt_profile.get("slug")} não corresponde ao nicho {niche}; '
+                'fallback seguro aplicado'
+            )
+            prompt_profile = None
         used_moments = fetch_used_moments(conn, source_video_id)
 
         select_kwargs = {'anthropic_client': anthropic_client, 'fmt': fmt}
         if used_moments:
             select_kwargs['used_moments'] = used_moments
-
         if niche:
-            moments = select_moments(transcript, niche=niche, **select_kwargs)
-        else:
-            moments = select_moments(transcript, **select_kwargs)
+            select_kwargs['niche'] = niche
+        if prompt_profile:
+            select_kwargs['prompt_profile'] = prompt_profile
+
+        moments = select_moments(transcript, **select_kwargs)
         inserted = insert_selected_moments(conn, source_video_id, video_id, moments)
         _log(
             f'[AI] Pipeline concluído para {video_id}: {inserted} momento(s) inserido(s) em generated_clips'
@@ -178,11 +250,13 @@ def _process_ai_pipeline(
             # Sem clip válido o status 'selecting' segurava a janela pra sempre.
             _log(f'[AI] Nenhum momento válido para {video_id} — marcando failed e liberando janela')
             update_status(conn, video_id, 'failed')
+            _release_failed_source_files(conn, video_id)
 
     except Exception as exc:
         _log(f'[AI] ERRO no pipeline de IA para {video_id}: {exc}')
         try:
             update_status(conn, video_id, 'failed')
+            _release_failed_source_files(conn, video_id)
         except Exception:
             pass
 
@@ -191,9 +265,10 @@ def _process_pending_clips(conn) -> None:
     """Processa clips com status pending_cut sem abortar o poll por falha isolada."""
     with conn.cursor() as cur:
         cur.execute(
-            'SELECT gc.id FROM generated_clips gc '
+            'SELECT gc.id, gc.source_video_id FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
-            "WHERE gc.status = 'pending_cut' AND sv.paused = FALSE"
+            "WHERE gc.status = 'pending_cut' AND sv.paused = FALSE "
+            'AND sv.local_path IS NOT NULL AND sv.transcript_path IS NOT NULL'
         )
         rows = cur.fetchall()
 
@@ -204,6 +279,17 @@ def _process_pending_clips(conn) -> None:
             process_clip(conn, clip_id)
         except Exception as exc:
             _log(f'[VID] ERRO no processamento do clip {clip_id}: {exc}')
+        finally:
+            source_video_id = row.get('source_video_id')
+            if reconcile_source_video_status(conn, source_video_id):
+                with conn.cursor() as cur:
+                    cur.execute(
+                        'SELECT youtube_video_id FROM source_videos WHERE id=%s',
+                        (source_video_id,),
+                    )
+                    source_row = cur.fetchone()
+                if source_row:
+                    _release_failed_source_files(conn, source_row['youtube_video_id'])
 
 
 def poll_all_channels(db_conn=None, redis_client=None) -> None:

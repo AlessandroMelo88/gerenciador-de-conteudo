@@ -1,38 +1,40 @@
 # Contribuindo
 
-Guia curto. O detalhe de ferramentas e setup está em [`Docs/DESENVOLVIMENTO.md`](Docs/DESENVOLVIMENTO.md);
-o índice de toda a documentação, em [`Docs/README.md`](Docs/README.md).
+> Guia curto. A documentação completa está em [`Docs/README.md`](Docs/README.md).
 
-## Antes de qualquer coisa
+## Antes de alterar
 
-1. Leia `Docs/README.md` e `CLAUDE.md` (regras de operação destrutiva — valem para pessoas e agentes).
-2. `make setup-asdf`, `make setup` e `make hooks`.
+1. Leia [`CLAUDE.md`](CLAUDE.md) antes de tocar em dados, Docker, disco ou estados transitórios.
+2. Consulte o documento do subsistema em [`Docs/`](Docs/README.md).
+3. Confirme a fonte de verdade no código, migrations, Compose e `.env.example`.
+4. Use `make setup` e `make hooks` no ambiente local.
 
-## Branches
+## Branches e commits
 
-- `master` é produção. `develop` é integração. Trabalho em `release/*`, `feat/*`, `fix/*`.
-- Nunca `main`.
+- Produção fica em `master`; integração, quando usada, em `develop`.
+- Crie branches de trabalho com prefixo `feat/`, `fix/` ou equivalente.
+- Use Conventional Commits: `feat:`, `fix:`, `docs:`, `test:`,
+  `chore:`, com escopo quando útil.
+- Mantenha um assunto por commit e não adicione trailers de autoria de IA.
 
-## Commits
+## Verificação
 
-- Conventional Commits em português: `feat:`, `fix:`, `docs:`, `chore:`, `style:`, `refactor:`,
-  `test:`, `ci:` — com escopo quando ajuda (`feat(clip-processor): ...`, `fix(painel): ...`).
-- Um assunto por commit. Formatação (`style:`) separada de comportamento.
-- Sem trailers de autoria de IA (`Co-Authored-By`).
-- `make lint` (ou os hooks do pre-commit) verde antes de commitar.
+~~~bash
+make lint
+make test-python
+make test-php
+~~~
 
-## Changelog
+Execute o conjunto relevante após cada mudança; alterações de comportamento devem incluir teste ou
+explicar por que não há cobertura.
 
-Toda mudança relevante ganha um fragmento em `CHANGELOG.d/<slug>.<tipo>.md`
-(`novidade | melhoria | correcao | tecnico`). Não edite `CHANGELOG.md` à mão — `make changelog-release`
-faz isso ao fechar a versão. Regras em `CHANGELOG.d/README.md`.
+## Changelog e documentação
 
-## Versões
+Mudança relevante recebe fragmento em `CHANGELOG.d/<slug>.<tipo>.md`; não edite
+`CHANGELOG.md` manualmente. Use tipos `novidade`, `melhoria`,
+`correcao` ou `tecnico`.
 
-`v0.MINOR.PATCH`. Primeira tag será `v0.1.0`. Como fechar: `Docs/DESENVOLVIMENTO.md` §7.
-
-## Documentação
-
-Status mora no documento, não na conversa: bug corrigido → `Docs/BUGS.md`; comportamento de subsistema →
-`Docs/SISTEMA-*.md`; decisão de arquitetura → `Docs/ADR/`; dívida → `Docs/TODO-REFATORACAO.md`.
-Datas sempre absolutas, referências de código como `arquivo:linha`.
+Atualize o documento do subsistema quando o comportamento mudar. Atualize
+[`Docs/ESTADOS-E-TRANSICOES.md`](Docs/ESTADOS-E-TRANSICOES.md) quando mudar estado ou
+transição. Decisões estruturais novas entram em um ADR novo. Use datas absolutas
+(`YYYY-MM-DD`) e caminhos reais; não documente planos como se fossem funcionalidades.

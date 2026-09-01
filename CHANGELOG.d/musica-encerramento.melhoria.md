@@ -1,0 +1,1 @@
+**Música de encerramento mais presente** — a trilha começa 15 segundos antes do fim do vídeo, sobe gradualmente por 7 segundos, mantém o volume final nos 8 segundos finais e aplica ganho de 20% ao volume configurado.

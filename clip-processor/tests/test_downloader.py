@@ -1,5 +1,5 @@
 """
-Testes ACQU-02: download 720p, disk guard, partial cleanup.
+Testes ACQU-02: download até 1080p, disk guard, partial cleanup.
 
 Módulo alvo: src.downloader
 Exports esperados: download_video(video_id, output_path) -> bool
@@ -16,16 +16,24 @@ from src.downloader import cleanup_stale_downloads, download_video
 MIN_FREE_SPACE_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
 
 
+def _mock_pause_check(mocker):
+    """Evita que a suíte abra PostgreSQL real no hook de progresso do yt-dlp."""
+    conn = mocker.MagicMock()
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = None
+    mocker.patch('src.db.get_db_connection', return_value=conn)
+
+
 class TestDownloadVideo:
     def test_download_success(self, mocker, tmp_path):
         """yt-dlp cria o arquivo esperado → download_video() retorna True."""
+        _mock_pause_check(mocker)
         output_path = tmp_path / 'dQw4w9WgXcQ.mp4'
         mock_ydl = mocker.MagicMock()
         mock_ydl.__enter__ = mocker.MagicMock(return_value=mock_ydl)
         mock_ydl.__exit__ = mocker.MagicMock(return_value=False)
         mock_ydl.download.side_effect = lambda _urls: output_path.touch()
 
-        mocker.patch('yt_dlp.YoutubeDL', return_value=mock_ydl)
+        mock_ydl_class = mocker.patch('yt_dlp.YoutubeDL', return_value=mock_ydl)
 
         # Disk space suficiente (10 GB livres)
         mocker.patch(
@@ -36,9 +44,12 @@ class TestDownloadVideo:
         result = download_video('dQw4w9WgXcQ', str(output_path))
 
         assert result is True
+        format_selector = mock_ydl_class.call_args.args[0]['format']
+        assert 'height<=1080' in format_selector
 
     def test_download_without_output_file_returns_false(self, mocker, tmp_path):
         """yt-dlp sem erro, mas sem arquivo final, não pode ocupar a janela."""
+        _mock_pause_check(mocker)
         output_path = tmp_path / 'dQw4w9WgXcQ.mp4'
         mock_ydl = mocker.MagicMock()
         mock_ydl.__enter__ = mocker.MagicMock(return_value=mock_ydl)
@@ -73,6 +84,7 @@ class TestDownloadVideo:
 
     def test_partial_cleanup(self, mocker, tmp_path):
         """yt-dlp levanta DownloadError → arquivo .part é deletado via os.remove."""
+        _mock_pause_check(mocker)
         import yt_dlp
 
         mock_ydl = mocker.MagicMock()
@@ -92,6 +104,7 @@ class TestDownloadVideo:
 
         mock_remove = mocker.patch('src.downloader.os.remove')
         mocker.patch('src.downloader.glob.glob', return_value=[str(part_file)])
+        mocker.patch('src.downloader.time.sleep')
 
         result = download_video('dQw4w9WgXcQ', str(tmp_path))
 
@@ -100,6 +113,7 @@ class TestDownloadVideo:
 
     def test_permanent_error_no_retry(self, mocker, tmp_path):
         """DownloadError com mensagem 'private' → retorna False após 1 tentativa (não 3)."""
+        _mock_pause_check(mocker)
         import yt_dlp
 
         mock_ydl = mocker.MagicMock()
@@ -120,8 +134,33 @@ class TestDownloadVideo:
         # Somente 1 tentativa para erros permanentes
         assert mock_ydl.download.call_count == 1
 
+    def test_future_premiere_no_retry(self, mocker, tmp_path):
+        """Estreia futura não deve bloquear a fila com três retries de 60s."""
+        _mock_pause_check(mocker)
+        import yt_dlp
+
+        mock_ydl = mocker.MagicMock()
+        mock_ydl.__enter__ = mocker.MagicMock(return_value=mock_ydl)
+        mock_ydl.__exit__ = mocker.MagicMock(return_value=False)
+        mock_ydl.download.side_effect = yt_dlp.utils.DownloadError(
+            'ERROR: [youtube] abc123: Premieres in 5 days'
+        )
+
+        mocker.patch('yt_dlp.YoutubeDL', return_value=mock_ydl)
+        mocker.patch(
+            'src.downloader.shutil.disk_usage',
+            return_value=mocker.MagicMock(free=10 * 1024 * 1024 * 1024),
+        )
+        mocker.patch('src.downloader.glob.glob', return_value=[])
+
+        result = download_video('abc123', str(tmp_path))
+
+        assert result is False
+        assert mock_ydl.download.call_count == 1
+
     def test_retry_transient_error(self, mocker, tmp_path):
         """DownloadError sem keyword permanente → tenta 3 vezes."""
+        _mock_pause_check(mocker)
         import yt_dlp
 
         mock_ydl = mocker.MagicMock()
@@ -135,6 +174,7 @@ class TestDownloadVideo:
             return_value=mocker.MagicMock(free=10 * 1024 * 1024 * 1024),
         )
         mocker.patch('src.downloader.glob.glob', return_value=[])
+        mocker.patch('src.downloader.time.sleep')
 
         result = download_video('dQw4w9WgXcQ', str(tmp_path))
 

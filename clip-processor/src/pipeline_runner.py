@@ -30,6 +30,12 @@ def _log(msg: str) -> None:
 DOWNLOAD_WINDOW_CURTO = int(os.environ.get('DOWNLOAD_WINDOW_CURTO', 6))
 DOWNLOAD_WINDOW_LONGO = int(os.environ.get('DOWNLOAD_WINDOW_LONGO', 4))
 
+# A composição em qualidade alta usa preset=slow e pode ultrapassar 30 minutos
+# em vídeos longos. O TTL precisa cobrir esse trabalho para que uma segunda
+# rodada não entre enquanto a primeira ainda publica.
+PIPELINE_LOCK_TIMEOUT_SECONDS = int(os.environ.get('PIPELINE_LOCK_TIMEOUT_SECONDS', 7200))
+PUBLISH_LOCK_TIMEOUT_SECONDS = int(os.environ.get('PUBLISH_LOCK_TIMEOUT_SECONDS', 7200))
+
 # Janela de frescor (em dias) para considerar vídeos na fila de download automático.
 FRESHNESS_DAYS = int(os.environ.get('FRESHNESS_DAYS', 365))
 
@@ -70,7 +76,12 @@ def _select_pending_videos(db_conn) -> list:
                 'SELECT youtube_video_id FROM source_videos '
                 "WHERE status = 'pending' AND paused = FALSE AND format = %s "
                 'AND DATE(published_at) >= %s '
-                'ORDER BY priority DESC, '
+                'ORDER BY EXISTS ('
+                '  SELECT 1 FROM generated_clips gc '
+                '  WHERE gc.source_video_id = source_videos.id '
+                "  AND gc.status IN ('pending_cut', 'cutting')"
+                ') DESC, '
+                'priority DESC, '
                 'queue_position IS NULL, queue_position ASC, '
                 'published_at DESC LIMIT %s',
                 (fmt, cutoff_date, deficit),
@@ -196,7 +207,18 @@ def run_pipeline_once(db_conn=None, redis_client=None):
             decode_responses=True,
         )
 
+    if not _acquire_redis_lock(
+        redis_client,
+        'lock:pipeline_ingest',
+        timeout_seconds=PIPELINE_LOCK_TIMEOUT_SECONDS,
+    ):
+        _log('Ciclo completo já está em execução em outro processo — pulando esta rodada')
+        if own_db:
+            db_conn.close()
+        return None
+
     publish_result = None
+    publish_lock_acquired = False
     try:
         _log('Iniciando ciclo completo')
         try:
@@ -224,35 +246,61 @@ def run_pipeline_once(db_conn=None, redis_client=None):
                 },
             )
 
-        try:
-            publish_result = publish_pending_clips(
-                db_conn,
-                redis_client,
-            )
-        except Exception as exc:
-            _log(f'ERRO em publish_pending_clips: {exc}')
-            notify(
-                'pipeline_failure',
-                {
-                    'stage': 'publish_pending_clips',
-                    'error_msg': str(exc)[:500],
-                },
+        if _acquire_redis_lock(
+            redis_client,
+            'lock:pipeline_publish',
+            timeout_seconds=PUBLISH_LOCK_TIMEOUT_SECONDS,
+        ):
+            publish_lock_acquired = True
+            try:
+                publish_result = publish_pending_clips(
+                    db_conn,
+                    redis_client,
+                )
+            except Exception as exc:
+                _log(f'ERRO em publish_pending_clips: {exc}')
+                notify(
+                    'pipeline_failure',
+                    {
+                        'stage': 'publish_pending_clips',
+                        'error_msg': str(exc)[:500],
+                    },
+                )
+        else:
+            _log(
+                'Publicação do ciclo completo já está em execução em outro processo — pulando esta rodada'
             )
 
         _log(f'Ciclo completo finalizado: {publish_result}')
         return publish_result
     finally:
+        if publish_lock_acquired:
+            _release_redis_lock(redis_client, 'lock:pipeline_publish')
+        _release_redis_lock(redis_client, 'lock:pipeline_ingest')
         if own_db:
             db_conn.close()
 
 
-def run_publish_only(db_conn=None, redis_client=None):
-    """Roda só a publicação de clips aprovados, sem RSS/download/AI.
+def _acquire_redis_lock(redis_client, lock_key: str, timeout_seconds: int = 1800) -> bool:
+    if redis_client is None:
+        return True
+    try:
+        return bool(redis_client.set(lock_key, '1', nx=True, ex=timeout_seconds))
+    except Exception:
+        return True
 
-    Existe pra drenar a fila de aprovados com frequência bem maior que o
-    ciclo completo (6h) — assim, quando a cota diária reseta à meia-noite,
-    os aprovados não ficam represados esperando o próximo ciclo completo.
-    """
+
+def _release_redis_lock(redis_client, lock_key: str) -> None:
+    if redis_client is None:
+        return
+    try:
+        redis_client.delete(lock_key)
+    except Exception:
+        pass
+
+
+def run_publish_only(db_conn=None, redis_client=None):
+    """Roda só a publicação de clips aprovados, sem RSS/download/AI."""
     own_db = db_conn is None
     own_redis = redis_client is None
 
@@ -264,6 +312,16 @@ def run_publish_only(db_conn=None, redis_client=None):
             port=REDIS_PORT,
             decode_responses=True,
         )
+
+    if not _acquire_redis_lock(
+        redis_client,
+        'lock:pipeline_publish',
+        timeout_seconds=PUBLISH_LOCK_TIMEOUT_SECONDS,
+    ):
+        _log('Publicação isolada já em execução em outro processo — pulando esta rodada')
+        if own_db:
+            db_conn.close()
+        return None
 
     try:
         result = publish_pending_clips(db_conn, redis_client)
@@ -280,19 +338,13 @@ def run_publish_only(db_conn=None, redis_client=None):
         )
         return None
     finally:
+        _release_redis_lock(redis_client, 'lock:pipeline_publish')
         if own_db:
             db_conn.close()
 
 
 def run_ingest_cycle(db_conn=None, redis_client=None):
-    """Roda RSS/download/AI (poll_all_channels + _download_pending_videos), sem publish.
-
-    Substitui o ciclo completo de 6h como job principal — poll_all_channels já
-    processa vídeos 'downloaded' (transcrição/seleção IA) e clips 'pending_cut'
-    (corte), então rodar isso a cada 20min (mesma cadência de run_publish_only)
-    faz a janela de download (DOWNLOAD_WINDOW_*) repor vaga logo após um vídeo
-    ser excluído manualmente no painel, em vez de esperar até 6h.
-    """
+    """Roda RSS/download/AI (poll_all_channels + _download_pending_videos), sem publish."""
     own_db = db_conn is None
     own_redis = redis_client is None
 
@@ -304,6 +356,16 @@ def run_ingest_cycle(db_conn=None, redis_client=None):
             port=REDIS_PORT,
             decode_responses=True,
         )
+
+    if not _acquire_redis_lock(
+        redis_client,
+        'lock:pipeline_ingest',
+        timeout_seconds=PIPELINE_LOCK_TIMEOUT_SECONDS,
+    ):
+        _log('Ciclo de ingestão já em execução em outro processo — pulando esta rodada')
+        if own_db:
+            db_conn.close()
+        return
 
     try:
         try:
@@ -332,6 +394,7 @@ def run_ingest_cycle(db_conn=None, redis_client=None):
 
         _log('Ciclo de ingestão finalizado')
     finally:
+        _release_redis_lock(redis_client, 'lock:pipeline_ingest')
         if own_db:
             db_conn.close()
 

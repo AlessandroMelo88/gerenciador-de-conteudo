@@ -1,229 +1,124 @@
-# Corte e pós-produção de vídeo
+# Vídeo, FFmpeg e assets
 
-Tudo que o FFmpeg faz: cortar, legendar Shorts, aplicar a identidade configurável, marcar e gerar
-thumbnail. O orquestrador está em [`video_processor.py`](../clip-processor/src/video_processor.py),
-com a seleção de assets em [`media_assets.py`](../clip-processor/src/media_assets.py) e a composição
-em [`media_composer.py`](../clip-processor/src/media_composer.py).
+> Tipo: referência as-built · Atualizado: 2026-08-26
+> Fontes: `video_processor.py`, `media_composer.py` e
+> `media_assets.py`
 
-A **escolha** dos trechos é assunto de [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md); aqui o
-`start_time`/`end_time` já vem decidido no banco.
+## Fluxo do clip
 
-Verificado no código em **26/08/2026**.
+`video_processor.process_clip` aceita um clip em `pending_cut`:
 
----
+~~~text
+pending_cut → cutting → render + metadata + thumbnail → pending
+                              └─ qualquer exceção → failed
+~~~
 
-## `process_clip` — o orquestrador
+1. lê raw, transcrição e intervalo;
+2. completa bordas para não cortar fala;
+3. gera trecho raw;
+4. aplica render específico do formato;
+5. aplica watermark quando disponível;
+6. compõe assets obrigatórios do longo;
+7. gera metadata e texto da thumbnail;
+8. extrai frame, grava texto na thumbnail e persiste caminhos;
+9. muda o clip para `pending`.
 
-[`video_processor.py:251`](../clip-processor/src/video_processor.py#L251). Roda por clip em
-`pending_cut`, disparado por `_process_pending_clips`
-([`rss_poller.py:158`](../clip-processor/src/rss_poller.py#L158)) — que só pega clips cujo vídeo fonte
-tem `paused = 0`.
+Falha em qualquer etapa marca `failed`. O tratamento atual não garante remoção de todos
+os intermediários em toda falha; confira `videos/clips` antes de uma limpeza manual.
 
-| # | Etapa | Função | Saída |
+## Formatos
+
+| Formato | Corte | Legenda | Dimensão/saída |
 |---|---|---|---|
-| 0 | marca `cutting` | [`:264`](../clip-processor/src/video_processor.py#L264) | — |
-| 1 | corta o trecho | `cut_clip` [`:46`](../clip-processor/src/video_processor.py#L46) | `clips/<id>_raw.mp4` |
-| 2 | (curto) gera legenda | `generate_srt` [`:108`](../clip-processor/src/video_processor.py#L108) | `clips/<id>.srt` |
-| 3 | (curto) queima legenda | `burn_subtitles` [`:137`](../clip-processor/src/video_processor.py#L137) | `clips/<id>_subtitled.mp4` |
-| 4 | marca d'água | `overlay_watermark` [`:214`](../clip-processor/src/video_processor.py#L214) | `clips/<id>.mp4` |
-| 5 | intro, encerramento e música | `resolve_media_assets` + `compose_media` | `clips/<id>.mp4` atualizado |
-| 6 | gera metadata SEO | `generate_metadata` | title/description/tags em memória |
-| 7 | escolhe a chamada da thumbnail | `generate_thumbnail_text` | `thumbnail_text` em memória |
-| 8 | extrai o frame | `extract_thumbnail` | `thumbnails/<id>.jpg` |
-| 9 | sobrepõe a chamada | `overlay_thumbnail_text` | `thumbnails/<id>.jpg` enriquecida |
-| 10 | grava `clip_path`/`thumbnail_path` | [`:472`](../clip-processor/src/video_processor.py#L472) | — |
-| 11 | persiste título/descrição/tags | `update_clip_metadata` | — |
-| 12 | marca `pending` | [`:478`](../clip-processor/src/video_processor.py#L478) | — |
+| `curto` | janela exata de 30s | render único com quadro vertical, SRT queimado salvo quando a fonte já tem legenda gravada, e watermark opcional | vertical 1080×1920 |
+| `longo` | trecho horizontal | SRT gerado depois da composição e enviado como legenda oficial | horizontal, altura 1080 |
 
-Todo o corpo está num `try/except` único ([`:250`](../clip-processor/src/video_processor.py#L250)):
-qualquer exceção ⇒ clip vira `failed` e a função retorna `False`. Não há retry, e não há limpeza dos
-intermediários nesse caminho.
+### Curto
 
-O transcript é lido do disco em [`:202`](../clip-processor/src/video_processor.py#L202) via
-`clip['transcript_path']`; se o arquivo não existir, o clip vai direto para `failed`.
+O vídeo horizontal completo é mantido em primeiro plano. Uma cópia ampliada, desfocada e
+escurecida preenche o canvas 9:16. A faixa de áudio recebe fade in/out curto. O SRT usa DejaVu Sans
+Bold, fica na região inferior e é aplicado via libass.
 
-Em `format='longo'`, as etapas 2 e 3 são puladas: o arquivo `_raw.mp4` segue direto para a etapa
-de marca d'água (se houver) e depois é promovido ao `<id>.mp4`. Assim, vídeos longos permanecem
-horizontais e não recebem legenda queimada.
+#### Fonte que já vem legendada
 
----
+Antes de queimar, `subtitle_detector.has_burned_subtitles` verifica se o próprio vídeo fonte já
+traz legenda gravada no quadro — queimar de novo deixaria dois textos na tela. A verificação lê
+a metade inferior de 6 quadros do trecho com OCR (`tesseract -l por`) e cruza as palavras lidas
+com a transcrição daquele mesmo segundo. Só decide "já tem legenda" quando pelo menos 3 quadros
+batem e eles são 60% ou mais das leituras: placar, lower-third, código na tela e estante ao
+fundo não repetem a fala, mas um apresentador que lê a tela em voz alta repete por alguns
+segundos. O SRT continua sendo gerado nos dois casos, porque é dele que sai a legenda oficial
+do YouTube.
 
-## Corte por formato
+A detecção erra para o lado seguro: quando não consegue decidir (OCR ilegível, tesseract
+ausente, FFmpeg com erro) ela devolve "não tem" e o pipeline queima a legenda como sempre fez.
+Legenda animada palavra a palavra em fonte estilizada de vídeo 360p escapa do OCR. Para
+Para desligar a detecção, use `BURNED_SUBTITLE_DETECTION=false`; o padrão é `true`.
 
-`cut_clip` ([`:34`](../clip-processor/src/video_processor.py#L34)) muda **só o filtro de vídeo**:
+Shorts não recebem intro, encerramento ou música.
 
-| `fmt` | Filtro | Resultado |
-|---|---|---|
-| `curto` (default) | `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1` | vertical 1080x1920 (Shorts) |
-| `longo` | `scale=-2:1080,setsar=1` | mantém o horizontal, normaliza a altura em 1080p |
+### Longo
 
-Encode comum aos dois: `-ss/-to` antes do `-i`, `libx264 -preset veryfast -crf 23`, `aac -b:a 128k`,
-`-movflags +faststart`.
+O trecho é normalizado para canvas horizontal 1920×1080. Intro, conteúdo e encerramento são unidos
+com transição curta; a música é misturada nos 15 segundos finais do vídeo composto. O encerramento
+pode receber card com thumbnail/título de outro vídeo publicado no mesmo destino.
 
-`-ss` antes do `-i` é seek rápido por keyframe — pode deslocar o início em fração de segundo em
-relação ao `start_time` pedido.
+O longo exige os três tipos `intro`, `outro` e `music`. Se algum faltar,
+o clip falha. O SRT é gerado após a composição, com offset calculado para a intro, e o uploader o envia como
+legenda oficial `pt-BR`.
 
----
+## Resolução de assets
 
-## Legendas
+Ordem:
 
-`generate_srt` ([`:72`](../clip-processor/src/video_processor.py#L72)) recorta os `segments` do
-transcript Whisper para a janela do clip e **rebaseia os timestamps em zero**
-([`:83-84`](../clip-processor/src/video_processor.py#L83)): segmento que atravessa a borda é
-truncado, segmento fora da janela é descartado, texto vazio é ignorado.
+1. filesystem canônico por canal: `assets/channels/<slug>`;
+2. biblioteca legada em `media_assets` no PostgreSQL.
 
-`burn_subtitles` ([`:137`](../clip-processor/src/video_processor.py#L137)) queima com o filtro
-`subtitles` do libass **somente quando `fmt='curto'`**. A própria função rejeita chamadas com
-`fmt='longo'`, e `process_clip` nem gera o SRT nesse formato. Estilo, e o porquê de cada escolha:
+Arquivos aceitos:
 
-| Propriedade | Valor | Motivo (do próprio código) |
-|---|---|---|
-| `Fontname` | `DejaVu Sans`, `Bold=1` | única família disponível no container (`fc-list`) |
-| `Fontsize` | 38 | — |
-| `PlayResX/PlayResY` | 1080 / 1920 | `Fontsize` é relativo a isso; sem `PlayRes` explícito o texto sai desproporcionalmente pequeno |
-| `BorderStyle=3, BackColour=&H60000000` | caixa fina semi-transparente | imita o closed caption nativo do YouTube em vez de bloco opaco |
-| `Alignment=2, MarginV=180` | rodapé-centro, afastado | afasta da barra de interações do player |
-
-`-c:a copy` — o áudio não é re-encodado nesta etapa.
-
----
-
-## Marca d'água
-
-`overlay_watermark` ([`:158`](../clip-processor/src/video_processor.py#L158)):
-`-filter_complex overlay=W-w-20:20` — canto superior direito, margem de 20 px.
-
-O PNG vem de `/app/branding/watermark-<slug>.png`, onde `<slug>` é
-`destination_channels.slug` ([`:216-218`](../clip-processor/src/video_processor.py#L216)).
-O painel faz upload desses arquivos (`POST /painel/canais-destino/.../watermark`); o volume é
-montado **read-only** no `clip-processor` e read-write no `php`.
-
-Degradação graciosa em três caminhos ([`:215-230`](../clip-processor/src/video_processor.py#L215)):
-
-| Situação | O que acontece |
+| Tipo | Nomes no filesystem |
 |---|---|
-| slug existe e o PNG existe | overlay aplicado; o intermediário (`_subtitled.mp4` no curto ou `_raw.mp4` no longo) é removido |
-| slug existe e o PNG **não** existe | `overlay_watermark` retorna o input sem chamar FFmpeg; o intermediário é **renomeado** para o path final |
-| clip sem `destination_channel_id` | renomeia direto, sem overlay |
+| intro | `intro.mp4`, `intro.mov`, `intro.webm`, imagens equivalentes |
+| outro | `encerramento.mp4`, `outro.mp4`, imagens equivalentes |
+| music | qualquer `.mp3`, `.wav`, `.m4a`, `.ogg`, `.flac` ou `.aac` em `assets/audio` |
 
-Nos dois últimos casos o clip sai **sem marca d'água e sem erro** — nada no painel sinaliza isso.
+Para cada tipo, a resolução prioriza canal + formato, depois prioridade e uma rotação determinística
+por ID do clip. Imagens são transformadas em vídeo estático de 3 s quando necessário. A música é
+misturada nos 15 segundos finais do vídeo já composto: começa bem baixa, sobe durante 7 segundos e
+fica no volume final nos 8 segundos finais. O volume configurado recebe ganho de 20%, limitado a 100%,
+e a faixa entra em loop apenas para cobrir esse trecho.
 
----
+A marca d’água é `/app/branding/watermark-{destination_slug}.png`, no canto superior
+direito. Se não existir, o pipeline segue sem watermark.
 
-## Biblioteca de assets
+## Relacionado e thumbnail
 
-A fonte de verdade agora é a pasta [`assets/`](../assets/), montada no worker como `/app/assets`:
+- o relacionado prioriza o último clip publicado no canal-destino; se não houver, o código pode
+  usar o vídeo fonte conforme o contexto;
+- a miniatura do relacionado é baixada para o card quando o YouTube responder;
+- a thumbnail do clip é um frame em 1 s do resultado final;
+- `generate_thumbnail_text` escolhe a frase literal da transcrição;
+- `overlay_thumbnail_text` grava a frase em JPG com FFmpeg;
+- sem frase literal válida, o clip falha.
 
-```text
-assets/
-├── channels/<slug-do-canal>/
-│   ├── intro.jpg
-│   ├── intro.mp4
-│   ├── encerramento.jpg
-│   └── encerramento.mp4
-└── audio/
-    ├── faixa_completa.wav
-    └── faixa_completa.txt   # letra, quando existir
-```
+## Artefatos
 
-Para intro e encerramento, o vídeo é preferido e a imagem é fallback. A seleção da faixa em `audio/`
-é determinística pelo id do clip. A tabela `media_assets` e o disk `branding` continuam aceitos como
-fallback para instalações antigas ou assets cadastrados pelo painel.
+| Artefato | Local |
+|---|---|
+| raw fonte | `/app/videos/<youtube_id>.mp4` |
+| transcript | `/app/videos/<youtube_id>_transcript.json` |
+| raw do clip | `/app/videos/clips/<id>_raw.mp4` |
+| SRT | `/app/videos/clips/<id>.srt` |
+| intermediário de Shorts | `/app/videos/clips/<id>_subtitled.mp4` |
+| final | `/app/videos/clips/<id>.mp4` |
+| thumbnail | `/app/videos/thumbnails/<id>.jpg` |
 
-Em `format='longo'`, intro, encerramento e música são obrigatórios. Se algum dos três não existir,
-o clip é marcado como `failed` e não pode seguir para publicação sem identidade completa. A sequência
-final é `intro → conteúdo → encerramento`; um trecho da faixa é misturado somente no encerramento,
-em volume 0,12 por padrão, preservando a fala do conteúdo principal. Entre as cenas, o compositor
-aplica um crossfade curto de vídeo e áudio, calculado a partir da duração real de cada segmento; assim,
-uma imagem/intro curta nunca recebe uma transição longa demais. Imagens recebem 3 segundos por padrão;
-vídeos respeitam sua duração.
+Os caminhos finais ficam em `generated_clips.clip_path` e
+`generated_clips.thumbnail_path`. Na finalização da fonte, o publisher remove raw, finals,
+SRTs, intermediários e thumbnail, zera os dois caminhos e marca a fonte como publicada.
 
-Quando existe um encerramento, a etapa de composição pode preencher a área reservada com a miniatura e
-o título de um vídeo relacionado. A escolha prioriza o último clip publicado no mesmo canal-destino e
-usa o vídeo fonte como fallback no primeiro clip. A publicação também acrescenta o link desse destino
-no final da descrição. A tela final clicável do YouTube continua sendo uma configuração do Studio e
-não é exposta pelo `videos.insert` da Data API; o card renderizado e o link garantem o destino mesmo
-no fluxo autônomo.
+## Operação segura
 
----
-
-## Thumbnail
-
-`extract_thumbnail` ([`:194`](../clip-processor/src/video_processor.py#L194)): um frame, `-q:v 2`,
-JPG. O `at_seconds` usado por `process_clip` é 1 segundo, para obter uma imagem após o início do
-trecho.
-
-Depois do frame, `overlay_thumbnail_text` ([`:234`](../clip-processor/src/video_processor.py#L234))
-usa `drawtext` para colocar no alto da imagem uma frase curta, em branco, com contorno e caixa preta
-semitransparente. A frase vem de `generate_thumbnail_text`, que usa um prompt exclusivo para
-selecionar a fala mais polêmica, surpreendente ou contundente do trecho, literal e contínua, sem o
-contexto explicativo da thumbnail. A resposta só é aceita quando é uma sequência presente na
-transcrição e respeita os limites de legibilidade.
-
-O texto é gravado em arquivo temporário UTF-8 (`textfile`) para que aspas, acentos e pontuação não
-quebrem o parser do FFmpeg. Se a IA não retornar uma chamada válida ou o `drawtext` falhar, a exceção
-marca o clip como `failed`; não há fallback para uma frase local nem para uma thumbnail sem texto.
-
----
-
-## Artefatos em disco
-
-| Padrão | Diretório | Está no banco? | Quem apaga |
-|---|---|---|---|
-| `<clip_id>.mp4` | `videos/clips/` | `generated_clips.clip_path` | `_maybe_finalize_source_video`; `rejeitar.py` |
-| `<clip_id>.jpg` | `videos/thumbnails/` | `generated_clips.thumbnail_path` | `_maybe_finalize_source_video` |
-| `<clip_id>_raw.mp4` | `videos/clips/` | **não** | `_maybe_finalize_source_video` (desde 12/08/2026) |
-| `<clip_id>_subtitled.mp4` | `videos/clips/` | **não** | caminho feliz de `process_clip` para `curto`; senão `_maybe_finalize_source_video` |
-| `<clip_id>.srt` | `videos/clips/` | **não** | gerado somente para `curto`; **ninguém** limpa o arquivo |
-
-`_raw.mp4` e `_subtitled.mp4` passaram a ser apagados na finalização do vídeo fonte
-([`publisher.py:345-354`](../clip-processor/src/publisher.py#L345)) — antes ficavam para sempre e eram
-o maior consumidor de disco do projeto. O `.srt` continua sem nenhuma rotina de limpeza (arquivo de
-texto, KB).
-
-**Nenhum desses auxiliares está em coluna do banco.** Cruzar disco × banco por **nome de arquivo**
-classifica `.srt` e `_raw.mp4` como órfãos e apaga arquivo de clip vivo — filtrar pelo **id**
-(prefixo numérico antes de `.` ou `_`). Regra 3 do [`../CLAUDE.md`](../CLAUDE.md).
-
-### Buraco que sobra
-
-O `except` de `process_clip` marca `failed` e **não limpa nada**. Um clip que morra entre o passo 1 e
-o 4 deixa `_raw.mp4` e possivelmente `_subtitled.mp4` no disco, e `_maybe_finalize_source_video` só
-os alcança se algum **outro** clip do mesmo vídeo chegar a publicar. Se nenhum publicar, ficam.
-
----
-
-## Metadata do clip
-
-`generate_metadata` ([`metadata_generator.py:404`](../clip-processor/src/metadata_generator.py#L404)),
-chamado antes da extração da thumbnail, gera apenas os campos persistidos. A chamada textual é uma
-etapa separada em `generate_thumbnail_text`, com prompt e schema próprios. O provider é escolhido
-pela configuração:
-
-| Configuração | Provider | Modelo |
-|---|---|---|
-| `ANTHROPIC_API_KEY` preenchida | Anthropic | `claude-haiku-4-5` |
-| `ANTHROPIC_API_KEY` ausente | Groq | `openai/gpt-oss-120b` |
-
-**`ANTHROPIC_API_KEY` está vazia na operação normal**, então o provider selecionado para metadata e
-thumbnail em produção é o **Groq**.
-
-`generate_thumbnail_text` usa o provider definido pela configuração (`ANTHROPIC_API_KEY` para Claude;
-sem ela, Groq), mas só aceita uma resposta que seja uma sequência literal da transcrição. Se o
-provider não entregar metadata completa ou uma chamada válida, o clip é marcado como `failed`; não há
-conteúdo determinístico ou outro provider substituindo o prompt dedicado.
-
-Créditos ao canal fonte são anexados **no momento da publicação**, não aqui: `append_credits`
-([`:152`](../clip-processor/src/metadata_generator.py#L152)) e `resolve_credit_handle`
-([`:164`](../clip-processor/src/metadata_generator.py#L164)) são chamados pelo publisher
-([`publisher.py:69-76`](../clip-processor/src/publisher.py#L69)) usando
-`destination_channels.credit_template`.
-
----
-
-## Abortar um corte em andamento
-
-`pause_video` ([`queue_controls.py:34`](../clip-processor/src/queue_controls.py#L34)) mata o ffmpeg do
-clip (`pkill -f 'ffmpeg.*clips/<id>'`, [`:200`](../clip-processor/src/queue_controls.py#L200)) e
-devolve o clip de `cutting` para `pending_cut` ([`:82`](../clip-processor/src/queue_controls.py#L82)).
-Os intermediários do corte abortado **não** são limpos.
+Não apague raw se houver clip em `pending_cut` ou `cutting`. Não classifique
+`*.srt` ou `*_raw.mp4` como órfão só porque não aparecem em colunas próprias:
+filtre pelo ID de `generated_clips` e pelo estado. Consulte [`../CLAUDE.md`](../CLAUDE.md).

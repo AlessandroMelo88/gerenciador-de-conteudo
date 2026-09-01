@@ -1,189 +1,174 @@
 # Runbook de operação
 
-Comandos do dia a dia, diagnóstico e reinício seguro do stack.
+> Tipo: referência as-built · Atualizado: 2026-08-26
+> Execute os comandos a partir da raiz do repositório.
 
-**Antes de qualquer operação destrutiva, leia as 7 regras de [`../CLAUDE.md`](../CLAUDE.md).**
+Antes de apagar, purgar, restaurar ou alterar estados manualmente, leia
+[`../CLAUDE.md`](../CLAUDE.md).
 
-Verificado em **26/08/2026**.
+## Saúde
 
-## Convenções
-
-Todos os comandos partem da raiz deste repositório. O Compose é isolado, com PostgreSQL, Redis,
-PHP-FPM, Nginx e clip-processor próprios. Não use `container_name`, não publique as portas do banco
-ou Redis e nunca execute `docker compose down -v` em uma instalação com dados.
-
-## Saúde dos serviços
-
-```bash
-docker compose ps postgres redis clip-processor php nginx
+~~~bash
+docker compose ps
 docker compose logs --tail=100 clip-processor
-./scripts/validate-infra.sh
-```
+docker compose logs --tail=100 postgres php nginx
+docker compose exec -T postgres pg_isready -U clips_user -d clips_automation
+docker compose exec -T clip-processor python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8090/health').read().decode())"
+~~~
 
-O `panel-init` deve terminar com sucesso antes de `php`, `queue` e `scheduler`. Ele aplica as migrations
-Laravel, inclusive as tabelas do pipeline.
+O `panel-init` deve terminar com sucesso antes de `php`, `queue` e
+`scheduler`. Verifique migrations:
 
-Para consultas rápidas no banco, use o próprio container PostgreSQL:
+~~~bash
+docker compose exec php php artisan migrate:status
+~~~
 
-```bash
-docker compose exec -T postgres sh -c \
-  'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=ON_ERROR_STOP=1 "$@"' \
-  -- -c 'SELECT current_database(), current_user;'
-```
+## Restart
 
-## Código atualizado no clip-processor
+Antes do restart, observe trabalho ativo:
 
-Não há bind mount para `clip-processor/src/`; a imagem embute o código no build. Depois de alterar
-Python, faça rebuild e reinicie somente o serviço:
+~~~bash
+docker compose exec -T postgres psql -U clips_user -d clips_automation -c "SELECT status, COUNT(*) FROM generated_clips WHERE status IN ('cutting','publishing') GROUP BY status;"
+docker compose exec -T postgres psql -U clips_user -d clips_automation -c "SELECT status, COUNT(*) FROM source_videos WHERE status IN ('downloading','transcribing','selecting') GROUP BY status;"
+~~~
 
-```bash
-docker compose build clip-processor
-docker compose up -d clip-processor
-docker compose exec -T clip-processor python -m pytest tests/ -q
-```
+- `cutting` pode ser interrompido; o boot devolve o clip para `pending_cut`.
+- `publishing` pode já ter criado um vídeo no YouTube; confirme o ID antes de forçar
+  reprocessamento.
+- `transcribing` não tem recovery automático; avalie antes de mudar o estado.
+- `selecting` tem recovery periódico conforme idade e existência do raw.
 
-## Reinício seguro
+O Compose atual monta `clip-processor/src` no worker. Depois de alterar Python, reinicie o serviço:
 
-Antes de reiniciar, liste os estados em trânsito. O comando é somente leitura:
+~~~bash
+docker compose restart clip-processor
+~~~
 
-```bash
-docker compose exec -T postgres sh -c \
-  'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=ON_ERROR_STOP=1 "$@"' \
-  -- -c "
-    SELECT status, COUNT(*) FROM generated_clips
-    WHERE status IN ('cutting', 'publishing') GROUP BY status;
-    SELECT status, COUNT(*) FROM source_videos
-    WHERE status IN ('downloading', 'transcribing') GROUP BY status;
-  "
-```
+Se alterar Dockerfile, dependências ou pacotes do sistema, faça rebuild:
 
-Se houver `publishing`, aguarde ou confirme no YouTube antes de matar o processo: o upload pode ter
-terminado sem o banco ter sido atualizado. Se houver `cutting`, prefira aguardar; se o processo for
-reiniciado, o boot devolve esses clips para `pending_cut`. O recovery automático também cobre
-`downloading`, `selecting` e `publishing` (com a ressalva do YouTube); consulte
-[`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) para os demais estados.
+~~~bash
+docker compose up -d --build clip-processor
+~~~
 
-```bash
-docker compose up -d --force-recreate clip-processor
-```
+## Pipeline sem downloads
 
-## Estado preso
+Verifique na ordem:
 
-Primeiro liste e avalie o tempo sem atualização:
+1. `PIPELINE_ENABLED`;
+2. saúde do PostgreSQL e Redis;
+3. ocupação das janelas: padrão 6 `curto` e 4 `longo`;
+4. espaço livre em `/app/videos`;
+5. `source_videos` em `pending` e `paused=false`;
+6. `FRESHNESS_DAYS`;
+7. parciais `.part`/`.ytdl` antigos.
 
-```bash
-docker compose exec -T postgres sh -c \
-  'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=ON_ERROR_STOP=1 "$@"' \
-  -- -c "
-    SELECT id, status, updated_at,
-           EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - updated_at)) / 3600 AS horas
-    FROM generated_clips
-    WHERE status IN ('cutting', 'publishing')
-    ORDER BY updated_at;
-  "
-```
-
-| Preso em | Ação após validar o caso | Observação |
-|---|---|---|
-| `generated_clips.cutting` | devolver a `pending_cut` | o corte recomeça; o raw precisa existir |
-| `generated_clips.publishing` | conferir o YouTube antes | evita duplicar um upload já concluído |
-| `source_videos.transcribing` | devolver a `downloaded` | reprocessa a etapa de IA |
-
-Exemplo com ID explícito, somente depois da conferência:
-
-```bash
-docker compose exec -T postgres sh -c \
-  'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=ON_ERROR_STOP=1 "$@"' \
-  -- -c "UPDATE generated_clips SET status = 'pending_cut' WHERE id = 123 AND status = 'cutting';"
-```
-
-## Pipeline sem novos downloads
-
-Verifique, nesta ordem:
-
-1. a ocupação da janela (`curto` = 6, `longo` = 4 por padrão);
-2. `failed` com `local_path` preenchido, que pode manter uma vaga ocupada;
-3. espaço livre no volume de vídeos;
-4. o filtro de frescor (`FRESHNESS_DAYS`).
-
-```bash
-docker compose exec -T postgres sh -c \
-  'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=ON_ERROR_STOP=1 "$@"' \
-  -- -c "
-    SELECT sv.format, COUNT(DISTINCT sv.id) AS ocupando
-    FROM source_videos sv
-    LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id
-    WHERE sv.local_path IS NOT NULL
-       OR sv.status IN ('downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing')
-       OR gc.status IN ('pending_cut', 'pending', 'cutting', 'approved')
-    GROUP BY sv.format;
-  "
-```
-
-```bash
+~~~bash
 docker compose exec -T clip-processor df -h /app/videos
-```
+docker compose logs --tail=200 clip-processor | grep -iE 'download|janela|disk|falha'
+docker compose exec -T redis redis-cli ping
+~~~
 
-Nunca apague arquivos ou linhas só porque parecem antigos. Siga a lista em duas etapas e confirme que
-o arquivo saiu antes de limpar `local_path`, conforme `CLAUDE.md`.
+A limpeza automática remove artefatos de trabalho com mais de 1 h, mas não remove raw final.
+Não apague `local_path` no banco antes de confirmar o arquivo no disco.
 
-## Publicação no YouTube
+## Clips presos
 
-Confira janela local (19h–22h), cota no Redis, clips publicáveis, canal-destino ativo e OAuth:
+Ações normais de recovery:
 
-```bash
-docker compose exec -T redis redis-cli keys 'youtube_uploads:*'
-docker compose exec -T redis redis-cli get 'youtube_uploads:<channel_id>:<YYYY-MM-DD>'
-docker compose logs --tail=200 clip-processor | grep -iE 'PUB|oauth|upload|thumbnail'
-```
+| Estado | Ação |
+|---|---|
+| fonte `downloading` | boot/job volta a `pending` |
+| fonte `selecting` | após o limite, volta a `downloaded` ou vai para `failed` sem raw |
+| clip `cutting` | somente boot volta a `pending_cut` |
+| clip `publishing` | após 15 min volta a `pending`; confirme YouTube antes |
+| fonte `transcribing` | ação manual; não há recovery automático |
 
-Não use `FLUSHALL`: isso apaga deduplicação e pode ressuscitar vídeos no próximo RSS. Para corrigir
-somente uma cota, remova apenas a chave diária explicitamente identificada.
+Antes de uma alteração manual, liste ID, status, `updated_at`, `local_path`,
+clips filhos e processos FFmpeg/yt-dlp. Faça backup quando a mudança puder perder dados.
+
+## Publicação
+
+Cheque janela, destinos, OAuth, SRT, quota e logs:
+
+~~~bash
+docker compose exec -T redis redis-cli --scan --pattern 'youtube_uploads:*'
+docker compose logs --tail=300 clip-processor | grep -iE 'PUB|oauth|upload|caption|thumbnail|processing'
+~~~
+
+Regras padrão:
+
+- janela 19:00–22:00 no horário de São Paulo;
+- total padrão 2/dia por destino, teto de 6;
+- longos usam reserva própria;
+- `MANUAL_APPROVAL_REQUIRED=true` exige `approved`;
+- `YOUTUBE_WAIT_FOR_HD=true` mantém o vídeo privado até processamento/legenda;
+- Redis fora do ar impede decisão de quota.
+
+Não use `FLUSHALL`. Para investigar um contador, leia a chave exata do destino e da data.
+Se um upload já criou vídeo e falhou na finalização, procure o `youtube_video_id` salvo
+antes de reprocessar.
+
+## Usuário, canal e OAuth
+
+~~~bash
+docker compose exec php php artisan painel:create-user
+docker compose exec clip-processor python -m src.youtube_oauth --channel <slug>
+~~~
+
+O segredo OAuth precisa estar no volume `youtube/`, e o token fica em
+`/app/youtube/token-<slug>.json`. O painel mostra `missing`,
+`authorized` ou `expired` conforme arquivo e flag do banco.
+
+## URLs manuais
+
+O painel e o Telegram apenas enfileiram a URL. O caminho manual equivalente é:
+
+~~~bash
+docker compose exec clip-processor python -m src.processar <url>
+~~~
+
+O CLI usa `curto` por padrão. Para `longo`, use a tela Processar vídeo ou envie
+`format=longo` à rota autenticada `/internal/process-url`.
+
+## Disco e purga
+
+Preferir ações do painel:
+
+- apagar arquivos de uma fonte específica;
+- purgar fontes anteriores a uma data;
+- rejeitar clip pelo painel/Telegram.
+
+Essas operações passam pelo sidecar e guardam clips em `pending_cut`/`cutting`.
+Para lote, primeiro liste IDs, quantidade e tamanho; depois execute e confira banco e disco. Não
+apague linhas de `source_videos` diretamente sem tratar `generated_clips`.
 
 ## Backup e restauração
 
-O backup usa `pg_dump`, gzip e SHA-256. Aponte `POSTGRES_BACKUP_DIR` para outro disco ou armazenamento
-sincronizado quando precisar de proteção contra falha física:
+Ative o backup periódico em outro disco quando possível:
 
-```bash
+~~~bash
 docker compose --profile backup up -d postgres-backup
 ./scripts/backup-postgres.sh
-latest="$(find backups/postgres -name 'clips_automation_*.sql.gz' -type f -print | sort | tail -n 1)"
-gzip -t "$latest"
-(cd backups/postgres && sha256sum -c "$(basename -- "${latest}.sha256")")
-```
+~~~
 
-Para restaurar, pare o processamento e confirme explicitamente. O script valida o gzip e o checksum
-antes de enviar o dump:
+Confirme gzip e checksum. Para restaurar:
 
-```bash
+~~~bash
 docker compose stop clip-processor queue scheduler
 CONFIRM_RESTORE=I_UNDERSTAND ./scripts/restore-postgres.sh ./backups/postgres/SEU_BACKUP.sql.gz
 docker compose start queue scheduler clip-processor
-```
+~~~
 
-As FKs não usam `ON DELETE CASCADE`; faça backup antes de `DELETE` em massa e remova clips antes dos
-vídeos de origem.
+Restauração é destrutiva para o estado atual: confirme o arquivo e pare consumidores antes.
+Detalhes de integridade estão em [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md).
 
-## Usuário e OAuth
+## Testes e qualidade
 
-```bash
-docker compose exec php php /var/www/html/painel/artisan painel:create-user
-docker compose exec php php /var/www/html/painel/artisan painel:reset-password email@exemplo.com
-docker compose exec clip-processor python -m src.youtube_oauth --channel <slug>
-```
+~~~bash
+make lint
+make test-python
+make test-php
+make compose-check
+~~~
 
-Senhas nunca são exibidas. O token OAuth é salvo como `/app/youtube/token-<slug>.json`.
-
-## Qualidade
-
-```bash
-make setup
-make hooks
-make format
-make ci
-```
-
-`make ci` executa lint, mypy, testes Python, validação do Compose, hadolint quando instalado e build
-do frontend. Os testes PHP devem rodar em um banco de teste isolado; veja
-[`DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md).
+Não use `make format` durante uma investigação sem revisar o diff: ele altera arquivos.

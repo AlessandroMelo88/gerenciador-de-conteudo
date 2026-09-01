@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SourceChannel extends Model
@@ -22,6 +23,7 @@ class SourceChannel extends Model
         'rss_url',
         'active',
         'target_niche',
+        'prompt_profile_id',
         'channel_handle',
         'blacklisted',
     ];
@@ -31,6 +33,12 @@ class SourceChannel extends Model
         'blacklisted' => 'bool',
         'created_at' => 'datetime',
     ];
+
+    /** @return BelongsTo<PromptProfile, $this> */
+    public function promptProfile(): BelongsTo
+    {
+        return $this->belongsTo(PromptProfile::class, 'prompt_profile_id');
+    }
 
     /** @return HasMany<SourceVideo, $this> */
     public function sourceVideos(): HasMany

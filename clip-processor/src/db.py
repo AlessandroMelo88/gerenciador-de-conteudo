@@ -198,6 +198,29 @@ def recover_stuck_selecting(conn):
         'AND local_path IS NOT NULL '
         "AND updated_at < NOW() - (%s * INTERVAL '1 hour')"
     )
+    # Um clip pode ter sido criado e falhar no corte (por exemplo, por asset
+    # obrigatório ausente). Nesse caso o vídeo-fonte continua em `selecting`,
+    # mas já não existe trabalho recuperável para ele. Sem esta saída, a
+    # janela permanece ocupada até o timeout e o registro fica parecendo uma
+    # seleção ativa.
+    sql_terminal = (
+        'UPDATE source_videos '
+        "SET status='failed' "
+        "WHERE status='selecting' "
+        'AND EXISTS ('
+        '  SELECT 1 FROM generated_clips gc '
+        '  WHERE gc.source_video_id = source_videos.id'
+        ') '
+        'AND NOT EXISTS ('
+        '  SELECT 1 FROM generated_clips gc '
+        '  WHERE gc.source_video_id = source_videos.id '
+        "  AND gc.status IN ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')"
+        ') '
+        'AND NOT EXISTS ('
+        '  SELECT 1 FROM generated_clips gc '
+        "  WHERE gc.source_video_id = source_videos.id AND gc.status = 'published'"
+        ')'
+    )
     sql_empty = (
         'UPDATE source_videos '
         "SET status='downloaded' "
@@ -218,6 +241,8 @@ def recover_stuck_selecting(conn):
 
     try:
         with conn.cursor() as cur:
+            cur.execute(sql_terminal)
+            terminal = cur.rowcount
             cur.execute(sql_stuck, (SELECTING_STUCK_HOURS,))
             stuck = cur.rowcount
             cur.execute(sql_empty)
@@ -226,12 +251,51 @@ def recover_stuck_selecting(conn):
             no_file = cur.rowcount
         conn.commit()
         _log(
-            f'recover_stuck_selecting: {stuck} travado(s) + {empty} sem clip '
-            f'redefinido(s) para downloaded, {no_file} sem arquivo para failed'
+            f'recover_stuck_selecting: {terminal} terminal(is) redefinido(s) para failed; '
+            f'{stuck} travado(s) + {empty} sem clip redefinido(s) para downloaded; '
+            f'{no_file} sem arquivo redefinido(s) para failed'
         )
     except psycopg2.OperationalError as exc:
         _log(f'AVISO: falha ao recuperar seleções presas: {exc}')
         raise
+
+
+def reconcile_source_video_status(conn, source_video_id: int | None) -> bool:
+    """Libera uma fonte quando todos os seus clips terminaram sem publicar.
+
+    A seleção deixa a fonte em ``selecting`` enquanto os clips passam por corte
+    e publicação. Se o último clip falhar, não há outro worker que altere a
+    fonte, então ela ficava presa nesse estado até o recovery periódico. Esta
+    reconciliação é chamada logo após cada corte e continua protegida por um
+    ``WHERE status='selecting'`` para não rebaixar uma fonte já publicada.
+    """
+    if source_video_id is None:
+        return False
+
+    sql = (
+        'UPDATE source_videos '
+        "SET status='failed' "
+        "WHERE id=%s AND status='selecting' "
+        'AND EXISTS ('
+        '  SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = source_videos.id'
+        ') '
+        'AND NOT EXISTS ('
+        '  SELECT 1 FROM generated_clips gc '
+        '  WHERE gc.source_video_id = source_videos.id '
+        "  AND gc.status IN ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')"
+        ') '
+        'AND NOT EXISTS ('
+        '  SELECT 1 FROM generated_clips gc '
+        "  WHERE gc.source_video_id = source_videos.id AND gc.status = 'published'"
+        ')'
+    )
+    with conn.cursor() as cur:
+        cur.execute(sql, (source_video_id,))
+        changed = cur.rowcount > 0
+    conn.commit()
+    if changed:
+        _log(f'Fonte {source_video_id} liberada: todos os clips terminaram em falha')
+    return changed
 
 
 def recover_stuck_publishing(conn):

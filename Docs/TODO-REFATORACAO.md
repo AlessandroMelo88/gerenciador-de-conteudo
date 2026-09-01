@@ -7,8 +7,9 @@ depois do commit `style:` (ruff/pint/prettier), mas os símbolos e trechos citad
 
 > **Nota de estado:** este é um snapshot histórico anterior à adoção do PostgreSQL, das migrations
 > Laravel e dos gates de qualidade de 26/08/2026. Para o estado atual, consulte
-> `ARCHITECTURE.md`, `Docs/README.md` e os ADRs 0006–0008. Itens abaixo só devem
-> ser tratados como pendentes depois de uma nova verificação no código atual.
+> ARCHITECTURE.md, Docs/README.md, [BANCO-DE-DADOS.md](BANCO-DE-DADOS.md) e
+> [ADR/README.md](ADR/README.md). Itens abaixo só devem ser tratados como pendentes depois de
+> uma nova verificação no código atual.
 
 **Como usar este documento**
 

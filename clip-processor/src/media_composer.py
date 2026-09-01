@@ -10,10 +10,15 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from src.related_video import download_related_thumbnail, normalize_video_id
+from src.video_quality import AUDIO_ENCODER_OPTIONS, VIDEO_ENCODER_OPTIONS
 
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
 DEFAULT_STILL_DURATION_SECONDS = 3
 DEFAULT_MUSIC_VOLUME = 0.12
+MUSIC_DURATION_SECONDS = 15
+MUSIC_FINAL_VOLUME_SECONDS = 8
+MUSIC_FADE_IN_SECONDS = MUSIC_DURATION_SECONDS - MUSIC_FINAL_VOLUME_SECONDS
+MUSIC_VOLUME_GAIN = 1.20
 DEFAULT_TRANSITION_SECONDS = 0.35
 RELATED_CARD_FONT_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
 
@@ -98,6 +103,41 @@ def _probe_duration(path: Path) -> float | None:
     return duration if duration > 0 else None
 
 
+def content_start_offset(
+    assets: Mapping[str, Mapping[str, object]], content_duration: float
+) -> float:
+    """Calcula onde o conteúdo começa depois da intro com crossfade.
+
+    O SRT de um vídeo longo precisa acompanhar a linha do tempo final, que
+    inclui a intro. A composição usa a mesma transição de até 350 ms de
+    ``_concat_segments``; repetir esse cálculo evita deslocar a legenda.
+    """
+    intro = assets.get('intro')
+    if not intro:
+        return 0.0
+    intro_path = Path(str(intro.get('absolute_path')))
+    if not intro_path or not intro_path.is_file():
+        return 0.0
+
+    intro_duration = _probe_duration(intro_path)
+    if intro_duration is None:
+        intro_duration = float(_duration(intro.get('duration_seconds')))
+
+    known_durations = [intro_duration, max(float(content_duration), 1.0)]
+    outro = assets.get('outro')
+    if outro and outro.get('absolute_path'):
+        outro_path = Path(str(outro['absolute_path']))
+        if outro_path.is_file():
+            outro_duration = _probe_duration(outro_path)
+            if outro_duration is None:
+                outro_duration = float(_duration(outro.get('duration_seconds')))
+            known_durations.append(outro_duration)
+
+    transition = min(DEFAULT_TRANSITION_SECONDS, min(known_durations) / 2)
+    transition = max(0.05, transition)
+    return max(0.05, intro_duration - transition)
+
+
 def _normalize_segment(
     source_path: str,
     output_path: str,
@@ -124,20 +164,13 @@ def _normalize_segment(
             _video_filter(video_format),
             '-map',
             '0:v:0',
-            '-c:v',
-            'libx264',
-            '-preset',
-            'veryfast',
-            '-crf',
-            '23',
-            '-pix_fmt',
-            'yuv420p',
+            *VIDEO_ENCODER_OPTIONS,
         ]
     )
     if has_audio:
-        command.extend(['-map', '0:a:0', '-c:a', 'aac', '-ar', '48000', '-ac', '2'])
+        command.extend(['-map', '0:a:0', *AUDIO_ENCODER_OPTIONS])
     else:
-        command.extend(['-map', '1:a:0', '-c:a', 'aac', '-ar', '48000', '-ac', '2'])
+        command.extend(['-map', '1:a:0', *AUDIO_ENCODER_OPTIONS])
 
     if is_image and duration_seconds is not None:
         command.extend(['-t', str(max(float(duration_seconds), 1.0))])
@@ -233,18 +266,8 @@ def _concat_segments(segment_paths: Sequence[Path], list_path: Path, output_path
             f'[{current_video}]',
             '-map',
             f'[{current_audio}]',
-            '-c:v',
-            'libx264',
-            '-preset',
-            'veryfast',
-            '-crf',
-            '23',
-            '-pix_fmt',
-            'yuv420p',
-            '-c:a',
-            'aac',
-            '-b:a',
-            '192k',
+            *VIDEO_ENCODER_OPTIONS,
+            *AUDIO_ENCODER_OPTIONS,
             '-movflags',
             '+faststart',
             output_path,
@@ -322,14 +345,7 @@ def _apply_related_video_card(
             '[v]',
             '-map',
             '0:a:0',
-            '-c:v',
-            'libx264',
-            '-preset',
-            'veryfast',
-            '-crf',
-            '23',
-            '-pix_fmt',
-            'yuv420p',
+            *VIDEO_ENCODER_OPTIONS,
             '-c:a',
             'copy',
             '-shortest',
@@ -347,7 +363,15 @@ def _apply_related_video_card(
 
 
 def _mix_music(input_path: str, music_path: str, output_path: str, volume: float) -> None:
-    safe_volume = min(max(float(volume), 0.01), 1.0)
+    input_duration = _probe_duration(Path(input_path))
+    if input_duration is None:
+        raise RuntimeError(f'Não foi possível determinar a duração de {input_path}')
+
+    music_duration = min(float(MUSIC_DURATION_SECONDS), input_duration)
+    music_start = max(input_duration - music_duration, 0.0)
+    fade_duration = min(float(MUSIC_FADE_IN_SECONDS), music_duration)
+    safe_volume = min(max(float(volume) * MUSIC_VOLUME_GAIN, 0.01), 1.0)
+    delay_ms = round(music_start * 1000)
     _run_ffmpeg(
         [
             'ffmpeg',
@@ -360,8 +384,11 @@ def _mix_music(input_path: str, music_path: str, output_path: str, volume: float
             music_path,
             '-filter_complex',
             (
-                f'[1:a]volume={safe_volume:.3f}[music];'
-                '[0:a][music]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[a]'
+                f'[1:a]atrim=duration={music_duration:.3f},'
+                f'volume={safe_volume:.3f},'
+                f'afade=t=in:st=0:d={fade_duration:.3f},'
+                f'asetpts=PTS-STARTPTS,adelay={delay_ms}|{delay_ms}[music];'
+                '[0:a][music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]'
             ),
             '-map',
             '0:v:0',
@@ -387,12 +414,17 @@ def compose_media(
     video_format: str,
     assets: Mapping[str, Mapping[str, object]],
 ) -> str:
-    """Aplica intro, encerramento e música; sem assets, mantém o caminho original.
+    """Aplica intro, encerramento e música somente a vídeos longos.
 
-    A música é aplicada somente ao segmento de encerramento. Assim, o trecho
-    musical fica sempre audível junto da identidade final sem encobrir a fala
-    do conteúdo principal.
+    A música cobre os 15 segundos finais do vídeo composto, com fade-in de
+    7 segundos e volume final mantido nos 8 segundos finais.
+
+    Shorts são vídeos verticais curtos e devem permanecer apenas com o conteúdo
+    principal, mesmo que um caller antigo forneça assets.
     """
+    if video_format != 'longo':
+        return input_path
+
     related_video = assets.get('related_video')
     usable_assets = {
         kind: asset
@@ -447,22 +479,23 @@ def compose_media(
                 ):
                     outro_visual_path = outro_with_related_path
 
-            music = usable_assets.get('music')
-            if music:
-                outro_with_music_path = temp_root / 'outro_com_musica.mp4'
-                _mix_music(
-                    str(outro_visual_path),
-                    str(music['absolute_path']),
-                    str(outro_with_music_path),
-                    _volume(music.get('music_volume')),
-                )
-                segments.append(outro_with_music_path)
-            else:
-                segments.append(outro_visual_path)
+            segments.append(outro_visual_path)
 
         concatenated_path = temp_root / 'concatenated.mp4'
         _concat_segments(segments, temp_root / 'segments.txt', str(concatenated_path))
 
-        shutil.copyfile(concatenated_path, output_path)
+        final_media_path = concatenated_path
+        music = usable_assets.get('music')
+        if music:
+            concatenated_with_music_path = temp_root / 'concatenated_com_musica.mp4'
+            _mix_music(
+                str(concatenated_path),
+                str(music['absolute_path']),
+                str(concatenated_with_music_path),
+                _volume(music.get('music_volume')),
+            )
+            final_media_path = concatenated_with_music_path
+
+        shutil.copyfile(final_media_path, output_path)
 
     return output_path

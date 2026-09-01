@@ -235,6 +235,38 @@ class TestAIPipelineIntegration:
         # Verificar que select_moments foi chamado (fmt default 'curto' quando ausente no row)
         mock_select.assert_called_once_with(mock_transcript, anthropic_client=None, fmt='curto')
 
+    def test_process_ai_pipeline_passes_source_prompt_profile(self, mock_db_conn, mocker):
+        """O perfil ativo do canal-fonte chega ao seletor sem usar perfil de outro nicho."""
+        from src.rss_poller import _process_ai_pipeline
+
+        mock_transcript = {
+            'video_id': 'vid001aaaaaa',
+            'text': 'Texto',
+            'segments': [{'start': 0.0, 'end': 60.0, 'text': 'Explicação técnica'}],
+        }
+        mocker.patch('src.rss_poller.transcribe_video', return_value=mock_transcript)
+        mocker.patch('src.rss_poller.save_transcript')
+        mock_select = mocker.patch('src.rss_poller.select_moments', return_value=[])
+        mocker.patch('src.rss_poller.insert_selected_moments', return_value=0)
+
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = {
+            'id': 42,
+            'format': 'curto',
+            'target_niche': 'tecnologia',
+            'prompt_profile_id': 7,
+            'prompt_profile_slug': 'conteudo-inteligencia',
+            'prompt_profile_name': 'Conteúdo de Inteligência',
+            'prompt_profile_niche': 'hacker-libertario',
+            'prompt_profile_niche_aliases': ['tecnologia'],
+            'prompt_profile_selection_short_prompt': 'Perfil técnico.',
+        }
+
+        _process_ai_pipeline(mock_db_conn, 'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4')
+
+        assert mock_select.call_args.kwargs['prompt_profile']['slug'] == 'conteudo-inteligencia'
+        assert mock_select.call_args.kwargs['niche'] == 'tecnologia'
+
     def test_process_ai_pipeline_passes_used_moments_to_selector(self, mock_db_conn, mocker):
         """O histórico de generated_clips é encaminhado para o prompt da IA."""
         from src.rss_poller import _process_ai_pipeline

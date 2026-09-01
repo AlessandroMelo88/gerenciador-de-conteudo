@@ -7,11 +7,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
+use function Pest\Laravel\actingAs;
+
 it('uploads a global intro to the media library', function () {
     Storage::fake('branding');
     $user = User::factory()->create();
 
-    $this->actingAs($user)
+    actingAs($user)
         ->post('/painel/configuracoes/midia', [
             'kind' => 'intro',
             'name' => 'Intro principal',
@@ -38,10 +40,10 @@ it('exposes media readiness and destination scopes in settings', function () {
         'kind' => 'music',
         'name' => 'Trilha',
         'path' => 'media/music/a.mp3',
-        'destination_channel_id' => $channel->id,
+        'destination_channel_id' => $channel->getKey(),
     ]);
 
-    $this->actingAs($user)
+    actingAs($user)
         ->get('/painel/configuracoes')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -51,7 +53,7 @@ it('exposes media readiness and destination scopes in settings', function () {
             ->where('mediaConfiguration.outroCount', 1)
             ->where('mediaConfiguration.musicCount', 1)
             ->where('destinationChannels', fn ($channels) => collect($channels)
-                ->contains(fn ($item) => $item['id'] === $channel->id)));
+                ->contains(fn ($item) => $item['id'] === $channel->getKey())));
 });
 
 it('deletes the file and database record together', function () {
@@ -64,10 +66,10 @@ it('deletes the file and database record together', function () {
         'path' => 'media/music/trilha.mp3',
     ]);
 
-    $this->actingAs($user)
-        ->delete("/painel/configuracoes/midia/{$asset->id}")
+    actingAs($user)
+        ->delete("/painel/configuracoes/midia/{$asset->getKey()}")
         ->assertRedirect();
 
-    expect(MediaAsset::query()->find($asset->id))->toBeNull();
+    expect(MediaAsset::query()->find($asset->getKey()))->toBeNull();
     Storage::disk('branding')->assertMissing('media/music/trilha.mp3');
 });

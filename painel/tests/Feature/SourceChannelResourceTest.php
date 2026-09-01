@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\PromptProfile;
 use App\Models\SourceChannel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -27,6 +28,9 @@ it('creates a source_channel via internal API resolve', function () {
 
     expect(SourceChannel::query()->where('youtube_channel_id', 'UC_TEST_123')->exists())->toBeTrue();
     expect(SourceChannel::query()->count())->toBe($countBefore + 1);
+    expect(
+        SourceChannel::query()->where('youtube_channel_id', 'UC_TEST_123')->value('prompt_profile_id')
+    )->toBe(PromptProfile::query()->where('slug', 'futebol')->value('id'));
 });
 
 it('shows an error when yt-dlp resolution fails and does not insert a row', function () {

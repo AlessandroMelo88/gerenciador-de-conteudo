@@ -1,182 +1,128 @@
-# Sistema — `clip-processor`
+# clip-processor
 
-Mapa de **qual arquivo faz o quê** no daemon Python. Cada subsistema tem documento próprio, linkado na
-tabela; aqui é só o índice de módulos e o que é comum a todos.
+> Tipo: referência as-built · Atualizado: 2026-08-27
+> Código: `clip-processor/src`
 
-Última atualização: **26/08/2026** · módulos do daemon em `clip-processor/src/`
+Daemon Python responsável por todo o pipeline e pelo sidecar HTTP. A imagem copia o código e o
+Compose atual monta `clip-processor/src` em `/app/src`; alterações Python exigem restart do
+serviço, enquanto mudanças de dependências ou do Dockerfile exigem rebuild.
 
----
+## Mapa de módulos
 
-## O que é
-
-Container Docker único (nome gerenciado pelo Compose), sem porta publicada, rodando
-`python -m src.main`. Faz **todo** o trabalho do pipeline: descobre vídeos, baixa, transcreve, escolhe
-momentos com IA, corta, aplica pós-produção específica do formato e publica no YouTube.
-
-Dentro dele também roda o **sidecar HTTP** (Flask, thread daemon, porta 8090 interna) que o painel chama
-para ações que tocam disco ou processo.
-
-**Consequência operacional:** parar o container para o pipeline **e** derruba o sidecar. O painel
-continua abrindo, mas "Apagar arquivo", "Purgar antigos" e "Processar URL" passam a falhar.
-
-### Editar código exige rebuild
-
-Não há bind mount para `src/` — o Dockerfile faz `COPY src/ src/` e a imagem embute o código no build.
-Editar no host e reiniciar **não** aplica a mudança.
-
-```bash
-docker compose build clip-processor && docker compose up -d clip-processor
-```
-
-Isso já causou horas perdidas: em 13/08/2026 o container rodava código de 01/08 enquanto o host tinha
-commits de 12/08, e o comportamento observado não correspondia a nenhuma versão do código que se estava
-lendo. **Conferir a data da imagem antes de investigar qualquer bug** —
-[`RUNBOOK.md`](RUNBOOK.md#o-container-está-rodando-código-velho).
-
----
-
-## Mapa dos módulos
-
-### Orquestração — [`PIPELINE-E-SCHEDULER.md`](PIPELINE-E-SCHEDULER.md)
-
-| Arquivo | Responsabilidade |
+| Módulo | Responsabilidade |
 |---|---|
-| `main.py` | Entrypoint. Recovery no boot, sobe o sidecar em thread, roda um ciclo síncrono e entrega ao APScheduler. Jobs: `ingest_cycle` 20 min, `publish_cycle` 20 min, `clip_pending_ttl` 1 h, `state_recovery` **30 min** |
-| `pipeline_runner.py` | Descoberta de vaga e **download**. Janela por formato (6 `curto` + 4 `longo`), `FRESHNESS_DAYS=365` por default, `_discard_failed_download` |
-| `rss_poller.py` | **Nome enganoso:** além do polling RSS, executa o estágio de IA (transcrição + seleção) e dispara o corte. `poll_all_channels` é o coração do ciclo |
+| `main.py` | scheduler, boot, recovery, sidecar e `PIPELINE_ENABLED` |
+| `pipeline_runner.py` | ciclos, janela de download e descarte seguro de falhas |
+| `rss_poller.py` | RSS, dedup, classificação, transcrição, seleção e render pendente |
+| `dedup.py` | Redis `SET NX` + fallback PostgreSQL |
+| `downloader.py` | yt-dlp, retry, disk guard e limpeza de parciais |
+| `transcriber.py` | legendas manuais PT-BR + Groq Whisper |
+| `transcription_job.py` | transcrição local assíncrona com whisper.cpp |
+| `selector.py` | prompts, seleção, fact-check, duração, bordas e duplicidade |
+| `prompt_profiles.py` | normalização e compatibilidade dos perfis de prompt do PostgreSQL |
+| `fact_check_prompt.py` | instruções factuais compartilhadas |
+| `metadata_generator.py` | título, descrição, tags e `thumbnail_text` |
+| `video_processor.py` | corte, SRT, legenda queimada, watermark e thumbnail |
+| `subtitle_detector.py` | OCR do rodapé × transcrição para não legendar o que já vem legendado |
+| `video_quality.py` | opções comuns de encoder |
+| `media_assets.py` | resolução de assets filesystem/DB |
+| `media_composer.py` | intro, conteúdo, outro, música e card relacionado |
+| `related_video.py` | link e thumbnail de vídeo relacionado |
+| `publisher.py` | elegibilidade, roteamento, quota, upload e finalização |
+| `quota_manager.py` | quota Redis, janela 19:00–22:00 e reserva de longos |
+| `uploader.py` | YouTube Data API, legenda oficial, HD, privacidade e thumbnail |
+| `youtube_oauth.py` | geração de token por canal-destino |
+| `queue_controls.py` | pause, resume, reorder, prioritize e guards de raw |
+| `rejeitar.py` | rejeição de clip e remoção do MP4 final |
+| `internal_api.py` | sidecar Flask autenticado |
+| `ttl_worker.py` | alerta/rejeição por TTL |
+| `telegram_notifier.py` | eventos do processador para o Laravel |
+| `db.py` | conexão, status, inserção e recovery |
+| `processar.py` | ingestão manual de URL |
 
-### Aquisição — [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md)
+## Ciclo executado
 
-| Arquivo | Responsabilidade |
+~~~text
+main.py
+ ├─ run_ingest_cycle (20 min)
+ │   ├─ rss_poller.poll_all_channels
+ │   │   ├─ RSS + dedup + insert pending
+ │   │   ├─ downloaded → transcribe → resolve perfil → select
+ │   │   └─ pending_cut → process_clip
+ │   └─ pipeline_runner._download_pending_videos
+ ├─ run_publish_only (20 min)
+ │   └─ publisher.publish_pending_clips
+ ├─ run_ttl_once (1 h)
+ └─ run_recovery_once (30 min)
+~~~
+
+No boot, `run_pipeline_once` executa ingestão e publicação imediatas. O scheduler usa
+`America/Sao_Paulo`, `max_instances=1` e `coalesce=true`.
+
+## Contratos internos
+
+- cada função de produção pode abrir sua própria conexão PostgreSQL;
+- testes injetam conexão, Redis e clientes de IA;
+- funções de estágio registram logs em stdout;
+- falhas de canal/clip são isoladas quando possível;
+- a fila usa status no PostgreSQL;
+- caminhos de arquivo são absolutos dentro do container;
+- notificações são best-effort.
+
+## Dados e Redis
+
+Tabelas centrais: `source_channels`, `source_videos`,
+`generated_clips`, `destination_channels`, `prompt_profiles`, `media_assets`,
+`transcription_jobs` e `niches`.
+
+O canal-fonte fornece o perfil da seleção. O canal-destino fornece o perfil de metadata e
+thumbnail; a inserção de momentos procura destino com o mesmo `prompt_profile_id`. Perfis ativos
+incompatíveis com o nicho são descartados, e linhas legadas sem perfil usam somente o fallback
+compatível por nicho.
+
+Redis guarda:
+
+- `video:<youtube_id>`: dedup, TTL 30 dias;
+- `youtube_uploads:*`: quota;
+- `clip_warned:<id>`: alerta TTL idempotente.
+
+Não use Redis como fila e não use `FLUSHALL` para destravar o pipeline.
+
+## Configuração importante
+
+| Variável | Uso |
 |---|---|
-| `downloader.py` | yt-dlp 720p, 3 tentativas, disk guard de 2 GB, abort por pause. `_cleanup_partial` (por download) e `cleanup_stale_downloads` (varredura de órfãos, **1 h+**) |
-| `dedup.py` | "Já vi esse vídeo?" via Redis `SET NX` (TTL 30 dias) com fallback para PostgreSQL. `mark_failed_redis` é helper de compatibilidade para retries explícitos |
-| `processar.py` | Enfileira URL avulsa como `pending`. Não bypassa o pipeline |
+| `PIPELINE_ENABLED` | pausa ingestão/publicação sem desligar sidecar |
+| `GROQ_API_KEY` | Whisper e fallback/uso normal de LLM |
+| `ANTHROPIC_API_KEY` | caminho Anthropic da seleção/metadata/thumbnail |
+| banco `prompt_profiles` | prompts editoriais por nicho/canal; seed em migration |
+| `DOWNLOAD_WINDOW_CURTO/LONGO` | ocupação máxima por formato |
+| `FRESHNESS_DAYS` | idade aceita para download automático |
+| `MANUAL_APPROVAL_REQUIRED` | `pending` direto ou aprovação |
+| `BURNED_SUBTITLE_DETECTION` | habilita OCR para evitar queimar legenda já gravada; padrão `true` |
+| `MAX_UPLOADS_PER_DAY` | quota total, clamp de 0 a 6 |
+| `YOUTUBE_WAIT_FOR_HD` | espera de processamento antes de visibilidade final |
+| `YOUTUBE_PROCESSING_TIMEOUT_SECONDS` | limite da espera HD; padrão 900 |
+| `YOUTUBE_PROCESSING_POLL_SECONDS` | intervalo de consulta ao YouTube; padrão 10 |
+| `CLIP_PROCESSOR_INTERNAL_TOKEN` | autenticação do sidecar/eventos |
 
-### Inteligência — [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md), [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md)
+## Onde alterar
 
-| Arquivo | Responsabilidade |
-|---|---|
-| `transcriber.py` | Tenta legendas do YouTube (manual/automática) em pt antes do Groq Whisper `whisper-large-v3-turbo`; converte para MP3 acima de 24 MB no fallback |
-| `selector.py` | Escolhe os momentos com score 0–10. Claude Haiku → fallback Groq LLaMA 3.3-70b. Prompt e limites variam por formato (`curto`: até 3 momentos de **30**–180 s; `longo`: 1 segmento de 420–1200 s) |
-| `metadata_generator.py` | Título, descrição e tags para SEO; `generate_thumbnail_text` usa um prompt dedicado para uma chamada literal da thumb. O provider é escolhido pela configuração e não há fallback determinístico |
-| `transcription_job.py` | Feature isolada "Transcrição Local": baixa só o áudio e roda whisper.cpp local, sem Groq e sem cota. Progresso em `transcription_jobs` |
+- prompts: [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md);
+- estados: [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md);
+- publicação: [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md);
+- mídia: [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md);
+- operações HTTP: [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md);
+- banco: [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md).
 
-### Produção de vídeo — [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md)
+Para alterar Python no Compose atual:
 
-| Arquivo | Responsabilidade |
-|---|---|
-| `video_processor.py` | FFmpeg. `cut_clip` (curto = vertical 1080x1920; longo = `scale=-2:1080`), `generate_srt`/`burn_subtitles` somente para Shorts, overlays de watermark e texto da thumbnail, `extract_thumbnail`, e o orquestrador `process_clip` |
+~~~bash
+docker compose restart clip-processor
+~~~
 
-### Publicação — [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md)
+Se mudar Dockerfile, dependências ou pacotes do sistema, faça rebuild:
 
-| Arquivo | Responsabilidade |
-|---|---|
-| `publisher.py` | Decide o que publicar: cota, janela 19h–22h (SP), round-robin por canal fonte, reserva de slot para `longo`. `_maybe_finalize_source_video` apaga raw, clips, `_raw`, `_subtitled` e thumbnails ao fechar o vídeo fonte |
-| `quota_manager.py` | Contadores Redis `youtube_uploads:*`, TTL até a meia-noite local. `MAX_UPLOADS_PER_DAY` é **clampado em [0,6]** no código |
-| `uploader.py` | `videos.insert` + `thumbnails().set`. Um token OAuth por canal-destino; refresh falhando marca `oauth_expired_flag`. **A thumbnail não tem try/except próprio — bug 3** |
-| `youtube_oauth.py` | CLI interativo que gera `/app/youtube/token-{slug}.json` |
-| `ttl_worker.py` | Auto-rejeita clip `pending` com mais de 48 h; avisa uma vez em 24 h (idempotente via Redis) |
-
-### Interface com o painel — [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md)
-
-| Arquivo | Responsabilidade |
-|---|---|
-| `internal_api.py` | Sidecar Flask 8090. Auth por `X-Internal-Token`, **fail-closed** (env vazia ⇒ 401 em tudo). 10 rotas. Sem health check |
-| `queue_controls.py` | Pause / resume / reorder / prioritize da fila. `can_delete_raw` é o guard de "arquivo em uso" |
-| `rejeitar.py` | Rejeita clip, apaga o MP4 final e **preserva** o raw do vídeo fonte (decisão explícita, permite recorte futuro) |
-| `telegram_notifier.py` | Caminho inverso: `POST /internal/pipeline-event` no Laravel, que centraliza o token do Telegram. Best-effort — falha nunca propaga |
-
-### Base
-
-| Arquivo | Responsabilidade |
-|---|---|
-| `db.py` | Conexão psycopg2 e helpers de status. `recover_stuck_downloads`, `recover_stuck_selecting`, `recover_stuck_publishing` e `recover_cutting_on_boot` ([`db.py`](../clip-processor/src/db.py)) |
-
-Schema e colunas em [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md); estados e transições em
-[`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md).
-
----
-
-## Padrões comuns a todos os módulos
-
-Vale conhecer antes de escrever código novo aqui — são consistentes no projeto inteiro:
-
-| Padrão | Detalhe |
-|---|---|
-| Logging | `print` com timestamp e tag por módulo: `[ACQU]`, `[AI]`, `[VID]`, `[PUB]`, `[DB]`, `[QUEUE]`, `[DEDUP]`, `[NOTIFY]`. Sem biblioteca de logging |
-| Injeção de dependência | `db_conn=None` / `redis_client=None` / `groq_client=None` significa "produção cria o cliente"; testes injetam |
-| Ciclo de vida da conexão | Quem **abre** fecha. Funções que recebem `conn` nunca o fecham |
-| Commit | Explícito em cada função (`autocommit=False`) |
-| Isolamento de falha | Cada estágio em `try/except` próprio que loga e segue. Uma falha não derruba o scheduler |
-| Roteamento de IA | Seleção legada usa Anthropic → Groq; metadata e thumbnail usam o provider configurado. Resposta inválida ou ausente falha de forma explícita |
-
-> **`ANTHROPIC_API_KEY` está vazia na operação normal.** O código tenta Claude primeiro, mas o provider
-> que roda de fato em produção é o **Groq LLaMA 3.3-70b**, na seleção, metadata e chamada da thumbnail. Ao
-> depurar qualidade de corte ou de título, o prompt que importa é o que o Groq recebe.
-
----
-
-## O que o Redis guarda (e o que não guarda)
-
-**A fila NÃO mora no Redis.** Fila = PostgreSQL (`source_videos`, `generated_clips`). O Redis tem só:
-
-| Chave | Conteúdo | TTL |
-|---|---|---|
-| `video:<id>` | "vídeo já visto", para dedup | 30 dias |
-| `youtube_uploads:<canal>:<data>` e `:longo` | cota diária | até a meia-noite local |
-| `clip_warned:<id>` | idempotência do aviso de TTL | — |
-
-Consequência que morde: apagar as chaves `video:*` faz os vídeos deletados **voltarem** no próximo poll
-RSS. Nunca `FLUSHALL` achando que "reseta a fila" — isso ressuscita todo o backlog e zera a cota junto.
-
----
-
-## Configuração
-
-As env vars do runtime são injetadas pelo `docker-compose.yml` deste repositório, que lê o `.env` da
-raiz do projeto.
-
-| Var | Serve para | Default no compose |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | Claude: seleção + metadata | — |
-| `GROQ_API_KEY` | Whisper + fallback de seleção e metadata | — |
-| `CLIPS_DB_PASSWORD` | senha do `clips_user` | — |
-| `CLIP_PROCESSOR_INTERNAL_TOKEN` | token painel ↔ sidecar (mesmo valor nos dois lados) | — |
-| `MANUAL_APPROVAL_REQUIRED` | `true` exige `approved`; `false` publica `pending` direto | `false` |
-| `MAX_UPLOADS_PER_DAY` | cota diária por canal (**teto rígido de 6 no código**) | `1` |
-| `MAX_LONGO_UPLOADS_PER_DAY` | teto de `longo` e reserva de slot | `2` |
-| `UPLOAD_WINDOW_BYPASS` | ignora a janela 19h–22h | `false` |
-| `YOUTUBE_PRIVACY_STATUS` | `privacyStatus` do upload | `private` |
-| `YOUTUBE_CLIENT_SECRETS` | client secrets do OAuth | `/app/youtube/client_secret.json` |
-| `ASSETS_DIR` | raiz dos assets canônicos | `/app/assets` |
-| `LARAVEL_NOTIFY_URL` / `LARAVEL_HOST_HEADER` | endpoint de eventos e Host para o roteamento nginx | `http://nginx/internal/pipeline-event` / `canaldecortes.local` |
-| `CLIP_PENDING_TTL_HOURS` / `CLIP_PENDING_WARN_HOURS` | TTL de auto-rejeição | 48 / 24 (constantes) |
-
-**Não declaradas no compose** (valem os defaults do código): `DOWNLOAD_WINDOW_CURTO` (6),
-`DOWNLOAD_WINDOW_LONGO` (4), `WHISPER_CPP_BIN`, `WHISPER_MODEL_PATH` (vêm do `ENV` do Dockerfile).
-
-Armadilha de drift: o default de `MAX_UPLOADS_PER_DAY` é `:-1` no `clip-processor` e `:-2` no serviço
-`php`. Só não morde porque a var está setada no `.env` da raiz.
-
-Volumes: `youtube/` (read-write, tokens), `videos/` (read-write), `assets/` (**read-only**, assets
-canônicos por canal e faixas completas), `branding/` (**read-only** aqui, read-write no `php`, usado
-por marcas d'água e pelo fallback legado de `media_assets`).
-
----
-
-## Testes
-
-`clip-processor/tests/`, pytest (quantidade verificada pelo comando abaixo). Dois jeitos de rodar:
-
-```bash
-# no container (reproduz produção)
-docker exec clip-processor python -m pytest tests/ -q
-
-# no host, via venv com requirements-dev.txt (make setup-python uma vez)
-make test-python
-```
-
-Lint e formatação: `make lint-python` (ruff) e `make format-python`; mypy bloqueante em
-`make types-python`. Detalhes em `DESENVOLVIMENTO.md`. O bug 7 (falhas por ambiente no host)
-deixou de reproduzir com o venv.
+~~~bash
+docker compose up -d --build clip-processor
+~~~
