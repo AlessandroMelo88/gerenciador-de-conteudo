@@ -57,7 +57,12 @@ venv/
 .DS_Store
 Thumbs.db
 .claude/
-.cursor/
+# Laravel / Frontend
+painel/vendor/
+painel/node_modules/
+painel/storage/*.key
+painel/public/hot
+painel/public/storage
 
 # graphify
 graphify-out/cost.json
