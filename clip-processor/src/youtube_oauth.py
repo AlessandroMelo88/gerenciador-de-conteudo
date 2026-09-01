@@ -70,6 +70,8 @@ def generate_token(channel_slug: str, secrets_file: str = None) -> str:
     print("Depois de autorizar, o browser vai tentar abrir localhost:8085 e mostrar erro.")
     print("Isso e normal. Copie a URL COMPLETA da barra do browser e cole aqui:")
     redirect_response = input("> ").strip()
+    if redirect_response.startswith("http://"):
+        redirect_response = "https://" + redirect_response[7:]
 
     flow.fetch_token(authorization_response=redirect_response)
     creds = flow.credentials
