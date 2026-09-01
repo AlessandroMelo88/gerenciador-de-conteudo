@@ -73,14 +73,155 @@ function useSelection() {
     return { selected, toggle, toggleAll, clear };
 }
 
+function NicheBadge({ niche, channelName }: { niche?: string | null; channelName?: string | null }) {
+    const n = (niche ?? '').toLowerCase();
+    const ch = (channelName ?? '').toLowerCase();
+
+    if (n === 'politica' || ch.includes('política') || ch.includes('politica')) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-xs font-semibold text-purple-600 dark:text-purple-400">
+                🏛️ {channelName ?? 'Política'}
+            </span>
+        );
+    }
+    if (n === 'podcast' || ch.includes('podcast')) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                🎙️ {channelName ?? 'Podcast'}
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            ⚽ {channelName ?? 'Futebol'}
+        </span>
+    );
+}
+
+function ScoreBadge({ score }: { score: number | null }) {
+    if (score === null || score === undefined) return <span className="text-muted-foreground">—</span>;
+
+    if (score >= 9) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-500 dark:text-red-400">
+                🔥 {score}/10
+            </span>
+        );
+    }
+    if (score >= 8) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                ⭐ {score}/10
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-zinc-500/30 bg-zinc-500/10 px-2 py-0.5 text-xs font-medium text-zinc-400">
+            {score}/10
+        </span>
+    );
+}
+
 function PendingTable({ clips }: { clips: ClipRow[] }) {
+    const [subTab, setSubTab] = useState<'todos' | 'futebol' | 'politica' | 'podcast'>('todos');
     const { selected, toggle, toggleAll, clear } = useSelection();
-    const ids = clips.map((c) => c.id);
+
+    const counts = {
+        todos: clips.length,
+        futebol: clips.filter((c) => {
+            const n = (c.niche ?? '').toLowerCase();
+            const ch = (c.destinationChannelName ?? '').toLowerCase();
+            return n === 'futebol' || (!n.includes('politica') && !n.includes('podcast') && !ch.includes('política'));
+        }).length,
+        politica: clips.filter((c) => {
+            const n = (c.niche ?? '').toLowerCase();
+            const ch = (c.destinationChannelName ?? '').toLowerCase();
+            return n === 'politica' || ch.includes('política') || ch.includes('politica');
+        }).length,
+        podcast: clips.filter((c) => {
+            const n = (c.niche ?? '').toLowerCase();
+            const ch = (c.destinationChannelName ?? '').toLowerCase();
+            return n === 'podcast' || ch.includes('podcast');
+        }).length,
+    };
+
+    const filteredClips = clips.filter((c) => {
+        if (subTab === 'todos') return true;
+        const n = (c.niche ?? '').toLowerCase();
+        const ch = (c.destinationChannelName ?? '').toLowerCase();
+        if (subTab === 'politica') return n === 'politica' || ch.includes('política') || ch.includes('politica');
+        if (subTab === 'podcast') return n === 'podcast' || ch.includes('podcast');
+        return n === 'futebol' || (!n.includes('politica') && !n.includes('podcast') && !ch.includes('política'));
+    });
+
+    const ids = filteredClips.map((c) => c.id);
 
     if (clips.length === 0) return <EmptyState message="Nenhum clip aguardando aprovação" />;
 
     return (
         <div>
+            {/* Subtabs de nicho */}
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-1.5 w-fit">
+                <button
+                    type="button"
+                    onClick={() => setSubTab('todos')}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        subTab === 'todos'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                >
+                    <span>Todos</span>
+                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                        {counts.todos}
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setSubTab('futebol')}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        subTab === 'futebol'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                    }`}
+                >
+                    <span>⚽ Futebol</span>
+                    <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                        {counts.futebol}
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setSubTab('politica')}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        subTab === 'politica'
+                            ? 'bg-purple-600 text-white shadow-sm'
+                            : 'text-purple-600 dark:text-purple-400 hover:bg-purple-500/10'
+                    }`}
+                >
+                    <span>🏛️ Política</span>
+                    <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                        {counts.politica}
+                    </span>
+                </button>
+                {counts.podcast > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setSubTab('podcast')}
+                        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            subTab === 'podcast'
+                                ? 'bg-amber-600 text-white shadow-sm'
+                                : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                        }`}
+                    >
+                        <span>🎙️ Podcast</span>
+                        <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                            {counts.podcast}
+                        </span>
+                    </button>
+                )}
+            </div>
+
             <div className="mb-3 flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => toggleAll(ids)}>
                     Marcar/desmarcar todos
@@ -127,7 +268,7 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {clips.map((clip) => (
+                        {filteredClips.map((clip) => (
                             <TableRow key={clip.id}>
                                 <TableCell>
                                     <Checkbox checked={selected.includes(clip.id)} onCheckedChange={() => toggle(clip.id)} />
@@ -144,9 +285,11 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                 <TableCell>
                                     <FormatBadge format={clip.format} />
                                 </TableCell>
-                                <TableCell className="text-muted-foreground">{clip.destinationChannelName ?? '—'}</TableCell>
                                 <TableCell>
-                                    <Badge variant="outline">{clip.score ?? '—'}</Badge>
+                                    <NicheBadge niche={clip.niche} channelName={clip.destinationChannelName} />
+                                </TableCell>
+                                <TableCell>
+                                    <ScoreBadge score={clip.score} />
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex flex-col items-start gap-1">

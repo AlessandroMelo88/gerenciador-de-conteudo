@@ -165,6 +165,8 @@ class DashboardController extends Controller
             'sourceChannelName' => $clip->sourceVideo?->sourceChannel?->channel_name,
             'format' => $clip->sourceVideo?->format ?? 'curto',
             'destinationChannelName' => $clip->destinationChannel?->name,
+            'destinationChannelSlug' => $clip->destinationChannel?->slug,
+            'niche' => $clip->destinationChannel?->niche ?? $clip->sourceVideo?->sourceChannel?->target_niche ?? 'futebol',
             'createdAt' => $clip->created_at?->diffForHumans(),
             'updatedAt' => $clip->updated_at?->diffForHumans(),
             'uploadError' => $clip->upload_error,

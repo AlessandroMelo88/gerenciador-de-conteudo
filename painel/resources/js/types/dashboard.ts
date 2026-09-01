@@ -9,6 +9,8 @@ export type ClipRow = {
     sourceChannelName: string | null;
     format: ClipFormat;
     destinationChannelName: string | null;
+    destinationChannelSlug?: string | null;
+    niche?: string | null;
     createdAt: string | null;
     updatedAt: string | null;
     uploadError: string | null;
