@@ -76,7 +76,7 @@ def fetch_pending_videos():
     (
       SELECT sv.id, sv.youtube_video_id, sv.title, sv.format
       FROM source_videos sv
-      LEFT JOIN source_channels sc ON sv.source_channel_id = sc.id
+      LEFT JOIN source_channels sc ON sv.channel_id = sc.id
       WHERE sv.status = 'pending'
         AND (sv.local_path IS NULL OR sv.local_path = '')
         AND sv.published_at >= NOW() - INTERVAL 3 DAY
@@ -90,7 +90,7 @@ def fetch_pending_videos():
     (
       SELECT sv.id, sv.youtube_video_id, sv.title, sv.format
       FROM source_videos sv
-      LEFT JOIN source_channels sc ON sv.source_channel_id = sc.id
+      LEFT JOIN source_channels sc ON sv.channel_id = sc.id
       WHERE sv.status = 'pending'
         AND (sv.local_path IS NULL OR sv.local_path = '')
         AND sv.published_at >= NOW() - INTERVAL 3 DAY

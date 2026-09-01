@@ -136,7 +136,7 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
             cur.execute("""
                 SELECT sv.id, sv.format, sc.target_niche
                 FROM source_videos sv
-                LEFT JOIN source_channels sc ON sv.source_channel_id = sc.id
+                LEFT JOIN source_channels sc ON sv.channel_id = sc.id
                 WHERE sv.youtube_video_id = %s
             """, (video_id,))
             row = cur.fetchone()
