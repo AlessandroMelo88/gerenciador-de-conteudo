@@ -15,8 +15,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { ClipRow } from '@/types/dashboard';
+import { ActiveWindowTable } from '@/components/active-window-table';
+import type { ClipRow, ActiveWindowVideo } from '@/types/dashboard';
 
 function post(url: string, data: Record<string, FormDataConvertible | number[]> = {}) {
     router.post(url, data, {
@@ -163,11 +163,11 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
         <div>
             {/* Subtabs de nicho + Toggle Grid/List */}
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-1.5 w-fit">
+                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-1.5 w-fit">
                     <button
                         type="button"
                         onClick={() => setSubTab('todos')}
-                        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
                             subTab === 'todos'
                                 ? 'bg-primary text-primary-foreground shadow-sm'
                                 : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -181,7 +181,7 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                     <button
                         type="button"
                         onClick={() => setSubTab('futebol')}
-                        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
                             subTab === 'futebol'
                                 ? 'bg-emerald-600 text-white shadow-sm'
                                 : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
@@ -195,7 +195,7 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                     <button
                         type="button"
                         onClick={() => setSubTab('politica')}
-                        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
                             subTab === 'politica'
                                 ? 'bg-purple-600 text-white shadow-sm'
                                 : 'text-purple-600 dark:text-purple-400 hover:bg-purple-500/10'
@@ -210,7 +210,7 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                         <button
                             type="button"
                             onClick={() => setSubTab('podcast')}
-                            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
                                 subTab === 'podcast'
                                     ? 'bg-amber-600 text-white shadow-sm'
                                     : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
@@ -581,45 +581,98 @@ export function ClipQueueTabs({
     queuedClips,
     failures,
     failedSourceVideoCount,
+    activeWindow = [],
 }: {
     pendingClips: ClipRow[];
     queuedClips: ClipRow[];
     failures: ClipRow[];
     failedSourceVideoCount: number;
+    activeWindow?: ActiveWindowVideo[];
 }) {
+    const [mainTab, setMainTab] = useState<'pending' | 'active_window' | 'queued' | 'failures'>('pending');
+
     return (
-        <div className="px-4 lg:px-6">
-            <Tabs defaultValue="pending">
-                <TabsList>
-                    <TabsTrigger value="pending">
-                        Fila de aprovação
-                        <Badge variant="secondary" className="ml-1.5">
-                            {pendingClips.length}
-                        </Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="queued">
-                        Na fila (aguardando cota)
-                        <Badge variant="secondary" className="ml-1.5">
-                            {queuedClips.length}
-                        </Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="failures">
-                        Últimas falhas
-                        <Badge variant="secondary" className="ml-1.5">
-                            {failures.length}
-                        </Badge>
-                    </TabsTrigger>
-                </TabsList>
-                <TabsContent value="pending" className="mt-4">
-                    <PendingTable clips={pendingClips} />
-                </TabsContent>
-                <TabsContent value="queued" className="mt-4">
-                    <QueuedTable clips={queuedClips} />
-                </TabsContent>
-                <TabsContent value="failures" className="mt-4">
-                    <FailuresTable clips={failures} failedSourceVideoCount={failedSourceVideoCount} />
-                </TabsContent>
-            </Tabs>
+        <div className="flex flex-col gap-5">
+            {/* ABAS PAI UNIFORMES */}
+            <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl border border-border bg-card w-fit">
+                <button
+                    type="button"
+                    onClick={() => setMainTab('pending')}
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+                        mainTab === 'pending'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                >
+                    <span>🎯 Fila de aprovação</span>
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-mono">
+                        {pendingClips.length}
+                    </span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setMainTab('active_window')}
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+                        mainTab === 'active_window'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                >
+                    <span>⚡ Processados / Janela Ativa</span>
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-mono">
+                        {activeWindow.length}
+                    </span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setMainTab('queued')}
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+                        mainTab === 'queued'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                >
+                    <span>🚀 Prontos para subir</span>
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-mono">
+                        {queuedClips.length}
+                    </span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setMainTab('failures')}
+                    className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
+                        mainTab === 'failures'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                >
+                    <span>⚠️ Falhas recentes</span>
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-mono">
+                        {failures.length}
+                    </span>
+                </button>
+            </div>
+
+            {/* CONTEÚDO DAS ABAS */}
+            {mainTab === 'pending' && <PendingTable clips={pendingClips} />}
+            {mainTab === 'active_window' && (
+                <div className="rounded-2xl border border-border bg-card p-5">
+                    <div className="mb-4">
+                        <h2 className="font-display text-sm font-bold tracking-tight text-foreground">
+                            Vídeos em Processamento / Baixados em Disco
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                            Matéria-prima bruta sendo baixada, transcrita pelo Whisper e selecionada pelo LLaMA.
+                        </p>
+                    </div>
+                    <ActiveWindowTable videos={activeWindow} />
+                </div>
+            )}
+            {mainTab === 'queued' && <QueuedTable clips={queuedClips} />}
+            {mainTab === 'failures' && <FailuresTable clips={failures} failedSourceVideoCount={failedSourceVideoCount} />}
         </div>
     );
 }

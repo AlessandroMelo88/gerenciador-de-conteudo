@@ -52,13 +52,22 @@ class HandleInertiaRequests extends Middleware
                 'transcriber' => \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() > 0 ? \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() . ' ativo' : 'idle',
                 'cutter' => \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() > 0 ? \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() . ' cortando' : 'idle',
             ],
-            'destinationQuotas' => \App\Models\DestinationChannel::query()->where('active', true)->get(['id', 'slug', 'name', 'niche'])->map(fn ($c) => [
-                'name' => $c->name,
-                'slug' => $c->slug,
-                'niche' => $c->niche,
-                'count' => 0,
-                'limit' => 5,
-            ]),
+            'destinationQuotas' => \App\Models\DestinationChannel::query()->where('active', true)->get()->map(function ($c) {
+                $today = \Illuminate\Support\Carbon::today('America/Sao_Paulo');
+                $count = \App\Models\GeneratedClip::query()
+                    ->where('destination_channel_id', $c->id)
+                    ->where('status', 'published')
+                    ->whereDate('updated_at', $today)
+                    ->count();
+
+                return [
+                    'name' => $c->name,
+                    'slug' => $c->slug,
+                    'niche' => $c->niche,
+                    'count' => $count,
+                    'limit' => 5,
+                ];
+            }),
         ];
     }
 }

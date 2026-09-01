@@ -114,69 +114,62 @@ export function OverviewCards({
                 </div>
             </div>
 
-            {/* USO DE COTA DA API POR NICHO */}
-            <div className="rounded-2xl border border-border bg-card p-5">
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 className="font-display text-sm font-bold tracking-tight text-foreground">
-                            Uso de cota da API
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
-                            Unidades YouTube Data consumidas hoje, por nicho.
-                        </p>
+            {/* USO DE COTA DA API POR CANAL DESTINO REAL */}
+            {quota && quota.length > 0 && (
+                <div className="rounded-2xl border border-border bg-card p-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 className="font-display text-sm font-bold tracking-tight text-foreground">
+                                Uso de cota da API (YouTube Shorts)
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Publicações realizadas hoje vs teto diário configurado por canal.
+                            </p>
+                        </div>
+                        <span className="font-mono text-xs text-muted-foreground">reset 21:00 BRT</span>
                     </div>
-                    <span className="font-mono text-xs text-muted-foreground">reset 21:00 BRT</span>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {/* Futebol */}
-                    <div className="rounded-xl p-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-[13px] font-semibold">⚽ Futebol em Cortes</span>
-                            <span className="font-mono text-xs font-bold">
-                                {quota.find((q) => q.name.toLowerCase().includes('futebol'))
-                                    ? `${quota.find((q) => q.name.toLowerCase().includes('futebol'))!.count}/${quota.find((q) => q.name.toLowerCase().includes('futebol'))!.limit}`
-                                    : '0/5'}
-                            </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-black/10 dark:bg-white/[.08] overflow-hidden">
-                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: '20%' }} />
-                        </div>
-                        <div className="font-mono text-[11px] mt-2 opacity-80">
-                            {quota.find((q) => q.name.toLowerCase().includes('futebol'))?.count ?? 0} de 5 publicações realizadas hoje
-                        </div>
-                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {quota.map((ch) => {
+                            const isPol = (ch.niche ?? ch.name).toLowerCase().includes('política') || (ch.niche ?? ch.name).toLowerCase().includes('politica');
+                            const isPod = (ch.niche ?? ch.name).toLowerCase().includes('podcast');
+                            const pct = Math.min(100, Math.round(((ch.count || 0) / (ch.limit || 5)) * 100));
 
-                    {/* Política */}
-                    <div className="rounded-xl p-4 bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-[13px] font-semibold">🏛️ Cortes da Política</span>
-                            <span className="font-mono text-xs font-bold">
-                                {quota.find((q) => q.name.toLowerCase().includes('política') || q.name.toLowerCase().includes('politica'))
-                                    ? `${quota.find((q) => q.name.toLowerCase().includes('política') || q.name.toLowerCase().includes('politica'))!.count}/${quota.find((q) => q.name.toLowerCase().includes('política') || q.name.toLowerCase().includes('politica'))!.limit}`
-                                    : '0/5'}
-                            </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-black/10 dark:bg-white/[.08] overflow-hidden">
-                            <div className="h-full bg-purple-500 rounded-full" style={{ width: '20%' }} />
-                        </div>
-                        <div className="font-mono text-[11px] mt-2 opacity-80">
-                            {quota.find((q) => q.name.toLowerCase().includes('política') || q.name.toLowerCase().includes('politica'))?.count ?? 0} de 5 publicações realizadas hoje
-                        </div>
-                    </div>
+                            let themeClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+                            let barColor = 'bg-emerald-500';
+                            let icon = '⚽';
 
-                    {/* Podcast */}
-                    <div className="rounded-xl p-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-[13px] font-semibold">🎙️ Podcast Cortes</span>
-                            <span className="font-mono text-xs font-bold">2/3</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-black/10 dark:bg-white/[.08] overflow-hidden">
-                            <div className="h-full bg-amber-500 rounded-full" style={{ width: '66%' }} />
-                        </div>
-                        <div className="font-mono text-[11px] mt-2 opacity-80">2 de 3 publicações realizadas hoje</div>
+                            if (isPol) {
+                                themeClass = 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+                                barColor = 'bg-purple-500';
+                                icon = '🏛️';
+                            } else if (isPod) {
+                                themeClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+                                barColor = 'bg-amber-500';
+                                icon = '🎙️';
+                            }
+
+                            return (
+                                <div key={ch.name} className={`rounded-xl p-4 border ${themeClass}`}>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[13px] font-semibold truncate" title={ch.name}>
+                                            {icon} {ch.name}
+                                        </span>
+                                        <span className="font-mono text-xs font-bold shrink-0">
+                                            {ch.count}/{ch.limit}
+                                        </span>
+                                    </div>
+                                    <div className="h-2 rounded-full bg-black/10 dark:bg-white/[.08] overflow-hidden">
+                                        <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                                    </div>
+                                    <div className="font-mono text-[11px] mt-2 opacity-80">
+                                        {ch.count} de {ch.limit} publicações realizadas hoje ({pct}%)
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

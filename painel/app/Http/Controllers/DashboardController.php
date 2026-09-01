@@ -109,22 +109,31 @@ class DashboardController extends Controller
     private function quotaData(): array
     {
         $date = Carbon::now('America/Sao_Paulo')->format('Y-m-d');
+        $today = Carbon::today('America/Sao_Paulo');
         // min(MAX_UPLOADS_PER_DAY, 6) espelha ABSOLUTE_MAX_UPLOADS_PER_DAY em
         // clip-processor/src/quota_manager.py — mesma env var, mesmo teto.
-        $limit = min((int) env('MAX_UPLOADS_PER_DAY', 2), 6);
+        $limit = min((int) env('MAX_UPLOADS_PER_DAY', 5), 6);
 
         return DestinationChannel::query()->where('active', true)->get()
-            ->map(function (DestinationChannel $channel) use ($date, $limit) {
+            ->map(function (DestinationChannel $channel) use ($date, $today, $limit) {
                 $key = "youtube_uploads:{$channel->youtube_channel_id}:{$date}";
                 try {
-                    $count = (int) (Redis::connection('pipeline')->get($key) ?? 0);
+                    $redisCount = (int) (Redis::connection('pipeline')->get($key) ?? 0);
                 } catch (\Throwable) {
-                    $count = 0;
+                    $redisCount = 0;
                 }
+
+                $dbCount = GeneratedClip::query()
+                    ->where('destination_channel_id', $channel->id)
+                    ->where('status', 'published')
+                    ->whereDate('updated_at', $today)
+                    ->count();
 
                 return [
                     'name' => $channel->name,
-                    'count' => $count,
+                    'slug' => $channel->slug,
+                    'niche' => $channel->niche,
+                    'count' => max($redisCount, $dbCount),
                     'limit' => $limit,
                 ];
             })->values()->all();
