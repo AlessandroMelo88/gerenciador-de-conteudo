@@ -53,12 +53,15 @@ export function AppSidebar({
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <Link href="/painel">
-                                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                    <ClapperboardIcon className="size-4" />
+                                <div
+                                    className="flex aspect-square size-9 items-center justify-center rounded-xl text-white shadow-sm"
+                                    style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)' }}
+                                >
+                                    <ClapperboardIcon className="size-4.5" />
                                 </div>
                                 <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-semibold">Canal de Cortes</span>
-                                    <span className="truncate text-xs text-muted-foreground">Pipeline de clips</span>
+                                    <span className="truncate font-display font-bold text-foreground">Canal de Cortes</span>
+                                    <span className="truncate text-xs text-muted-foreground">Pipeline de clipes</span>
                                 </div>
                             </Link>
                         </SidebarMenuButton>
@@ -66,18 +69,23 @@ export function AppSidebar({
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                <SidebarMenu className="px-2">
+                <SidebarMenu className="px-2 gap-1">
                     {navItems.map((item) => (
                         <SidebarMenuItem key={item.url}>
-                            <SidebarMenuButton asChild isActive={currentPath === item.url} tooltip={item.title}>
+                            <SidebarMenuButton
+                                asChild
+                                isActive={currentPath === item.url}
+                                tooltip={item.title}
+                                className="h-10 rounded-xl text-[13.5px] font-medium"
+                            >
                                 {item.external ? (
                                     <a href={item.url}>
-                                        <item.icon />
+                                        <item.icon className="size-4.5" />
                                         <span>{item.title}</span>
                                     </a>
                                 ) : (
                                     <Link href={item.url}>
-                                        <item.icon />
+                                        <item.icon className="size-4.5" />
                                         <span>{item.title}</span>
                                     </Link>
                                 )}
@@ -86,7 +94,31 @@ export function AppSidebar({
                     ))}
                 </SidebarMenu>
             </SidebarContent>
-            <SidebarFooter>
+            <SidebarFooter className="p-3 flex flex-col gap-2">
+                {/* Workers Status Box */}
+                <div className="rounded-xl border border-border bg-card/60 p-3 flex flex-col gap-2 text-xs">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        <span>Workers</span>
+                        <span className="flex items-center gap-1.5 text-emerald-500 normal-case tracking-normal">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>3 online
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[12px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span className="flex-1 text-foreground/80">downloader</span>
+                        <span className="font-mono text-[10.5px] text-muted-foreground">35/61</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[12px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        <span className="flex-1 text-foreground/80">transcriber</span>
+                        <span className="font-mono text-[10.5px] text-muted-foreground">1 ativo</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[12px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span className="flex-1 text-foreground/80">cutter · uploader</span>
+                        <span className="font-mono text-[10.5px] text-muted-foreground">idle</span>
+                    </div>
+                </div>
                 <NavUser user={user} />
             </SidebarFooter>
             <SidebarRail />

@@ -124,6 +124,7 @@ function ScoreBadge({ score }: { score: number | null }) {
 
 function PendingTable({ clips }: { clips: ClipRow[] }) {
     const [subTab, setSubTab] = useState<'todos' | 'futebol' | 'politica' | 'podcast'>('todos');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const { selected, toggle, toggleAll, clear } = useSelection();
 
     const counts = {
@@ -160,66 +161,96 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
 
     return (
         <div>
-            {/* Subtabs de nicho */}
-            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-1.5 w-fit">
-                <button
-                    type="button"
-                    onClick={() => setSubTab('todos')}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        subTab === 'todos'
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                    }`}
-                >
-                    <span>Todos</span>
-                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
-                        {counts.todos}
-                    </span>
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setSubTab('futebol')}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        subTab === 'futebol'
-                            ? 'bg-emerald-600 text-white shadow-sm'
-                            : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
-                    }`}
-                >
-                    <span>⚽ Futebol</span>
-                    <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono">
-                        {counts.futebol}
-                    </span>
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setSubTab('politica')}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        subTab === 'politica'
-                            ? 'bg-purple-600 text-white shadow-sm'
-                            : 'text-purple-600 dark:text-purple-400 hover:bg-purple-500/10'
-                    }`}
-                >
-                    <span>🏛️ Política</span>
-                    <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-mono">
-                        {counts.politica}
-                    </span>
-                </button>
-                {counts.podcast > 0 && (
+            {/* Subtabs de nicho + Toggle Grid/List */}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-1.5 w-fit">
                     <button
                         type="button"
-                        onClick={() => setSubTab('podcast')}
+                        onClick={() => setSubTab('todos')}
                         className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-                            subTab === 'podcast'
-                                ? 'bg-amber-600 text-white shadow-sm'
-                                : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                            subTab === 'todos'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                         }`}
                     >
-                        <span>🎙️ Podcast</span>
-                        <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono">
-                            {counts.podcast}
+                        <span>Todos</span>
+                        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                            {counts.todos}
                         </span>
                     </button>
-                )}
+                    <button
+                        type="button"
+                        onClick={() => setSubTab('futebol')}
+                        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            subTab === 'futebol'
+                                ? 'bg-emerald-600 text-white shadow-sm'
+                                : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                        }`}
+                    >
+                        <span>⚽ Futebol</span>
+                        <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                            {counts.futebol}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setSubTab('politica')}
+                        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            subTab === 'politica'
+                                ? 'bg-purple-600 text-white shadow-sm'
+                                : 'text-purple-600 dark:text-purple-400 hover:bg-purple-500/10'
+                        }`}
+                    >
+                        <span>🏛️ Política</span>
+                        <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                            {counts.politica}
+                        </span>
+                    </button>
+                    {counts.podcast > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => setSubTab('podcast')}
+                            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                subTab === 'podcast'
+                                    ? 'bg-amber-600 text-white shadow-sm'
+                                    : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                            }`}
+                        >
+                            <span>🎙️ Podcast</span>
+                            <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                {counts.podcast}
+                            </span>
+                        </button>
+                    )}
+                </div>
+
+                {/* Alternador de Modo Quadro (Grid) e Modo Tabela (List) */}
+                <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setViewMode('grid')}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                            viewMode === 'grid'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                        title="Modo Quadro (Cards)"
+                    >
+                        ⊞ Quadro
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setViewMode('list')}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                            viewMode === 'list'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                        title="Modo Tabela (Lista)"
+                    >
+                        ☰ Tabela
+                    </button>
+                </div>
             </div>
 
             <div className="mb-3 flex items-center gap-2">
@@ -251,7 +282,82 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                     Rejeitar selecionados ({selected.length})
                 </ConfirmButton>
             </div>
-            <div className="overflow-x-auto rounded-lg border">
+
+            {/* RENDERIZAÇÃO DO MODO QUADRO OU TABELA */}
+            {viewMode === 'grid' ? (
+                <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                    {filteredClips.map((clip) => {
+                        const isPol = (clip.niche ?? '').toLowerCase() === 'politica' || (clip.destinationChannelName ?? '').toLowerCase().includes('política');
+                        const bgGradient = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+
+                        return (
+                            <article
+                                key={clip.id}
+                                className="group rounded-2xl border border-border bg-card overflow-hidden flex flex-col hover:border-primary/40 transition-all shadow-xs"
+                            >
+                                <div className="relative aspect-video overflow-hidden" style={{ background: bgGradient }}>
+                                    <div className="absolute inset-0 grid place-items-center">
+                                        <div className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md border border-white/20 grid place-items-center text-white group-hover:scale-105 transition-transform">
+                                            ▶
+                                        </div>
+                                    </div>
+                                    <span className="absolute left-2.5 top-2.5">
+                                        <NicheBadge niche={clip.niche} channelName={clip.destinationChannelName} />
+                                    </span>
+                                    <span className="absolute right-2.5 top-2.5 font-mono text-[11px] px-2 py-1 rounded-lg bg-black/60 text-white backdrop-blur-md border border-white/10">
+                                        {clip.format === 'longo' ? 'Longo' : 'Curto'}
+                                    </span>
+                                    <span className="absolute right-2.5 bottom-2.5">
+                                        <ScoreBadge score={clip.score} />
+                                    </span>
+                                    <span className="absolute left-2.5 bottom-2.5 font-mono text-[10.5px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
+                                        {clip.trecho}
+                                    </span>
+                                </div>
+                                <div className="p-4 flex flex-col gap-3 flex-1">
+                                    <div className="flex items-start gap-2">
+                                        <Checkbox
+                                            checked={selected.includes(clip.id)}
+                                            onCheckedChange={() => toggle(clip.id)}
+                                            className="mt-1"
+                                        />
+                                        <div className="font-semibold text-sm leading-snug tracking-tight text-foreground line-clamp-2">
+                                            {clip.title}
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                        <span className="font-mono px-1.5 py-0.5 rounded border border-border">
+                                            #{clip.id}
+                                        </span>
+                                        <span className="truncate">{clip.sourceChannelName ?? 'Canal Fonte'}</span>
+                                    </div>
+                                    <div className="flex-1" />
+                                    <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                                        <ConfirmButton
+                                            variant="default"
+                                            size="sm"
+                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                            description={`Aprovar clip #${clip.id}?`}
+                                            onConfirm={() => post(`/painel/clips/${clip.id}/approve`)}
+                                        >
+                                            Aprovar
+                                        </ConfirmButton>
+                                        <ConfirmButton
+                                            variant="destructive"
+                                            size="sm"
+                                            description={`Rejeitar clip #${clip.id}? O MP4 será removido.`}
+                                            onConfirm={() => post(`/painel/clips/${clip.id}/reject`)}
+                                        >
+                                            Rejeitar
+                                        </ConfirmButton>
+                                    </div>
+                                </div>
+                            </article>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="overflow-x-auto rounded-lg border">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -316,6 +422,7 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                     </TableBody>
                 </Table>
             </div>
+            )}
         </div>
     );
 }
