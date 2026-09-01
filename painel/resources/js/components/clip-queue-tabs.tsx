@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import type { FormDataConvertible } from '@inertiajs/core';
 import { toast } from 'sonner';
-import { Calendar, X, Check, Play, LayoutGrid, List } from 'lucide-react';
+import { Check, Play, X } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,9 +31,16 @@ function post(url: string, data: Record<string, FormDataConvertible | number[]> 
 }
 
 function FormatBadge({ format }: { format: ClipRow['format'] }) {
+    if (format === 'longo') {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-pink-500/20 px-2 py-0.5 text-[10.5px] font-bold text-amber-700 dark:text-amber-300 shadow-xs">
+                ✨ Longo
+            </span>
+        );
+    }
     return (
-        <span className="text-[10.5px] font-mono px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 text-muted-foreground">
-            {format === 'longo' ? 'Longo' : 'Curto'}
+        <span className="inline-flex items-center gap-1 rounded-md bg-zinc-950 text-white dark:bg-black dark:text-zinc-100 border border-zinc-800 px-2 py-0.5 text-[10.5px] font-semibold">
+            📱 Curto
         </span>
     );
 }
@@ -111,7 +118,7 @@ function ScoreBadge({ score }: { score: number | null }) {
 
 function PendingTable({ clips }: { clips: ClipRow[] }) {
     const [subTab, setSubTab] = useState<'todos' | 'futebol' | 'politica' | 'podcast'>('todos');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [previewingId, setPreviewingId] = useState<number | null>(null);
     const { selected, toggle, toggleAll, clear } = useSelection();
 
@@ -210,7 +217,7 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                     onClick={() => setSubTab('todos')}
                     className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
                         subTab === 'todos'
-                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-sm'
                             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                     }`}
                 >
@@ -323,8 +330,8 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                     <span className="absolute left-2.5 top-2.5 font-semibold text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
                                         {isPol ? '🏛️ Política' : '⚽ Futebol'}
                                     </span>
-                                    <span className="absolute right-2.5 top-2.5 font-mono text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
-                                        {clip.format === 'longo' ? 'Longo' : 'Curto'}
+                                    <span className="absolute right-2.5 top-2.5">
+                                        <FormatBadge format={clip.format} />
                                     </span>
                                     <span className="absolute left-2.5 bottom-2.5 font-mono text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
                                         {clip.trecho}
@@ -361,9 +368,9 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
 
                                     <div className="flex items-center gap-2 pt-2 border-t border-border/60">
                                         <ConfirmButton
-                                            variant="default"
+                                            variant="outline"
                                             size="sm"
-                                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs h-8 px-4 rounded-lg flex-1"
+                                            className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border-emerald-500/30 font-semibold text-xs h-8 px-4 rounded-lg flex-1"
                                             description={`Aprovar clip #${clip.id} para publicação?`}
                                             onConfirm={() => post(`/painel/clips/${clip.id}/approve`)}
                                         >
@@ -372,11 +379,11 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                         <ConfirmButton
                                             variant="destructive"
                                             size="sm"
-                                            className="h-8 w-8 p-0 rounded-lg"
+                                            className="text-xs h-8 px-3 rounded-lg"
                                             description={`Rejeitar clip #${clip.id}? O MP4 será removido do disco.`}
                                             onConfirm={() => post(`/painel/clips/${clip.id}/reject`)}
                                         >
-                                            <X className="w-4 h-4" />
+                                            Rejeitar
                                         </ConfirmButton>
                                     </div>
                                 </div>
@@ -385,7 +392,7 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                     })}
                 </div>
             ) : (
-                /* MODO TABELA IDÊNTICO AO PROTÓTIPO */
+                /* MODO TABELA LIMPO E SEM REDUNDÂNCIA */
                 <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
                     <Table className="w-full text-xs">
                         <TableHeader className="bg-muted/40 border-b border-border">
@@ -398,6 +405,9 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                 </TableHead>
                                 <TableHead className="px-4 py-3 font-bold text-[11px] tracking-wider text-muted-foreground uppercase">
                                     CLIPE
+                                </TableHead>
+                                <TableHead className="px-4 py-3 font-bold text-[11px] tracking-wider text-muted-foreground uppercase">
+                                    VÍDEO FONTE
                                 </TableHead>
                                 <TableHead className="px-4 py-3 font-bold text-[11px] tracking-wider text-muted-foreground uppercase">
                                     TRECHO
@@ -427,8 +437,8 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                             />
                                         </TableCell>
 
-                                        {/* Coluna CLIPE: Thumbnail + Título + Badges (Nicho, Duração, Formato) */}
-                                        <TableCell className="px-4 py-3 max-w-[380px]">
+                                        {/* Coluna CLIPE: Thumbnail + Título + Badges (Nicho e Formato) */}
+                                        <TableCell className="px-4 py-3 max-w-[360px]">
                                             <div className="flex items-start gap-3">
                                                 <div
                                                     className="w-12 h-9 rounded-lg shrink-0 grid place-items-center text-white shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
@@ -444,10 +454,14 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                                     </div>
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <NicheBadge niche={clip.niche} channelName={clip.destinationChannelName} />
-                                                        <span className="text-[11px] font-mono text-muted-foreground">
-                                                            {clip.trecho}
-                                                        </span>
                                                         <FormatBadge format={clip.format} />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setPreviewingId(previewingId === clip.id ? null : clip.id)}
+                                                            className="text-[11px] text-amber-500 underline hover:text-amber-400 font-medium ml-1"
+                                                        >
+                                                            {previewingId === clip.id ? 'Fechar vídeo' : 'Ver clipe'}
+                                                        </button>
                                                     </div>
 
                                                     {previewingId === clip.id && (
@@ -456,6 +470,16 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                                         </div>
                                                     )}
                                                 </div>
+                                            </div>
+                                        </TableCell>
+
+                                        {/* Coluna VÍDEO FONTE */}
+                                        <TableCell className="px-4 py-3 max-w-[180px]">
+                                            <div className="text-xs text-foreground font-medium truncate" title={clip.sourceVideoTitle ?? ''}>
+                                                {clip.sourceVideoTitle ?? '—'}
+                                            </div>
+                                            <div className="text-[11px] text-muted-foreground truncate">
+                                                {clip.sourceChannelName ?? 'Canal Fonte'}
                                             </div>
                                         </TableCell>
 
@@ -476,35 +500,25 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
 
                                         {/* Coluna AÇÕES */}
                                         <TableCell className="px-4 py-3 text-right pr-5 whitespace-nowrap">
-                                            <div className="flex items-center justify-end gap-1.5">
+                                            <div className="flex items-center justify-end gap-2">
                                                 <ConfirmButton
-                                                    variant="default"
+                                                    variant="outline"
                                                     size="sm"
-                                                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs h-8 px-4 rounded-lg shadow-xs"
+                                                    className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border-emerald-500/30 font-semibold text-xs h-8 px-3 rounded-lg"
                                                     description={`Aprovar clip #${clip.id} para publicação?`}
                                                     onConfirm={() => post(`/painel/clips/${clip.id}/approve`)}
                                                 >
                                                     Aprovar
                                                 </ConfirmButton>
 
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
-                                                    title="Agendar publicação"
-                                                    onClick={() => toast.info(`Clip #${clip.id} pronto para publicação diária`)}
-                                                >
-                                                    <Calendar className="w-3.5 h-3.5" />
-                                                </Button>
-
                                                 <ConfirmButton
                                                     variant="destructive"
                                                     size="sm"
-                                                    className="h-8 w-8 p-0 rounded-lg border border-red-500/20 text-red-500 hover:bg-red-500/10"
+                                                    className="text-xs h-8 px-3 rounded-lg"
                                                     description={`Rejeitar clip #${clip.id}? O MP4 será removido do disco.`}
                                                     onConfirm={() => post(`/painel/clips/${clip.id}/reject`)}
                                                 >
-                                                    <X className="w-3.5 h-3.5" />
+                                                    Rejeitar
                                                 </ConfirmButton>
                                             </div>
                                         </TableCell>
@@ -655,7 +669,7 @@ export function ClipQueueTabs({
                     onClick={() => setMainTab('pending')}
                     className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
                         mainTab === 'pending'
-                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-sm'
                             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                     }`}
                 >
@@ -670,7 +684,7 @@ export function ClipQueueTabs({
                     onClick={() => setMainTab('active_window')}
                     className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
                         mainTab === 'active_window'
-                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-sm'
                             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                     }`}
                 >
@@ -685,7 +699,7 @@ export function ClipQueueTabs({
                     onClick={() => setMainTab('queued')}
                     className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
                         mainTab === 'queued'
-                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-sm'
                             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                     }`}
                 >
@@ -700,7 +714,7 @@ export function ClipQueueTabs({
                     onClick={() => setMainTab('failures')}
                     className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
                         mainTab === 'failures'
-                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-sm'
                             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                     }`}
                 >

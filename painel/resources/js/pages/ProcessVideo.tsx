@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
-import { Play, Pause, Sparkles, UploadCloud, Download, Film, Video, AudioWaveform } from 'lucide-react';
+import { Sparkles, UploadCloud, Download, Film, Video, AudioWaveform, Pause, Play } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { AppShell } from '@/layouts/app-shell';
@@ -45,87 +45,86 @@ export default function ProcessVideo() {
             <AppShell
                 title="Processar Vídeo"
                 user={auth?.user ?? null}
-                description="Enfileire URLs do YouTube ou envie arquivos locais para o pipeline de IA (download → transcrição Whisper → seleção LLaMA → corte FFmpeg)."
+                description="Enfileira URLs ou arquivos na fila normal do pipeline."
             >
                 <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
                     {/* FORMULÁRIO DE ENFILEIRAMENTO */}
-                    <div className="rounded-2xl border border-border bg-card p-6 flex flex-col gap-5 shadow-xs">
-                        <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-                            <Film className="w-4 h-4 text-[#FF6A55]" />
-                            Configurações de Processamento
-                        </h2>
+                    <div className="rounded-3xl border border-border bg-card p-6 flex flex-col gap-5 shadow-xs">
+                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                            <Film className="w-3.5 h-3.5 text-[#FF6A55]" /> FONTE
+                        </div>
 
                         <form onSubmit={submit} className="flex flex-col gap-5">
-                            {/* Seleção de Formato em Cards */}
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-semibold text-foreground">Formato do Corte</label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setData('format', 'curto')}
-                                        className={`p-4 rounded-xl border text-left flex flex-col gap-1 transition-all ${
-                                            data.format === 'curto'
-                                                ? 'border-primary bg-primary/10 shadow-xs'
-                                                : 'border-border bg-muted/30 hover:border-border/80'
-                                        }`}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-bold text-sm text-foreground">Curto (9:16)</span>
-                                            <span className="text-[10.5px] font-mono px-2 py-0.5 rounded bg-black/10 dark:bg-white/10">
-                                                ≤ 60s
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Shorts vertical com legendas automáticas e marca d'água.
+                            {/* Seleção de Formato em Cards conforme Print 5 */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setData('format', 'curto')}
+                                    className={`p-4 rounded-2xl border text-left flex items-start gap-3 transition-all ${
+                                        data.format === 'curto'
+                                            ? 'border-[#FF6A55] bg-[#FF6A55]/5 ring-1 ring-[#FF6A55]'
+                                            : 'border-border bg-card hover:border-border/80'
+                                    }`}
+                                >
+                                    <div className={`w-4 h-4 rounded-full mt-0.5 border flex items-center justify-center shrink-0 ${
+                                        data.format === 'curto' ? 'border-[#FF6A55]' : 'border-muted-foreground'
+                                    }`}>
+                                        {data.format === 'curto' && <div className="w-2 h-2 rounded-full bg-[#FF6A55]" />}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-sm text-foreground">Curto</span>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            Shorts — vários momentos de 15s a 3min, vertical
                                         </p>
-                                    </button>
+                                    </div>
+                                </button>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => setData('format', 'longo')}
-                                        className={`p-4 rounded-xl border text-left flex flex-col gap-1 transition-all ${
-                                            data.format === 'longo'
-                                                ? 'border-primary bg-primary/10 shadow-xs'
-                                                : 'border-border bg-muted/30 hover:border-border/80'
-                                        }`}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-bold text-sm text-foreground">Longo (16:9)</span>
-                                            <span className="text-[10.5px] font-mono px-2 py-0.5 rounded bg-black/10 dark:bg-white/10">
-                                                12–25 min
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Vídeo completo de debate / podcast mantendo o enquadramento original.
+                                <button
+                                    type="button"
+                                    onClick={() => setData('format', 'longo')}
+                                    className={`p-4 rounded-2xl border text-left flex items-start gap-3 transition-all ${
+                                        data.format === 'longo'
+                                            ? 'border-[#FF6A55] bg-[#FF6A55]/5 ring-1 ring-[#FF6A55]'
+                                            : 'border-border bg-card hover:border-border/80'
+                                    }`}
+                                >
+                                    <div className={`w-4 h-4 rounded-full mt-0.5 border flex items-center justify-center shrink-0 ${
+                                        data.format === 'longo' ? 'border-[#FF6A55]' : 'border-muted-foreground'
+                                    }`}>
+                                        {data.format === 'longo' && <div className="w-2 h-2 rounded-full bg-[#FF6A55]" />}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-sm text-foreground">Longo</span>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            1 segmento de 10 a 20min, horizontal
                                         </p>
-                                    </button>
-                                </div>
+                                    </div>
+                                </button>
                             </div>
 
                             {/* URLs do YouTube */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                                    <Video className="w-3.5 h-3.5 text-red-500" />
+                                <label className="text-xs font-semibold text-foreground">
                                     URLs do YouTube (uma por linha)
                                 </label>
                                 <textarea
                                     value={data.urls}
                                     onChange={(e) => setData('urls', e.target.value)}
                                     rows={4}
-                                    placeholder="https://www.youtube.com/watch?v=...\nhttps://youtu.be/..."
-                                    className="w-full rounded-xl border border-border bg-muted/20 p-3 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                                    placeholder="https://www.youtube.com/watch?v=...&#10;https://www.youtube.com/watch?v=..."
+                                    className="w-full rounded-2xl border border-border bg-muted/10 p-3.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                                     required
                                 />
                             </div>
 
-                            {/* Dropzone de Arquivos Locais */}
-                            <div className="rounded-xl border-2 border-dashed border-border p-5 text-center flex flex-col items-center gap-2 hover:border-primary/50 transition-colors cursor-pointer bg-muted/10">
-                                <UploadCloud className="w-6 h-6 text-muted-foreground" />
-                                <div className="text-xs font-medium text-foreground">
-                                    Ou arraste um vídeo MP4/MKV aqui
+                            {/* Dropzone de Arquivos Locais conforme Print 5 */}
+                            <div className="rounded-2xl border-2 border-dashed border-border p-6 text-center flex flex-col items-center gap-2 hover:border-[#FF6A55]/50 transition-colors cursor-pointer bg-muted/5">
+                                <UploadCloud className="w-7 h-7 text-muted-foreground" />
+                                <div className="text-xs font-semibold text-foreground">
+                                    Ou arraste um arquivo de vídeo
                                 </div>
                                 <span className="text-[11px] text-muted-foreground">
-                                    Processamento direto no servidor
+                                    MP4, MOV ou MKV até 4 GB — não consome cota da API
                                 </span>
                             </div>
 
@@ -134,12 +133,12 @@ export default function ProcessVideo() {
                                 <Button
                                     type="submit"
                                     disabled={processing}
-                                    className="flex-1 shadow-sm hover:brightness-105"
+                                    className="flex-1 rounded-xl shadow-sm hover:brightness-105"
                                     style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)', color: '#fff' }}
                                 >
                                     <Sparkles className="w-4 h-4 mr-1.5" /> Enfileirar no Pipeline
                                 </Button>
-                                <Button type="button" variant="outline" className="text-xs">
+                                <Button type="button" variant="outline" className="text-xs rounded-xl">
                                     Só transcrever (local)
                                 </Button>
                             </div>
@@ -147,7 +146,7 @@ export default function ProcessVideo() {
                     </div>
 
                     {/* WAVEFORM & TRANSCRIÇÃO INTERATIVA */}
-                    <div className="rounded-2xl border border-border bg-card p-6 flex flex-col gap-5 shadow-xs">
+                    <div className="rounded-3xl border border-border bg-card p-6 flex flex-col gap-5 shadow-xs">
                         <div className="flex items-center justify-between">
                             <h2 className="font-display text-base font-bold text-foreground flex items-center gap-2">
                                 <AudioWaveform className="w-4 h-4 text-emerald-500" />
@@ -157,7 +156,7 @@ export default function ProcessVideo() {
                         </div>
 
                         {/* Player de Onda de Áudio Simulado */}
-                        <div className="rounded-xl border border-border bg-muted/40 p-4 flex flex-col gap-3">
+                        <div className="rounded-2xl border border-border bg-muted/40 p-4 flex flex-col gap-3">
                             <div className="flex items-center gap-3">
                                 <button
                                     type="button"
@@ -175,7 +174,7 @@ export default function ProcessVideo() {
                                                 key={i}
                                                 className={`flex-1 rounded-full transition-all ${
                                                     isHighlighted
-                                                        ? 'bg-primary'
+                                                        ? 'bg-[#FF6A55]'
                                                         : 'bg-muted-foreground/30'
                                                 }`}
                                                 style={{ height: `${heights[i % heights.length]}%` }}
@@ -186,7 +185,7 @@ export default function ProcessVideo() {
                             </div>
                             <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
                                 <span>0:00</span>
-                                <span className="text-primary font-semibold">✨ Trecho de Ouro IA: 0:12 – 0:38</span>
+                                <span className="text-[#FF6A55] font-semibold">✨ Trecho de Ouro IA: 0:12 – 0:38</span>
                                 <span>0:45</span>
                             </div>
                         </div>
@@ -200,16 +199,16 @@ export default function ProcessVideo() {
                                 </Button>
                             </div>
 
-                            <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2 max-h-[220px] overflow-y-auto text-xs font-mono">
-                                <div className="p-2 rounded-lg bg-card border border-border/80">
+                            <div className="rounded-2xl border border-border bg-muted/20 p-3.5 space-y-2 max-h-[220px] overflow-y-auto text-xs font-mono">
+                                <div className="p-2.5 rounded-xl bg-card border border-border/80">
                                     <span className="text-muted-foreground text-[10.5px]">00:00 → 00:08</span>
                                     <p className="text-foreground mt-0.5">"Nós precisamos entender o impacto dessa nova decisão jurídica no cenário eleitoral."</p>
                                 </div>
-                                <div className="p-2 rounded-lg bg-primary/10 border border-primary/30">
-                                    <span className="text-primary text-[10.5px] font-bold">00:12 → 00:24 (Selecionado)</span>
+                                <div className="p-2.5 rounded-xl bg-[#FF6A55]/10 border border-[#FF6A55]/30">
+                                    <span className="text-[#FF6A55] text-[10.5px] font-bold">00:12 → 00:24 (Selecionado)</span>
                                     <p className="text-foreground font-semibold mt-0.5">"O STF tomou uma postura que gerou um desequilíbrio sem precedentes nas redes sociais."</p>
                                 </div>
-                                <div className="p-2 rounded-lg bg-card border border-border/80">
+                                <div className="p-2.5 rounded-xl bg-card border border-border/80">
                                     <span className="text-muted-foreground text-[10.5px]">00:25 → 00:38</span>
                                     <p className="text-foreground mt-0.5">"E isso afeta diretamente quem depende do engajamento orgânico para se comunicar com os eleitores."</p>
                                 </div>
