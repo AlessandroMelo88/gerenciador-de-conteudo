@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import type { FormDataConvertible } from '@inertiajs/core';
 import { toast } from 'sonner';
+import { Calendar, X, Check, Play, LayoutGrid, List } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,33 +31,19 @@ function post(url: string, data: Record<string, FormDataConvertible | number[]> 
 }
 
 function FormatBadge({ format }: { format: ClipRow['format'] }) {
-    return <Badge variant={format === 'longo' ? 'default' : 'secondary'}>{format === 'longo' ? 'Longo' : 'Curto'}</Badge>;
-}
-
-function TitleCell({ clip }: { clip: ClipRow }) {
-    const [open, setOpen] = useState(false);
-
     return (
-        <div className="max-w-[220px]">
-            <span className="block truncate" title={clip.title}>
-                {clip.title}
-            </span>
-            <button
-                type="button"
-                onClick={() => setOpen((v) => !v)}
-                className="mt-0.5 text-xs text-amber-500 underline hover:text-amber-400"
-            >
-                {open ? 'Ocultar clip' : 'Ver clip'}
-            </button>
-            {open && (
-                <video controls preload="metadata" className="mt-1.5 w-[200px] rounded" src={clip.previewUrl} />
-            )}
-        </div>
+        <span className="text-[10.5px] font-mono px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 text-muted-foreground">
+            {format === 'longo' ? 'Longo' : 'Curto'}
+        </span>
     );
 }
 
 function EmptyState({ message }: { message: string }) {
-    return <div className="flex items-center justify-center rounded-lg border border-dashed py-12 text-sm text-muted-foreground">{message}</div>;
+    return (
+        <div className="flex items-center justify-center rounded-2xl border border-dashed border-border py-12 text-sm text-muted-foreground bg-card/40">
+            {message}
+        </div>
+    );
 }
 
 function useSelection() {
@@ -79,20 +66,20 @@ function NicheBadge({ niche, channelName }: { niche?: string | null; channelName
 
     if (n === 'politica' || ch.includes('política') || ch.includes('politica')) {
         return (
-            <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-xs font-semibold text-purple-600 dark:text-purple-400">
+            <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-600 dark:text-purple-400">
                 🏛️ {channelName ?? 'Política'}
             </span>
         );
     }
     if (n === 'podcast' || ch.includes('podcast')) {
         return (
-            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
                 🎙️ {channelName ?? 'Podcast'}
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
             ⚽ {channelName ?? 'Futebol'}
         </span>
     );
@@ -103,20 +90,20 @@ function ScoreBadge({ score }: { score: number | null }) {
 
     if (score >= 9) {
         return (
-            <span className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-500 dark:text-red-400">
+            <span className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-500 dark:text-red-400">
                 🔥 {score}/10
             </span>
         );
     }
     if (score >= 8) {
         return (
-            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                 ⭐ {score}/10
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-zinc-500/30 bg-zinc-500/10 px-2 py-0.5 text-xs font-medium text-zinc-400">
+        <span className="inline-flex items-center gap-1 rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-2.5 py-1 text-xs font-medium text-zinc-400">
             {score}/10
         </span>
     );
@@ -124,7 +111,8 @@ function ScoreBadge({ score }: { score: number | null }) {
 
 function PendingTable({ clips }: { clips: ClipRow[] }) {
     const [subTab, setSubTab] = useState<'todos' | 'futebol' | 'politica' | 'podcast'>('todos');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+    const [previewingId, setPreviewingId] = useState<number | null>(null);
     const { selected, toggle, toggleAll, clear } = useSelection();
 
     const counts = {
@@ -160,134 +148,161 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
     if (clips.length === 0) return <EmptyState message="Nenhum clip aguardando aprovação" />;
 
     return (
-        <div>
-            {/* Subtabs de nicho + Toggle Grid/List */}
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-1.5 w-fit">
-                    <button
-                        type="button"
-                        onClick={() => setSubTab('todos')}
-                        className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                            subTab === 'todos'
-                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                        }`}
-                    >
-                        <span>Todos</span>
-                        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
-                            {counts.todos}
-                        </span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setSubTab('futebol')}
-                        className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                            subTab === 'futebol'
-                                ? 'bg-emerald-600 text-white shadow-sm'
-                                : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
-                        }`}
-                    >
-                        <span>⚽ Futebol</span>
-                        <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono">
-                            {counts.futebol}
-                        </span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setSubTab('politica')}
-                        className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                            subTab === 'politica'
-                                ? 'bg-purple-600 text-white shadow-sm'
-                                : 'text-purple-600 dark:text-purple-400 hover:bg-purple-500/10'
-                        }`}
-                    >
-                        <span>🏛️ Política</span>
-                        <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-mono">
-                            {counts.politica}
-                        </span>
-                    </button>
-                    {counts.podcast > 0 && (
+        <div className="flex flex-col gap-4">
+            {/* Top Header of the Queue */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                    <h2 className="font-display text-base font-bold text-foreground">Fila de aprovação</h2>
+                    <span className="text-xs font-mono px-2 py-0.5 rounded-lg bg-muted text-muted-foreground border border-border">
+                        {clips.length} aguardando
+                    </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {ids.length > 0 && (
+                        <ConfirmButton
+                            variant="outline"
+                            size="sm"
+                            className="h-8 rounded-lg text-xs font-medium"
+                            description={`Aprovar todos os ${ids.length} clipes visíveis?`}
+                            onConfirm={() => {
+                                post('/painel/clips/bulk-approve', { ids });
+                                clear();
+                            }}
+                        >
+                            <Check className="w-3.5 h-3.5 mr-1 text-emerald-500" /> Aprovar todos
+                        </ConfirmButton>
+                    )}
+
+                    <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
                         <button
                             type="button"
-                            onClick={() => setSubTab('podcast')}
-                            className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                                subTab === 'podcast'
-                                    ? 'bg-amber-600 text-white shadow-sm'
-                                    : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                            onClick={() => setViewMode('grid')}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                viewMode === 'grid'
+                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
                             }`}
+                            title="Modo Quadro (Cards)"
                         >
-                            <span>🎙️ Podcast</span>
-                            <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono">
-                                {counts.podcast}
-                            </span>
+                            ⊞ Quadro
                         </button>
-                    )}
-                </div>
-
-                {/* Alternador de Modo Quadro (Grid) e Modo Tabela (List) */}
-                <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
-                    <button
-                        type="button"
-                        onClick={() => setViewMode('grid')}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                            viewMode === 'grid'
-                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                        title="Modo Quadro (Cards)"
-                    >
-                        ⊞ Quadro
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setViewMode('list')}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                            viewMode === 'list'
-                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                        title="Modo Tabela (Lista)"
-                    >
-                        ☰ Tabela
-                    </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('list')}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                viewMode === 'list'
+                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                            title="Modo Tabela (Lista)"
+                        >
+                            ☰ Tabela
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="mb-3 flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => toggleAll(ids)}>
-                    Marcar/desmarcar todos
-                </Button>
-                <ConfirmButton
-                    variant="default"
-                    size="sm"
-                    disabled={selected.length === 0}
-                    description={`Aprovar ${selected.length} clip(s) selecionado(s)?`}
-                    onConfirm={() => {
-                        post('/painel/clips/bulk-approve', { ids: selected });
-                        clear();
-                    }}
+            {/* Subtabs de nicho */}
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-1.5 w-fit">
+                <button
+                    type="button"
+                    onClick={() => setSubTab('todos')}
+                    className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                        subTab === 'todos'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
                 >
-                    Aprovar selecionados ({selected.length})
-                </ConfirmButton>
-                <ConfirmButton
-                    variant="destructive"
-                    size="sm"
-                    disabled={selected.length === 0}
-                    description={`Rejeitar ${selected.length} clip(s) selecionado(s)? Os MP4s serão removidos.`}
-                    onConfirm={() => {
-                        post('/painel/clips/bulk-reject', { ids: selected });
-                        clear();
-                    }}
+                    <span>Todos</span>
+                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono">
+                        {counts.todos}
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setSubTab('futebol')}
+                    className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                        subTab === 'futebol'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                    }`}
                 >
-                    Rejeitar selecionados ({selected.length})
-                </ConfirmButton>
+                    <span>⚽ Futebol</span>
+                    <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                        {counts.futebol}
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setSubTab('politica')}
+                    className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                        subTab === 'politica'
+                            ? 'bg-purple-600 text-white shadow-sm'
+                            : 'text-purple-600 dark:text-purple-400 hover:bg-purple-500/10'
+                    }`}
+                >
+                    <span>🏛️ Política</span>
+                    <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                        {counts.politica}
+                    </span>
+                </button>
+                {counts.podcast > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setSubTab('podcast')}
+                        className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                            subTab === 'podcast'
+                                ? 'bg-amber-600 text-white shadow-sm'
+                                : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                        }`}
+                    >
+                        <span>🎙️ Podcast</span>
+                        <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                            {counts.podcast}
+                        </span>
+                    </button>
+                )}
             </div>
 
-            {/* RENDERIZAÇÃO DO MODO QUADRO OU TABELA */}
+            {/* Ações em lote caso haja selecionados */}
+            {selected.length > 0 && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-card border border-border">
+                    <span className="text-xs text-muted-foreground font-mono mr-2">
+                        {selected.length} selecionado(s)
+                    </span>
+                    <ConfirmButton
+                        variant="default"
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-3 rounded-lg"
+                        description={`Aprovar os ${selected.length} clips selecionados?`}
+                        onConfirm={() => {
+                            post('/painel/clips/bulk-approve', { ids: selected });
+                            clear();
+                        }}
+                    >
+                        Aprovar selecionados ({selected.length})
+                    </ConfirmButton>
+                    <ConfirmButton
+                        variant="destructive"
+                        size="sm"
+                        className="text-xs h-8 px-3 rounded-lg"
+                        description={`Rejeitar os ${selected.length} clips selecionados? O MP4 será removido.`}
+                        onConfirm={() => {
+                            post('/painel/clips/bulk-reject', { ids: selected });
+                            clear();
+                        }}
+                    >
+                        Rejeitar selecionados ({selected.length})
+                    </ConfirmButton>
+                </div>
+            )}
+
             {viewMode === 'grid' ? (
-                <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                /* MODO QUADRO / CARDS */
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                     {filteredClips.map((clip) => {
-                        const isPol = (clip.niche ?? '').toLowerCase() === 'politica' || (clip.destinationChannelName ?? '').toLowerCase().includes('política');
+                        const isPol = (clip.niche ?? '').toLowerCase().includes('politica') || (clip.destinationChannelName ?? '').toLowerCase().includes('política');
                         const bgGradient = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
 
                         return (
@@ -297,23 +312,34 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                             >
                                 <div className="relative aspect-video overflow-hidden" style={{ background: bgGradient }}>
                                     <div className="absolute inset-0 grid place-items-center">
-                                        <div className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md border border-white/20 grid place-items-center text-white group-hover:scale-105 transition-transform">
-                                            ▶
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPreviewingId(previewingId === clip.id ? null : clip.id)}
+                                            className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md border border-white/20 grid place-items-center text-white group-hover:scale-105 transition-transform"
+                                        >
+                                            <Play className="w-5 h-5 ml-0.5 fill-white" />
+                                        </button>
                                     </div>
-                                    <span className="absolute left-2.5 top-2.5">
-                                        <NicheBadge niche={clip.niche} channelName={clip.destinationChannelName} />
+                                    <span className="absolute left-2.5 top-2.5 font-semibold text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
+                                        {isPol ? '🏛️ Política' : '⚽ Futebol'}
                                     </span>
-                                    <span className="absolute right-2.5 top-2.5 font-mono text-[11px] px-2 py-1 rounded-lg bg-black/60 text-white backdrop-blur-md border border-white/10">
+                                    <span className="absolute right-2.5 top-2.5 font-mono text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
                                         {clip.format === 'longo' ? 'Longo' : 'Curto'}
+                                    </span>
+                                    <span className="absolute left-2.5 bottom-2.5 font-mono text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
+                                        {clip.trecho}
                                     </span>
                                     <span className="absolute right-2.5 bottom-2.5">
                                         <ScoreBadge score={clip.score} />
                                     </span>
-                                    <span className="absolute left-2.5 bottom-2.5 font-mono text-[10.5px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
-                                        {clip.trecho}
-                                    </span>
                                 </div>
+
+                                {previewingId === clip.id && (
+                                    <div className="p-3 bg-black/90 border-b border-border">
+                                        <video controls autoPlay className="w-full rounded-lg max-h-[220px]" src={clip.previewUrl} />
+                                    </div>
+                                )}
+
                                 <div className="p-4 flex flex-col gap-3 flex-1">
                                     <div className="flex items-start gap-2">
                                         <Checkbox
@@ -321,23 +347,24 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                             onCheckedChange={() => toggle(clip.id)}
                                             className="mt-1"
                                         />
-                                        <div className="font-semibold text-sm leading-snug tracking-tight text-foreground line-clamp-2">
+                                        <div className="font-semibold text-sm leading-snug tracking-tight text-foreground line-clamp-2" title={clip.title}>
                                             {clip.title}
                                         </div>
                                     </div>
+
                                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                                        <span className="font-mono px-1.5 py-0.5 rounded border border-border">
-                                            #{clip.id}
-                                        </span>
-                                        <span className="truncate">{clip.sourceChannelName ?? 'Canal Fonte'}</span>
+                                        <span className="font-mono px-1.5 py-0.5 rounded border border-border">#{clip.id}</span>
+                                        <span className="truncate">{clip.destinationChannelName ?? 'Canal Destino'}</span>
                                     </div>
+
                                     <div className="flex-1" />
+
                                     <div className="flex items-center gap-2 pt-2 border-t border-border/60">
                                         <ConfirmButton
                                             variant="default"
                                             size="sm"
-                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                            description={`Aprovar clip #${clip.id}?`}
+                                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs h-8 px-4 rounded-lg flex-1"
+                                            description={`Aprovar clip #${clip.id} para publicação?`}
                                             onConfirm={() => post(`/painel/clips/${clip.id}/approve`)}
                                         >
                                             Aprovar
@@ -345,10 +372,11 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                         <ConfirmButton
                                             variant="destructive"
                                             size="sm"
-                                            description={`Rejeitar clip #${clip.id}? O MP4 será removido.`}
+                                            className="h-8 w-8 p-0 rounded-lg"
+                                            description={`Rejeitar clip #${clip.id}? O MP4 será removido do disco.`}
                                             onConfirm={() => post(`/painel/clips/${clip.id}/reject`)}
                                         >
-                                            Rejeitar
+                                            <X className="w-4 h-4" />
                                         </ConfirmButton>
                                     </div>
                                 </div>
@@ -357,221 +385,248 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                     })}
                 </div>
             ) : (
-                <div className="overflow-x-auto rounded-lg border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-8" />
-                            <TableHead>ID</TableHead>
-                            <TableHead>Título</TableHead>
-                            <TableHead>Vídeo fonte</TableHead>
-                            <TableHead>Trecho</TableHead>
-                            <TableHead>Canal fonte</TableHead>
-                            <TableHead>Formato</TableHead>
-                            <TableHead>Destino</TableHead>
-                            <TableHead>Score</TableHead>
-                            <TableHead>Ações</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredClips.map((clip) => (
-                            <TableRow key={clip.id}>
-                                <TableCell>
-                                    <Checkbox checked={selected.includes(clip.id)} onCheckedChange={() => toggle(clip.id)} />
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">{clip.id}</TableCell>
-                                <TableCell>
-                                    <TitleCell clip={clip} />
-                                </TableCell>
-                                <TableCell className="max-w-[140px] truncate text-muted-foreground" title={clip.sourceVideoTitle ?? ''}>
-                                    {clip.sourceVideoTitle ?? '—'}
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">{clip.trecho}</TableCell>
-                                <TableCell className="text-muted-foreground">{clip.sourceChannelName ?? '—'}</TableCell>
-                                <TableCell>
-                                    <FormatBadge format={clip.format} />
-                                </TableCell>
-                                <TableCell>
-                                    <NicheBadge niche={clip.niche} channelName={clip.destinationChannelName} />
-                                </TableCell>
-                                <TableCell>
-                                    <ScoreBadge score={clip.score} />
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-col items-start gap-1">
-                                        <ConfirmButton
-                                            variant="outline"
-                                            size="sm"
-                                            description={`Aprovar clip #${clip.id}?`}
-                                            onConfirm={() => post(`/painel/clips/${clip.id}/approve`)}
-                                        >
-                                            Aprovar
-                                        </ConfirmButton>
-                                        <ConfirmButton
-                                            variant="destructive"
-                                            size="sm"
-                                            description={`Rejeitar clip #${clip.id}? O MP4 será removido do disco.`}
-                                            onConfirm={() => post(`/painel/clips/${clip.id}/reject`)}
-                                        >
-                                            Rejeitar
-                                        </ConfirmButton>
-                                    </div>
-                                </TableCell>
+                /* MODO TABELA IDÊNTICO AO PROTÓTIPO */
+                <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+                    <Table className="w-full text-xs">
+                        <TableHeader className="bg-muted/40 border-b border-border">
+                            <TableRow>
+                                <TableHead className="w-8 pl-4">
+                                    <Checkbox
+                                        checked={selected.length > 0 && selected.length === ids.length}
+                                        onCheckedChange={() => toggleAll(ids)}
+                                    />
+                                </TableHead>
+                                <TableHead className="px-4 py-3 font-bold text-[11px] tracking-wider text-muted-foreground uppercase">
+                                    CLIPE
+                                </TableHead>
+                                <TableHead className="px-4 py-3 font-bold text-[11px] tracking-wider text-muted-foreground uppercase">
+                                    TRECHO
+                                </TableHead>
+                                <TableHead className="px-4 py-3 font-bold text-[11px] tracking-wider text-muted-foreground uppercase">
+                                    DESTINO
+                                </TableHead>
+                                <TableHead className="px-4 py-3 font-bold text-[11px] tracking-wider text-muted-foreground uppercase">
+                                    SCORE
+                                </TableHead>
+                                <TableHead className="px-4 py-3 font-bold text-[11px] tracking-wider text-muted-foreground uppercase text-right pr-5">
+                                    AÇÕES
+                                </TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredClips.map((clip) => {
+                                const isPol = (clip.niche ?? '').toLowerCase().includes('politica') || (clip.destinationChannelName ?? '').toLowerCase().includes('política');
+                                const bgGradient = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+
+                                return (
+                                    <TableRow key={clip.id} className="hover:bg-muted/30 border-b border-border/60">
+                                        <TableCell className="pl-4">
+                                            <Checkbox
+                                                checked={selected.includes(clip.id)}
+                                                onCheckedChange={() => toggle(clip.id)}
+                                            />
+                                        </TableCell>
+
+                                        {/* Coluna CLIPE: Thumbnail + Título + Badges (Nicho, Duração, Formato) */}
+                                        <TableCell className="px-4 py-3 max-w-[380px]">
+                                            <div className="flex items-start gap-3">
+                                                <div
+                                                    className="w-12 h-9 rounded-lg shrink-0 grid place-items-center text-white shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
+                                                    style={{ background: bgGradient }}
+                                                    onClick={() => setPreviewingId(previewingId === clip.id ? null : clip.id)}
+                                                    title="Clique para ver o vídeo"
+                                                >
+                                                    <Play className="w-3.5 h-3.5 ml-0.5 fill-white" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="font-semibold text-sm text-foreground tracking-tight line-clamp-1" title={clip.title}>
+                                                        {clip.title}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <NicheBadge niche={clip.niche} channelName={clip.destinationChannelName} />
+                                                        <span className="text-[11px] font-mono text-muted-foreground">
+                                                            {clip.trecho}
+                                                        </span>
+                                                        <FormatBadge format={clip.format} />
+                                                    </div>
+
+                                                    {previewingId === clip.id && (
+                                                        <div className="mt-2 p-2 bg-black/90 rounded-lg">
+                                                            <video controls autoPlay className="w-[260px] rounded" src={clip.previewUrl} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </TableCell>
+
+                                        {/* Coluna TRECHO */}
+                                        <TableCell className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                                            {clip.trecho}
+                                        </TableCell>
+
+                                        {/* Coluna DESTINO */}
+                                        <TableCell className="px-4 py-3 text-xs font-medium text-foreground whitespace-nowrap">
+                                            {clip.destinationChannelName ?? '—'}
+                                        </TableCell>
+
+                                        {/* Coluna SCORE */}
+                                        <TableCell className="px-4 py-3 whitespace-nowrap">
+                                            <ScoreBadge score={clip.score} />
+                                        </TableCell>
+
+                                        {/* Coluna AÇÕES */}
+                                        <TableCell className="px-4 py-3 text-right pr-5 whitespace-nowrap">
+                                            <div className="flex items-center justify-end gap-1.5">
+                                                <ConfirmButton
+                                                    variant="default"
+                                                    size="sm"
+                                                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs h-8 px-4 rounded-lg shadow-xs"
+                                                    description={`Aprovar clip #${clip.id} para publicação?`}
+                                                    onConfirm={() => post(`/painel/clips/${clip.id}/approve`)}
+                                                >
+                                                    Aprovar
+                                                </ConfirmButton>
+
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                                                    title="Agendar publicação"
+                                                    onClick={() => toast.info(`Clip #${clip.id} pronto para publicação diária`)}
+                                                >
+                                                    <Calendar className="w-3.5 h-3.5" />
+                                                </Button>
+
+                                                <ConfirmButton
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0 rounded-lg border border-red-500/20 text-red-500 hover:bg-red-500/10"
+                                                    description={`Rejeitar clip #${clip.id}? O MP4 será removido do disco.`}
+                                                    onConfirm={() => post(`/painel/clips/${clip.id}/reject`)}
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </ConfirmButton>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
             )}
         </div>
     );
 }
 
 function QueuedTable({ clips }: { clips: ClipRow[] }) {
-    const { selected, toggle, toggleAll, clear } = useSelection();
-    const ids = clips.map((c) => c.id);
-
-    if (clips.length === 0) return <EmptyState message="Nenhum clip aprovado aguardando publicação" />;
+    if (clips.length === 0) {
+        return <EmptyState message="Nenhum clip aprovado aguardando cota no momento" />;
+    }
 
     return (
-        <div>
-            <p className="mb-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-200">
-                Publica automaticamente em ordem (mais antigo primeiro), respeitando o limite diário de uploads. Se
-                não fizer nada, a fila segue sozinha. Use &quot;Rejeitar&quot; só se a notícia ficou velha/irrelevante.
-            </p>
-            <div className="mb-3 flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => toggleAll(ids)}>
-                    Marcar/desmarcar todos
-                </Button>
-                <ConfirmButton
-                    variant="destructive"
-                    size="sm"
-                    disabled={selected.length === 0}
-                    description={`Rejeitar ${selected.length} clip(s) selecionado(s)? Os MP4s serão removidos.`}
-                    onConfirm={() => {
-                        post('/painel/clips/bulk-reject', { ids: selected });
-                        clear();
-                    }}
-                >
-                    Rejeitar selecionados ({selected.length})
-                </ConfirmButton>
-            </div>
-            <div className="overflow-x-auto rounded-lg border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-8" />
-                            <TableHead>Pos.</TableHead>
-                            <TableHead>ID</TableHead>
-                            <TableHead>Título</TableHead>
-                            <TableHead>Vídeo fonte</TableHead>
-                            <TableHead>Trecho</TableHead>
-                            <TableHead>Canal fonte</TableHead>
-                            <TableHead>Formato</TableHead>
-                            <TableHead>Destino</TableHead>
-                            <TableHead>Score</TableHead>
-                            <TableHead>Aprovado</TableHead>
-                            <TableHead>Ações</TableHead>
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+            <Table className="w-full text-xs">
+                <TableHeader className="bg-muted/40">
+                    <TableRow>
+                        <TableHead className="px-5 py-3 font-semibold">ID</TableHead>
+                        <TableHead className="px-5 py-3 font-semibold">Título</TableHead>
+                        <TableHead className="px-5 py-3 font-semibold">Canal Destino</TableHead>
+                        <TableHead className="px-5 py-3 font-semibold">Formato</TableHead>
+                        <TableHead className="px-5 py-3 font-semibold">Score</TableHead>
+                        <TableHead className="px-5 py-3 font-semibold">Aprovado em</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {clips.map((clip) => (
+                        <TableRow key={clip.id} className="hover:bg-muted/30">
+                            <TableCell className="px-5 py-3 font-mono text-muted-foreground">#{clip.id}</TableCell>
+                            <TableCell className="px-5 py-3 font-medium text-foreground max-w-[300px] truncate">{clip.title}</TableCell>
+                            <TableCell className="px-5 py-3">
+                                <NicheBadge niche={clip.niche} channelName={clip.destinationChannelName} />
+                            </TableCell>
+                            <TableCell className="px-5 py-3">
+                                <FormatBadge format={clip.format} />
+                            </TableCell>
+                            <TableCell className="px-5 py-3">
+                                <ScoreBadge score={clip.score} />
+                            </TableCell>
+                            <TableCell className="px-5 py-3 text-muted-foreground font-mono text-[11px]">{clip.createdAt}</TableCell>
                         </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {clips.map((clip, index) => (
-                            <TableRow key={clip.id}>
-                                <TableCell>
-                                    <Checkbox checked={selected.includes(clip.id)} onCheckedChange={() => toggle(clip.id)} />
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">#{index + 1}</TableCell>
-                                <TableCell className="text-muted-foreground">{clip.id}</TableCell>
-                                <TableCell>
-                                    <TitleCell clip={clip} />
-                                </TableCell>
-                                <TableCell className="max-w-[140px] truncate text-muted-foreground" title={clip.sourceVideoTitle ?? ''}>
-                                    {clip.sourceVideoTitle ?? '—'}
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">{clip.trecho}</TableCell>
-                                <TableCell className="text-muted-foreground">{clip.sourceChannelName ?? '—'}</TableCell>
-                                <TableCell>
-                                    <FormatBadge format={clip.format} />
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">{clip.destinationChannelName ?? '—'}</TableCell>
-                                <TableCell>
-                                    <Badge variant="outline">{clip.score ?? '—'}</Badge>
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">{clip.createdAt}</TableCell>
-                                <TableCell>
-                                    <ConfirmButton
-                                        variant="destructive"
-                                        size="sm"
-                                        description={`Rejeitar clip #${clip.id}? O MP4 será removido do disco e ele sai da fila.`}
-                                        onConfirm={() => post(`/painel/clips/${clip.id}/reject`)}
-                                    >
-                                        Rejeitar
-                                    </ConfirmButton>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
+                    ))}
+                </TableBody>
+            </Table>
         </div>
     );
 }
 
-function FailuresTable({ clips, failedSourceVideoCount }: { clips: ClipRow[]; failedSourceVideoCount: number }) {
-    if (clips.length === 0) return <EmptyState message="Nenhuma falha registrada" />;
+function FailuresTable({
+    clips,
+    failedSourceVideoCount,
+}: {
+    clips: ClipRow[];
+    failedSourceVideoCount: number;
+}) {
+    if (clips.length === 0 && failedSourceVideoCount === 0) {
+        return <EmptyState message="Nenhuma falha recente no pipeline" />;
+    }
 
     return (
-        <div>
+        <div className="flex flex-col gap-4">
             {failedSourceVideoCount > 0 && (
-                <p className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-                    Vídeos fonte com falha: <strong>{failedSourceVideoCount}</strong>
-                </p>
+                <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-between text-xs">
+                    <span>⚠️ {failedSourceVideoCount} vídeo(s) fonte falharam no download ou processamento.</span>
+                    <a href="/painel/videos?tab=falharam" className="underline font-semibold">
+                        Ver falhas em Vídeos →
+                    </a>
+                </div>
             )}
-            <div className="overflow-x-auto rounded-lg border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>ID</TableHead>
-                            <TableHead>Título</TableHead>
-                            <TableHead>Destino</TableHead>
-                            <TableHead>Quando</TableHead>
-                            <TableHead>Ações</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {clips.map((clip) => (
-                            <TableRow key={clip.id}>
-                                <TableCell className="text-muted-foreground">{clip.id}</TableCell>
-                                <TableCell className="max-w-[260px]">
-                                    <span className="block truncate" title={clip.title}>
-                                        {clip.title}
-                                    </span>
-                                    {clip.uploadError && (
-                                        <span
-                                            className="mt-0.5 block truncate text-xs text-red-400"
-                                            title={clip.uploadError}
-                                        >
-                                            {clip.uploadError}
-                                        </span>
-                                    )}
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">{clip.destinationChannelName ?? '—'}</TableCell>
-                                <TableCell className="text-muted-foreground">{clip.updatedAt}</TableCell>
-                                <TableCell>
-                                    <ConfirmButton
-                                        variant="outline"
-                                        size="sm"
-                                        description={`Reenviar clip #${clip.id} para reprocessamento?`}
-                                        onConfirm={() => post(`/painel/clips/${clip.id}/reprocess`)}
-                                    >
-                                        Reprocessar
-                                    </ConfirmButton>
-                                </TableCell>
+
+            {clips.length > 0 && (
+                <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+                    <Table className="w-full text-xs">
+                        <TableHeader className="bg-muted/40">
+                            <TableRow>
+                                <TableHead className="px-5 py-3 font-semibold">ID</TableHead>
+                                <TableHead className="px-5 py-3 font-semibold">Título & Erro</TableHead>
+                                <TableHead className="px-5 py-3 font-semibold">Canal Destino</TableHead>
+                                <TableHead className="px-5 py-3 font-semibold">Data</TableHead>
+                                <TableHead className="px-5 py-3 font-semibold text-right">Ação</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
+                        </TableHeader>
+                        <TableBody>
+                            {clips.map((clip) => (
+                                <TableRow key={clip.id} className="hover:bg-muted/30">
+                                    <TableCell className="px-5 py-3 font-mono text-muted-foreground">#{clip.id}</TableCell>
+                                    <TableCell className="px-5 py-3 max-w-[350px]">
+                                        <div className="font-medium text-foreground">{clip.title}</div>
+                                        {clip.uploadError && (
+                                            <span className="text-[11px] text-destructive block truncate mt-0.5" title={clip.uploadError}>
+                                                {clip.uploadError}
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="px-5 py-3">
+                                        <NicheBadge niche={clip.niche} channelName={clip.destinationChannelName} />
+                                    </TableCell>
+                                    <TableCell className="px-5 py-3 text-muted-foreground font-mono text-[11px]">{clip.updatedAt}</TableCell>
+                                    <TableCell className="px-5 py-3 text-right">
+                                        <ConfirmButton
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-8 text-xs rounded-lg"
+                                            description={`Reenviar clip #${clip.id} para reprocessamento?`}
+                                            onConfirm={() => post(`/painel/clips/${clip.id}/reprocess`)}
+                                        >
+                                            Reprocessar
+                                        </ConfirmButton>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
         </div>
     );
 }
