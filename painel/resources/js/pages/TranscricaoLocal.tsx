@@ -19,9 +19,9 @@ type Job = {
 };
 
 type PageProps = {
-    auth: { user: { name: string; email: string } | null };
-    flash: { success: string | null; error: string | null };
-    jobs: Job[];
+    auth?: { user: { name: string; email: string } | null };
+    flash?: { success: string | null; error: string | null };
+    jobs?: Job[];
 };
 
 const STATUS_LABELS: Record<Job['status'], string> = {
@@ -34,7 +34,9 @@ const STATUS_LABELS: Record<Job['status'], string> = {
 
 export default function TranscricaoLocal() {
     const { props } = usePage<PageProps>();
-    const { auth, flash, jobs } = props;
+    const auth = props?.auth;
+    const flash = props?.flash;
+    const jobs = props?.jobs ?? [];
     const { data, setData, post, processing, reset } = useForm({
         url: '',
     });

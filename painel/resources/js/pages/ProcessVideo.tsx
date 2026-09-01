@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button';
 import { AppShell } from '@/layouts/app-shell';
 
 type PageProps = {
-    auth: { user: { name: string; email: string } | null };
-    flash: { success: string | null; error: string | null };
+    auth?: { user: { name: string; email: string } | null };
+    flash?: { success: string | null; error: string | null };
 };
 
 export default function ProcessVideo() {
     const { props } = usePage<PageProps>();
-    const { auth, flash } = props;
+    const auth = props?.auth;
+    const flash = props?.flash;
     const { data, setData, post, processing, reset } = useForm({
         format: 'curto',
         urls: '',
@@ -43,7 +44,7 @@ export default function ProcessVideo() {
             <Head title="Processar Vídeo" />
             <AppShell
                 title="Processar Vídeo"
-                user={auth.user}
+                user={auth?.user ?? null}
                 description="Enfileire URLs do YouTube ou envie arquivos locais para o pipeline de IA (download → transcrição Whisper → seleção LLaMA → corte FFmpeg)."
             >
                 <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
