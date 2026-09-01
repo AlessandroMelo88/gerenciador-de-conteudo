@@ -47,6 +47,18 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
+            'workers' => [
+                'downloader' => \App\Models\SourceVideo::query()->where('status', 'downloading')->count() . '/' . \App\Models\SourceVideo::query()->whereNotNull('local_path')->count(),
+                'transcriber' => \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() > 0 ? \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() . ' ativo' : 'idle',
+                'cutter' => \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() > 0 ? \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() . ' cortando' : 'idle',
+            ],
+            'destinationQuotas' => \App\Models\DestinationChannel::query()->where('active', true)->get(['id', 'slug', 'name', 'niche'])->map(fn ($c) => [
+                'name' => $c->name,
+                'slug' => $c->slug,
+                'niche' => $c->niche,
+                'count' => 0,
+                'limit' => 5,
+            ]),
         ];
     }
 }

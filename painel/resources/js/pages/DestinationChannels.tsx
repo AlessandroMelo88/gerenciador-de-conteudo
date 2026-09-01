@@ -1,23 +1,15 @@
 import { useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
+import { Landmark, Trophy, Mic, PlusCircle, Trash2, Edit2, KeyRound } from 'lucide-react';
 
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { AppShell } from '@/layouts/app-shell';
 
@@ -40,11 +32,35 @@ type PageProps = {
     flash: { success: string | null; error: string | null };
 };
 
-const OAUTH_LABEL: Record<string, string> = {
-    authorized: 'Autorizado',
-    expired: 'Expirado',
-    missing: 'Sem autorização',
-};
+function NicheIcon({ niche }: { niche: string }) {
+    const n = niche.toLowerCase();
+    if (n.includes('política') || n.includes('politica')) return <Landmark className="w-5 h-5 text-white" />;
+    if (n.includes('podcast')) return <Mic className="w-5 h-5 text-white" />;
+    return <Trophy className="w-5 h-5 text-white" />;
+}
+
+function NicheBadge({ niche }: { niche: string }) {
+    const n = niche.toLowerCase();
+    if (n.includes('política') || n.includes('politica')) {
+        return (
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                🏛️ Política
+            </span>
+        );
+    }
+    if (n.includes('podcast')) {
+        return (
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                🎙️ Podcast
+            </span>
+        );
+    }
+    return (
+        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            ⚽ Futebol
+        </span>
+    );
+}
 
 function ChannelDialog({
     channel,
@@ -65,118 +81,102 @@ function ChannelDialog({
         credit_template: channel?.creditTemplate ?? 'Créditos: @{channel_handle}',
         active: channel?.active ?? true,
     });
-    const [watermark, setWatermark] = useState<File | null>(null);
 
-    function submit(e: React.FormEvent) {
+    const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        const onSuccess = () => {
-            setOpen(false);
-            reset();
-            if (watermark && channel) {
-                const fd = new FormData();
-                fd.append('watermark', watermark);
-                router.post(`/painel/canais-destino/${channel.id}/watermark`, fd);
-            }
+        const options = {
+            onSuccess: () => {
+                setOpen(false);
+                if (!isEdit) reset();
+                toast.success(isEdit ? 'Canal atualizado com sucesso' : 'Canal criado com sucesso');
+            },
+            onError: () => toast.error('Verifique os campos do formulário'),
         };
         if (isEdit) {
-            put(`/painel/canais-destino/${channel.id}`, { onSuccess });
+            put(`/painel/canais-destino/${channel.id}`, options);
         } else {
-            post('/painel/canais-destino', { onSuccess });
+            post('/painel/canais-destino', options);
         }
-    }
+    };
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
-            <DialogContent className="max-h-[85vh] overflow-y-auto overflow-x-hidden w-full sm:max-w-lg">
+            <DialogContent className="w-full max-w-lg overflow-x-hidden">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? `Editar ${channel!.name}` : 'Adicionar canal-destino'}</DialogTitle>
+                    <DialogTitle className="font-display font-bold">
+                        {isEdit ? 'Editar Canal Destino' : 'Novo Canal Destino'}
+                    </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={submit} className="grid gap-4">
+                <form onSubmit={submit} className="space-y-4">
                     <Field>
-                        <FieldLabel htmlFor="slug">Slug</FieldLabel>
-                        <Input id="slug" value={data.slug} onChange={(e) => setData('slug', e.target.value)} />
-                        <p className="text-xs text-muted-foreground break-words">Identificador único (ex: futebol-em-cortes)</p>
-                        {errors.slug && <p className="text-sm text-destructive">{errors.slug}</p>}
+                        <FieldLabel>Nome do Canal</FieldLabel>
+                        <Input
+                            value={data.name}
+                            onChange={(e) => setData('name', e.target.value)}
+                            placeholder="Ex: Futebol em Cortes"
+                            required
+                        />
+                        {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
                     </Field>
+
                     <Field>
-                        <FieldLabel htmlFor="name">Nome</FieldLabel>
-                        <Input id="name" value={data.name} onChange={(e) => setData('name', e.target.value)} />
-                        {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+                        <FieldLabel>Slug (identificador único)</FieldLabel>
+                        <Input
+                            value={data.slug}
+                            onChange={(e) => setData('slug', e.target.value)}
+                            placeholder="Ex: futebol-em-cortes"
+                            required
+                            disabled={isEdit}
+                            className="font-mono text-xs"
+                        />
+                        {errors.slug && <p className="text-xs text-destructive">{errors.slug}</p>}
                     </Field>
+
                     <Field>
                         <FieldLabel>Nicho</FieldLabel>
-                        <NicheCombobox niches={niches} value={data.niche} onChange={(v) => setData('niche', v)} />
-                        {errors.niche && <p className="text-sm text-destructive">{errors.niche}</p>}
+                        <NicheCombobox
+                            niches={niches}
+                            value={data.niche}
+                            onChange={(val) => setData('niche', val)}
+                        />
+                        {errors.niche && <p className="text-xs text-destructive">{errors.niche}</p>}
                     </Field>
+
                     <Field>
-                        <FieldLabel htmlFor="ytid">YouTube Channel ID (UC...)</FieldLabel>
+                        <FieldLabel>YouTube Channel ID</FieldLabel>
                         <Input
-                            id="ytid"
                             value={data.youtube_channel_id}
                             onChange={(e) => setData('youtube_channel_id', e.target.value)}
+                            placeholder="Ex: UCcyeBQFAkUNeDJbBM7JJqLw"
+                            required
+                            className="font-mono text-xs"
                         />
-                        <p className="text-xs text-muted-foreground break-words">
-                            O ID do canal no YouTube (começa com &quot;UC&quot;). Se o canal ainda não existe, crie-o
-                            primeiro em studio.youtube.com — o painel não cria canais novos no YouTube, só publica neles.
-                        </p>
                         {errors.youtube_channel_id && (
-                            <p className="text-sm text-destructive">{errors.youtube_channel_id}</p>
+                            <p className="text-xs text-destructive">{errors.youtube_channel_id}</p>
                         )}
                     </Field>
+
                     <Field>
-                        <FieldLabel htmlFor="tpl">Template de créditos</FieldLabel>
+                        <FieldLabel>Template de Créditos na Descrição</FieldLabel>
                         <Textarea
-                            id="tpl"
-                            rows={3}
-                            value={data.credit_template ?? ''}
+                            value={data.credit_template}
                             onChange={(e) => setData('credit_template', e.target.value)}
+                            rows={2}
+                            placeholder="Créditos: @{channel_handle}"
                         />
-                        <p className="text-xs text-muted-foreground break-words">Placeholder disponível: {'{channel_handle}'}</p>
-                        {errors.credit_template && (
-                            <p className="text-sm text-destructive">{errors.credit_template}</p>
-                        )}
                     </Field>
-                    <Field>
-                        <FieldLabel>Ativo</FieldLabel>
-                        <Switch checked={data.active} onCheckedChange={(v) => setData('active', v)} />
-                    </Field>
-                    {isEdit && (
-                        <Field>
-                            <FieldLabel htmlFor="watermark">Marca d&apos;água (overlay nos vídeos)</FieldLabel>
-                            <Input
-                                id="watermark"
-                                type="file"
-                                accept="image/png"
-                                onChange={(e) => setWatermark(e.target.files?.[0] ?? null)}
-                            />
-                            <p className="text-xs text-muted-foreground break-words">
-                                PNG com fundo transparente, aplicado automaticamente no canto superior direito de todo
-                                vídeo cortado deste canal. Isso NÃO é o ícone/capa do canal no YouTube — a API do
-                                YouTube não permite trocar ícone/capa por código, isso só dá pra fazer manualmente em
-                                studio.youtube.com. {channel?.hasWatermark && '(já tem uma marca d\'água salva)'}
-                            </p>
-                        </Field>
-                    )}
-                    {isEdit && (
-                        <Field>
-                            <FieldLabel>Autorização OAuth</FieldLabel>
-                            <p className="text-xs text-muted-foreground break-words">
-                                Não dá pra autorizar com 1 clique pelo painel: o YouTube exige que <em>você mesmo</em>{' '}
-                                faça login na sua conta Google e aprove o acesso — isso roda por um comando
-                                interativo no terminal, uma vez por canal.
-                            </p>
-                            <ol className="list-decimal pl-5 text-xs text-muted-foreground space-y-1 break-words">
-                                <li>Abra um terminal no servidor e rode o comando abaixo</li>
-                                <li>Abra a URL impressa no navegador, faça login e autorize</li>
-                                <li>Cole de volta no terminal a URL completa para onde o navegador tentou redirecionar</li>
-                            </ol>
-                            <CopyCommand slug={channel!.slug} />
-                        </Field>
-                    )}
+
                     <DialogFooter>
-                        <Button type="submit" disabled={processing}>
-                            {isEdit ? 'Salvar' : 'Adicionar'}
+                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={processing}
+                            style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)', color: '#fff' }}
+                        >
+                            {isEdit ? 'Salvar Alterações' : 'Criar Canal'}
                         </Button>
                     </DialogFooter>
                 </form>
@@ -185,33 +185,27 @@ function ChannelDialog({
     );
 }
 
-function CopyCommand({ slug }: { slug: string }) {
-    const [copied, setCopied] = useState(false);
-    const command = `docker exec -it clip-processor python -m src.youtube_oauth --channel ${slug}`;
-
-    return (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1">
-            <pre className="flex-1 overflow-x-auto rounded bg-muted p-2 text-xs break-all whitespace-pre-wrap font-mono">{command}</pre>
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                onClick={() => {
-                    navigator.clipboard.writeText(command).catch(() => {});
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                }}
-            >
-                {copied ? 'Copiado!' : 'Copiar'}
-            </Button>
-        </div>
-    );
-}
-
 export default function DestinationChannels() {
     const { props } = usePage<PageProps>();
     const { channels, niches, auth } = props;
+
+    const toggleActive = (channel: DestinationChannel) => {
+        router.put(
+            `/painel/canais-destino/${channel.id}`,
+            { active: !channel.active },
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success(`Canal ${!channel.active ? 'ativado' : 'pausado'}`),
+            }
+        );
+    };
+
+    const deleteChannel = (channel: DestinationChannel) => {
+        router.delete(`/painel/canais-destino/${channel.id}`, {
+            preserveScroll: true,
+            onSuccess: () => toast.success('Canal excluído com sucesso'),
+        });
+    };
 
     return (
         <>
@@ -219,93 +213,103 @@ export default function DestinationChannels() {
             <AppShell
                 title="Canais Destino"
                 user={auth.user}
-                description="Canais do YouTube onde os clips são publicados."
-                actions={
-                    <ChannelDialog niches={niches} trigger={<Button>Novo Canal Destino</Button>} />
-                }
+                description="Canais do YouTube onde os clipes aprovados são publicados. Cada canal possui sua própria cota e autorização OAuth."
             >
-                <div className="overflow-x-auto rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Slug</TableHead>
-                                <TableHead>Nome</TableHead>
-                                <TableHead>Nicho</TableHead>
-                                <TableHead>OAuth</TableHead>
-                                <TableHead>Ativo</TableHead>
-                                <TableHead>YT Channel ID</TableHead>
-                                <TableHead>Ações</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {channels.map((c) => (
-                                <TableRow key={c.id}>
-                                    <TableCell>{c.slug}</TableCell>
-                                    <TableCell>{c.name}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="secondary">{c.niche}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant={
-                                                c.oauthStatus === 'authorized'
-                                                    ? 'default'
-                                                    : c.oauthStatus === 'expired'
-                                                      ? 'destructive'
-                                                      : 'secondary'
-                                            }
-                                        >
-                                            {OAUTH_LABEL[c.oauthStatus]}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Switch
-                                            checked={c.active}
-                                            onCheckedChange={(v) =>
-                                                router.put(
-                                                    `/painel/canais-destino/${c.id}`,
-                                                    { active: v },
-                                                    { preserveScroll: true },
-                                                )
-                                            }
-                                        />
-                                    </TableCell>
-                                    <TableCell
-                                        className="cursor-pointer font-mono text-xs text-muted-foreground"
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(c.youtubeChannelId).catch(() => {});
-                                            toast.success('Copiado');
-                                        }}
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                    {channels.map((channel) => {
+                        const isPol = channel.niche.toLowerCase().includes('política') || channel.niche.toLowerCase().includes('politica');
+                        const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                        const isAuth = channel.oauthStatus === 'authorized';
+
+                        return (
+                            <div
+                                key={channel.id}
+                                className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 shadow-xs hover:border-primary/30 transition-all"
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0 shadow-sm" style={{ background: bgGrad }}>
+                                        <NicheIcon niche={channel.niche} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="font-bold text-sm tracking-tight truncate text-foreground">{channel.name}</div>
+                                        <div className="font-mono text-[11px] text-muted-foreground truncate">{channel.slug}</div>
+                                    </div>
+                                    <NicheBadge niche={channel.niche} />
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <span
+                                        className={`flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border ${
+                                            isAuth
+                                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                                : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                                        }`}
                                     >
-                                        {c.youtubeChannelId}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex gap-2">
-                                            <ChannelDialog
-                                                channel={c}
-                                                niches={niches}
-                                                trigger={
-                                                    <Button variant="outline" size="sm">
-                                                        Editar
-                                                    </Button>
-                                                }
-                                            />
-                                            <ConfirmButton
-                                                variant="destructive"
-                                                size="sm"
-                                                description={`Apagar o canal-destino "${c.name}"? Essa ação não pode ser desfeita.`}
-                                                onConfirm={() =>
-                                                    router.delete(`/painel/canais-destino/${c.id}`)
-                                                }
-                                            >
-                                                Apagar
-                                            </ConfirmButton>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                        {isAuth ? 'OAuth autorizado' : 'Sem autorização'}
+                                    </span>
+                                    <span className="font-mono text-[10.5px] text-muted-foreground truncate" title={channel.youtubeChannelId}>
+                                        {channel.youtubeChannelId}
+                                    </span>
+                                </div>
+
+                                <div className="rounded-xl border border-border bg-muted/40 p-3">
+                                    <div className="flex items-center justify-between text-xs mb-2">
+                                        <span className="text-muted-foreground">Cota diária</span>
+                                        <span className="font-mono font-semibold text-foreground">5 de 5 slots</span>
+                                    </div>
+                                    <div className="h-1.5 rounded-full bg-black/10 dark:bg-white/[.08] overflow-hidden">
+                                        <div className="h-full rounded-full bg-emerald-500" style={{ width: '100%' }} />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                                    <Switch
+                                        checked={channel.active}
+                                        onCheckedChange={() => toggleActive(channel)}
+                                    />
+                                    <span className="text-xs font-medium text-foreground">
+                                        {channel.active ? 'Ativo' : 'Pausado'}
+                                    </span>
+                                    <div className="flex-1" />
+                                    <ChannelDialog
+                                        channel={channel}
+                                        niches={niches}
+                                        trigger={
+                                            <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg text-xs">
+                                                <Edit2 className="w-3.5 h-3.5 mr-1" /> Editar
+                                            </Button>
+                                        }
+                                    />
+                                    <ConfirmButton
+                                        variant="destructive"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 rounded-lg"
+                                        description={`Excluir canal "${channel.name}"?`}
+                                        onConfirm={() => deleteChannel(channel)}
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </ConfirmButton>
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {/* Card de Adicionar Canal */}
+                    <ChannelDialog
+                        niches={niches}
+                        trigger={
+                            <button
+                                type="button"
+                                className="rounded-2xl border-2 border-dashed border-border p-6 min-h-[200px] grid place-items-center text-muted-foreground hover:border-primary hover:text-primary transition-all group"
+                            >
+                                <div className="flex flex-col items-center gap-2">
+                                    <PlusCircle className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
+                                    <span className="text-sm font-semibold">Adicionar canal destino</span>
+                                </div>
+                            </button>
+                        }
+                    />
                 </div>
             </AppShell>
         </>

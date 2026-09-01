@@ -40,11 +40,22 @@ const navItems: NavItem[] = [
     { title: 'Documentação', url: '/painel/documentacao', icon: BookOpenIcon },
 ];
 
+import { usePage } from '@inertiajs/react';
+
 export function AppSidebar({
     user,
     ...props
 }: React.ComponentProps<typeof Sidebar> & { user: { name: string; email: string } | null }) {
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    const { props: pageProps } = usePage<{
+        workers?: { downloader: string; transcriber: string; cutter: string };
+    }>();
+
+    const workers = pageProps.workers || {
+        downloader: '0/0',
+        transcriber: 'idle',
+        cutter: 'idle',
+    };
 
     return (
         <Sidebar collapsible="icon" {...props}>
@@ -95,7 +106,7 @@ export function AppSidebar({
                 </SidebarMenu>
             </SidebarContent>
             <SidebarFooter className="p-3 flex flex-col gap-2">
-                {/* Workers Status Box */}
+                {/* Workers Status Box (Dinâmico) */}
                 <div className="rounded-xl border border-border bg-card/60 p-3 flex flex-col gap-2 text-xs">
                     <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                         <span>Workers</span>
@@ -106,17 +117,17 @@ export function AppSidebar({
                     <div className="flex items-center gap-2 text-[12px]">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                         <span className="flex-1 text-foreground/80">downloader</span>
-                        <span className="font-mono text-[10.5px] text-muted-foreground">35/61</span>
+                        <span className="font-mono text-[10.5px] text-muted-foreground">{workers.downloader}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[12px]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${workers.transcriber !== 'idle' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                         <span className="flex-1 text-foreground/80">transcriber</span>
-                        <span className="font-mono text-[10.5px] text-muted-foreground">1 ativo</span>
+                        <span className="font-mono text-[10.5px] text-muted-foreground">{workers.transcriber}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[12px]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${workers.cutter !== 'idle' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                         <span className="flex-1 text-foreground/80">cutter · uploader</span>
-                        <span className="font-mono text-[10.5px] text-muted-foreground">idle</span>
+                        <span className="font-mono text-[10.5px] text-muted-foreground">{workers.cutter}</span>
                     </div>
                 </div>
                 <NavUser user={user} />
