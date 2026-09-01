@@ -240,9 +240,9 @@ export default function SourceVideos() {
                                         ? 'bg-primary text-primary-foreground shadow-sm'
                                         : 'text-muted-foreground hover:text-foreground'
                                 }`}
-                                title="Modo Cards"
+                                title="Modo Quadro"
                             >
-                                ⊞ Cards
+                                ⊞ Quadro
                             </button>
                             <button
                                 type="button"
@@ -252,9 +252,9 @@ export default function SourceVideos() {
                                         ? 'bg-primary text-primary-foreground shadow-sm'
                                         : 'text-muted-foreground hover:text-foreground'
                                 }`}
-                                title="Modo Lista"
+                                title="Modo Tabela"
                             >
-                                ☰ Lista
+                                ☰ Tabela
                             </button>
                         </div>
                         <PurgeOldDialog />

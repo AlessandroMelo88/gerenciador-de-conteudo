@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
-import { Landmark, Trophy, Mic, PlusCircle, Trash2, Edit2 } from 'lucide-react';
+import { Landmark, Trophy, Mic, PlusCircle, Trash2, Edit2, Search } from 'lucide-react';
 
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
@@ -36,8 +36,8 @@ type DestinationChannel = {
 type PageProps = {
     channels: DestinationChannel[];
     niches: Niche[];
-    auth: { user: { name: string; email: string } | null };
-    flash: { success: string | null; error: string | null };
+    auth?: { user: { name: string; email: string } | null };
+    flash?: { success: string | null; error: string | null };
 };
 
 function NicheIcon({ niche }: { niche: string }) {
@@ -195,8 +195,11 @@ function ChannelDialog({
 
 export default function DestinationChannels() {
     const { props } = usePage<PageProps>();
-    const { channels, niches, auth } = props;
+    const { channels, niches } = props;
+    const auth = props?.auth;
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [activeTab, setActiveTab] = useState<string>('todos');
+    const [search, setSearch] = useState('');
 
     const toggleActive = (channel: DestinationChannel) => {
         router.put(
@@ -216,145 +219,255 @@ export default function DestinationChannels() {
         });
     };
 
+    const counts = {
+        todos: channels.length,
+        futebol: channels.filter((c) => (c.niche ?? '').toLowerCase() === 'futebol').length,
+        politica: channels.filter((c) => (c.niche ?? '').toLowerCase().includes('politica') || (c.niche ?? '').toLowerCase().includes('política')).length,
+        podcast: channels.filter((c) => (c.niche ?? '').toLowerCase() === 'podcast').length,
+    };
+
+    const filtered = channels.filter((c) => {
+        const matchesTab =
+            activeTab === 'todos' ||
+            (activeTab === 'futebol' && (c.niche ?? '').toLowerCase() === 'futebol') ||
+            (activeTab === 'politica' && ((c.niche ?? '').toLowerCase().includes('politica') || (c.niche ?? '').toLowerCase().includes('política'))) ||
+            (activeTab === 'podcast' && (c.niche ?? '').toLowerCase() === 'podcast');
+
+        const matchesSearch =
+            search === '' ||
+            c.name.toLowerCase().includes(search.toLowerCase()) ||
+            c.slug.toLowerCase().includes(search.toLowerCase()) ||
+            c.youtubeChannelId.toLowerCase().includes(search.toLowerCase());
+
+        return matchesTab && matchesSearch;
+    });
+
     return (
         <>
             <Head title="Canais Destino" />
             <AppShell
                 title="Canais Destino"
-                user={auth.user}
+                user={auth?.user ?? null}
                 description="Canais do YouTube onde os clipes aprovados são publicados. Cada canal possui sua própria cota e autorização OAuth."
                 actions={
-                    <div className="flex items-center gap-2">
-                        <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
-                            <button
-                                type="button"
-                                onClick={() => setViewMode('grid')}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                    viewMode === 'grid'
-                                        ? 'bg-primary text-primary-foreground shadow-sm'
-                                        : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                                title="Modo Cards"
+                    <ChannelDialog
+                        niches={niches}
+                        trigger={
+                            <Button
+                                style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)', color: '#fff' }}
+                                className="shadow-sm hover:brightness-105"
                             >
-                                ⊞ Cards
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setViewMode('list')}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                    viewMode === 'list'
-                                        ? 'bg-primary text-primary-foreground shadow-sm'
-                                        : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                                title="Modo Lista"
-                            >
-                                ☰ Lista
-                            </button>
-                        </div>
-                    </div>
+                                <PlusCircle className="w-4 h-4 mr-1.5" /> Novo Canal Destino
+                            </Button>
+                        }
+                    />
                 }
             >
-                {viewMode === 'grid' ? (
-                    <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                        {channels.map((channel) => {
-                            const isPol = (channel.niche ?? '').toLowerCase().includes('política') || (channel.niche ?? '').toLowerCase().includes('politica');
-                            const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
-                            const isAuth = channel.oauthStatus === 'authorized';
-
-                            return (
-                                <div
-                                    key={channel.id}
-                                    className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 shadow-xs hover:border-primary/30 transition-all"
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0 shadow-sm" style={{ background: bgGrad }}>
-                                            <NicheIcon niche={channel.niche} />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="font-bold text-sm tracking-tight truncate text-foreground">{channel.name}</div>
-                                            <div className="font-mono text-[11px] text-muted-foreground truncate">{channel.slug}</div>
-                                        </div>
-                                        <NicheBadge niche={channel.niche} />
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <span
-                                            className={`flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border ${
-                                                isAuth
-                                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                                                    : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
-                                            }`}
-                                        >
-                                            <span className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                                            {isAuth ? 'OAuth autorizado' : 'Sem autorização'}
-                                        </span>
-                                        <span className="font-mono text-[10.5px] text-muted-foreground truncate" title={channel.youtubeChannelId}>
-                                            {channel.youtubeChannelId}
-                                        </span>
-                                    </div>
-
-                                    <div className="rounded-xl border border-border bg-muted/40 p-3">
-                                        <div className="flex items-center justify-between text-xs mb-2">
-                                            <span className="text-muted-foreground">Cota diária restante</span>
-                                            <span className="font-mono font-semibold text-foreground">5 de 5 slots</span>
-                                        </div>
-                                        <div className="h-1.5 rounded-full bg-black/10 dark:bg-white/[.08] overflow-hidden">
-                                            <div className="h-full rounded-full bg-emerald-500" style={{ width: '100%' }} />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 pt-2 border-t border-border/60">
-                                        <Switch
-                                            checked={channel.active}
-                                            onCheckedChange={() => toggleActive(channel)}
-                                        />
-                                        <span className="text-xs font-medium text-foreground">
-                                            {channel.active ? 'Ativo' : 'Pausado'}
-                                        </span>
-                                        <div className="flex-1" />
-                                        <ChannelDialog
-                                            channel={channel}
-                                            niches={niches}
-                                            trigger={
-                                                <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg text-xs">
-                                                    <Edit2 className="w-3.5 h-3.5 mr-1" /> Editar
-                                                </Button>
-                                            }
-                                        />
-                                        <ConfirmButton
-                                            variant="destructive"
-                                            size="sm"
-                                            className="h-8 w-8 p-0 rounded-lg"
-                                            description={`Excluir canal "${channel.name}"?`}
-                                            onConfirm={() => deleteChannel(channel)}
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </ConfirmButton>
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        {/* Card de Adicionar Canal */}
-                        <ChannelDialog
-                            niches={niches}
-                            trigger={
+                <div className="flex flex-col gap-4">
+                    {/* Subtabs de nicho + Toggle Quadro/Tabela + Busca */}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl border border-border bg-card w-fit">
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('todos')}
+                                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    activeTab === 'todos'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                                }`}
+                            >
+                                <span>Todos</span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono">
+                                    {counts.todos}
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('futebol')}
+                                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    activeTab === 'futebol'
+                                        ? 'bg-emerald-600 text-white shadow-sm'
+                                        : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                                }`}
+                            >
+                                <span>⚽ Futebol</span>
+                                <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                    {counts.futebol}
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('politica')}
+                                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    activeTab === 'politica'
+                                        ? 'bg-purple-600 text-white shadow-sm'
+                                        : 'text-purple-600 dark:text-purple-400 hover:bg-purple-500/10'
+                                }`}
+                            >
+                                <span>🏛️ Política</span>
+                                <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                    {counts.politica}
+                                </span>
+                            </button>
+                            {counts.podcast > 0 && (
                                 <button
                                     type="button"
-                                    className="rounded-2xl border-2 border-dashed border-border p-6 min-h-[200px] grid place-items-center text-muted-foreground hover:border-primary hover:text-primary transition-all group"
+                                    onClick={() => setActiveTab('podcast')}
+                                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                        activeTab === 'podcast'
+                                            ? 'bg-amber-600 text-white shadow-sm'
+                                            : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                                    }`}
                                 >
-                                    <div className="flex flex-col items-center gap-2">
-                                        <PlusCircle className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
-                                        <span className="text-sm font-semibold">Adicionar canal destino</span>
-                                    </div>
+                                    <span>🎙️ Podcast</span>
+                                    <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                        {counts.podcast}
+                                    </span>
                                 </button>
-                            }
-                        />
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('grid')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        viewMode === 'grid'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    title="Modo Quadro"
+                                >
+                                    ⊞ Quadro
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('list')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        viewMode === 'list'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    title="Modo Tabela"
+                                >
+                                    ☰ Tabela
+                                </button>
+                            </div>
+
+                            <div className="relative">
+                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder="Buscar canal..."
+                                    className="h-10 w-[200px] pl-9 pr-3 rounded-xl text-xs bg-card"
+                                />
+                            </div>
+                        </div>
                     </div>
-                ) : (
-                    <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
-                        <Table className="w-full text-xs">
-                            <TableHeader className="bg-muted/40">
+
+                    {viewMode === 'grid' ? (
+                        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                            {filtered.map((channel) => {
+                                const isPol = (channel.niche ?? '').toLowerCase().includes('política') || (channel.niche ?? '').toLowerCase().includes('politica');
+                                const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                                const isAuth = channel.oauthStatus === 'authorized';
+
+                                return (
+                                    <div
+                                        key={channel.id}
+                                        className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 shadow-xs hover:border-primary/30 transition-all"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0 shadow-sm" style={{ background: bgGrad }}>
+                                                <NicheIcon niche={channel.niche} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-bold text-sm tracking-tight truncate text-foreground">{channel.name}</div>
+                                                <div className="font-mono text-[11px] text-muted-foreground truncate">{channel.slug}</div>
+                                            </div>
+                                            <NicheBadge niche={channel.niche} />
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className={`flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border ${
+                                                    isAuth
+                                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                                        : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                                                }`}
+                                            >
+                                                <span className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                                {isAuth ? 'OAuth autorizado' : 'Sem autorização'}
+                                            </span>
+                                            <span className="font-mono text-[10.5px] text-muted-foreground truncate" title={channel.youtubeChannelId}>
+                                                {channel.youtubeChannelId}
+                                            </span>
+                                        </div>
+
+                                        <div className="rounded-xl border border-border bg-muted/40 p-3">
+                                            <div className="flex items-center justify-between text-xs mb-2">
+                                                <span className="text-muted-foreground">Cota diária restante</span>
+                                                <span className="font-mono font-semibold text-foreground">5 de 5 slots</span>
+                                            </div>
+                                            <div className="h-1.5 rounded-full bg-black/10 dark:bg-white/[.08] overflow-hidden">
+                                                <div className="h-full rounded-full bg-emerald-500" style={{ width: '100%' }} />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                                            <Switch
+                                                checked={channel.active}
+                                                onCheckedChange={() => toggleActive(channel)}
+                                            />
+                                            <span className="text-xs font-medium text-foreground">
+                                                {channel.active ? 'Ativo' : 'Pausado'}
+                                            </span>
+                                            <div className="flex-1" />
+                                            <ChannelDialog
+                                                channel={channel}
+                                                niches={niches}
+                                                trigger={
+                                                    <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg text-xs">
+                                                        <Edit2 className="w-3.5 h-3.5 mr-1" /> Editar
+                                                    </Button>
+                                                }
+                                            />
+                                            <ConfirmButton
+                                                variant="destructive"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 rounded-lg"
+                                                description={`Excluir canal "${channel.name}"?`}
+                                                onConfirm={() => deleteChannel(channel)}
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </ConfirmButton>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {/* Card de Adicionar Canal */}
+                            <ChannelDialog
+                                niches={niches}
+                                trigger={
+                                    <button
+                                        type="button"
+                                        className="rounded-2xl border-2 border-dashed border-border p-6 min-h-[200px] grid place-items-center text-muted-foreground hover:border-primary hover:text-primary transition-all group"
+                                    >
+                                        <div className="flex flex-col items-center gap-2">
+                                            <PlusCircle className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
+                                            <span className="text-sm font-semibold">Adicionar canal destino</span>
+                                        </div>
+                                    </button>
+                                }
+                            />
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+                            <Table className="w-full text-xs">
+                                <TableHeader className="bg-muted/40">
                                 <TableRow>
                                     <TableHead className="px-5 py-3 font-semibold">Canal</TableHead>
                                     <TableHead className="px-5 py-3 font-semibold">Nicho</TableHead>
@@ -365,7 +478,7 @@ export default function DestinationChannels() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {channels.map((channel) => {
+                                {filtered.map((channel) => {
                                     const isAuth = channel.oauthStatus === 'authorized';
                                     return (
                                         <TableRow key={channel.id} className="hover:bg-muted/30">
@@ -425,7 +538,8 @@ export default function DestinationChannels() {
                             </TableBody>
                         </Table>
                     </div>
-                )}
+                    )}
+                </div>
             </AppShell>
         </>
     );
