@@ -96,15 +96,9 @@ export default function ProcessVideo() {
                                     <div className="flex flex-col flex-1">
                                         <div className="flex items-center justify-between">
                                             <span className="font-bold text-sm text-foreground">Longo</span>
-                                            <a
-                                                href="/preview-longo.html"
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="text-[11px] text-[#FF6A55] hover:underline font-semibold"
-                                            >
-                                                Ver layout 9:16 ↗
-                                            </a>
+                                            <span className="text-[11px] font-mono text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded">
+                                                Enquadramento 9:16
+                                            </span>
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-0.5">
                                             Segmento longo (10–20min) enquadrado em vertical 9:16 com blur

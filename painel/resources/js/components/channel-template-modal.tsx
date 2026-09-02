@@ -15,7 +15,9 @@ import {
     Flame,
     Trophy,
     Landmark,
-    Mic
+    Mic,
+    Smartphone,
+    Monitor,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -70,6 +72,7 @@ export function ChannelTemplateModal({ channel, open, onOpenChange }: Props) {
     const [subtitleColor, setSubtitleColor] = useState<'#ffffff' | '#facc15' | '#38bdf8'>('#facc15');
     const [ctaText, setCtaText] = useState('INSCREVA-SE NO CANAL');
     const [saving, setSaving] = useState(false);
+    const [device, setDevice] = useState<'mobile' | 'desktop'>('mobile');
 
     // Carrega dados existentes do canal quando abre o modal
     useEffect(() => {
@@ -337,122 +340,185 @@ export function ChannelTemplateModal({ channel, open, onOpenChange }: Props) {
                         </div>
                     </div>
 
-                    {/* PREVIEW DO CELULAR EM TEMPO REAL (Lado Direito - 5 cols) */}
-                    <div className="md:col-span-5 flex flex-col items-center justify-center bg-zinc-900/30 rounded-2xl p-6 border border-white/5 relative">
-                        <div className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-1.5">
-                            <Tv className="w-3.5 h-3.5" />
-                            Simulador Vertical 9:16 (Ao Vivo)
+                    {/* PREVIEW DO CELULAR / DESKTOP EM TEMPO REAL (Lado Direito - 5 cols) */}
+                    <div className="md:col-span-5 flex flex-col items-center justify-center bg-zinc-900/30 rounded-2xl p-5 border border-white/5 relative">
+                        {/* Seletor de visualização */}
+                        <div className="flex items-center p-1 rounded-xl bg-zinc-900 border border-white/10 mb-4">
+                            <button
+                                type="button"
+                                onClick={() => setDevice('mobile')}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                    device === 'mobile'
+                                        ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
+                                        : 'text-zinc-400 hover:text-white'
+                                }`}
+                            >
+                                <Smartphone className="w-3.5 h-3.5" />
+                                <span>Celular (9:16)</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setDevice('desktop')}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                                    device === 'desktop'
+                                        ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
+                                        : 'text-zinc-400 hover:text-white'
+                                }`}
+                            >
+                                <Monitor className="w-3.5 h-3.5" />
+                                <span>Desktop (16:9)</span>
+                            </button>
                         </div>
 
-                        {/* MOCKUP DO CELULAR */}
-                        <div 
-                            className="relative w-[260px] h-[460px] rounded-[36px] p-2.5 shadow-2xl border-4 border-zinc-800 flex flex-col overflow-hidden select-none"
-                            style={{
-                                backgroundColor: '#090a0f',
-                                boxShadow: `0 20px 50px rgba(0,0,0,0.8), 0 0 35px ${accentColor}25`,
-                            }}
-                        >
-                            {/* Câmera / Notch do Celular */}
-                            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-16 h-3.5 bg-zinc-800 rounded-full z-30" />
+                        {device === 'mobile' ? (
+                            /* MOCKUP DO CELULAR */
+                            <div 
+                                className="relative w-[260px] h-[460px] rounded-[36px] p-2.5 shadow-2xl border-4 border-zinc-800 flex flex-col overflow-hidden select-none"
+                                style={{
+                                    backgroundColor: '#090a0f',
+                                    boxShadow: `0 20px 50px rgba(0,0,0,0.8), 0 0 35px ${accentColor}25`,
+                                }}
+                            >
+                                {/* Câmera / Notch do Celular */}
+                                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-16 h-3.5 bg-zinc-800 rounded-full z-30" />
 
-                            {/* Fundo Simulado (Blur / Gradiente) */}
-                            <div className="absolute inset-0 z-0 overflow-hidden">
-                                {bgStyle === 'gradient_dark' ? (
-                                    <div 
-                                        className="w-full h-full"
-                                        style={{
-                                            background: `radial-gradient(circle at 50% 30%, ${accentColor}35 0%, #0d1117 70%)`
-                                        }}
-                                    />
-                                ) : (
-                                    <div className="w-full h-full relative">
+                                {/* Fundo Simulado (Blur / Gradiente) */}
+                                <div className="absolute inset-0 z-0 overflow-hidden">
+                                    {bgStyle === 'gradient_dark' ? (
                                         <div 
-                                            className="absolute inset-0 bg-cover bg-center scale-125"
+                                            className="w-full h-full"
                                             style={{
-                                                backgroundImage: 'url("https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?q=80&w=800&auto=format&fit=crop")',
-                                                filter: bgStyle === 'blur_intense' ? 'blur(16px) brightness(0.6)' : 'blur(10px) brightness(0.55)',
+                                                background: `radial-gradient(circle at 50% 30%, ${accentColor}35 0%, #0d1117 70%)`
                                             }}
                                         />
-                                        <div 
-                                            className="absolute inset-0"
-                                            style={{
-                                                background: `linear-gradient(to bottom, rgba(10,12,16,0.7) 0%, transparent 35%, transparent 65%, rgba(10,12,16,0.9) 100%)`
-                                            }}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Conteúdo Sobreposto (9:16 Canvas) */}
-                            <div className="relative z-10 w-full h-full flex flex-col justify-between pt-6 pb-2 px-1">
-                                {/* TOPO: Logo e Título */}
-                                <div className="flex flex-col items-center text-center gap-1.5 px-2">
-                                    <div 
-                                        className="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex items-center gap-1"
-                                        style={{ backgroundColor: accentColor }}
-                                    >
-                                        {headerBadge || 'AO VIVO'}
-                                    </div>
-                                    <div className="text-[13px] font-black uppercase tracking-tight text-white leading-tight drop-shadow-md">
-                                        {headerTitle || channel.name}
-                                    </div>
+                                    ) : (
+                                        <div className="w-full h-full relative">
+                                            <div 
+                                                className="absolute inset-0 bg-cover bg-center scale-125"
+                                                style={{
+                                                    backgroundImage: 'url("https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?q=80&w=800&auto=format&fit=crop")',
+                                                    filter: bgStyle === 'blur_intense' ? 'blur(16px) brightness(0.6)' : 'blur(10px) brightness(0.55)',
+                                                }}
+                                            />
+                                            <div 
+                                                className="absolute inset-0"
+                                                style={{
+                                                    background: `linear-gradient(to bottom, rgba(10,12,16,0.7) 0%, transparent 35%, transparent 65%, rgba(10,12,16,0.9) 100%)`
+                                                }}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* CENTRO: Player 16:9 Centralizado */}
-                                <div className="w-full my-auto px-1">
-                                    <div 
-                                        className="w-full aspect-video rounded-xl overflow-hidden relative border-2 border-white/20 shadow-2xl flex items-center justify-center group"
-                                        style={{
-                                            boxShadow: `0 8px 30px rgba(0,0,0,0.8), 0 0 20px ${accentColor}30`,
-                                        }}
-                                    >
-                                        <img 
-                                            src="https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?q=80&w=800&auto=format&fit=crop" 
-                                            alt="Player 16:9" 
-                                            className="w-full h-full object-cover"
-                                        />
-                                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                                            <div 
-                                                className="w-9 h-9 rounded-full flex items-center justify-center text-white shadow-lg backdrop-blur-md"
-                                                style={{ backgroundColor: `${accentColor}DD` }}
-                                            >
-                                                <Play className="w-4 h-4 ml-0.5 fill-white" />
+                                {/* Conteúdo Sobreposto (9:16 Canvas) */}
+                                <div className="relative z-10 w-full h-full flex flex-col justify-between pt-6 pb-2 px-1">
+                                    {/* TOPO: Logo e Título */}
+                                    <div className="flex flex-col items-center text-center gap-1.5 px-2">
+                                        <div 
+                                            className="px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex items-center gap-1"
+                                            style={{ backgroundColor: accentColor }}
+                                        >
+                                            {headerBadge || 'AO VIVO'}
+                                        </div>
+                                        <div className="text-[13px] font-black uppercase tracking-tight text-white leading-tight drop-shadow-md">
+                                            {headerTitle || channel.name}
+                                        </div>
+                                    </div>
+
+                                    {/* CENTRO: Player 16:9 Centralizado */}
+                                    <div className="w-full my-auto px-1">
+                                        <div 
+                                            className="w-full aspect-video rounded-xl overflow-hidden relative border-2 border-white/20 shadow-2xl flex items-center justify-center group"
+                                            style={{
+                                                boxShadow: `0 8px 30px rgba(0,0,0,0.8), 0 0 20px ${accentColor}30`,
+                                            }}
+                                        >
+                                            <img 
+                                                src="https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?q=80&w=800&auto=format&fit=crop" 
+                                                alt="Player 16:9" 
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                                <div 
+                                                    className="w-9 h-9 rounded-full flex items-center justify-center text-white shadow-lg backdrop-blur-md"
+                                                    style={{ backgroundColor: `${accentColor}DD` }}
+                                                >
+                                                    <Play className="w-4 h-4 ml-0.5 fill-white" />
+                                                </div>
+                                            </div>
+                                            <div className="absolute bottom-1.5 right-2 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-zinc-200">
+                                                05:42
                                             </div>
                                         </div>
-                                        <div className="absolute bottom-1.5 right-2 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-zinc-200">
-                                            05:42
+                                    </div>
+
+                                    {/* RODAPÉ: Legendas e Chamada */}
+                                    <div className="flex flex-col items-center text-center gap-2.5 px-2 pb-1">
+                                        {/* Caixa de Legenda */}
+                                        <div className="bg-black/80 px-3 py-1.5 rounded-lg border border-white/10 backdrop-blur-sm max-w-[220px]">
+                                            <p 
+                                                className="text-[10px] font-extrabold leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,1)]"
+                                                style={{ color: subtitleColor }}
+                                            >
+                                                "Este é o momento mais importante do debate de hoje!"
+                                            </p>
+                                        </div>
+
+                                        {/* Botão de Inscrição */}
+                                        <div 
+                                            className="w-full py-1.5 rounded-xl text-[10px] font-extrabold text-white uppercase tracking-wider text-center shadow-lg transition-transform"
+                                            style={{ 
+                                                backgroundColor: accentColor,
+                                                boxShadow: `0 4px 15px ${accentColor}40`
+                                            }}
+                                        >
+                                            {ctaText || 'INSCREVA-SE'}
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* RODAPÉ: Legendas e Chamada */}
-                                <div className="flex flex-col items-center text-center gap-2.5 px-2 pb-1">
-                                    {/* Caixa de Legenda */}
-                                    <div className="bg-black/80 px-3 py-1.5 rounded-lg border border-white/10 backdrop-blur-sm max-w-[220px]">
-                                        <p 
-                                            className="text-[10px] font-extrabold leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,1)]"
-                                            style={{ color: subtitleColor }}
-                                        >
-                                            "Este é o momento mais importante do debate de hoje!"
-                                        </p>
+                            </div>
+                        ) : (
+                            /* MOCKUP DESKTOP (16:9 NO YOUTUBE) */
+                            <div className="w-full max-w-sm rounded-xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
+                                <div className="relative aspect-video bg-black flex items-center justify-center">
+                                    <img 
+                                        src="https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?q=80&w=800&auto=format&fit=crop" 
+                                        alt="Player 16:9" 
+                                        className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded text-[9px] font-bold text-white shadow-md uppercase" style={{ backgroundColor: accentColor }}>
+                                        {headerBadge}
                                     </div>
-
-                                    {/* Botão de Inscrição */}
-                                    <div 
-                                        className="w-full py-1.5 rounded-xl text-[10px] font-extrabold text-white uppercase tracking-wider text-center shadow-lg transition-transform"
-                                        style={{ 
-                                            backgroundColor: accentColor,
-                                            boxShadow: `0 4px 15px ${accentColor}40`
-                                        }}
-                                    >
-                                        {ctaText || 'INSCREVA-SE'}
+                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-xl" style={{ backgroundColor: accentColor }}>
+                                            <Play className="w-4 h-4 ml-0.5 fill-white" />
+                                        </div>
+                                    </div>
+                                    <span className="absolute right-2 bottom-2 bg-black/80 text-[9px] font-mono text-white px-1.5 py-0.5 rounded">
+                                        12:30
+                                    </span>
+                                </div>
+                                <div className="p-3 flex flex-col gap-2">
+                                    <h5 className="font-bold text-xs text-white line-clamp-2">
+                                        {headerTitle} — DEBATE COMPLETO E ANÁLISE DOS PRINCIPAIS FATOS
+                                    </h5>
+                                    <div className="flex items-center justify-between pt-1 border-t border-zinc-800">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[9px] text-white" style={{ backgroundColor: accentColor }}>
+                                                {channel.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <span className="text-[11px] font-semibold text-zinc-300">{channel.name}</span>
+                                        </div>
+                                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold text-black bg-white">
+                                            {ctaText.includes('INSCREV') ? 'Inscrever-se' : ctaText}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         <p className="text-[10px] text-zinc-500 mt-3 text-center">
-                            Renderizado via FFmpeg em 1080x1920 (Full HD vertical) para cortes longos.
+                            Renderizado via FFmpeg em 1080x1920 (Full HD) no celular e 16:9 com thumbnail no desktop.
                         </p>
                     </div>
                 </div>

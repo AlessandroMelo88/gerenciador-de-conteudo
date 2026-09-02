@@ -5,6 +5,8 @@ export type ClipRow = {
     title: string;
     score: number | null;
     trecho: string;
+    startTime?: number | null;
+    endTime?: number | null;
     sourceVideoTitle: string | null;
     sourceChannelName: string | null;
     format: ClipFormat;
@@ -15,6 +17,19 @@ export type ClipRow = {
     updatedAt: string | null;
     uploadError: string | null;
     previewUrl: string;
+    thumbnailUrl?: string;
+    hasVideoFile?: boolean;
+    hasThumbnailFile?: boolean;
+    description?: string | null;
+    tags?: string | null;
+    destinationTemplate?: {
+        headerTitle?: string;
+        headerBadge?: string;
+        accentColor?: string;
+        bgStyle?: string;
+        subtitleColor?: string;
+        ctaText?: string;
+    } | null;
 };
 
 export type QuotaChannel = {

@@ -1,0 +1,372 @@
+import { useState } from 'react';
+import {
+    X,
+    Smartphone,
+    Monitor,
+    Play,
+    CheckCircle2,
+    ThumbsUp,
+    Share2,
+    Bookmark,
+    Check,
+    Flame,
+} from 'lucide-react';
+import type { ClipRow } from '@/types/dashboard';
+import { Button } from '@/components/ui/button';
+
+interface ClipPreviewModalProps {
+    clip: ClipRow | null;
+    isOpen: boolean;
+    onClose: () => void;
+    onApprove: (id: number) => void;
+    onReject: (id: number) => void;
+}
+
+export function ClipPreviewModal({
+    clip,
+    isOpen,
+    onClose,
+    onApprove,
+    onReject,
+}: ClipPreviewModalProps) {
+    const [device, setDevice] = useState<'mobile' | 'desktop'>('mobile');
+
+    if (!isOpen || !clip) return null;
+
+    const isPol =
+        (clip.niche ?? '').toLowerCase().includes('politica') ||
+        (clip.destinationChannelName ?? '').toLowerCase().includes('política');
+    const isFut =
+        (clip.niche ?? '').toLowerCase().includes('futebol') ||
+        (clip.destinationChannelName ?? '').toLowerCase().includes('futebol');
+
+    const tmpl = clip.destinationTemplate || {};
+    const channelName = clip.destinationChannelName || (isPol ? 'Cortes da Política' : isFut ? 'Futebol em Cortes' : 'Canal de Cortes');
+    const headerTitle = tmpl.headerTitle || channelName.toUpperCase();
+    const headerBadge = tmpl.headerBadge || (isPol ? '🔴 DEBATE AO VIVO' : isFut ? '⚽ LANCE DECISIVO' : '🎙️ CORTES EXCLUSIVOS');
+    const accentColor = tmpl.accentColor || (isPol ? '#E50914' : isFut ? '#10B981' : '#8B5CF6');
+    const subtitleColor = tmpl.subtitleColor || '#facc15';
+    const ctaText = tmpl.ctaText || 'INSCREVA-SE NO CANAL';
+    const isLongo = clip.format === 'longo';
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="relative flex flex-col w-full max-w-5xl max-h-[94vh] bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden text-zinc-100">
+                {/* TOPO DO MODAL */}
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-b border-zinc-800/80 bg-zinc-900/60">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs text-white shrink-0 shadow-sm"
+                            style={{ backgroundColor: accentColor }}
+                        >
+                            {channelName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-sm truncate text-white">{clip.title}</h3>
+                                {isLongo ? (
+                                    <span className="shrink-0 px-2 py-0.5 rounded text-[10.5px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                        ✨ Longo (9:16)
+                                    </span>
+                                ) : (
+                                    <span className="shrink-0 px-2 py-0.5 rounded text-[10.5px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
+                                        📱 Curto
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-xs text-zinc-400 truncate">
+                                Canal: <strong className="text-zinc-200">{channelName}</strong> • Trecho: <span className="font-mono text-zinc-300">{clip.trecho}</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* SELETOR DE DISPOSITIVO (CELULAR VS DESKTOP) */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center p-1 rounded-xl bg-zinc-900 border border-zinc-800">
+                            <button
+                                type="button"
+                                onClick={() => setDevice('mobile')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    device === 'mobile'
+                                        ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
+                                        : 'text-zinc-400 hover:text-white'
+                                }`}
+                            >
+                                <Smartphone className="w-3.5 h-3.5" />
+                                <span>Celular (9:16)</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setDevice('desktop')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    device === 'desktop'
+                                        ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
+                                        : 'text-zinc-400 hover:text-white'
+                                }`}
+                            >
+                                <Monitor className="w-3.5 h-3.5" />
+                                <span>Desktop / YouTube (16:9)</span>
+                            </button>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                            title="Fechar modal"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* CORPO DO PREVIEW */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex items-center justify-center bg-zinc-950/70">
+                    {device === 'mobile' ? (
+                        /* SIMULADOR CELULAR SMARTPHONE 9:16 */
+                        <div className="relative w-[320px] sm:w-[360px] aspect-[9/16] max-h-[68vh] rounded-[36px] p-3 bg-zinc-900 border-4 border-zinc-700 shadow-2xl flex flex-col justify-between overflow-hidden">
+                            {/* Borda / Ilha Superior */}
+                            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-4 bg-zinc-800 rounded-full z-20" />
+
+                            {/* Canvas Interno 9:16 */}
+                            <div className="relative w-full h-full rounded-[26px] overflow-hidden flex flex-col justify-between bg-black z-10">
+                                {/* Fundo com Blur Dinâmico para vídeos longos */}
+                                {isLongo ? (
+                                    <div
+                                        className="absolute inset-0 bg-cover bg-center opacity-40 blur-xl scale-125 pointer-events-none"
+                                        style={{
+                                            backgroundImage: clip.hasThumbnailFile
+                                                ? `url(${clip.thumbnailUrl})`
+                                                : isPol
+                                                ? 'radial-gradient(circle, #7f1d1d 0%, #1e1b4b 100%)'
+                                                : 'radial-gradient(circle, #064e3b 0%, #0f172a 100%)',
+                                        }}
+                                    />
+                                ) : null}
+
+                                {/* TOPO DO VÍDEO NO CELULAR */}
+                                <div className="relative z-10 pt-7 px-4 text-center flex flex-col items-center">
+                                    <div
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-md uppercase tracking-wider mb-1.5"
+                                        style={{ backgroundColor: accentColor }}
+                                    >
+                                        {headerBadge}
+                                    </div>
+                                    <h4 className="font-extrabold text-xs tracking-wider text-white drop-shadow-md">
+                                        {headerTitle}
+                                    </h4>
+                                    <p className="text-[11px] font-bold text-zinc-100 line-clamp-2 mt-1 px-1 drop-shadow">
+                                        {clip.title}
+                                    </p>
+                                </div>
+
+                                {/* PLAYER CENTRALIZADO */}
+                                <div className="relative z-10 px-2 flex-1 flex items-center justify-center my-2">
+                                    <div className="w-full aspect-video rounded-xl overflow-hidden bg-black/90 border border-white/20 shadow-2xl relative flex items-center justify-center group">
+                                        {clip.hasVideoFile ? (
+                                            <video
+                                                controls
+                                                autoPlay
+                                                className="w-full h-full object-cover"
+                                                src={clip.previewUrl}
+                                                poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-zinc-900/80">
+                                                <div
+                                                    className="w-12 h-12 rounded-full flex items-center justify-center text-white mb-2 shadow-lg group-hover:scale-105 transition-transform"
+                                                    style={{ backgroundColor: accentColor }}
+                                                >
+                                                    <Play className="w-5 h-5 ml-0.5 fill-white" />
+                                                </div>
+                                                <span className="text-[11px] font-semibold text-zinc-200">
+                                                    Corte de {clip.trecho}
+                                                </span>
+                                                <span className="text-[10px] text-zinc-400 mt-0.5">
+                                                    Processado pelo FFmpeg com fundo temático
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* RODAPÉ COM LEGENDAS E CTA */}
+                                <div className="relative z-10 pb-5 px-4 text-center flex flex-col items-center gap-2">
+                                    {/* Legenda em destaque */}
+                                    <div className="px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-xs border border-white/10 max-w-[90%]">
+                                        <p
+                                            className="text-xs font-extrabold uppercase tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,1)]"
+                                            style={{ color: subtitleColor }}
+                                        >
+                                            "A POLÍTICA E O FUTEBOL NÃO PARAM!"
+                                        </p>
+                                    </div>
+
+                                    {/* Botão de Inscrição */}
+                                    <div
+                                        className="w-full py-1.5 px-3 rounded-xl text-center font-black text-[11px] tracking-wider text-white shadow-lg uppercase"
+                                        style={{ backgroundColor: accentColor }}
+                                    >
+                                        {ctaText}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        /* SIMULADOR DESKTOP (PLAYER YOUTUBE 16:9 NO COMPUTADOR) */
+                        <div className="w-full max-w-3xl flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden">
+                            {/* Barra Simulada do Navegador */}
+                            <div className="flex items-center gap-2 px-4 py-2 bg-zinc-950/80 border-b border-zinc-800 text-xs text-zinc-400 font-mono">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/80 inline-block" />
+                                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 inline-block" />
+                                    <span className="w-2.5 h-2.5 rounded-full bg-green-500/80 inline-block" />
+                                </div>
+                                <span className="ml-2 truncate text-zinc-500">
+                                    youtube.com/watch?v={clip.id} — Reprodução Desktop
+                                </span>
+                            </div>
+
+                            {/* Player Widescreen 16:9 */}
+                            <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
+                                {clip.hasVideoFile ? (
+                                    <video
+                                        controls
+                                        autoPlay
+                                        className="w-full h-full object-contain bg-black"
+                                        src={clip.previewUrl}
+                                        poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
+                                    />
+                                ) : (
+                                    <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-zinc-950 via-zinc-900 to-zinc-950">
+                                        <div
+                                            className="w-16 h-16 rounded-full flex items-center justify-center text-white mb-3 shadow-xl"
+                                            style={{ backgroundColor: accentColor }}
+                                        >
+                                            <Play className="w-7 h-7 ml-1 fill-white" />
+                                        </div>
+                                        <h4 className="text-base font-bold text-white px-6 text-center">
+                                            {clip.title}
+                                        </h4>
+                                        <p className="text-xs text-zinc-400 mt-1">
+                                            Capa Oficial 16:9 • Duração do Trecho: {clip.trecho}
+                                        </p>
+                                    </div>
+                                )}
+                                <span className="absolute right-3 bottom-3 px-2 py-0.5 rounded bg-black/80 text-[11px] font-mono font-semibold text-white border border-white/10">
+                                    {clip.trecho}
+                                </span>
+                            </div>
+
+                            {/* Detalhes do Vídeo no Desktop (Estilo YouTube) */}
+                            <div className="p-5 flex flex-col gap-4">
+                                <h2 className="text-base sm:text-lg font-bold text-white leading-snug">
+                                    {clip.title}
+                                </h2>
+
+                                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-zinc-800/80">
+                                    {/* Canal */}
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shadow-md"
+                                            style={{ backgroundColor: accentColor }}
+                                        >
+                                            {channelName.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-1.5 font-bold text-sm text-white">
+                                                <span>{channelName}</span>
+                                                <CheckCircle2 className="w-4 h-4 text-zinc-400" />
+                                            </div>
+                                            <span className="text-[11px] text-zinc-400">
+                                                Cortes Oficiais • YouTube
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="ml-2 px-4 py-1.5 rounded-full text-xs font-bold text-black bg-white hover:bg-zinc-200 transition-colors"
+                                        >
+                                            Inscrever-se
+                                        </button>
+                                    </div>
+
+                                    {/* Botões de Ação do YouTube */}
+                                    <div className="flex items-center gap-1.5 text-xs text-zinc-300">
+                                        <div className="flex items-center rounded-full bg-zinc-800 border border-zinc-700/60 overflow-hidden">
+                                            <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-zinc-700">
+                                                <ThumbsUp className="w-3.5 h-3.5" /> <span>Gostei</span>
+                                            </button>
+                                        </div>
+                                        <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700/60 hover:bg-zinc-700">
+                                            <Share2 className="w-3.5 h-3.5" /> <span>Compartilhar</span>
+                                        </button>
+                                        <button type="button" className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700/60 hover:bg-zinc-700">
+                                            <Bookmark className="w-3.5 h-3.5" /> <span>Salvar</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Caixa de Descrição do YouTube */}
+                                <div className="p-3.5 rounded-xl bg-zinc-800/60 border border-zinc-700/50 text-xs flex flex-col gap-2">
+                                    <div className="flex items-center gap-2 font-semibold text-zinc-300">
+                                        <span>Fila de Publicação</span>
+                                        <span>•</span>
+                                        <span className="font-mono text-amber-400 font-bold">Score: {clip.score ?? '—'}/10</span>
+                                        <span>•</span>
+                                        <span className="text-zinc-400">Vídeo Fonte: {clip.sourceVideoTitle || 'Original'}</span>
+                                    </div>
+                                    <p className="text-zinc-300 leading-relaxed">
+                                        {clip.description ||
+                                            `Cortes dos principais debates e momentos mais marcantes. Acompanhe os melhores trechos do canal ${channelName}.`}
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5 pt-1 text-sky-400 font-mono text-[11px]">
+                                        <span>#{clip.niche ?? 'cortes'}</span>
+                                        <span>#cortes</span>
+                                        <span>#youtube</span>
+                                        <span>#brasil</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* RODAPÉ DO MODAL: AÇÕES RÁPIDAS */}
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-t border-zinc-800 bg-zinc-900/80">
+                    <div className="flex items-center gap-2 text-xs text-zinc-400">
+                        <Flame className="w-4 h-4 text-orange-500" />
+                        <span>Score: <strong className="text-white">{clip.score ?? '—'}/10</strong></span>
+                        <span className="text-zinc-600">|</span>
+                        <span>Canal Fonte: <strong className="text-zinc-300">{clip.sourceChannelName ?? '—'}</strong></span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-8 rounded-lg text-xs"
+                            onClick={() => {
+                                onReject(clip.id);
+                                onClose();
+                            }}
+                        >
+                            Rejeitar
+                        </Button>
+                        <Button
+                            variant="default"
+                            size="sm"
+                            className="h-8 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
+                            onClick={() => {
+                                onApprove(clip.id);
+                                onClose();
+                            }}
+                        >
+                            <Check className="w-3.5 h-3.5 mr-1" />
+                            Aprovar para Publicação
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

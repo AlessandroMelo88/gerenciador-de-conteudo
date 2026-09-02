@@ -165,22 +165,37 @@ class DashboardController extends Controller
 
     private function clipPayload($clips): array
     {
-        return $clips->map(fn (GeneratedClip $clip) => [
-            'id' => $clip->id,
-            'title' => $clip->title,
-            'score' => $clip->score,
-            'trecho' => $this->formatTrecho($clip->start_time, $clip->end_time),
-            'sourceVideoTitle' => $clip->sourceVideo?->title,
-            'sourceChannelName' => $clip->sourceVideo?->sourceChannel?->channel_name,
-            'format' => $clip->sourceVideo?->format ?? 'curto',
-            'destinationChannelName' => $clip->destinationChannel?->name,
-            'destinationChannelSlug' => $clip->destinationChannel?->slug,
-            'niche' => $clip->destinationChannel?->niche ?? $clip->sourceVideo?->sourceChannel?->target_niche ?? 'futebol',
-            'createdAt' => $clip->created_at?->diffForHumans(),
-            'updatedAt' => $clip->updated_at?->diffForHumans(),
-            'uploadError' => $clip->upload_error,
-            'previewUrl' => route('clips.preview', $clip->id),
-        ])->values()->all();
+        $disk = Storage::disk('clips-videos');
+
+        return $clips->map(function (GeneratedClip $clip) use ($disk) {
+            $hasVideo = $disk->exists("clips/{$clip->id}.mp4");
+            $hasThumb = $disk->exists("thumbnails/{$clip->id}.jpg");
+
+            return [
+                'id' => $clip->id,
+                'title' => $clip->title,
+                'score' => $clip->score,
+                'trecho' => $this->formatTrecho($clip->start_time, $clip->end_time),
+                'startTime' => $clip->start_time,
+                'endTime' => $clip->end_time,
+                'sourceVideoTitle' => $clip->sourceVideo?->title,
+                'sourceChannelName' => $clip->sourceVideo?->sourceChannel?->channel_name,
+                'format' => $clip->sourceVideo?->format ?? 'curto',
+                'destinationChannelName' => $clip->destinationChannel?->name,
+                'destinationChannelSlug' => $clip->destinationChannel?->slug,
+                'niche' => $clip->destinationChannel?->niche ?? $clip->sourceVideo?->sourceChannel?->target_niche ?? 'futebol',
+                'createdAt' => $clip->created_at?->diffForHumans(),
+                'updatedAt' => $clip->updated_at?->diffForHumans(),
+                'uploadError' => $clip->upload_error,
+                'previewUrl' => route('clips.preview', $clip->id),
+                'thumbnailUrl' => route('clips.thumbnail', $clip->id),
+                'hasVideoFile' => $hasVideo,
+                'hasThumbnailFile' => $hasThumb,
+                'description' => $clip->description,
+                'tags' => $clip->tags,
+                'destinationTemplate' => $clip->destinationChannel?->effective_template_config,
+            ];
+        })->values()->all();
     }
 
     private function formatTrecho(?float $start, ?float $end): string

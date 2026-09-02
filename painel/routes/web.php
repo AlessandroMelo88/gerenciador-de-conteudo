@@ -51,6 +51,16 @@ Route::middleware(['web', 'auth'])->group(function () {
         return response()->file(Storage::disk('clips-videos')->path($relativePath));
     })->name('clips.preview');
 
+    Route::get('/painel/clips/{clip}/thumbnail', function (GeneratedClip $clip) {
+        $relativePath = "thumbnails/{$clip->id}.jpg";
+
+        if (! Storage::disk('clips-videos')->exists($relativePath)) {
+            abort(404);
+        }
+
+        return response()->file(Storage::disk('clips-videos')->path($relativePath));
+    })->name('clips.thumbnail');
+
     Route::post('/painel/niches', [NicheController::class, 'store'])->name('niches.store');
 
     Route::get('/painel/canais-destino', [DestinationChannelController::class, 'index'])->name('destination-channels.index');

@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import type { FormDataConvertible } from '@inertiajs/core';
 import { toast } from 'sonner';
-import { Check, Play, X } from 'lucide-react';
+import { Check, Play, X, Eye } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmButton } from '@/components/confirm-button';
+import { ClipPreviewModal } from '@/components/clip-preview-modal';
 import {
     Table,
     TableBody,
@@ -120,6 +121,7 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
     const [subTab, setSubTab] = useState<'todos' | 'futebol' | 'politica' | 'podcast'>('todos');
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [previewingId, setPreviewingId] = useState<number | null>(null);
+    const [modalClip, setModalClip] = useState<ClipRow | null>(null);
     const { selected, toggle, toggleAll, clear } = useSelection();
 
     const counts = {
@@ -321,8 +323,9 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                     <div className="absolute inset-0 grid place-items-center">
                                         <button
                                             type="button"
-                                            onClick={() => setPreviewingId(previewingId === clip.id ? null : clip.id)}
+                                            onClick={() => setModalClip(clip)}
                                             className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md border border-white/20 grid place-items-center text-white group-hover:scale-105 transition-transform"
+                                            title="Abrir preview no celular (9:16) ou computador (16:9)"
                                         >
                                             <Play className="w-5 h-5 ml-0.5 fill-white" />
                                         </button>
@@ -367,6 +370,15 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                     <div className="flex-1" />
 
                                     <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                                        <button
+                                            type="button"
+                                            onClick={() => setModalClip(clip)}
+                                            className="inline-flex items-center justify-center gap-1 text-xs font-semibold text-zinc-300 hover:text-white px-2.5 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors shrink-0"
+                                            title="Abrir preview no celular (9:16) ou computador (16:9)"
+                                        >
+                                            <Eye className="w-3.5 h-3.5 text-sky-400" />
+                                            <span>Preview</span>
+                                        </button>
                                         <ConfirmButton
                                             variant="outline"
                                             size="sm"
@@ -443,8 +455,8 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                                 <div
                                                     className="w-12 h-9 rounded-lg shrink-0 grid place-items-center text-white shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
                                                     style={{ background: bgGradient }}
-                                                    onClick={() => setPreviewingId(previewingId === clip.id ? null : clip.id)}
-                                                    title="Clique para ver o vídeo"
+                                                    onClick={() => setModalClip(clip)}
+                                                    title="Clique para ver o preview no celular (9:16) ou computador (16:9)"
                                                 >
                                                     <Play className="w-3.5 h-3.5 ml-0.5 fill-white" />
                                                 </div>
@@ -460,7 +472,16 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                                             onClick={() => setPreviewingId(previewingId === clip.id ? null : clip.id)}
                                                             className="text-[11px] text-amber-500 underline hover:text-amber-400 font-medium ml-1"
                                                         >
-                                                            {previewingId === clip.id ? 'Fechar vídeo' : 'Ver clipe'}
+                                                            {previewingId === clip.id ? 'Fechar vídeo' : 'Vídeo rápido'}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setModalClip(clip)}
+                                                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-300 hover:text-white px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-all shadow-xs ml-1"
+                                                            title="Abrir preview no celular (9:16) ou computador (16:9)"
+                                                        >
+                                                            <Eye className="w-3 h-3 text-sky-400" />
+                                                            <span>Preview Completo</span>
                                                         </button>
                                                     </div>
 
@@ -529,6 +550,15 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                     </Table>
                 </div>
             )}
+
+            {/* MODAL DE PREVIEW CELULAR (9:16) E DESKTOP (16:9) */}
+            <ClipPreviewModal
+                clip={modalClip}
+                isOpen={!!modalClip}
+                onClose={() => setModalClip(null)}
+                onApprove={(id) => post(`/painel/clips/${id}/approve`)}
+                onReject={(id) => post(`/painel/clips/${id}/reject`)}
+            />
         </div>
     );
 }
