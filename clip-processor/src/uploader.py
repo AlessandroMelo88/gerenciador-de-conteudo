@@ -112,15 +112,18 @@ class YouTubeUploader:
         self._clear_expired()
 
         if thumbnail_path:
-            thumb_media = self._media_upload_factory(
-                thumbnail_path,
-                chunksize=-1,
-                resumable=True,
-            )
-            service.thumbnails().set(
-                videoId=video_id,
-                media_body=thumb_media,
-            ).execute()
+            try:
+                thumb_media = self._media_upload_factory(
+                    thumbnail_path,
+                    chunksize=-1,
+                    resumable=True,
+                )
+                service.thumbnails().set(
+                    videoId=video_id,
+                    media_body=thumb_media,
+                ).execute()
+            except Exception as e:
+                print(f'[UPLOADER] Aviso: não foi possível enviar thumbnail customizada para {video_id}: {e}', file=sys.stderr)
 
         return video_id
 

@@ -54,6 +54,19 @@ class TestVideoProcessor:
         assert 'crop=1080:1920' in filter_arg
         assert 'setsar=1' in filter_arg
 
+    def test_cut_clip_longo_enquadramento_filter(self, tmp_path, mocker):
+        mock_run = mocker.patch('src.video_processor.subprocess.run')
+        output = tmp_path / 'clip_longo.mp4'
+
+        cut_clip('/app/videos/source.mp4', 0.0, 300.0, str(output), fmt='longo')
+
+        cmd = mock_run.call_args.args[0]
+        assert '-filter_complex' in cmd
+        filter_arg = cmd[cmd.index('-filter_complex') + 1]
+        assert 'scale=1080:1920' in filter_arg
+        assert 'boxblur' in filter_arg
+        assert 'overlay=0:(H-h)/2' in filter_arg
+
     def test_thumbnail_extracted_from_clip(self, tmp_path, mocker):
         mock_run = mocker.patch('src.video_processor.subprocess.run')
         thumbnail = tmp_path / 'thumb.jpg'

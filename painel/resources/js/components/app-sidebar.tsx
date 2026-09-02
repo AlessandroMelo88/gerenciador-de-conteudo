@@ -20,6 +20,7 @@ import {
     RadioTowerIcon,
     TvIcon,
     BookOpenIcon,
+    SparklesIcon,
 } from 'lucide-react';
 
 type NavItem = {
@@ -38,6 +39,7 @@ const navItems: (NavItem & { badge?: string | number })[] = [
     { title: 'Processar Vídeo', url: '/painel/processar-video', icon: LinkIcon },
     { title: 'Transcrição Local', url: '/painel/transcricoes', icon: AudioLinesIcon },
     { title: 'Documentação', url: '/painel/documentacao', icon: BookOpenIcon },
+    { title: 'Exemplo Vídeo Longo', url: '/preview-longo.html', icon: SparklesIcon, external: true, badge: '9:16' },
 ];
 
 export function AppSidebar({

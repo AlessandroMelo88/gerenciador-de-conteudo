@@ -116,12 +116,12 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'JOIN source_channels sc ON sc.id = sv.channel_id '
-            'WHERE gc.status = %s '
+            'WHERE gc.status IN (\'approved\', \'pending\') '
             'AND gc.destination_channel_id = %s '
             'AND gc.clip_path IS NOT NULL '
             'AND gc.title IS NOT NULL '
-            'ORDER BY gc.created_at ASC',
-            (_publishable_status(), destination_channel_id),
+            'ORDER BY CASE WHEN gc.status = \'approved\' THEN 0 ELSE 1 END, gc.created_at ASC',
+            (destination_channel_id,),
         )
         clips = cur.fetchall() or []
     return _round_robin_by_source_channel(clips)

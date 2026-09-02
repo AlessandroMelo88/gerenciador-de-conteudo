@@ -1,0 +1,12 @@
+painel/vendor/
+painel/node_modules/
+painel/storage/framework/
+painel/storage/logs/
+painel/public/build/
+painel/bootstrap/cache/
+branding/
+videos/
+mysql/
+docker/
+*.min.js
+*.lock

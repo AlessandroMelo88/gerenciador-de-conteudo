@@ -35,25 +35,33 @@ def cut_clip(source_path: str, start_time: float, end_time: float, output_path: 
     """Corta um trecho do vídeo fonte.
 
     fmt='curto' (padrão): converte pra vertical 1080x1920 (Shorts).
-    fmt='longo': mantém aspecto horizontal original, só normaliza a altura pra
-    1080p — vídeo de 10-20min não faz sentido em formato vertical.
+    fmt='longo': enquadra o vídeo 16:9 centralizado em canvas vertical 9:16 (1080x1920)
+    com fundo temático desfocado (blur) e espaço para branding e legendas.
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     if fmt == 'longo':
-        video_filter = 'scale=-2:1080,setsar=1'
+        video_filter = (
+            '[0:v]split=2[bg_in][fg_in];'
+            '[bg_in]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5,eq=brightness=-0.30:contrast=0.95[bg];'
+            '[fg_in]scale=1080:-2[fg];'
+            '[bg][fg]overlay=0:(H-h)/2,setsar=1'
+        )
+        filter_args = ['-filter_complex', video_filter]
     else:
         video_filter = (
             'scale=1080:1920:force_original_aspect_ratio=increase,'
             'crop=1080:1920,'
             'setsar=1'
         )
+        filter_args = ['-vf', video_filter]
+
     subprocess.run(
         [
             'ffmpeg',
             '-ss', str(start_time),
             '-to', str(end_time),
             '-i', source_path,
-            '-vf', video_filter,
+            *filter_args,
             '-c:v', 'libx264',
             '-preset', 'veryfast',
             '-crf', '23',
