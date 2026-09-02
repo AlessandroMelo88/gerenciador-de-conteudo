@@ -11,7 +11,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
         email: 'alessandrobm1988@gmail.com',
-        password: 'password',
+        password: 'CanalCortes2026!',
         remember: true,
     });
 
