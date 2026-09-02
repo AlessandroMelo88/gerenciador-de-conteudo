@@ -27,6 +27,21 @@ CLIPS_DIR = '/app/videos/clips'
 THUMBNAILS_DIR = '/app/videos/thumbnails'
 
 
+def resolve_default_template_config(channel_name: str = '', niche: str = '') -> dict:
+    """Gera configuração padrão inteligente de template 9:16 baseada no nicho do canal."""
+    n = (niche or '').lower()
+    is_politica = 'pol' in n
+    is_futebol = 'fut' in n
+    return {
+        'headerTitle': (channel_name or 'CANAL DE CORTES').upper(),
+        'headerBadge': '🔴 DEBATE AO VIVO' if is_politica else ('⚽ LANCE DECISIVO' if is_futebol else '🎙️ CORTES EXCLUSIVOS'),
+        'accentColor': '#E50914' if is_politica else ('#10B981' if is_futebol else '#8B5CF6'),
+        'bgStyle': 'blur_dark',
+        'subtitleColor': '#facc15',
+        'ctaText': 'INSCREVA-SE NO CANAL',
+    }
+
+
 def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [VID] {msg}')
 
@@ -225,6 +240,10 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
         final_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}.mp4')
         thumbnail_path = os.path.join(THUMBNAILS_DIR, f'{clip_id}.jpg')
 
+        defaults = resolve_default_template_config(
+            clip.get('destination_channel_name') or '',
+            clip.get('destination_channel_niche') or '',
+        )
         cfg = clip.get('template_config')
         if isinstance(cfg, str):
             try:
@@ -234,9 +253,11 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
         elif not isinstance(cfg, dict):
             cfg = {}
 
-        cut_clip(clip['local_path'], clip['start_time'], clip['end_time'], raw_clip_path, fmt=clip.get('format') or 'curto', template_config=cfg)
+        merged_cfg = {**defaults, **cfg}
+
+        cut_clip(clip['local_path'], clip['start_time'], clip['end_time'], raw_clip_path, fmt=clip.get('format') or 'curto', template_config=merged_cfg)
         generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
-        burn_subtitles(raw_clip_path, srt_path, subtitled_path, template_config=cfg)
+        burn_subtitles(raw_clip_path, srt_path, subtitled_path, template_config=merged_cfg)
 
         # Aplicar watermark se canal-destino tem slug configurado
         slug = clip.get('destination_channel_slug')
@@ -288,7 +309,7 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
             'SELECT '
             'gc.id, gc.source_video_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
             'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path, sv.format, '
-            'dc.slug AS destination_channel_slug, dc.template_config '
+            'dc.slug AS destination_channel_slug, dc.name AS destination_channel_name, dc.niche AS destination_channel_niche, dc.template_config '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'LEFT JOIN destination_channels dc ON dc.id = gc.destination_channel_id '

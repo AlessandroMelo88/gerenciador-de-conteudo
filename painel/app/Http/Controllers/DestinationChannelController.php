@@ -22,7 +22,7 @@ class DestinationChannelController extends Controller
                 'niche' => $c->niche,
                 'youtubeChannelId' => $c->youtube_channel_id,
                 'creditTemplate' => $c->credit_template,
-                'templateConfig' => $c->template_config,
+                'templateConfig' => $c->effective_template_config,
                 'active' => $c->active,
                 'oauthStatus' => $c->oauth_status,
                 'hasWatermark' => Storage::disk('branding')->exists("watermark-{$c->slug}.png"),
