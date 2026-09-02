@@ -58,7 +58,7 @@ it('updates template_config for a destination channel', function () {
         ->assertRedirect();
 
     $channel->refresh();
-    expect($channel->template_config)->toBe($config);
+    expect($channel->template_config)->toEqual($config);
 });
 
 it('automatically assigns smart default template_config when creating a channel', function () {

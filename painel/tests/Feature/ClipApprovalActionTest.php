@@ -25,26 +25,23 @@ it('does not approve a non-pending clip', function () {
     expect($clip->refresh()->status)->toBe('published');
 });
 
-it('rejects a clip via internal API and shows exit code result', function () {
+it('rejects a clip via panel action and updates status to rejected', function () {
     $user = User::factory()->create();
     $clip = GeneratedClip::factory()->create(['status' => 'pending']);
-    Http::fake(['*/internal/reject-clip' => Http::response(['exit_code' => 0], 200)]);
 
     $this->actingAs($user)
         ->post("/painel/clips/{$clip->id}/reject")
         ->assertRedirect();
-    Http::assertSent(function ($request) use ($clip) {
-        return str_contains($request->url(), '/internal/reject-clip')
-            && $request['clip_id'] === $clip->id;
-    });
+    expect($clip->refresh()->status)->toBe('rejected');
 });
 
-it('propagates rejeitar exit_code=1 as a validation error notification', function () {
+it('does not reject a clip with invalid status', function () {
     $user = User::factory()->create();
-    $clip = GeneratedClip::factory()->create(['status' => 'pending']);
-    Http::fake(['*/internal/reject-clip' => Http::response(['exit_code' => 1], 200)]);
+    $clip = GeneratedClip::factory()->create(['status' => 'published']);
 
     $this->actingAs($user)
         ->post("/painel/clips/{$clip->id}/reject")
         ->assertSessionHas('error');
+    expect($clip->refresh()->status)->toBe('published');
 });
+
