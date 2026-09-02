@@ -1,27 +1,66 @@
 # Banco de dados — `clips_automation`
 
-Um único database MySQL 8.4 hospeda as tabelas do pipeline **e** as do painel Laravel.
+O sistema suporta arquitetura híbrida de banco de dados: opera primariamente com **MySQL 8.4** ou **PostgreSQL 17** (com chaveamento via `DB_CONNECTION`), e **SQLite** no ambiente de desenvolvimento local do painel Laravel.
 Estados e transições ficam em [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md).
 
-Verificado no SQL e no código em **13/08/2026**.
+Última atualização: **Setembro/2026** (adição de suporte a PostgreSQL, comandos de backup/recuperação e novas tabelas do painel).
 
 ---
 
-## As tabelas do pipeline não são migrations do Laravel
+## Suporte Híbrido: MySQL e PostgreSQL
 
-Elas nascem de **SQL bruto** em `mysql/init/01..07`, aplicado **à mão** via `docker exec`. O painel
-apenas as mapeia com Eloquent e `$table` explícito.
+Tanto o daemon Python (`clip-processor`) quanto o painel Laravel (`painel`) operam com compatibilidade nativa entre MySQL e PostgreSQL:
 
-Consequências que já morderam:
+1. **Daemon Python (`clip-processor/src/db.py`)**:
+   - Detecta o driver via `get_db_driver(conn)` lendo `DB_CONNECTION` ou `DB_DRIVER` (`mysql` ou `pgsql`).
+   - Usa `pymysql` para MySQL e `psycopg2` para PostgreSQL.
+   - Fornece wrappers (`PostgresConnectionWrapper` e `PostgresCursorWrapper`) para unificar cursores dicionário e garantir `cur.lastrowid` uniforme.
+   - Queries compatibilizadas: `ON CONFLICT (youtube_video_id) DO NOTHING` no Postgres vs `INSERT IGNORE` no MySQL; manipulação de janelas temporais usando `INTERVAL` padrão ANSI/Postgres e `DATE_SUB` no MySQL.
 
-- `php artisan migrate:fresh` **não** reconstrói o schema do pipeline;
-- por isso `RefreshDatabase` está desligado em `painel/tests/Pest.php` — os testes usam
-  `DatabaseTransactions` sobre tabelas pré-existentes;
-- migrar para outro servidor exige aplicar os `mysql/init/*` à mão se o dump não trouxer o schema
-  (fase 4 do [`PLANO-ORACLE.md`](PLANO-ORACLE.md)).
+2. **Painel Laravel (`painel/config/database.php`)**:
+   - Chaveamento por `DB_CONNECTION=mysql` ou `DB_CONNECTION=pgsql` no `.env`.
+   - Compatibilidade de migrations com Schema Builder e Eloquent ORM.
 
-`01-clips-schema.sql` contém `${CLIPS_DB_PASSWORD}` como **placeholder** — precisa de `envsubst`
-antes de rodar ([`mysql/init/01-clips-schema.sql:5-8`](../mysql/init/01-clips-schema.sql#L5)).
+---
+
+## Rotinas de Backup e Recuperação (`db:backup` e `db:restore`)
+
+O painel inclui comandos Artisan nativos para gerenciar backups e recuperação do banco de dados (Disaster Recovery):
+
+### 1. Backup Automatizado (`db:backup`)
+```bash
+# Executa backup da conexão padrão:
+docker exec php php /var/www/html/painel/artisan db:backup
+
+# Executa backup especificando conexão e retenção:
+docker exec php php /var/www/html/painel/artisan db:backup --connection=mysql --keep=7
+```
+* **Destino**: `storage/app/backups/backup_{conexao}_{timestamp}.sql.gz`.
+* **Detecção de Ferramenta**: Utiliza `mysqldump` ou `pg_dump` caso estejam no PATH; se não estiverem (ex: container PHP minimalista), executa fallback automático de exportação completa via PHP PDO.
+* **Retenção**: Purga automaticamente backups mais antigos que `--keep` dias (padrão: 7 dias).
+* **Agendamento**: Agendado diariamente no Scheduler do Laravel (`routes/console.php`) às **03:15** com proteção `withoutOverlapping()`.
+
+### 2. Restauração e Smoke Test (`db:restore`)
+```bash
+# Smoke test (valida integridade sem alterar o banco):
+docker exec php php /var/www/html/painel/artisan db:restore backup_mysql_2026-09-02.sql.gz --test
+
+# Restauração interativa (solicita confirmação):
+docker exec php php /var/www/html/painel/artisan db:restore
+
+# Restauração forçada (CI / automação):
+docker exec php php /var/www/html/painel/artisan db:restore backup_mysql_2026-09-02.sql.gz --force
+```
+
+---
+
+## Evolução das Migrations do Laravel
+
+Originalmente as tabelas do pipeline nasciam apenas de SQL bruto em `mysql/init/01..07`. Atualmente, o painel conta com migrations completas em `painel/database/migrations/`:
+- `2026_07_13_000000_create_clips_core_tables.php`: cria `source_channels`, `source_videos`, `generated_clips` e `destination_channels`.
+- `2026_08_27_000000_create_system_settings_table.php`: tabela `system_settings` para preferências dinâmicas.
+- `2026_09_01_000000_add_template_config_to_destination_channels_table.php`: coluna JSON `template_config` para o Estúdio de Templates 9:16.
+
 
 ### Ordem de aplicação
 

@@ -1,20 +1,20 @@
-# Docs — Canal de Cortes
+# Docs — Sistema Canal de Cortes
 
-Índice da documentação. **Comece por aqui em toda conversa nova.**
+Índice da documentação técnica do sistema. **Comece por aqui em toda conversa nova.**
 
-Última atualização: **13/08/2026**
+Última atualização: **Setembro/2026**
 
 ---
 
 ## O que o sistema é, em um parágrafo
 
-Pipeline automatizado que monitora canais de futebol no YouTube via RSS, corta os melhores momentos com
+Pipeline automatizado que monitora canais no YouTube via RSS, corta os melhores momentos com
 IA e publica nos canais próprios. O fluxo é **100% automático** por default, da descoberta ao upload. O
-painel web existe para **observar e corrigir**, não para operar.
+painel web existe para **observar, configurar templates e intervir**, não para operar o fluxo manual.
 
-Dois serviços: `clip-processor` (daemon Python, faz todo o trabalho) e `painel` (Laravel + Inertia +
-React, só interface). Dois formatos de saída, decididos pela duração do vídeo fonte: **`curto`**
-(fonte < 7 min ⇒ até 3 shorts verticais de 30 s a 3 min) e **`longo`** (fonte ≥ 7 min ⇒ um corte
+Dois serviços principais: `clip-processor` (daemon Python, faz todo o trabalho de pipeline) e `painel` (Laravel 13 + Inertia 3 +
+React 19, interface administrativa, estúdio de templates e rotinas de backup). Dois formatos de saída, decididos pela duração do vídeo fonte: **`curto`**
+(fonte < 7 min ⇒ até 3 shorts verticais de 30 s a 3 min com enquadramento adaptativo ou blur background) e **`longo`** (fonte ≥ 7 min ⇒ um corte
 horizontal de 7 a 20 min).
 
 ---
@@ -25,8 +25,8 @@ horizontal de 7 a 20 min).
 
 | Documento | Responde |
 |---|---|
-| [`../ARCHITECTURE.md`](../ARCHITECTURE.md) | Arquitetura as-built: topologia dos containers, a fronteira painel ↔ pipeline, decisões e dívida técnica. **Primeira leitura de quem chega agora** |
-| [`../CLAUDE.md`](../CLAUDE.md) | As 7 regras de operação destrutiva e os incidentes que as geraram. **Ler antes de apagar qualquer coisa** |
+| [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) | Arquitetura as-built: topologia dos containers, a fronteira painel ↔ pipeline, decisões e dívida técnica. **Primeira leitura de quem chega agora** |
+| [`../../CLAUDE.md`](../../CLAUDE.md) | As 7 regras de operação destrutiva e os incidentes que as geraram. **Ler antes de apagar qualquer coisa** |
 | [`RUNBOOK.md`](RUNBOOK.md) | Comandos do dia a dia: está de pé? por que parou? como reiniciar sem travar clip? como limpar disco em duas etapas? |
 | [`BUGS.md`](BUGS.md) | Backlog com status FEITO / PARCIAL / ABERTO / SUSPEITA, evidência e onde corrigir |
 
@@ -39,12 +39,12 @@ horizontal de 7 a 20 min).
 | [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md) | Descoberta via RSS, dedup, filtro de título, detecção de formato, janela de download por formato, filtro de frescor, disk guard, limpeza de órfãos |
 | [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | Groq Whisper no pipeline (sem fallback) e a Transcrição Local com whisper.cpp, que é uma feature separada |
 | [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) | Seleção de cortes por IA: prompts por formato, score, limites de duração, Claude Haiku → fallback Groq LLaMA 3.3-70b |
-| [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg: corte por formato, geração e queima de legenda, marca d'água, thumbnail, e quais artefatos sobram em disco |
+| [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg: corte por formato, enquadramento vertical com fundo desfocado, geração e queima de legenda, marca d'água, thumbnail, e artefatos gerados |
 | [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md) | Quem é publicável, roteamento por nicho, round-robin, cota diária (teto rígido de 6), janela 19h–22h, OAuth por canal, TTL de clip |
 | [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | As 10 rotas do sidecar HTTP 8090, auth fail-closed, controles de fila (pause/resume/reorder/prioritize), rejeição de clip, eventos para o Telegram |
-| [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, por que não são migrations do Laravel, ausência de `ON DELETE CASCADE`, divergência banco × disco |
+| [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, **suporte híbrido a MySQL e PostgreSQL**, comandos de backup (`db:backup`) e recuperação (`db:restore`) |
 | [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | Índice módulo a módulo do daemon (21 módulos), padrões comuns de código, o que o Redis guarda, tabela de env vars |
-| [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | Rotas, controllers e páginas do Laravel/Inertia; como ler cada card do Dashboard |
+| [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | Rotas, controllers e páginas do Laravel/Inertia; **Channel Template Studio (9:16)**, **Modal de Preview de Clipes** e como ler cada card do Dashboard |
 
 ### Infra
 
@@ -57,6 +57,7 @@ horizontal de 7 a 20 min).
 | Documento | Responde |
 |---|---|
 | [`PLANO-PROMPTS-EDITAVEIS.md`](PLANO-PROMPTS-EDITAVEIS.md) | Como tornar os prompts de seleção editáveis pelo painel, sem editar Python e sem rebuild, com métricas para comparar versões |
+
 
 `.planning/` é do fluxo GSD (roadmap por fase) e **não** é fonte de verdade do estado atual.
 `.planning/research/ARCHITECTURE.md` é pesquisa de junho/2026 e descreve um futuro que não aconteceu

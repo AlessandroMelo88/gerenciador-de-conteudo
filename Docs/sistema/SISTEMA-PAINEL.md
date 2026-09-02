@@ -63,9 +63,16 @@ O espaço vem de `disk_free_space` sobre o disco `clips-videos` — é o **disco
 disk guard de 2 GB do downloader mede. Número alto ali é o sintoma que precede o pipeline parar de
 baixar.
 
-### Canais
+### Canais e Estúdio de Templates
 
-`DestinationChannelController` (`/painel/canais-destino`): CRUD, `POST .../watermark` para upload de marca d'água, badge de OAuth expirado.
+`DestinationChannelController` (`/painel/canais-destino`):
+- CRUD completo de canais de publicação.
+- **Upload de Marca d'Água e Logo**: `POST /painel/canais-destino/{channel}/watermark` para upload de PNG/SVG com transparência para queima no vídeo.
+- **Estúdio de Templates 9:16 (`ChannelTemplateModal`)**: `POST /painel/canais-destino/{channel}/template-config`
+  - Permite configurar visualmente: cor de destaque (`accentColor`), cor de legendas (`subtitleColor`), texto do botão de CTA (`ctaText`), estilo do rodapé, mascote e marca d'água.
+  - Oferece simulador de smartphone em tempo real para ver as cores e marca sobre o enquadramento 9:16 antes de salvar.
+- Badge de OAuth expirado e controle de refresh token.
+
 `SourceChannelController` (`/painel/canais-fonte`): CRUD por URL — resolve o canal via sidecar (yt-dlp), tabs por nicho, toggles de ativo/blacklist.
 `NicheController`: só `POST /painel/niches`.
 
@@ -75,9 +82,22 @@ baixar.
 |---|---|---|
 | `/painel/processar-video` | `ProcessVideoController` | Enfileira URL manual |
 | `/painel/transcricoes` | `TranscriptionController` | Transcrição local (whisper.cpp); `/download` baixa o resultado |
-| `/painel/configuracoes` | `SettingsController` | Reset de senha (exige 8 chars — o comando Artisan exige 10) |
+| `/painel/configuracoes` | `SettingsController` | Reset de senha e preferências globais |
 | `/painel/documentacao` | `DocumentationController` | Ajuda estática |
-| `/painel/clips/{clip}/preview` | closure | Serve o MP4 do clip para o `<video>` da fila |
+| `/painel/clips/{clip}/preview` | closure | Serve o MP4 do clip para o player do modal de preview |
+
+### Modal de Preview de Clipes (`ClipPreviewModal`)
+Integrado no Dashboard e na fila de aprovação:
+- **Simulador Shorts Mobile (9:16)**: reproduz o corte no formato exato de tela de celular, com o fundo temático desfocado, legendas customizadas com as cores do canal destino e botão de CTA.
+- **Simulador Desktop YouTube (16:9)**: visualização em proporção widescreen com player simulado e dados de metadados gerados (título, trecho, canal).
+
+### Comandos Artisan do Painel
+
+* `php artisan painel:create-user`: criação de operador administrativo.
+* `php artisan painel:reset-password {email}`: redefinição de senha de acesso.
+* `php artisan db:backup`: backup automatizado (MySQL, PostgreSQL ou SQLite) compactado em `.sql.gz` com purga por retenção.
+* `php artisan db:restore`: restauração de backup com suporte a `--test` (Smoke Test de validação).
+
 
 ### Públicas, sem CSRF
 

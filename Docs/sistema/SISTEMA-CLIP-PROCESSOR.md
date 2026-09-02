@@ -91,10 +91,11 @@ lendo. **Conferir a data da imagem antes de investigar qualquer bug** —
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `db.py` | Conexão pymysql e helpers de status. `recover_stuck_downloads` ([`:127`](../clip-processor/src/db.py#L127)) e `recover_stuck_selecting` ([`:156`](../clip-processor/src/db.py#L156), três queries) — **não cobrem `cutting`, `publishing` nem `transcribing`, bug 4** |
+| `db.py` | Conexão agnóstica de banco de dados (`pymysql` para MySQL e `psycopg2` para PostgreSQL, chaveado via `DB_CONNECTION`), wrappers de cursor (`PostgresCursorWrapper`) e helpers de status. `recover_stuck_downloads` e `recover_stuck_selecting` adaptados dinamicamente para cada dialeto SQL |
 
-Schema e colunas em [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md); estados e transições em
+Schema e colunas em [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md); rotinas de backup e recuperação em [`BANCO-DE-DADOS.md#rotinas-de-backup-e-recuperação-dbbackup-e-dbrestore`](BANCO-DE-DADOS.md#rotinas-de-backup-e-recuperação-dbbackup-e-dbrestore); estados e transições em
 [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md).
+
 
 ---
 

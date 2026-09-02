@@ -40,15 +40,16 @@ O transcript é lido do disco em [`:202`](../clip-processor/src/video_processor.
 
 ## Corte por formato
 
-`cut_clip` ([`:34`](../clip-processor/src/video_processor.py#L34)) muda **só o filtro de vídeo**:
+`cut_clip` muda o filtro de vídeo de acordo com o formato e o tipo de enquadramento:
 
 | `fmt` | Filtro | Resultado |
 |---|---|---|
-| `curto` (default) | `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1` | vertical 1080x1920 (Shorts) |
+| `curto` (default crop) | `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1` | vertical 1080x1920 (Shorts) com recorte central |
+| `curto` (blurred background) | `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=20:5[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2` | vertical 1080x1920 com fundo temático desfocado e vídeo original centralizado em proporção |
 | `longo` | `scale=-2:1080,setsar=1` | mantém o horizontal, normaliza a altura em 1080p |
 
-Encode comum aos dois: `-ss/-to` antes do `-i`, `libx264 -preset veryfast -crf 23`, `aac -b:a 128k`,
-`-movflags +faststart`.
+Encode comum aos formatos: `-ss/-to` antes do `-i`, `libx264 -preset veryfast -crf 23`, `aac -b:a 128k`, `-movflags +faststart`.
+
 
 `-ss` antes do `-i` é seek rápido por keyframe — pode deslocar o início em fração de segundo em
 relação ao `start_time` pedido.
