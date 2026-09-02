@@ -19,7 +19,7 @@ código atual; planos, ADRs, bugs e changelog registram decisões ou histórico.
 
 | Documento | Escopo | Fonte de verdade |
 |---|---|---|
-| [`PIPELINE-E-SCHEDULER.md`](PIPELINE-E-SCHEDULER.md) | boot, ciclos e recovery | `src/main.py`, `pipeline_runner.py` |
+| [`PIPELINE-E-SCHEDULER.md`](PIPELINE-E-SCHEDULER.md) | workers por etapa, filas e recovery | `src/worker.py`, `docker-compose.yml` |
 | [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md) | RSS, dedup, download e janela | `rss_poller.py`, `dedup.py`, `downloader.py` |
 | [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | legendas, Groq Whisper e transcrição local | `transcriber.py`, `transcription_job.py` |
 | [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) | prompts, providers e validação | `selector.py`, `metadata_generator.py` |

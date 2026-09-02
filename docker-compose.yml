@@ -14,6 +14,40 @@ x-panel-runtime-env: &panel-runtime-env
   DB_USERNAME: ${POSTGRES_USER:-clips_user}
   DB_PASSWORD: ${CLIPS_DB_PASSWORD:?CLIPS_DB_PASSWORD is required}
 
+x-clip-runtime: &clip-runtime
+  build:
+    context: ./clip-processor
+  image: canaldecortes-clip-processor:local
+  env_file:
+    - ./.env
+  environment:
+    POSTGRES_HOST: postgres
+    POSTGRES_DATABASE: ${POSTGRES_DB:-clips_automation}
+    POSTGRES_USER: ${POSTGRES_USER:-clips_user}
+    POSTGRES_PASSWORD: ${CLIPS_DB_PASSWORD:?CLIPS_DB_PASSWORD is required}
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    ASSETS_DIR: ${ASSETS_DIR:-/app/assets}
+    PIPELINE_ENABLED: ${PIPELINE_ENABLED:-true}
+    BURNED_SUBTITLE_DETECTION: ${BURNED_SUBTITLE_DETECTION:-true}
+    YOUTUBE_CLIENT_SECRETS: ${YOUTUBE_CLIENT_SECRETS:-/app/youtube/client_secret.json}
+    LARAVEL_NOTIFY_URL: http://nginx/internal/pipeline-event
+    LARAVEL_HOST_HEADER: canaldecortes.local
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    nginx:
+      condition: service_started
+  volumes:
+    - ./clip-processor/src:/app/src
+    - ./videos:/app/videos
+    - ./assets:/app/assets:ro
+    - ./branding:/app/branding:ro
+    - ./youtube:/app/youtube
+  restart: unless-stopped
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -137,37 +171,8 @@ services:
     restart: unless-stopped
 
   clip-processor:
-    build:
-      context: ./clip-processor
-    image: canaldecortes-clip-processor:local
-    env_file:
-      - ./.env
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_DATABASE: ${POSTGRES_DB:-clips_automation}
-      POSTGRES_USER: ${POSTGRES_USER:-clips_user}
-      POSTGRES_PASSWORD: ${CLIPS_DB_PASSWORD:?CLIPS_DB_PASSWORD is required}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      ASSETS_DIR: ${ASSETS_DIR:-/app/assets}
-      PIPELINE_ENABLED: ${PIPELINE_ENABLED:-true}
-      BURNED_SUBTITLE_DETECTION: ${BURNED_SUBTITLE_DETECTION:-true}
-      YOUTUBE_CLIENT_SECRETS: ${YOUTUBE_CLIENT_SECRETS:-/app/youtube/client_secret.json}
-      LARAVEL_NOTIFY_URL: http://nginx/internal/pipeline-event
-      LARAVEL_HOST_HEADER: canaldecortes.local
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      nginx:
-        condition: service_started
-    volumes:
-      - ./clip-processor/src:/app/src
-      - ./videos:/app/videos
-      - ./assets:/app/assets:ro
-      - ./branding:/app/branding:ro
-      - ./youtube:/app/youtube
+    <<: *clip-runtime
+    command: ["python", "-m", "src.sidecar"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health')"]
       interval: 10s
@@ -175,6 +180,30 @@ services:
       retries: 10
       start_period: 10s
     restart: unless-stopped
+
+  clip-poller:
+    <<: *clip-runtime
+    command: ["python", "-m", "src.worker", "--stage", "poll"]
+
+  clip-downloader:
+    <<: *clip-runtime
+    command: ["python", "-m", "src.worker", "--stage", "download"]
+
+  clip-ai:
+    <<: *clip-runtime
+    command: ["python", "-m", "src.worker", "--stage", "ai"]
+
+  clip-renderer:
+    <<: *clip-runtime
+    command: ["python", "-m", "src.worker", "--stage", "render"]
+
+  clip-publisher:
+    <<: *clip-runtime
+    command: ["python", "-m", "src.worker", "--stage", "publish"]
+
+  clip-maintenance:
+    <<: *clip-runtime
+    command: ["python", "-m", "src.worker", "--stage", "maintenance"]
 
 volumes:
   postgres_data:

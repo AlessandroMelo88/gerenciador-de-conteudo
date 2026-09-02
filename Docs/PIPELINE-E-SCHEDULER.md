@@ -1,101 +1,94 @@
-# Pipeline e scheduler
+# Pipeline e workers
 
-> Tipo: referência as-built · Atualizado: 2026-08-27
-> Fonte: `clip-processor/src/main.py` e `pipeline_runner.py`
+> Tipo: referência as-built · Atualizado: 2026-09-02
+> Fonte: `clip-processor/src/worker.py`, `rss_poller.py` e `docker-compose.yml`
 
-## Boot
+## Deployment atual
 
-1. cria o scheduler em `America/Sao_Paulo`;
-2. executa recovery de downloads, seleção, publicação e cortes interrompidos;
-3. inicia o sidecar Flask em `0.0.0.0:8090`;
-4. se `PIPELINE_ENABLED=true`, executa `run_pipeline_once` imediatamente;
-5. inicia o scheduler.
+O Compose separa o processamento em um container HTTP e seis workers:
 
-Com `PIPELINE_ENABLED=false`, o sidecar continua disponível, mas o ciclo inicial e os jobs
-de ingestão/publicação saem sem processar.
+| Serviço | Etapa | Cadência padrão | Cardinalidade |
+|---|---|---:|---:|
+| `clip-processor` | sidecar HTTP do painel | contínuo | 1 |
+| `clip-poller` | descoberta RSS/yt-dlp e deduplicação | 20 min | 1 |
+| `clip-downloader` | download dos vídeos fonte | 30 s | 1 |
+| `clip-ai` | transcrição + seleção de momentos | 10 s | 1 |
+| `clip-renderer` | corte vertical 1080×1920, legenda e metadata | 10 s | 1 |
+| `clip-publisher` | upload e publicação no YouTube | 10 min | 1 |
+| `clip-maintenance` | recovery e TTL | 30 min | 1 |
 
-## Jobs
+Cada worker abre sua própria conexão PostgreSQL, compartilha somente o volume de
+vídeos e usa uma chave Redis exclusiva (`lock:pipeline_stage:<etapa>`). O
+renderer pode executar enquanto poller, downloader e IA avançam nas filas.
+O `clip-processor` deixou de iniciar o scheduler legado: ele serve apenas o
+sidecar em `0.0.0.0:8090`.
 
-| ID | Frequência | Função | Executa |
-|---|---:|---|---|
-| `ingest_cycle` | 20 min | `run_ingest_cycle` | RSS, IA, corte e download |
-| `publish_cycle` | 10 min | `run_publish_only` | publicação de clips prontos |
-| `clip_pending_ttl` | 1 h | `run_ttl_once` | alerta e rejeição por TTL |
-| `state_recovery` | 30 min | `run_recovery_once` | recovery de downloads, seleção e publicação |
+Com `PIPELINE_ENABLED=false`, o sidecar continua disponível e apenas o worker
+de manutenção segue ativo.
 
-Todos usam `coalesce=true`, `max_instances=1` e tolerância de execução atrasada
-de 900 s. Cortes em `cutting` só são recuperados no boot.
+## Contratos de fila
 
-As travas Redis de ingestão e publicação têm TTL padrão de 7200 s
-(`PIPELINE_LOCK_TIMEOUT_SECONDS` e `PUBLISH_LOCK_TIMEOUT_SECONDS`). O valor cobre o
-render em `preset=slow` e pode ser aumentado em instalações com vídeos longos ou disco mais lento.
-
-## Ciclo de ingestão
-
-`run_ingest_cycle` abre conexão PostgreSQL e Redis quando necessário e executa:
-
-1. `rss_poller.poll_all_channels`: consulta RSS, faz dedup, insere fontes pendentes,
-   transcreve/seleciona fontes `downloaded` e processa clips `pending_cut`;
-2. `pipeline_runner._download_pending_videos`: repõe as janelas de download por formato.
-
-A ordem é intencional: primeiro drena trabalho já baixado; depois baixa o déficit da janela.
-
-Apesar do nome, `poll_all_channels` não faz apenas polling. A função concentra descoberta,
-transcrição, seleção e chamada do render. Cada canal e cada clip têm tratamento de erro isolado.
-
-## Ciclo de publicação
-
-`run_publish_only` chama somente `publisher.publish_pending_clips`. O publisher:
-
-- busca destinos ativos;
-- seleciona `pending` ou `approved`, conforme `MANUAL_APPROVAL_REQUIRED`;
-- aplica roteamento por perfil/nicho, round-robin por canal-fonte e quota;
-- faz OAuth/upload e registra o resultado.
-
-Separar publicação de ingestão permite drenar a fila quando a quota libera sem repetir RSS, IA ou
-download.
-
-## Ciclo completo
-
-`run_pipeline_once` é usado no boot e executa, em ordem:
+As tabelas PostgreSQL continuam sendo a fila durável:
 
 ~~~text
-poll_all_channels → _download_pending_videos → publish_pending_clips
+source_videos.pending       -> clip-downloader -> downloaded
+source_videos.downloaded    -> clip-ai        -> selecting + generated_clips.pending_cut
+generated_clips.pending_cut -> clip-renderer   -> pending
+generated_clips.pending     -> clip-publisher  -> published
 ~~~
 
-Cada bloco tem `try/except` próprio, loga falhas e envia `pipeline_failure` ao
-painel. Uma falha de estágio não deve derrubar o scheduler.
+`process_clip` mantém a transição atômica `pending_cut -> cutting`, então um
+render não duplica o mesmo clip. A publicação continua singleton por destino,
+com quota diária e `MIN_UPLOAD_INTERVAL_MINUTES=60`.
+
+As cadências podem ser sobrescritas por serviço com `WORKER_INTERVAL_SECONDS`.
+O lock por etapa tem TTL configurável em `WORKER_LOCK_TTL_SECONDS` e a liberação
+usa token, evitando que um worker antigo apague a trava de outro processo.
+
+## Ordem e paralelismo
+
+O poller executa somente descoberta. Ele não faz transcrição, seleção nem
+renderização. Isso permite o seguinte fluxo simultâneo:
+
+1. `clip-poller` insere novas fontes `pending`;
+2. `clip-downloader` repõe as janelas de download por formato;
+3. `clip-ai` drena fontes baixadas;
+4. `clip-renderer` drena clips selecionados;
+5. `clip-publisher` publica respeitando cota e cadência.
+
+Falha em uma etapa não impede as demais; o próximo worker retoma pelo status
+persistido. O `poll_all_channels` legado continua disponível para testes e
+execuções manuais, com flags para desabilitar IA e cortes.
 
 ## Recovery
 
-O recovery periódico não toca em `cutting` porque um render legítimo pode durar mais que
-30 minutos. A rotina de boot recebe `recover_cutting=true` porque, após reiniciar o
-processo, não há FFmpeg antigo válido.
+O recovery periódico não toca em `cutting` porque um render legítimo pode durar
+mais que 30 minutos. A rotina de boot do `clip-renderer` recebe
+`recover_cutting=true` porque, após reiniciar o processo, não há FFmpeg antigo
+válido.
 
 | Estado | Ação |
 |---|---|
 | fonte `downloading` | volta para `pending` |
+| fonte `transcribing` | volta para `downloaded` após 2h se houver raw; sem raw vai para `failed` |
 | fonte `selecting` com raw | volta para `downloaded` após o limite |
 | fonte `selecting` sem raw | vai para `failed` após o limite |
 | clip `publishing` sem update por 15 min | volta para `pending` |
-| clip `cutting` no boot | volta para `pending_cut` |
-| fonte `transcribing` | sem recovery automático |
-
-Falha de conexão no boot é engolida e tentada novamente pelo job de 30 minutos.
+| clip `cutting` no boot do renderer | volta para `pending_cut` |
 
 ## Alteração e deploy
 
-O Dockerfile copia o scheduler e o código do processador, mas o Compose atual monta
-`./clip-processor/src:/app/src`. Após mudar Python, reinicie somente o serviço:
+O Dockerfile copia os entrypoints e o Compose monta
+`./clip-processor/src:/app/src`. Após mudar Python, recrie o sidecar e os workers:
 
 ~~~bash
-docker compose restart clip-processor
+docker compose up -d --force-recreate clip-processor clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance
 ~~~
 
 Faça rebuild quando mudar Dockerfile, dependências ou pacotes do sistema:
 
 ~~~bash
-docker compose up -d --build clip-processor
+docker compose up -d --build clip-processor clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance
 ~~~
 
 Não é necessário reiniciar PostgreSQL ou Redis para uma alteração somente no processador.

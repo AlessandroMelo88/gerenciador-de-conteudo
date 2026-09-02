@@ -7,6 +7,7 @@ Exporta:
   - insert_video(conn, video_id, channel_id, title, published_at): insere vídeo novo
   - fetch_used_moments(conn, source_video_id): busca intervalos já registrados do vídeo
   - recover_stuck_downloads(conn): redefine vídeos presos em 'downloading' para 'pending'
+  - recover_stuck_transcribing(conn): redefine vídeos presos em 'transcribing' para 'downloaded'
   - recover_stuck_selecting(conn): redefine vídeos presos em 'selecting' para 'downloaded'
   - recover_cutting_on_boot(conn): redefine clips interrompidos em 'cutting' para 'pending_cut'
 
@@ -157,6 +158,41 @@ def recover_stuck_downloads(conn):
         _log(f'recover_stuck_downloads: {affected} vídeo(s) redefinido(s) para pending')
     except psycopg2.OperationalError as exc:
         _log(f'AVISO: falha ao recuperar downloads presos: {exc}')
+        raise
+
+
+def recover_stuck_transcribing(conn):
+    """Recupera transcrições interrompidas pelo worker de IA.
+
+    Com a etapa de IA em processo separado, uma queda do container pode deixar
+    a fonte em ``transcribing``. Raw existente volta para ``downloaded`` para
+    nova tentativa; sem raw, o estado terminal ``failed`` evita ocupar a fila.
+    O limite de duas horas não atropela uma transcrição legítima em andamento.
+    """
+    sql_with_file = (
+        "UPDATE source_videos SET status='downloaded' "
+        "WHERE status='transcribing' AND local_path IS NOT NULL "
+        "AND updated_at < NOW() - (%s * INTERVAL '1 hour')"
+    )
+    sql_without_file = (
+        "UPDATE source_videos SET status='failed' "
+        "WHERE status='transcribing' AND local_path IS NULL "
+        "AND updated_at < NOW() - (%s * INTERVAL '1 hour')"
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql_with_file, (SELECTING_STUCK_HOURS,))
+            with_file = cur.rowcount
+            cur.execute(sql_without_file, (SELECTING_STUCK_HOURS,))
+            without_file = cur.rowcount
+        conn.commit()
+        if with_file or without_file:
+            _log(
+                f'recover_stuck_transcribing: {with_file} vídeo(s) voltaram para downloaded; '
+                f'{without_file} sem raw foram para failed'
+            )
+    except psycopg2.OperationalError as exc:
+        _log(f'AVISO: falha ao recuperar transcrições presas: {exc}')
         raise
 
 

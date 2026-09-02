@@ -17,7 +17,8 @@ RSS → dedup → PostgreSQL/pending → yt-dlp → legenda ou Whisper → sele�
 
 | Componente | Responsabilidade | Fonte principal |
 |---|---|---|
-| `clip-processor` | scheduler, RSS, download, transcrição, seleção, FFmpeg e publicação | `clip-processor/src/` |
+| `clip-processor` | sidecar HTTP autenticado do pipeline | `clip-processor/src/sidecar.py` |
+| workers `clip-*` | descoberta, download, IA, render, publicação e manutenção em processos separados | `clip-processor/src/worker.py` |
 | `painel` | UI, autenticação, configuração, aprovação e controles | `painel/` |
 | PostgreSQL 16 | estado, fila, relacionamentos e metadata | `painel/database/migrations/` |
 | Redis 7 | dedup, cota diária e idempotência de avisos | `dedup.py`, `quota_manager.py`, `ttl_worker.py` |
@@ -26,29 +27,29 @@ RSS → dedup → PostgreSQL/pending → yt-dlp → legenda ou Whisper → sele�
 O Compose da raiz é isolado deste projeto. PostgreSQL, Redis e o sidecar não têm portas publicadas
 no host; a aplicação web fica em `http://localhost:8088` por padrão.
 
-O Compose atual monta `./clip-processor/src:/app/src` no worker. Assim, alterações Python entram
-no container após reiniciar `clip-processor`; mudanças no Dockerfile, dependências ou pacotes do
-sistema ainda exigem rebuild.
+O Compose atual monta `./clip-processor/src:/app/src` no sidecar e em cada worker. Assim,
+alterações Python entram nos containers após recriá-los; mudanças no Dockerfile, dependências ou
+pacotes do sistema ainda exigem rebuild.
 
 ## Funcionamento
 
-1. **Descoberta:** `rss_poller.py` consulta canais ativos e não blacklistados. IDs repetidos são
+1. **Descoberta:** `clip-poller`/`rss_poller.py` consulta canais ativos e não blacklistados. IDs repetidos são
    ignorados; títulos com termos de apostas/cassino são bloqueados.
 2. **Classificação:** `curto` quando a fonte tem menos de 420 s; `longo` a partir de 420 s.
-3. **Download:** `yt-dlp` baixa até 1080p, com três tentativas, proteção de 2 GB livres e limpeza
+3. **Download:** `clip-downloader`/`yt-dlp` baixa até 1080p, com três tentativas, proteção de 2 GB livres e limpeza
    de artefatos incompletos. A janela padrão é 6 vídeos curtos e 4 longos.
-4. **Transcrição:** tenta somente legendas manuais em português do YouTube; sem legenda, usa Groq
+4. **Transcrição:** `clip-ai` tenta somente legendas manuais em português do YouTube; sem legenda, usa Groq
    Whisper `whisper-large-v3-turbo`. O resultado fica em `<video_id>_transcript.json`.
 5. **Seleção:** a IA escolhe até 3 trechos curtos com 30 s exatos ou 1 trecho longo de 420–1200 s.
    O prompt vem do perfil ativo do canal-fonte; o Python valida bordas, publicidade, duplicidade,
    duração e score mínimo 7.
-6. **Pós-produção:** Shorts são janelas exatas de 30 s, verticais 1080×1920, com legenda e
+6. **Pós-produção:** `clip-renderer` gera Shorts em janelas exatas de 30 s, verticais 1080×1920, com legenda e
    marca d’água compostas em um único passe FFmpeg — a menos que o vídeo fonte já traga legenda
    gravada, detectada por OCR cruzado com a transcrição. Longos são
    horizontais, sem legenda queimada, e exigem intro, encerramento e música configurados.
 7. **Metadata:** usa o perfil ativo do canal-destino para gerar título, descrição, tags e a chamada
    literal da thumbnail; o sistema valida essa frase contra a transcrição.
-8. **Publicação:** o clip fica `pending` no modo automático ou `approved` quando a aprovação manual
+8. **Publicação:** `clip-publisher` publica; o clip fica `pending` no modo automático ou `approved` quando a aprovação manual
    está habilitada. O publisher aplica roteamento por perfil/nicho, cota, janela horária e OAuth.
 9. **Finalização:** após publicação, envia evento ao Telegram e remove arquivos que não são mais
    necessários quando todos os clips do vídeo terminam.
@@ -144,7 +145,7 @@ Só então habilite o pipeline:
 
 ~~~bash
 sed -i '' 's/^PIPELINE_ENABLED=.*/PIPELINE_ENABLED=true/' .env
-docker compose up -d --force-recreate clip-processor
+docker compose up -d --force-recreate clip-processor clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance
 ~~~
 
 ## Comandos úteis
@@ -152,6 +153,7 @@ docker compose up -d --force-recreate clip-processor
 ~~~bash
 docker compose ps
 docker compose logs -f clip-processor
+docker compose logs -f clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance
 docker compose exec php php artisan migrate:status
 make setup
 make lint

@@ -11,6 +11,7 @@ Antes de apagar, purgar, restaurar ou alterar estados manualmente, leia
 ~~~bash
 docker compose ps
 docker compose logs --tail=100 clip-processor
+docker compose logs --tail=100 clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance
 docker compose logs --tail=100 postgres php nginx
 docker compose exec -T postgres pg_isready -U clips_user -d clips_automation
 docker compose exec -T clip-processor python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8090/health').read().decode())"
@@ -35,19 +36,21 @@ docker compose exec -T postgres psql -U clips_user -d clips_automation -c "SELEC
 - `cutting` pode ser interrompido; o boot devolve o clip para `pending_cut`.
 - `publishing` pode já ter criado um vídeo no YouTube; confirme o ID antes de forçar
   reprocessamento.
-- `transcribing` não tem recovery automático; avalie antes de mudar o estado.
+- `transcribing` volta para `downloaded` pelo worker de manutenção após 2h se o raw existir;
+  sem raw, vai para `failed`.
 - `selecting` tem recovery periódico conforme idade e existência do raw.
 
-O Compose atual monta `clip-processor/src` no worker. Depois de alterar Python, reinicie o serviço:
+O Compose atual monta `clip-processor/src` no sidecar e em cada worker. Depois de alterar Python,
+recrie todos os processos do pipeline:
 
 ~~~bash
-docker compose restart clip-processor
+docker compose up -d --force-recreate clip-processor clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance
 ~~~
 
 Se alterar Dockerfile, dependências ou pacotes do sistema, faça rebuild:
 
 ~~~bash
-docker compose up -d --build clip-processor
+docker compose up -d --build clip-processor clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance
 ~~~
 
 ## Pipeline sem downloads
@@ -64,7 +67,7 @@ Verifique na ordem:
 
 ~~~bash
 docker compose exec -T clip-processor df -h /app/videos
-docker compose logs --tail=200 clip-processor | grep -iE 'download|janela|disk|falha'
+docker compose logs --tail=200 clip-downloader clip-ai clip-renderer | grep -iE 'download|janela|disk|falha'
 docker compose exec -T redis redis-cli ping
 ~~~
 
@@ -92,7 +95,7 @@ Cheque janela, destinos, OAuth, SRT, quota e logs:
 
 ~~~bash
 docker compose exec -T redis redis-cli --scan --pattern 'youtube_uploads:*'
-docker compose logs --tail=300 clip-processor | grep -iE 'PUB|oauth|upload|caption|thumbnail|processing'
+docker compose logs --tail=300 clip-publisher clip-renderer | grep -iE 'PUB|oauth|upload|caption|thumbnail|processing'
 ~~~
 
 Regras padrão:
@@ -154,9 +157,9 @@ docker compose --profile backup up -d postgres-backup
 Confirme gzip e checksum. Para restaurar:
 
 ~~~bash
-docker compose stop clip-processor queue scheduler
+docker compose stop clip-processor clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance queue scheduler
 CONFIRM_RESTORE=I_UNDERSTAND ./scripts/restore-postgres.sh ./backups/postgres/SEU_BACKUP.sql.gz
-docker compose start queue scheduler clip-processor
+docker compose start queue scheduler clip-processor clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance
 ~~~
 
 Restauração é destrutiva para o estado atual: confirme o arquivo e pare consumidores antes.

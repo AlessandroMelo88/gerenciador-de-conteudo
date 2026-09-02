@@ -18,7 +18,7 @@ Comportamento:
 
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import feedparser
 import redis
@@ -140,9 +140,7 @@ def _detect_format(video_id: str) -> str:
     """
     requested_format = os.environ.get('AUTO_INGEST_FORMAT', 'auto').strip().lower()
     if requested_format not in AUTO_INGEST_FORMATS:
-        _log(
-            f'AVISO: AUTO_INGEST_FORMAT={requested_format!r} inválido — usando auto'
-        )
+        _log(f'AVISO: AUTO_INGEST_FORMAT={requested_format!r} inválido — usando auto')
         requested_format = 'auto'
 
     if requested_format != 'auto':
@@ -201,7 +199,7 @@ def _fallback_channel_entries(channel: dict) -> list[dict]:
 
         published_at = item.get('timestamp')
         if published_at:
-            published_at = datetime.fromtimestamp(published_at, tz=timezone.utc).isoformat()
+            published_at = datetime.fromtimestamp(published_at, tz=UTC).isoformat()
         else:
             upload_date = str(item.get('upload_date') or '')
             if len(upload_date) == 8 and upload_date.isdigit():
@@ -343,6 +341,34 @@ def _process_ai_pipeline(
             pass
 
 
+def _process_downloaded_videos(conn) -> None:
+    """Processa vídeos ``downloaded`` com transcrição e seleção por IA.
+
+    A descoberta, a IA e o render eram originalmente executados pelo mesmo
+    método. Manter esta etapa como função pública permite que o deployment
+    rode um worker de IA separado, sem alterar o comportamento do ciclo legado.
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT youtube_video_id, local_path FROM source_videos '
+                "WHERE status = 'downloaded' AND local_path IS NOT NULL AND paused = FALSE "
+                'ORDER BY priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC'
+            )
+            downloaded_videos = cur.fetchall()
+
+        for video_row in downloaded_videos:
+            vid_id = video_row['youtube_video_id']
+            vid_path = video_row['local_path']
+            _log(f'[AI] Iniciando pipeline de IA para {vid_id}')
+            try:
+                _process_ai_pipeline(conn, vid_id, vid_path)
+            except Exception as exc:
+                _log(f'[AI] ERRO no pipeline de {vid_id}: {exc}')
+    except Exception as exc:
+        _log(f'[AI] ERRO ao buscar vídeos downloaded para processamento: {exc}')
+
+
 def _process_pending_clips(conn) -> None:
     """Processa clips com status pending_cut sem abortar o poll por falha isolada."""
     with conn.cursor() as cur:
@@ -374,12 +400,20 @@ def _process_pending_clips(conn) -> None:
                     _release_failed_source_files(conn, source_row['youtube_video_id'])
 
 
-def poll_all_channels(db_conn=None, redis_client=None) -> None:
+def poll_all_channels(
+    db_conn=None,
+    redis_client=None,
+    *,
+    process_ai: bool = True,
+    process_cuts: bool = True,
+) -> None:
     """Monitora feeds RSS de todos os canais ativos e insere vídeos novos.
 
     Args:
         db_conn: conexão PostgreSQL (opcional — se None, cria nova conexão para produção)
         redis_client: cliente Redis (opcional — se None, cria nova conexão para produção)
+        process_ai: se True, também drena a fila de vídeos downloaded
+        process_cuts: se True, também drena a fila de clips pending_cut
     """
     # Gerenciar conexões: nova por chamada em produção, injetada em testes
     _own_db = db_conn is None
@@ -463,33 +497,36 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
         _log(f'Poll concluído: {total_new} vídeo(s) novo(s) inserido(s)')
 
         # Processar vídeos que já estão downloaded (transcrição + seleção)
-        try:
-            with db_conn.cursor() as cur:
-                cur.execute(
-                    'SELECT youtube_video_id, local_path FROM source_videos '
-                    "WHERE status = 'downloaded' AND local_path IS NOT NULL AND paused = FALSE "
-                    'ORDER BY priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC'
-                )
-                downloaded_videos = cur.fetchall()
-
-            for video_row in downloaded_videos:
-                vid_id = video_row['youtube_video_id']
-                vid_path = video_row['local_path']
-                _log(f'[AI] Iniciando pipeline de IA para {vid_id}')
-                try:
-                    _process_ai_pipeline(db_conn, vid_id, vid_path)
-                except Exception as exc:
-                    _log(f'[AI] ERRO no pipeline de {vid_id}: {exc}')
-
-        except Exception as exc:
-            _log(f'[AI] ERRO ao buscar vídeos downloaded para processamento: {exc}')
+        if process_ai:
+            _process_downloaded_videos(db_conn)
 
         # Processar clips selecionados pela IA (corte + legenda + thumbnail + metadata)
-        try:
-            _process_pending_clips(db_conn)
-        except Exception as exc:
-            _log(f'[VID] ERRO ao buscar clips pending_cut para processamento: {exc}')
+        if process_cuts:
+            try:
+                _process_pending_clips(db_conn)
+            except Exception as exc:
+                _log(f'[VID] ERRO ao buscar clips pending_cut para processamento: {exc}')
 
     finally:
         if _own_db:
             db_conn.close()
+
+
+def poll_sources_only(db_conn=None, redis_client=None) -> None:
+    """Atualiza apenas a fila de fontes, sem executar IA ou FFmpeg."""
+    return poll_all_channels(
+        db_conn=db_conn,
+        redis_client=redis_client,
+        process_ai=False,
+        process_cuts=False,
+    )
+
+
+def process_downloaded_videos(conn) -> None:
+    """Drena a fila de vídeos baixados (transcrição + seleção)."""
+    return _process_downloaded_videos(conn)
+
+
+def process_pending_clips(conn) -> None:
+    """Drena a fila de clips aguardando renderização."""
+    return _process_pending_clips(conn)

@@ -101,9 +101,9 @@ descartável. A fila Laravel padrão é `database` e não deve apontar para prod
 5. atualize documentação e crie fragmento em `../CHANGELOG.d/` quando relevante;
 6. revise `git diff --check` e o status antes do commit.
 
-O Compose atual monta `clip-processor/src` no worker: depois de alterar Python, use
-`docker compose restart clip-processor`. Rebuild fica para mudanças no Dockerfile, dependências
-ou pacotes do sistema.
+O Compose atual monta `clip-processor/src` no sidecar e em cada worker: depois de alterar Python,
+recrie `clip-processor` e os seis serviços `clip-*` do pipeline. Rebuild fica para mudanças no
+Dockerfile, dependências ou pacotes do sistema.
 
 ## Versionamento
 

@@ -19,6 +19,7 @@ from src.db import (
     recover_cutting_on_boot,
     recover_stuck_downloads,
     recover_stuck_selecting,
+    recover_stuck_transcribing,
     update_status,
 )
 
@@ -82,6 +83,24 @@ class TestRecoverStuckDownloads:
         assert 'downloading' in sql_call.lower() or 'downloading' in str(
             mock_cursor.execute.call_args
         )
+
+
+class TestRecoverStuckTranscribing:
+    def test_recover_transcribing_com_e_sem_raw(self, mock_db_conn):
+        """IA interrompida libera a fila ou termina honestamente sem o raw."""
+        recover_stuck_transcribing(mock_db_conn)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        executed = [call[0][0] for call in mock_cursor.execute.call_args_list]
+
+        assert any(
+            "status='downloaded'" in sql and 'local_path IS NOT NULL' in sql for sql in executed
+        )
+        assert any("status='failed'" in sql and 'local_path IS NULL' in sql for sql in executed)
+        assert all(
+            call[0][1] == (SELECTING_STUCK_HOURS,) for call in mock_cursor.execute.call_args_list
+        )
+        mock_db_conn.commit.assert_called_once()
 
 
 class TestRecoverCuttingOnBoot:

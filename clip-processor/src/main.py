@@ -13,6 +13,7 @@ from src.db import (
     recover_stuck_downloads,
     recover_stuck_publishing,
     recover_stuck_selecting,
+    recover_stuck_transcribing,
 )
 from src.internal_api import app as _internal_app
 from src.pipeline_runner import (
@@ -101,6 +102,7 @@ def run_recovery_once(*, recover_cutting=False):
     try:
         conn = get_db_connection()
         recover_stuck_downloads(conn)
+        recover_stuck_transcribing(conn)
         recover_stuck_selecting(conn)
         recover_stuck_publishing(conn)
         if recover_cutting:
@@ -203,14 +205,8 @@ if __name__ == '__main__':
     log(f'[ACQU] YOUTUBE_WAIT_FOR_HD: {os.environ.get("YOUTUBE_WAIT_FOR_HD", "true")}')
     log(f'[ACQU] AUTO_INGEST_FORMAT: {os.environ.get("AUTO_INGEST_FORMAT", "auto")}')
     log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
-    log(
-        f'[ACQU] MAX_LONGO_UPLOADS_PER_DAY: '
-        f'{os.environ.get("MAX_LONGO_UPLOADS_PER_DAY", "2")}'
-    )
-    log(
-        f'[ACQU] MIN_UPLOAD_INTERVAL_MINUTES: '
-        f'{os.environ.get("MIN_UPLOAD_INTERVAL_MINUTES", "0")}'
-    )
+    log(f'[ACQU] MAX_LONGO_UPLOADS_PER_DAY: {os.environ.get("MAX_LONGO_UPLOADS_PER_DAY", "2")}')
+    log(f'[ACQU] MIN_UPLOAD_INTERVAL_MINUTES: {os.environ.get("MIN_UPLOAD_INTERVAL_MINUTES", "0")}')
     log(
         f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)'
     )
