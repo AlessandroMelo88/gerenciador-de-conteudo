@@ -67,6 +67,24 @@ class TestVideoProcessor:
         assert 'boxblur' in filter_arg
         assert 'overlay=0:(H-h)/2' in filter_arg
 
+    def test_cut_clip_with_custom_template_config(self, tmp_path, mocker):
+        mock_run = mocker.patch('src.video_processor.subprocess.run')
+        output = tmp_path / 'clip_custom.mp4'
+
+        cut_clip(
+            '/app/videos/source.mp4',
+            0.0,
+            300.0,
+            str(output),
+            fmt='longo',
+            template_config={'bgStyle': 'blur_intense', 'accentColor': '#10B981'},
+        )
+
+        cmd = mock_run.call_args.args[0]
+        assert '-filter_complex' in cmd
+        filter_arg = cmd[cmd.index('-filter_complex') + 1]
+        assert 'boxblur=35:10' in filter_arg
+
     def test_thumbnail_extracted_from_clip(self, tmp_path, mocker):
         mock_run = mocker.patch('src.video_processor.subprocess.run')
         thumbnail = tmp_path / 'thumb.jpg'
@@ -163,6 +181,21 @@ class TestSubtitles:
         assert 'Outline=1' in filter_arg
         assert 'Alignment=2' in filter_arg
         assert 'Fontsize=38' in filter_arg
+
+    def test_burn_subtitles_with_white_color(self, tmp_path, mocker):
+        mock_run = mocker.patch('src.video_processor.subprocess.run')
+        output = tmp_path / 'final_white.mp4'
+
+        burn_subtitles(
+            '/app/clips/raw.mp4',
+            '/app/clips/clip.srt',
+            str(output),
+            template_config={'subtitleColor': '#ffffff'},
+        )
+
+        cmd = mock_run.call_args.args[0]
+        filter_arg = cmd[cmd.index('-vf') + 1]
+        assert 'PrimaryColour=&H00FFFFFF' in filter_arg
 
 
 # ---------------------------------------------------------------------------

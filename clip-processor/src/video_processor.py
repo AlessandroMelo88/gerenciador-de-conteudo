@@ -31,7 +31,7 @@ def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [VID] {msg}')
 
 
-def cut_clip(source_path: str, start_time: float, end_time: float, output_path: str, fmt: str = 'curto') -> str:
+def cut_clip(source_path: str, start_time: float, end_time: float, output_path: str, fmt: str = 'curto', template_config: dict | None = None) -> str:
     """Corta um trecho do vídeo fonte.
 
     fmt='curto' (padrão): converte pra vertical 1080x1920 (Shorts).
@@ -39,12 +39,20 @@ def cut_clip(source_path: str, start_time: float, end_time: float, output_path: 
     com fundo temático desfocado (blur) e espaço para branding e legendas.
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    cfg = template_config or {}
+    bg_style = cfg.get('bgStyle', 'blur_dark')
+
     if fmt == 'longo':
+        if bg_style == 'blur_intense':
+            blur_param = 'boxblur=35:10,eq=brightness=-0.35:contrast=0.90'
+        else:
+            blur_param = 'boxblur=25:5,eq=brightness=-0.30:contrast=0.95'
+
         video_filter = (
-            '[0:v]split=2[bg_in][fg_in];'
-            '[bg_in]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5,eq=brightness=-0.30:contrast=0.95[bg];'
-            '[fg_in]scale=1080:-2[fg];'
-            '[bg][fg]overlay=0:(H-h)/2,setsar=1'
+            f'[0:v]split=2[bg_in][fg_in];'
+            f'[bg_in]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,{blur_param}[bg];'
+            f'[fg_in]scale=1080:-2[fg];'
+            f'[bg][fg]overlay=0:(H-h)/2,setsar=1'
         )
         filter_args = ['-filter_complex', video_filter]
     else:
@@ -104,23 +112,24 @@ def generate_srt(transcript: dict, start_time: float, end_time: float, srt_path:
     return srt_path
 
 
-def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str) -> str:
-    """Queima legendas SRT no clip usando FFmpeg.
-
-    Alignment=2 (rodapé-centro), estilo próximo do closed caption nativo do
-    YouTube: fonte menor, caixa semi-transparente e fina em vez do bloco opaco
-    grande. MarginV afasta o texto da barra de interações/UI do player. PlayResX/Y
-    fixam a referência de escala do libass no tamanho real do clip (1080x1920),
-    já que Fontsize é relativo a isso e sem PlayRes explícito o texto sai
-    desproporcionalmente pequeno. DejaVu Sans Bold: única família disponível no
-    container (fc-list).
-    """
+def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str, template_config: dict | None = None) -> str:
+    """Queima legendas SRT no clip usando FFmpeg."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    cfg = template_config or {}
+    color_hex = str(cfg.get('subtitleColor', '#facc15')).lower()
+    if color_hex == '#ffffff':
+        primary_color = '&H00FFFFFF'
+    elif color_hex == '#38bdf8':
+        primary_color = '&H00F8BD38'
+    else:
+        # Padrão amarelo ouro (#facc15 -> BBGGRR: 15CCFA)
+        primary_color = '&H0015CCFA'
+
     subtitle_filter = (
         f"subtitles={srt_path}:"
         "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=38,"
         "PlayResX=1080,PlayResY=1920,"
-        "PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,"
+        f"PrimaryColour={primary_color},OutlineColour=&H00000000,"
         "BackColour=&H60000000,"
         "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=180'"
     )
@@ -216,9 +225,18 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
         final_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}.mp4')
         thumbnail_path = os.path.join(THUMBNAILS_DIR, f'{clip_id}.jpg')
 
-        cut_clip(clip['local_path'], clip['start_time'], clip['end_time'], raw_clip_path, fmt=clip.get('format') or 'curto')
+        cfg = clip.get('template_config')
+        if isinstance(cfg, str):
+            try:
+                cfg = json.loads(cfg)
+            except Exception:
+                cfg = {}
+        elif not isinstance(cfg, dict):
+            cfg = {}
+
+        cut_clip(clip['local_path'], clip['start_time'], clip['end_time'], raw_clip_path, fmt=clip.get('format') or 'curto', template_config=cfg)
         generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
-        burn_subtitles(raw_clip_path, srt_path, subtitled_path)
+        burn_subtitles(raw_clip_path, srt_path, subtitled_path, template_config=cfg)
 
         # Aplicar watermark se canal-destino tem slug configurado
         slug = clip.get('destination_channel_slug')
@@ -270,7 +288,7 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
             'SELECT '
             'gc.id, gc.source_video_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
             'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path, sv.format, '
-            'dc.slug AS destination_channel_slug '
+            'dc.slug AS destination_channel_slug, dc.template_config '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'LEFT JOIN destination_channels dc ON dc.id = gc.destination_channel_id '

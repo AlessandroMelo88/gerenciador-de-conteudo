@@ -22,6 +22,7 @@ class DestinationChannelController extends Controller
                 'niche' => $c->niche,
                 'youtubeChannelId' => $c->youtube_channel_id,
                 'creditTemplate' => $c->credit_template,
+                'templateConfig' => $c->template_config,
                 'active' => $c->active,
                 'oauthStatus' => $c->oauth_status,
                 'hasWatermark' => Storage::disk('branding')->exists("watermark-{$c->slug}.png"),
@@ -38,6 +39,7 @@ class DestinationChannelController extends Controller
             'niche' => ['required', 'string'],
             'youtube_channel_id' => ['required', 'string', 'unique:destination_channels,youtube_channel_id'],
             'credit_template' => ['sometimes', 'nullable', 'string'],
+            'template_config' => ['sometimes', 'nullable'],
             'active' => ['sometimes', 'boolean'],
         ]);
 
@@ -58,6 +60,7 @@ class DestinationChannelController extends Controller
             'niche' => ['sometimes', 'string'],
             'youtube_channel_id' => ['sometimes', 'string', 'unique:destination_channels,youtube_channel_id,'.$destinationChannel->id],
             'credit_template' => ['sometimes', 'nullable', 'string'],
+            'template_config' => ['sometimes', 'nullable'],
             'active' => ['sometimes', 'boolean'],
         ]);
 

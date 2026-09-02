@@ -19,6 +19,7 @@ class DestinationChannel extends Model
         'niche',
         'youtube_channel_id',
         'credit_template',
+        'template_config',
         'active',
         'oauth_expired_flag',
     ];
@@ -26,6 +27,7 @@ class DestinationChannel extends Model
     protected $casts = [
         'active' => 'bool',
         'oauth_expired_flag' => 'bool',
+        'template_config' => 'array',
     ];
 
     /**
