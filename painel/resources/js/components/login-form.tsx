@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input';
 export function LoginForm({ className, ...props }: React.ComponentProps<'form'>) {
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
-        email: '',
-        password: '',
-        remember: false,
+        email: 'alessandrobm1988@gmail.com',
+        password: 'password',
+        remember: true,
     });
 
     function submit(e: React.FormEvent) {
