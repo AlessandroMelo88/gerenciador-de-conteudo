@@ -157,3 +157,42 @@ class TestInsertVideo:
         assert video_id in params
         assert channel_id in params
         assert title in params
+
+
+class TestPostgresSupport:
+
+    def test_driver_detection(self, monkeypatch):
+        from src.db import get_db_driver
+
+        monkeypatch.setenv('DB_CONNECTION', 'pgsql')
+        assert get_db_driver() == 'pgsql'
+
+        monkeypatch.setenv('DB_CONNECTION', 'mysql')
+        assert get_db_driver() == 'mysql'
+
+        monkeypatch.delenv('DB_CONNECTION', raising=False)
+        monkeypatch.setenv('POSTGRES_HOST', 'postgres.local')
+        monkeypatch.delenv('MYSQL_HOST', raising=False)
+        assert get_db_driver() == 'pgsql'
+
+    def test_insert_video_postgres_uses_on_conflict(self, mock_db_conn):
+        mock_db_conn._driver = 'pgsql'
+        video_id = 'dQw4w9WgXcQ'
+        insert_video(mock_db_conn, video_id, 1, 'Gol', '2026-06-18T10:00:00')
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        sql_call = mock_cursor.execute.call_args[0][0]
+        assert 'ON CONFLICT' in sql_call.upper()
+        assert 'DO NOTHING' in sql_call.upper()
+        assert 'INSERT IGNORE' not in sql_call.upper()
+
+    def test_recover_stuck_selecting_postgres(self, mock_db_conn):
+        mock_db_conn._driver = 'pgsql'
+        recover_stuck_selecting(mock_db_conn)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        executed = [call[0][0] for call in mock_cursor.execute.call_args_list]
+        stuck_sql = [sql for sql in executed if "status='downloaded'" in sql][0]
+        assert 'INTERVAL' in stuck_sql.upper()
+        assert 'DATE_SUB' not in stuck_sql.upper()
+

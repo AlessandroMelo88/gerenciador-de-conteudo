@@ -11,3 +11,4 @@ redis
 pytest
 pytest-mock
 flask
+psycopg2-binary>=2.9.9

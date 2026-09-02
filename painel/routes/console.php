@@ -25,3 +25,9 @@ Schedule::call(function () {
         'text'    => "Resumo diário: {$pending} clip(s) aguardando aprovação.",
     ]);
 })->dailyAt('18:00')->timezone('America/Sao_Paulo');
+
+/**
+ * Backup diário automatizado do banco de dados com compressão e retenção.
+ */
+Schedule::command('db:backup')->dailyAt('03:15')->withoutOverlapping();
+

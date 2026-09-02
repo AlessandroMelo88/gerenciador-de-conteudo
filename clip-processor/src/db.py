@@ -1,8 +1,9 @@
 """
-db.py — Módulo de acesso ao MySQL para o daemon clip-processor.
+db.py — Módulo de acesso ao banco de dados (MySQL e PostgreSQL) para o daemon clip-processor.
 
 Exporta:
-  - get_db_connection(): abre conexão com o MySQL via pymysql
+  - get_db_driver(conn=None): retorna o driver ativo ('mysql' ou 'pgsql')
+  - get_db_connection(): abre conexão com MySQL (pymysql) ou PostgreSQL (psycopg2)
   - update_status(conn, video_id, status, local_path=None): atualiza status de vídeo
   - insert_video(conn, video_id, channel_id, title, published_at): insere vídeo novo
   - recover_stuck_downloads(conn): redefine vídeos presos em 'downloading' para 'pending'
@@ -14,8 +15,19 @@ Convenções:
   - Cada função usa `with conn.cursor() as cur:` e faz commit explícito
 """
 import os
-import pymysql
 from datetime import datetime
+
+try:
+    import pymysql
+    import pymysql.cursors
+except ImportError:
+    pymysql = None
+
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:
+    psycopg2 = None
 
 
 def _log(msg: str) -> None:
@@ -23,34 +35,165 @@ def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [DB] {msg}')
 
 
-def get_db_connection():
-    """Abre conexão com o MySQL usando variáveis de ambiente.
+def get_db_driver(conn=None) -> str:
+    """Retorna o driver de banco de dados ativo: 'mysql' ou 'pgsql'.
 
-    Variáveis de ambiente requeridas:
+    Detecta por atributo na conexão se fornecida, ou pelas variáveis de ambiente:
+      - DB_CONNECTION / DB_DRIVER (ex: 'pgsql', 'postgres', 'postgresql', 'mysql')
+      - Presença de POSTGRES_HOST / PGHOST
+    """
+    if conn is not None:
+        driver = getattr(conn, '_driver', None)
+        if driver:
+            return driver
+        conn_type = type(conn).__module__
+        if 'psycopg2' in conn_type:
+            return 'pgsql'
+        if 'pymysql' in conn_type:
+            return 'mysql'
+
+    env_driver = (os.environ.get('DB_CONNECTION') or os.environ.get('DB_DRIVER', '')).lower()
+    if env_driver in ('pgsql', 'postgres', 'postgresql'):
+        return 'pgsql'
+    if env_driver == 'mysql':
+        return 'mysql'
+
+    if (os.environ.get('POSTGRES_HOST') or os.environ.get('PGHOST')) and not os.environ.get('MYSQL_HOST'):
+        return 'pgsql'
+
+    return 'mysql'
+
+
+class PostgresCursorWrapper:
+    """Wrapper para cursor do psycopg2 para uniformidade com pymysql.
+
+    - Garante compatibilidade de `cur.lastrowid` capturando id de INSERTs
+    - Converte aspas invertidas (backticks do MySQL como `key`) para aspas duplas ANSI ("key")
+    """
+
+    def __init__(self, cursor):
+        self._cursor = cursor
+        self.lastrowid = None
+
+    def execute(self, query, params=None):
+        # Converte backticks para aspas duplas padrão ANSI/PostgreSQL
+        query_mod = query.replace('`key`', '"key"')
+
+        # Se for INSERT sem RETURNING, anexa RETURNING id para popular lastrowid
+        is_insert = query_mod.strip().upper().startswith('INSERT INTO')
+        if is_insert and 'RETURNING' not in query_mod.upper() and 'ON CONFLICT' not in query_mod.upper():
+            query_mod += ' RETURNING id'
+            res = self._cursor.execute(query_mod, params)
+            try:
+                row = self._cursor.fetchone()
+                if row:
+                    self.lastrowid = row['id'] if isinstance(row, dict) else row[0]
+            except Exception:
+                self.lastrowid = None
+            return res
+
+        return self._cursor.execute(query_mod, params)
+
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return self._cursor.__exit__(exc_type, exc_val, exc_tb)
+
+
+class PostgresConnectionWrapper:
+    """Wrapper para conexão do psycopg2 expondo cursor com dicionário e atributo _driver."""
+
+    def __init__(self, conn):
+        self._conn = conn
+        self._driver = 'pgsql'
+
+    def cursor(self, *args, **kwargs):
+        cur = self._conn.cursor(*args, **kwargs)
+        return PostgresCursorWrapper(cur)
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
+def get_db_connection():
+    """Abre conexão com o banco de dados (MySQL ou PostgreSQL) usando variáveis de ambiente.
+
+    Detecta o banco ativo via get_db_driver().
+
+    Variáveis para MySQL:
       - MYSQL_HOST (default: localhost)
       - MYSQL_DATABASE (default: clips_automation)
       - MYSQL_USER (default: clips_user)
       - MYSQL_PASSWORD
+      - MYSQL_PORT (default: 3306)
+
+    Variáveis para PostgreSQL:
+      - POSTGRES_HOST / PGHOST / DB_HOST (default: localhost)
+      - POSTGRES_DB / POSTGRES_DATABASE / PGDATABASE (default: clips_automation)
+      - POSTGRES_USER / PGUSER / DB_USERNAME (default: clips_user)
+      - POSTGRES_PASSWORD / PGPASSWORD / DB_PASSWORD
+      - POSTGRES_PORT / PGPORT / DB_PORT (default: 5432)
 
     Returns:
-        pymysql.connections.Connection: conexão aberta, autocommit=False
+        Conexão aberta com autocommit=False e cursores em formato de dicionário
     """
+    driver = get_db_driver()
+
+    if driver == 'pgsql':
+        if psycopg2 is None:
+            raise ImportError(
+                'psycopg2 não está instalado. Instale psycopg2-binary para suporte ao PostgreSQL.'
+            )
+        host = os.environ.get('POSTGRES_HOST') or os.environ.get('PGHOST') or os.environ.get('DB_HOST', 'localhost')
+        database = (
+            os.environ.get('POSTGRES_DB')
+            or os.environ.get('POSTGRES_DATABASE')
+            or os.environ.get('PGDATABASE')
+            or os.environ.get('DB_DATABASE', 'clips_automation')
+        )
+        user = os.environ.get('POSTGRES_USER') or os.environ.get('PGUSER') or os.environ.get('DB_USERNAME', 'clips_user')
+        password = os.environ.get('POSTGRES_PASSWORD') or os.environ.get('PGPASSWORD') or os.environ.get('DB_PASSWORD', '')
+        port = int(os.environ.get('POSTGRES_PORT') or os.environ.get('PGPORT') or os.environ.get('DB_PORT', 5432))
+
+        raw_conn = psycopg2.connect(
+            host=host,
+            database=database,
+            user=user,
+            password=password,
+            port=port,
+            cursor_factory=psycopg2.extras.RealDictCursor,
+        )
+        raw_conn.autocommit = False
+        wrapped_conn = PostgresConnectionWrapper(raw_conn)
+        _log(f'Conexão PostgreSQL aberta: {user}@{host}:{port}/{database}')
+        return wrapped_conn
+
+    if pymysql is None:
+        raise ImportError('pymysql não está instalado. Instale pymysql para suporte ao MySQL.')
+
     host = os.environ.get('MYSQL_HOST', 'localhost')
     database = os.environ.get('MYSQL_DATABASE', 'clips_automation')
     user = os.environ.get('MYSQL_USER', 'clips_user')
     password = os.environ.get('MYSQL_PASSWORD', '')
+    port = int(os.environ.get('MYSQL_PORT', 3306))
 
     conn = pymysql.connect(
         host=host,
         database=database,
         user=user,
         password=password,
+        port=port,
         charset='utf8mb4',
         autocommit=False,
         connect_timeout=10,
         cursorclass=pymysql.cursors.DictCursor,
     )
-    _log(f'Conexão aberta: {user}@{host}/{database}')
+    conn._driver = 'mysql'
+    _log(f'Conexão MySQL aberta: {user}@{host}:{port}/{database}')
     return conn
 
 
@@ -101,21 +244,30 @@ def update_status(conn, video_id, status, local_path=None, clear_local_path=Fals
 def insert_video(conn, video_id, channel_id, title, published_at, format='curto'):
     """Insere um novo vídeo na tabela source_videos com status 'pending'.
 
-    Usa INSERT IGNORE para ser idempotente — ignora duplicatas silenciosamente.
+    Usa INSERT IGNORE no MySQL ou ON CONFLICT DO NOTHING no PostgreSQL para ser idempotente.
 
     Args:
-        conn: conexão pymysql ativa
+        conn: conexão pymysql ou psycopg2 ativa
         video_id: youtube_video_id único do vídeo
         channel_id: FK para source_channels.id
         title: título do vídeo
         published_at: data/hora de publicação (string ISO 8601 ou datetime)
         format: 'curto' ou 'longo' — decidido pelo poller com base na duração do vídeo fonte
     """
-    sql = (
-        'INSERT IGNORE INTO source_videos '
-        '(youtube_video_id, channel_id, title, published_at, status, format) '
-        'VALUES (%s, %s, %s, %s, %s, %s)'
-    )
+    driver = get_db_driver(conn)
+    if driver == 'pgsql':
+        sql = (
+            'INSERT INTO source_videos '
+            '(youtube_video_id, channel_id, title, published_at, status, format) '
+            'VALUES (%s, %s, %s, %s, %s, %s) '
+            'ON CONFLICT (youtube_video_id) DO NOTHING'
+        )
+    else:
+        sql = (
+            'INSERT IGNORE INTO source_videos '
+            '(youtube_video_id, channel_id, title, published_at, status, format) '
+            'VALUES (%s, %s, %s, %s, %s, %s)'
+        )
     params = (video_id, channel_id, title, published_at, 'pending', format)
 
     with conn.cursor() as cur:
@@ -130,7 +282,7 @@ def recover_stuck_downloads(conn):
     Executado na inicialização do daemon para recuperar falhas de sessões anteriores.
 
     Args:
-        conn: conexão pymysql ativa
+        conn: conexão pymysql ou psycopg2 ativa
     """
     sql = (
         "UPDATE source_videos "
@@ -144,7 +296,7 @@ def recover_stuck_downloads(conn):
             affected = cur.rowcount
         conn.commit()
         _log(f'recover_stuck_downloads: {affected} vídeo(s) redefinido(s) para pending')
-    except pymysql.OperationalError as exc:
+    except Exception as exc:
         _log(f'AVISO: falha ao recuperar downloads presos: {exc}')
         raise
 
@@ -157,7 +309,7 @@ def recover_stuck_selecting(conn):
     """Devolve vídeos presos em 'selecting' para 'downloaded' (reprocessa a IA).
 
     'selecting' não tinha recuperação: um vídeo que travasse na etapa de IA
-    (queda do MySQL, container morto no meio) ficava preso pra sempre segurando
+    (queda do MySQL/PostgreSQL, container morto no meio) ficava preso pra sempre segurando
     um slot da janela de download — com as duas janelas cheias de linha morta,
     o pipeline parava de baixar qualquer coisa.
 
@@ -175,26 +327,45 @@ def recover_stuck_selecting(conn):
     continua no banco, com os clips que já tiverem sido gerados.
 
     Args:
-        conn: conexão pymysql ativa
+        conn: conexão pymysql ou psycopg2 ativa
     """
-    sql_stuck = (
-        "UPDATE source_videos sv "
-        "SET sv.status='downloaded' "
-        "WHERE sv.status='selecting' "
-        "AND sv.local_path IS NOT NULL "
-        "AND sv.updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR) "
-        "AND NOT EXISTS ("
-        "  SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id"
-        ")"
-    )
-
-    sql_no_file = (
-        "UPDATE source_videos "
-        "SET status='failed' "
-        "WHERE status='selecting' "
-        "AND local_path IS NULL "
-        "AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)"
-    )
+    driver = get_db_driver(conn)
+    if driver == 'pgsql':
+        sql_stuck = (
+            "UPDATE source_videos "
+            "SET status='downloaded' "
+            "WHERE status='selecting' "
+            "AND local_path IS NOT NULL "
+            "AND updated_at < (NOW() - (%s * INTERVAL '1 hour')) "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = source_videos.id"
+            ")"
+        )
+        sql_no_file = (
+            "UPDATE source_videos "
+            "SET status='failed' "
+            "WHERE status='selecting' "
+            "AND local_path IS NULL "
+            "AND updated_at < (NOW() - (%s * INTERVAL '1 hour'))"
+        )
+    else:
+        sql_stuck = (
+            "UPDATE source_videos sv "
+            "SET sv.status='downloaded' "
+            "WHERE sv.status='selecting' "
+            "AND sv.local_path IS NOT NULL "
+            "AND sv.updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR) "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id"
+            ")"
+        )
+        sql_no_file = (
+            "UPDATE source_videos "
+            "SET status='failed' "
+            "WHERE status='selecting' "
+            "AND local_path IS NULL "
+            "AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)"
+        )
 
     try:
         with conn.cursor() as cur:
@@ -207,7 +378,8 @@ def recover_stuck_selecting(conn):
             f'recover_stuck_selecting: {stuck} travado(s) sem clip '
             f'redefinido(s) para downloaded, {no_file} sem arquivo para failed'
         )
-    except pymysql.OperationalError as exc:
+    except Exception as exc:
         _log(f'AVISO: falha ao recuperar seleções presas: {exc}')
         raise
+
 
