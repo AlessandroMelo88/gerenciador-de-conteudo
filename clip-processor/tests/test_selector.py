@@ -7,6 +7,7 @@ Os cenários cobrem seleção por formato, validação da resposta e persistênc
 import json
 from unittest.mock import MagicMock
 
+from src import selector as selector_module
 from src.selector import (
     HACKER_LIBERTARIO_LONG_PROMPT,
     HACKER_LIBERTARIO_PROMPT,
@@ -38,6 +39,58 @@ SAMPLE_MOMENTS = [
 
 
 class TestSelectMoments:
+    def test_groq_retries_without_structured_output_after_json_validation_error(self, monkeypatch):
+        class FakeError(Exception):
+            pass
+
+        class FakeMessage:
+            content = '{"moments": [{"start_time": 0, "end_time": 30, "score": 9, "reason": "Insight"}]}'
+
+        class FakeResponse:
+            choices = [type('Choice', (), {'message': FakeMessage()})()]
+
+        class FakeCompletions:
+            def __init__(self):
+                self.calls = []
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                if len(self.calls) == 1:
+                    raise FakeError('code=json_validate_failed')
+                return FakeResponse()
+
+        completions = FakeCompletions()
+
+        class FakeClient:
+            chat = type('Chat', (), {'completions': completions})()
+
+        class FakeGroq:
+            def __new__(cls):
+                return FakeClient()
+
+        fake_groq_module = type('GroqModule', (), {'Groq': FakeGroq})
+        fake_types_chat = type('ChatTypes', (), {'ChatCompletionMessageParam': dict})
+        fake_types_params = type(
+            'CompletionParams',
+            (),
+            {'ResponseFormatResponseFormatJsonObject': dict},
+        )
+        monkeypatch.setitem(__import__('sys').modules, 'groq', fake_groq_module)
+        monkeypatch.setitem(__import__('sys').modules, 'groq.types', type('GroqTypes', (), {})())
+        monkeypatch.setitem(__import__('sys').modules, 'groq.types.chat', fake_types_chat)
+        monkeypatch.setitem(
+            __import__('sys').modules,
+            'groq.types.chat.completion_create_params',
+            fake_types_params,
+        )
+
+        result = selector_module._select_via_groq('transcrição')
+
+        assert result[0]['start_time'] == 0
+        assert len(completions.calls) == 2
+        assert completions.calls[0]['response_format'] == {'type': 'json_object'}
+        assert 'response_format' not in completions.calls[1]
+
     def test_database_profile_takes_precedence_over_niche_fallback(self):
         mock_anthropic = MagicMock()
         mock_response = MagicMock()
@@ -298,6 +351,37 @@ class TestSelectMoments:
         assert len(result) == 1
         assert result[0]['start_time'] == 115.0
         assert result[0]['end_time'] == 145.0
+
+    def test_shortform_completes_small_boundary_gap_to_30s(self):
+        mock_anthropic = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        'moments': [
+                            {
+                                'start_time': 100.0,
+                                'end_time': 129.4,
+                                'score': 9,
+                                'reason': 'Explicação quase completa',
+                            }
+                        ]
+                    }
+                )
+            )
+        ]
+        mock_anthropic.messages.create.return_value = mock_response
+
+        result = select_moments(
+            {'segments': [{'start': 0.0, 'end': 200.0, 'text': 'Explicação'}]},
+            anthropic_client=mock_anthropic,
+            fmt='curto',
+        )
+
+        assert len(result) == 1
+        assert result[0]['start_time'] == 99.4
+        assert result[0]['end_time'] == 129.4
 
     def test_shortform_normalizes_after_completing_transcript_boundary(self, sample_video_id):
         """A borda é completada e o Short final continua com 30s exatos."""

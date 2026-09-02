@@ -299,6 +299,41 @@ def _release_redis_lock(redis_client, lock_key: str) -> None:
         pass
 
 
+def clear_stale_pipeline_locks(redis_client=None) -> int:
+    """Limpa locks deixados por um container encerrado abruptamente no boot.
+
+    O deployment atual executa um único daemon. Se o container morrer durante
+    FFmpeg, a limpeza normal do ``finally`` não roda e o TTL longo pode atrasar
+    a próxima ingestão. A limpeza é opt-in e deve ser chamada somente uma vez,
+    antes do ciclo inicial; nunca deve ser chamada em cada ciclo agendado.
+    """
+    if os.environ.get('PIPELINE_LOCK_RECOVER_ON_BOOT', 'false').lower() != 'true':
+        return 0
+
+    own_redis = redis_client is None
+    if own_redis:
+        redis_client = redis_lib.Redis(
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            decode_responses=True,
+        )
+
+    try:
+        deleted = int(redis_client.delete('lock:pipeline_ingest', 'lock:pipeline_publish') or 0)
+        if deleted:
+            _log(f'Locks de pipeline órfãos removidos no boot: {deleted}')
+        return deleted
+    except Exception as exc:
+        _log(f'Aviso: não foi possível limpar locks órfãos no boot: {exc}')
+        return 0
+    finally:
+        if own_redis:
+            try:
+                redis_client.close()
+            except Exception:
+                pass
+
+
 def run_publish_only(db_conn=None, redis_client=None):
     """Roda só a publicação de clips aprovados, sem RSS/download/AI."""
     own_db = db_conn is None

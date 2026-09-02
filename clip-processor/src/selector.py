@@ -216,6 +216,9 @@ def get_system_prompt(
 # O candidato editorial pode ser maior para que a validação tenha contexto, mas
 # o arquivo publicado como Short é sempre normalizado para uma janela de 30s.
 MIN_SHORTFORM_SECONDS = int(SHORTS_DURATION_SECONDS)
+# Margem tolerada quando o ajuste de limites da fala deixa um candidato quase
+# completo. Trechos realmente curtos continuam sendo descartados por qualidade.
+MIN_SHORTFORM_CANDIDATE_SECONDS = SHORTS_DURATION_SECONDS - 2.0
 MAX_SHORTFORM_SECONDS = 180
 
 # Pequena tolerância para a borda de dois intervalos vizinhos. O filtro do
@@ -842,7 +845,24 @@ def _select_via_groq(
     }
     if 'gpt-oss' in GROQ_CHAT_MODEL or 'o1' in GROQ_CHAT_MODEL:
         kwargs['reasoning_effort'] = GROQ_REASONING_EFFORT
-    response = client.chat.completions.create(**kwargs)
+    try:
+        response = client.chat.completions.create(**kwargs)
+    except Exception as error:
+        # O endpoint da Groq pode rejeitar a saída estruturada quando o modelo
+        # termina o raciocínio sem conseguir materializar o objeto JSON
+        # (`json_validate_failed`). Uma segunda tentativa sem o parâmetro de
+        # schema ainda mantém a instrução de JSON no prompt, e _parse_moments
+        # já aceita resposta JSON cercada por markdown/texto.
+        error_text = str(error).casefold()
+        if 'json_validate_failed' not in error_text and 'failed to validate json' not in error_text:
+            raise
+        _log(
+            '[SELECTOR] Groq rejeitou a saída JSON estruturada — '
+            'repetindo uma vez sem response_format'
+        )
+        fallback_kwargs = dict(kwargs)
+        fallback_kwargs.pop('response_format', None)
+        response = client.chat.completions.create(**fallback_kwargs)
     content = response.choices[0].message.content or ''
     moments = _parse_moments(content)
     if not moments:
@@ -921,10 +941,34 @@ def _filter_shortform_duration(
         end_time = float(m.get('end_time', 0))
         duration = end_time - start_time
         if duration < target_duration:
-            _log(
-                f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que os '
-                f'{target_duration:.0f}s exigidos'
-            )
+            if duration < MIN_SHORTFORM_CANDIDATE_SECONDS:
+                _log(
+                    f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que os '
+                    f'{target_duration:.0f}s exigidos'
+                )
+                continue
+
+            # O alinhamento com a última frase pode encurtar o intervalo por
+            # uma fração de segundo. Completa a janela pelo começo, ou pelo
+            # fim quando o candidato já começa em zero, sem ultrapassar a
+            # duração conhecida da transcrição.
+            missing = target_duration - duration
+            normalized_start = max(0.0, start_time - missing)
+            normalized_end = normalized_start + target_duration
+            if transcript_duration and normalized_end > transcript_duration:
+                normalized_end = transcript_duration
+                normalized_start = max(0.0, normalized_end - target_duration)
+            if normalized_end - normalized_start < target_duration:
+                _log(
+                    f'[SELECTOR] Momento descartado: não há margem para completar '
+                    f'{target_duration:.0f}s dentro da transcrição'
+                )
+                continue
+
+            normalized = dict(m)
+            normalized['start_time'] = normalized_start
+            normalized['end_time'] = normalized_end
+            valid.append(normalized)
             continue
         if duration > MAX_SHORTFORM_SECONDS:
             _log(

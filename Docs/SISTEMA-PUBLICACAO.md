@@ -47,7 +47,7 @@ A data e a janela usam `America/Sao_Paulo`. Contadores ficam no Redis e expiram 
 | quota padrão total | 2/dia |
 | teto absoluto total | 6/dia/destino |
 | quota longa padrão no código | 2/dia, limitada pela quota total |
-| valor no `.env.example` | `MAX_LONGO_UPLOADS_PER_DAY=1` |
+| perfil Shorts deste deployment | `AUTO_INGEST_FORMAT=curto`, `MAX_UPLOADS_PER_DAY=6`, `MAX_LONGO_UPLOADS_PER_DAY=0`, `MIN_UPLOAD_INTERVAL_MINUTES=60` |
 | janela | 19:00 inclusive até 22:00 exclusivo |
 | bypass | `UPLOAD_WINDOW_BYPASS=true` |
 

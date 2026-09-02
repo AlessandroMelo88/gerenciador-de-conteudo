@@ -40,6 +40,7 @@ PERMANENT_ERRORS = (
     'geo',
     'premieres in',
     'is a live event',
+    'live event',
     'has not started',
     'not currently available',
 )
@@ -57,6 +58,7 @@ _WORK_ARTIFACT_RE = re.compile(
 # Um download de 720p leva minutos, não horas. Passou de 1 hora sem terminar,
 # o processo que o segurava morreu ou foi abortado — limpa pra liberar disco.
 STALE_AFTER_HOURS = 1
+DOWNLOAD_SOCKET_TIMEOUT_SECONDS = int(os.environ.get('DOWNLOAD_SOCKET_TIMEOUT_SECONDS', 60))
 
 
 def _log(msg: str) -> None:
@@ -174,6 +176,12 @@ def download_video(video_id: str, output_path: str | None = None) -> bool:
         'quiet': True,
         'no_color': True,
         'noprogress': True,
+        # Evita que uma live/estreia futura ou uma conexão pendurada segure o
+        # lock de ingestão por horas. Retries transientes continuam controlados
+        # pelo loop externo abaixo.
+        'socket_timeout': DOWNLOAD_SOCKET_TIMEOUT_SECONDS,
+        'retries': 0,
+        'fragment_retries': 0,
         'progress_hooks': [_abort_if_paused],
         'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
     }

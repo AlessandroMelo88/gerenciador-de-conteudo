@@ -84,6 +84,31 @@ class TestCanUpload:
         qm = QuotaManager(r, max_uploads_per_day=2)
         assert qm.can_upload(now=dt_sp(20, 0)) is True
 
+    def test_min_upload_interval_blocks_until_elapsed(self):
+        """Intervalo configurado impede publicar outro clip antes do prazo."""
+        last_upload = dt_sp(20, 0).timestamp()
+        r = MagicMock()
+        r.get.side_effect = lambda key: (
+            str(last_upload)
+            if key.endswith(':last_upload_at')
+            else '0'
+        )
+        qm = QuotaManager(
+            r,
+            max_uploads_per_day=6,
+            min_upload_interval_minutes=60,
+        )
+
+        assert qm.can_upload(now=dt_sp(20, 59)) is False
+        assert qm.can_upload(now=dt_sp(21, 0)) is True
+
+    def test_min_upload_interval_is_disabled_by_default(self):
+        """Sem configuração, a quota mantém o comportamento histórico."""
+        r = make_redis(count=0)
+        qm = QuotaManager(r, max_uploads_per_day=6)
+        assert qm.min_upload_interval_minutes == 0
+        assert qm.can_upload(now=dt_sp(20, 0)) is True
+
 
 class TestRecordUpload:
     def test_increments_redis_key(self):
@@ -126,6 +151,25 @@ class TestRecordUpload:
         ttl = r.expire.call_args[0][1]
         # 20h → meia-noite = 4 horas = 14400 segundos
         assert 14000 < ttl <= 14400
+
+    def test_records_last_upload_timestamp_when_interval_enabled(self):
+        """O último upload deve ficar no Redis para sobreviver entre ciclos."""
+        r = make_redis(count=None)
+        r.incr.return_value = 1
+        qm = QuotaManager(
+            r,
+            max_uploads_per_day=6,
+            min_upload_interval_minutes=60,
+        )
+        now = dt_sp(20, 0)
+
+        qm.record_upload(now=now)
+
+        r.set.assert_called_once()
+        key, value = r.set.call_args.args[:2]
+        assert key.endswith(':last_upload_at')
+        assert value == str(int(now.timestamp()))
+        assert r.set.call_args.kwargs['ex'] > 0
 
 
 # ---------------------------------------------------------------------------

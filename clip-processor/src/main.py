@@ -15,7 +15,12 @@ from src.db import (
     recover_stuck_selecting,
 )
 from src.internal_api import app as _internal_app
-from src.pipeline_runner import run_ingest_cycle, run_pipeline_once, run_publish_only
+from src.pipeline_runner import (
+    clear_stale_pipeline_locks,
+    run_ingest_cycle,
+    run_pipeline_once,
+    run_publish_only,
+)
 from src.ttl_worker import run_ttl_once
 
 
@@ -146,12 +151,13 @@ scheduler.add_job(
     misfire_grace_time=900,
 )
 
-# Publica clips já aprovados isoladamente, mesma cadência do ingest — evita
-# represar a fila esperando quando a cota diária reseta ou libera espaço.
+# Publica clips já aprovados isoladamente a cada 10min. A cadência curta,
+# combinada com MIN_UPLOAD_INTERVAL_MINUTES, evita que o agendamento de 20min
+# transforme um intervalo nominal de 60min em até 80min entre publicações.
 scheduler.add_job(
     run_publish_if_enabled,
     'interval',
-    minutes=20,
+    minutes=10,
     id='publish_cycle',
     coalesce=True,
     max_instances=1,
@@ -188,14 +194,23 @@ signal.signal(signal.SIGTERM, shutdown)
 signal.signal(signal.SIGINT, shutdown)
 
 if __name__ == '__main__':
-    log('[ACQU] Daemon iniciado — ingestão + publish a cada 20 minutos')
+    log('[ACQU] Daemon iniciado — ingestão a cada 20min + publish a cada 10min')
     log(f'[ACQU] POSTGRES_HOST: {os.environ.get("POSTGRES_HOST", "não configurado")}')
     log(f'[ACQU] REDIS_HOST: {os.environ.get("REDIS_HOST", "não configurado")}')
     log(f'[ACQU] PIPELINE_ENABLED: {pipeline_enabled()}')
     log(f'[ACQU] BURNED_SUBTITLE_DETECTION: {os.environ.get("BURNED_SUBTITLE_DETECTION", "true")}')
     log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")}')
     log(f'[ACQU] YOUTUBE_WAIT_FOR_HD: {os.environ.get("YOUTUBE_WAIT_FOR_HD", "true")}')
+    log(f'[ACQU] AUTO_INGEST_FORMAT: {os.environ.get("AUTO_INGEST_FORMAT", "auto")}')
     log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
+    log(
+        f'[ACQU] MAX_LONGO_UPLOADS_PER_DAY: '
+        f'{os.environ.get("MAX_LONGO_UPLOADS_PER_DAY", "2")}'
+    )
+    log(
+        f'[ACQU] MIN_UPLOAD_INTERVAL_MINUTES: '
+        f'{os.environ.get("MIN_UPLOAD_INTERVAL_MINUTES", "0")}'
+    )
     log(
         f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)'
     )
@@ -206,6 +221,7 @@ if __name__ == '__main__':
     # ficaram em 'cutting' após a morte do processo voltam para 'pending_cut'.
     # Mesma rotina do job de 30min — se falhar aqui (PostgreSQL ainda subindo), o
     # próximo tick agendado cobre, sem depender de restart.
+    clear_stale_pipeline_locks()
     run_recovery_once(recover_cutting=True)
 
     # Sidecar HTTP interno consumido pelo painel Laravel (Phase 8).
@@ -222,5 +238,5 @@ if __name__ == '__main__':
     else:
         log('[ACQU] Ciclo inicial pausado — sidecar HTTP continua disponível')
 
-    log('[ACQU] Scheduler iniciado — próximo ciclo (ingest + publish) em 20 minutos')
+    log('[ACQU] Scheduler iniciado — ingestão em 20min / publish em 10min')
     scheduler.start()

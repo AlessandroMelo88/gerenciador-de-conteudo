@@ -12,6 +12,12 @@ from src.rss_poller import _detect_format, poll_all_channels
 
 
 class TestDetectFormat:
+    def test_detect_format_respects_forced_auto_ingest_format(self, mocker, monkeypatch):
+        monkeypatch.setenv('AUTO_INGEST_FORMAT', 'curto')
+
+        assert _detect_format('abc12345678') == 'curto'
+        mocker.patch('src.rss_poller.yt_dlp.YoutubeDL').assert_not_called()
+
     def test_detect_format_returns_longo_for_long_video(self, mocker):
         mock_ydl = mocker.MagicMock()
         mock_ydl.extract_info.return_value = {'duration': 900}
@@ -37,6 +43,40 @@ class TestDetectFormat:
 
 
 class TestPollAllChannels:
+    def test_poll_falls_back_to_ytdlp_when_rss_is_unavailable(
+        self, mock_db_conn, mock_redis, mocker
+    ):
+        channel = {
+            'id': 1,
+            'youtube_channel_id': 'UCxxx',
+            'channel_name': 'Canal Hacker',
+            'rss_url': 'https://www.youtube.com/feeds/videos.xml?channel_id=UCxxx',
+        }
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchall.side_effect = [[channel], []]
+
+        mocker.patch(
+            'src.rss_poller.requests.get',
+            return_value=mocker.MagicMock(status_code=404, text=''),
+        )
+        mocker.patch(
+            'src.rss_poller._fallback_channel_entries',
+            return_value=[
+                {
+                    'yt_videoid': 'abc12345678',
+                    'title': 'Novo vídeo',
+                    'published': '2026-09-01T00:00:00+00:00',
+                }
+            ],
+        )
+        mocker.patch('src.rss_poller.is_seen', return_value=False)
+        mocker.patch('src.rss_poller._detect_format', return_value='curto')
+        mock_insert = mocker.patch('src.rss_poller.insert_video')
+
+        poll_all_channels(mock_db_conn, mock_redis)
+
+        mock_insert.assert_called_once()
+
     def test_poll_detects_new_videos(self, mock_db_conn, mock_redis, sample_rss_xml, mocker):
         """Dado feed RSS com 2 entradas nunca vistas, poll_all_channels()
         insere 2 registros no DB com status 'pending'."""

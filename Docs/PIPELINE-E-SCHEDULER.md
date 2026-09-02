@@ -19,7 +19,7 @@ de ingestão/publicação saem sem processar.
 | ID | Frequência | Função | Executa |
 |---|---:|---|---|
 | `ingest_cycle` | 20 min | `run_ingest_cycle` | RSS, IA, corte e download |
-| `publish_cycle` | 20 min | `run_publish_only` | publicação de clips prontos |
+| `publish_cycle` | 10 min | `run_publish_only` | publicação de clips prontos |
 | `clip_pending_ttl` | 1 h | `run_ttl_once` | alerta e rejeição por TTL |
 | `state_recovery` | 30 min | `run_recovery_once` | recovery de downloads, seleção e publicação |
 

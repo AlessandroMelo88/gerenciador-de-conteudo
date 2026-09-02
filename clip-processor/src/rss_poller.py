@@ -18,7 +18,7 @@ Comportamento:
 
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 import feedparser
 import redis
@@ -66,6 +66,7 @@ REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 SOURCE_FILE_ROOT = os.path.realpath('/app/videos')
 CLIP_STATUSES_NEED_RAW = ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')
+AUTO_INGEST_FORMATS = {'auto', 'curto', 'longo'}
 
 
 def _log(msg: str) -> None:
@@ -124,13 +125,30 @@ def _release_failed_source_files(conn, video_id: str) -> None:
 
 
 def _detect_format(video_id: str) -> str:
-    """Decide 'curto' ou 'longo' com base na duração real do vídeo fonte.
+    """Decide o formato do item ingerido automaticamente.
+
+    ``AUTO_INGEST_FORMAT`` permite que cada deployment escolha o contrato de
+    saída. Para um canal de Shorts, ``curto`` é obrigatório: a duração do
+    vídeo-fonte não deve transformar uma entrevista longa em um vídeo longo
+    horizontal. ``auto`` mantém a detecção histórica por duração e ``longo``
+    força o fluxo de vídeo longo.
 
     Vídeos com MIN_LONGFORM_SECONDS ou mais (entrevistas, podcasts, análises longas)
     têm material suficiente pra um corte longo horizontal; o resto continua shorts.
     Falha ao consultar metadados (rede, vídeo indisponível) → assume 'curto' (comportamento
     anterior), sem abortar a ingestão do vídeo por isso.
     """
+    requested_format = os.environ.get('AUTO_INGEST_FORMAT', 'auto').strip().lower()
+    if requested_format not in AUTO_INGEST_FORMATS:
+        _log(
+            f'AVISO: AUTO_INGEST_FORMAT={requested_format!r} inválido — usando auto'
+        )
+        requested_format = 'auto'
+
+    if requested_format != 'auto':
+        _log(f'Formato automático forçado para {requested_format}: {video_id}')
+        return requested_format
+
     try:
         with yt_dlp.YoutubeDL({'quiet': True, 'no_color': True, 'skip_download': True}) as ydl:
             info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
@@ -140,6 +158,70 @@ def _detect_format(video_id: str) -> str:
     except Exception as exc:
         _log(f'AVISO: falha ao obter duração de {video_id} para detecção de formato: {exc}')
     return 'curto'
+
+
+def _fallback_channel_entries(channel: dict) -> list[dict]:
+    """Busca os vídeos recentes pela aba ``videos`` quando o RSS falha.
+
+    O endpoint RSS do YouTube responde 404/500 para alguns canais mesmo com o
+    ``channel_id`` válido. O fallback usa a mesma origem oficial via yt-dlp,
+    limita a consulta aos vídeos recentes e devolve o formato mínimo aceito
+    pelo restante do poller. A deduplicação continua sendo feita por
+    ``is_seen`` antes de qualquer INSERT.
+    """
+    channel_id = channel.get('youtube_channel_id')
+    channel_handle = channel.get('channel_handle')
+    if channel_id:
+        target = f'https://www.youtube.com/channel/{channel_id}/videos'
+    elif channel_handle:
+        target = f'https://www.youtube.com/{channel_handle}/videos'
+    else:
+        _log(f'AVISO: canal {channel.get("channel_name")} sem ID/handle para fallback yt-dlp')
+        return []
+
+    options = {
+        'quiet': True,
+        'no_warnings': True,
+        'skip_download': True,
+        'extract_flat': True,
+        'ignoreerrors': True,
+        'playlistend': 15,
+    }
+    try:
+        with yt_dlp.YoutubeDL(options) as ydl:
+            info = ydl.extract_info(target, download=False) or {}
+    except Exception as exc:
+        _log(f'AVISO: fallback yt-dlp falhou para {channel.get("channel_name")}: {exc}')
+        return []
+
+    entries: list[dict] = []
+    for item in info.get('entries') or []:
+        if not item or not item.get('id'):
+            continue
+
+        published_at = item.get('timestamp')
+        if published_at:
+            published_at = datetime.fromtimestamp(published_at, tz=timezone.utc).isoformat()
+        else:
+            upload_date = str(item.get('upload_date') or '')
+            if len(upload_date) == 8 and upload_date.isdigit():
+                published_at = (
+                    f'{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:]}T00:00:00+00:00'
+                )
+
+        entries.append(
+            {
+                'yt_videoid': item['id'],
+                'title': item.get('title') or item['id'],
+                'published': published_at,
+            }
+        )
+
+    _log(
+        f'Fallback yt-dlp para {channel.get("channel_name")}: '
+        f'{len(entries)} entrada(s) encontrada(s)'
+    )
+    return entries
 
 
 def _extract_video_id(entry) -> str | None:
@@ -317,7 +399,7 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
         # Buscar canais ativos (canais blacklistados filtrados no SELECT — COPY-03)
         with db_conn.cursor() as cur:
             cur.execute(
-                'SELECT id, channel_name, rss_url, target_niche, channel_handle '
+                'SELECT id, channel_name, rss_url, target_niche, channel_handle, youtube_channel_id '
                 'FROM source_channels '
                 'WHERE active = TRUE AND blacklisted = FALSE'
             )
@@ -344,10 +426,10 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
                 )
                 if response.status_code != 200:
                     _log(f'AVISO: canal {channel_name} retornou HTTP {response.status_code}')
-                    continue
-
-                feed = feedparser.parse(response.text)
-                entries = feed.entries if hasattr(feed, 'entries') else []
+                    entries = _fallback_channel_entries(channel)
+                else:
+                    feed = feedparser.parse(response.text)
+                    entries = feed.entries if hasattr(feed, 'entries') else []
 
                 _log(f'Canal {channel_name}: {len(entries)} entradas no feed')
 

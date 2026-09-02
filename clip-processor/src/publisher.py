@@ -234,7 +234,10 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
             break
 
         if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting):
-            _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por cota de formato')
+            _log(
+                f'Clip {clip_id} ({clip_format}) mantido {current_status} '
+                'por quota/cadência'
+            )
             remaining.pop(0)
             continue
 
@@ -289,7 +292,7 @@ def _publish_one(conn, clip, uploader, quota_manager, now, *, longo_waiting: boo
     clip_format = clip.get('format') or 'curto'
 
     if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting):
-        _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por quota/janela')
+        _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por quota/cadência')
         return 0
 
     _log(f'Próximo clip {current_status}: id={clip_id}')

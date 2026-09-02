@@ -50,7 +50,7 @@ main.py
  │   │   ├─ downloaded → transcribe → resolve perfil → select
  │   │   └─ pending_cut → process_clip
  │   └─ pipeline_runner._download_pending_videos
- ├─ run_publish_only (20 min)
+ ├─ run_publish_only (10 min)
  │   └─ publisher.publish_pending_clips
  ├─ run_ttl_once (1 h)
  └─ run_recovery_once (30 min)
@@ -93,14 +93,19 @@ Não use Redis como fila e não use `FLUSHALL` para destravar o pipeline.
 | Variável | Uso |
 |---|---|
 | `PIPELINE_ENABLED` | pausa ingestão/publicação sem desligar sidecar |
+| `PIPELINE_LOCK_RECOVER_ON_BOOT` | limpa locks Redis órfãos no boot; use `true` somente com um daemon por deployment |
 | `GROQ_API_KEY` | Whisper e fallback/uso normal de LLM |
 | `ANTHROPIC_API_KEY` | caminho Anthropic da seleção/metadata/thumbnail |
 | banco `prompt_profiles` | prompts editoriais por nicho/canal; seed em migration |
 | `DOWNLOAD_WINDOW_CURTO/LONGO` | ocupação máxima por formato |
+| `AUTO_INGEST_FORMAT` | formato automático dos vídeos novos: `curto` para Shorts, `auto` para detecção por duração |
+| RSS indisponível | fallback para a aba `videos` do canal via yt-dlp, com deduplicação normal |
 | `FRESHNESS_DAYS` | idade aceita para download automático |
 | `MANUAL_APPROVAL_REQUIRED` | `pending` direto ou aprovação |
 | `BURNED_SUBTITLE_DETECTION` | habilita OCR para evitar queimar legenda já gravada; padrão `true` |
 | `MAX_UPLOADS_PER_DAY` | quota total, clamp de 0 a 6 |
+| `MAX_LONGO_UPLOADS_PER_DAY` | quota de vídeos longos; `0` mantém o destino somente em Shorts |
+| `MIN_UPLOAD_INTERVAL_MINUTES` | intervalo mínimo entre publicações do mesmo destino; `0` desativa |
 | `YOUTUBE_WAIT_FOR_HD` | espera de processamento antes de visibilidade final |
 | `YOUTUBE_PROCESSING_TIMEOUT_SECONDS` | limite da espera HD; padrão 900 |
 | `YOUTUBE_PROCESSING_POLL_SECONDS` | intervalo de consulta ao YouTube; padrão 10 |

@@ -158,6 +158,33 @@ class TestDownloadVideo:
         assert result is False
         assert mock_ydl.download.call_count == 1
 
+    def test_future_live_event_no_retry(self, mocker, tmp_path):
+        """Evento ao vivo futuro não pode travar a fila com retries de 60s."""
+        _mock_pause_check(mocker)
+        import yt_dlp
+
+        mock_ydl = mocker.MagicMock()
+        mock_ydl.__enter__ = mocker.MagicMock(return_value=mock_ydl)
+        mock_ydl.__exit__ = mocker.MagicMock(return_value=False)
+        mock_ydl.download.side_effect = yt_dlp.utils.DownloadError(
+            'This live event will begin in 9 hours'
+        )
+
+        mock_ydl_class = mocker.patch('yt_dlp.YoutubeDL', return_value=mock_ydl)
+        mocker.patch(
+            'src.downloader.shutil.disk_usage',
+            return_value=mocker.MagicMock(free=10 * 1024 * 1024 * 1024),
+        )
+        mocker.patch('src.downloader.glob.glob', return_value=[])
+
+        result = download_video('nBxICCDfxz4', str(tmp_path))
+
+        assert result is False
+        assert mock_ydl.download.call_count == 1
+        options = mock_ydl_class.call_args.args[0]
+        assert options['socket_timeout'] > 0
+        assert options['retries'] == 0
+
     def test_retry_transient_error(self, mocker, tmp_path):
         """DownloadError sem keyword permanente → tenta 3 vezes."""
         _mock_pause_check(mocker)

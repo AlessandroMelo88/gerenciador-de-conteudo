@@ -13,6 +13,7 @@ SAO_PAULO_TZ = ZoneInfo('America/Sao_Paulo')
 DEFAULT_MAX_UPLOADS_PER_DAY = 2
 ABSOLUTE_MAX_UPLOADS_PER_DAY = int(os.environ.get('ABSOLUTE_MAX_UPLOADS_PER_DAY', '100'))
 DEFAULT_MAX_LONGO_UPLOADS_PER_DAY = 2
+DEFAULT_MIN_UPLOAD_INTERVAL_MINUTES = 0
 UPLOAD_WINDOW_START_HOUR = 19
 UPLOAD_WINDOW_END_HOUR = 22
 UPLOAD_WINDOW_START = UPLOAD_WINDOW_START_HOUR
@@ -35,11 +36,20 @@ class QuotaManager:
         max_uploads_per_day: int | None = None,
         channel_id: str | None = None,
         max_longo_per_day: int | None = None,
+        min_upload_interval_minutes: int | None = None,
     ):
         self.redis_client = redis_client
         self.max_uploads_per_day = self._resolve_limit(max_uploads_per_day)
         self._max = self.max_uploads_per_day
         self.max_longo_per_day = self._resolve_longo_limit(max_longo_per_day)
+        if min_upload_interval_minutes is None:
+            min_upload_interval_minutes = int(
+                os.environ.get(
+                    'MIN_UPLOAD_INTERVAL_MINUTES',
+                    DEFAULT_MIN_UPLOAD_INTERVAL_MINUTES,
+                )
+            )
+        self.min_upload_interval_minutes = max(0, int(min_upload_interval_minutes))
         self.channel_id = channel_id
 
     def has_capacity(self, now: datetime | None = None) -> bool:
@@ -67,6 +77,13 @@ class QuotaManager:
         now = self._local_now(now)
         if not self.has_capacity(now=now):
             return False
+
+        if self.min_upload_interval_minutes > 0:
+            last_upload_at = self.redis_client.get(self._last_upload_key(now))
+            if last_upload_at is not None:
+                elapsed_seconds = now.timestamp() - float(last_upload_at)
+                if elapsed_seconds < self.min_upload_interval_minutes * 60:
+                    return False
 
         current_count = int(self.redis_client.get(self._key(now)) or 0)
         longo_count = int(self.redis_client.get(self._format_key(now, 'longo')) or 0)
@@ -97,6 +114,14 @@ class QuotaManager:
             longo_new_count = int(self.redis_client.incr(longo_key))
             if longo_new_count == 1:
                 self.redis_client.expire(longo_key, self._seconds_until_next_midnight(now))
+
+        if self.min_upload_interval_minutes > 0:
+            last_upload_key = self._last_upload_key(now)
+            self.redis_client.set(
+                last_upload_key,
+                str(int(now.timestamp())),
+                ex=self._seconds_until_next_midnight(now),
+            )
 
         return new_count
 
@@ -132,6 +157,9 @@ class QuotaManager:
 
     def _format_key(self, now: datetime, format: str) -> str:
         return f'{self._key(now)}:{format}'
+
+    def _last_upload_key(self, now: datetime) -> str:
+        return f'{self._key(now)}:last_upload_at'
 
     def _seconds_until_next_midnight(self, now: datetime) -> int:
         next_day = (now + timedelta(days=1)).date()
