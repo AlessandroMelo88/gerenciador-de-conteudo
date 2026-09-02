@@ -18,6 +18,8 @@ import {
     Mic,
     Smartphone,
     Monitor,
+    Upload,
+    Image as ImageIcon,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -40,6 +42,8 @@ type Props = {
         name: string;
         niche: string;
         templateConfig?: TemplateConfig | null;
+        hasWatermark?: boolean;
+        watermarkUrl?: string | null;
     } | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -234,6 +238,58 @@ export function ChannelTemplateModal({ channel, open, onOpenChange }: Props) {
                             </div>
                         </div>
 
+                        {/* Seção: Logo / Marca d'Água do Canal */}
+                        <div className="space-y-3 p-4 rounded-xl bg-zinc-900/40 border border-white/5">
+                            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                                <div className="flex items-center gap-2">
+                                    <ImageIcon className="w-3.5 h-3.5 text-[#FF6A55]" />
+                                    Logo / Marca d'Água do Canal
+                                </div>
+                                <span className="text-[10px] text-zinc-500 font-mono">Canto Sup. Direito</span>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                {channel.hasWatermark && channel.watermarkUrl ? (
+                                    <img
+                                        src={channel.watermarkUrl}
+                                        alt={channel.name}
+                                        className="w-14 h-14 rounded-full object-cover border-2 border-white/20 bg-black/40 p-1 shadow-md shrink-0"
+                                    />
+                                ) : (
+                                    <div className="w-14 h-14 rounded-full border border-dashed border-white/20 flex flex-col items-center justify-center text-zinc-500 bg-zinc-900/50 shrink-0">
+                                        <ImageIcon className="w-5 h-5 text-zinc-400" />
+                                    </div>
+                                )}
+                                <div className="flex-1 space-y-1">
+                                    <p className="text-xs text-zinc-300 font-medium">
+                                        {channel.hasWatermark ? 'Logo do canal configurada' : 'Nenhuma logo personalizada'}
+                                    </p>
+                                    <p className="text-[11px] text-zinc-400 leading-snug">
+                                        Exibida automaticamente no canto superior direito dos vídeos e thumbnails.
+                                    </p>
+                                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-white cursor-pointer transition-colors border border-white/10 mt-1">
+                                        <Upload className="w-3.5 h-3.5" />
+                                        <span>Subir nova Logo (PNG)</span>
+                                        <input
+                                            type="file"
+                                            accept="image/png,image/jpeg"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+                                                const fd = new FormData();
+                                                fd.append('watermark', file);
+                                                router.post(`/painel/canais-destino/${channel.id}/watermark`, fd, {
+                                                    preserveScroll: true,
+                                                    onSuccess: () => toast.success('Logo atualizada com sucesso!'),
+                                                });
+                                            }}
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Seção: Fundo & Blur */}
                         <div className="space-y-3 p-4 rounded-xl bg-zinc-900/40 border border-white/5">
                             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
@@ -412,6 +468,17 @@ export function ChannelTemplateModal({ channel, open, onOpenChange }: Props) {
 
                                 {/* Conteúdo Sobreposto (9:16 Canvas) */}
                                 <div className="relative z-10 w-full h-full flex flex-col justify-between pt-6 pb-2 px-1">
+                                    {/* Logo Oficial do Canal no Canto Superior Direito */}
+                                    {channel.hasWatermark && channel.watermarkUrl && (
+                                        <div className="absolute top-2 right-2 z-30 pointer-events-none drop-shadow-md">
+                                            <img
+                                                src={channel.watermarkUrl}
+                                                alt={channel.name}
+                                                className="w-7 h-7 rounded-full object-cover border border-white/40 shadow-lg bg-black/40 backdrop-blur-xs p-0.5"
+                                            />
+                                        </div>
+                                    )}
+
                                     {/* TOPO: Logo e Título */}
                                     <div className="flex flex-col items-center text-center gap-1.5 px-2">
                                         <div 

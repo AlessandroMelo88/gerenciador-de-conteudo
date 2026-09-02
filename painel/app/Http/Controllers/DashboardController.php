@@ -194,6 +194,11 @@ class DashboardController extends Controller
                 'description' => $clip->description,
                 'tags' => $clip->tags,
                 'destinationTemplate' => $clip->destinationChannel?->effective_template_config,
+                'destinationChannelWatermarkUrl' => $clip->destinationChannel?->slug
+                    ? (Storage::disk('branding')->exists("watermark-{$clip->destinationChannel->slug}.png")
+                        ? route('destination-channels.watermark', $clip->destinationChannel->id)
+                        : null)
+                    : null,
             ];
         })->values()->all();
     }

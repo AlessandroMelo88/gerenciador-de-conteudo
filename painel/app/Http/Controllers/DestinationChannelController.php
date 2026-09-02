@@ -26,6 +26,9 @@ class DestinationChannelController extends Controller
                 'active' => $c->active,
                 'oauthStatus' => $c->oauth_status,
                 'hasWatermark' => Storage::disk('branding')->exists("watermark-{$c->slug}.png"),
+                'watermarkUrl' => Storage::disk('branding')->exists("watermark-{$c->slug}.png")
+                    ? route('destination-channels.watermark', $c->id)
+                    : null,
             ]),
             'niches' => Niche::query()->orderBy('label')->get(['slug', 'label']),
         ]);
@@ -67,6 +70,21 @@ class DestinationChannelController extends Controller
         $destinationChannel->update($data);
 
         return back()->with('success', "Canal #{$destinationChannel->id} atualizado");
+    }
+
+    public function watermark(DestinationChannel $destinationChannel)
+    {
+        $relativePath = "watermark-{$destinationChannel->slug}.png";
+        if (! Storage::disk('branding')->exists($relativePath)) {
+            // fallback template
+            $templateFallback = base_path("../template/{$destinationChannel->slug}/imagens/politica-avatar-800x800.png");
+            if (file_exists($templateFallback)) {
+                return response()->file($templateFallback);
+            }
+            abort(404);
+        }
+
+        return response()->file(Storage::disk('branding')->path($relativePath));
     }
 
     public function uploadWatermark(Request $request, DestinationChannel $destinationChannel): RedirectResponse

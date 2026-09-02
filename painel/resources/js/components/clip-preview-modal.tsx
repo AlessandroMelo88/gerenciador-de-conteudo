@@ -175,6 +175,17 @@ export function ClipPreviewModal({
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Logo do Canal no Canto Superior Direito (Celular) */}
+                                {clip.destinationChannelWatermarkUrl && (
+                                    <div className="absolute top-4 right-4 z-30 pointer-events-none drop-shadow-md">
+                                        <img
+                                            src={clip.destinationChannelWatermarkUrl}
+                                            alt={channelName}
+                                            className="w-8 h-8 rounded-full object-cover border border-white/40 shadow-lg bg-black/40 backdrop-blur-xs p-0.5"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : isCurto ? (
@@ -194,6 +205,17 @@ export function ClipPreviewModal({
                                         <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-zinc-900">
                                             <Play className="w-12 h-12 text-white mb-2" />
                                             <p className="text-xs text-white">{clip.title}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Logo no Canto Superior Direito do Shorts */}
+                                    {clip.destinationChannelWatermarkUrl && (
+                                        <div className="absolute top-3.5 right-3.5 z-30 pointer-events-none drop-shadow-md">
+                                            <img
+                                                src={clip.destinationChannelWatermarkUrl}
+                                                alt={channelName}
+                                                className="w-8 h-8 rounded-full object-cover border border-white/40 shadow-lg bg-black/40 backdrop-blur-xs p-0.5"
+                                            />
                                         </div>
                                     )}
 
@@ -324,6 +346,24 @@ export function ClipPreviewModal({
                                     <span className="absolute right-3 bottom-3 px-2 py-0.5 rounded bg-black/80 text-[11px] font-mono font-semibold text-white border border-white/10 z-20">
                                         {clip.trecho}
                                     </span>
+
+                                    {/* Marca d'água / Logo Oficial do Canal no Canto Superior Direito */}
+                                    <div className="absolute top-4 right-4 z-30 pointer-events-none drop-shadow-xl flex items-center">
+                                        {clip.destinationChannelWatermarkUrl ? (
+                                            <img
+                                                src={clip.destinationChannelWatermarkUrl}
+                                                alt={channelName}
+                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white/40 shadow-2xl bg-black/40 backdrop-blur-xs p-0.5"
+                                            />
+                                        ) : (
+                                            <div
+                                                className="w-9 h-9 rounded-full flex items-center justify-center font-black text-xs text-white border-2 border-white/30 shadow-lg"
+                                                style={{ backgroundColor: accentColor }}
+                                            >
+                                                {channelName.charAt(0).toUpperCase()}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                             {/* Detalhes do Vídeo no Desktop (Estilo YouTube) */}

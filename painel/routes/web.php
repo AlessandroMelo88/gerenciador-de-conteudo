@@ -66,6 +66,7 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/painel/canais-destino', [DestinationChannelController::class, 'index'])->name('destination-channels.index');
     Route::post('/painel/canais-destino', [DestinationChannelController::class, 'store'])->name('destination-channels.store');
     Route::put('/painel/canais-destino/{destinationChannel}', [DestinationChannelController::class, 'update']);
+    Route::get('/painel/canais-destino/{destinationChannel}/watermark', [DestinationChannelController::class, 'watermark'])->name('destination-channels.watermark');
     Route::post('/painel/canais-destino/{destinationChannel}/watermark', [DestinationChannelController::class, 'uploadWatermark']);
     Route::delete('/painel/canais-destino/{destinationChannel}', [DestinationChannelController::class, 'destroy']);
 

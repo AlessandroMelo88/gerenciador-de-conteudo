@@ -30,6 +30,7 @@ export type ClipRow = {
         subtitleColor?: string;
         ctaText?: string;
     } | null;
+    destinationChannelWatermarkUrl?: string | null;
 };
 
 export type QuotaChannel = {

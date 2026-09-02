@@ -279,6 +279,18 @@ def _apply_youtube_thumbnail_graphics(thumbnail_path: str, title: str, niche: st
     draw.rounded_rectangle([60, sub_y, 60 + sub_w, sub_y + 75], radius=14, fill=badge_color, outline='white', width=2)
     draw.text((80, sub_y + 8), sub_text, font=font_sub, fill='white')
 
+    # 5. Logo oficial do canal no Canto Superior Direito
+    slug = 'cortes-da-politica' if is_pol else 'futebol-em-cortes'
+    for candidate in [f'/app/branding/watermark-{slug}.png', f'branding/watermark-{slug}.png']:
+        if os.path.exists(candidate):
+            try:
+                wm = Image.open(candidate).convert('RGBA')
+                wm = wm.resize((100, 100), Image.Resampling.LANCZOS)
+                bg.paste(wm, (1280 - 100 - 50, 45), wm)
+            except Exception:
+                pass
+            break
+
     bg.save(thumbnail_path, 'JPEG', quality=95)
 
 

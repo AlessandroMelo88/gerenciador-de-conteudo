@@ -33,6 +33,7 @@ type DestinationChannel = {
     active: boolean;
     oauthStatus: 'authorized' | 'expired' | 'missing';
     hasWatermark: boolean;
+    watermarkUrl?: string | null;
 };
 
 type PageProps = {
@@ -383,9 +384,17 @@ export default function DestinationChannels() {
                                         className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 shadow-xs hover:border-primary/30 transition-all"
                                     >
                                         <div className="flex items-start gap-3">
-                                            <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0 shadow-sm" style={{ background: bgGrad }}>
-                                                <NicheIcon niche={channel.niche} />
-                                            </div>
+                                            {channel.hasWatermark && channel.watermarkUrl ? (
+                                                <img
+                                                    src={channel.watermarkUrl}
+                                                    alt={channel.name}
+                                                    className="w-11 h-11 rounded-xl object-cover shrink-0 shadow-sm border border-border bg-black/20"
+                                                />
+                                            ) : (
+                                                <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0 shadow-sm" style={{ background: bgGrad }}>
+                                                    <NicheIcon niche={channel.niche} />
+                                                </div>
+                                            )}
                                             <div className="min-w-0 flex-1">
                                                 <div className="font-bold text-sm tracking-tight truncate text-foreground">{channel.name}</div>
                                                 <div className="font-mono text-[11px] text-muted-foreground truncate">{channel.slug}</div>
@@ -494,8 +503,23 @@ export default function DestinationChannels() {
                                         return (
                                             <TableRow key={channel.id} className="hover:bg-muted/30">
                                                 <TableCell className="px-5 py-3">
-                                                    <div className="font-semibold text-foreground">{channel.name}</div>
-                                                    <div className="font-mono text-[11px] text-muted-foreground">{channel.slug}</div>
+                                                    <div className="flex items-center gap-3">
+                                                        {channel.hasWatermark && channel.watermarkUrl ? (
+                                                            <img
+                                                                src={channel.watermarkUrl}
+                                                                alt={channel.name}
+                                                                className="w-8 h-8 rounded-lg object-cover shrink-0 border border-border bg-black/20"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: bgGrad }}>
+                                                                <NicheIcon niche={channel.niche} />
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <div className="font-semibold text-foreground">{channel.name}</div>
+                                                            <div className="font-mono text-[11px] text-muted-foreground">{channel.slug}</div>
+                                                        </div>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="px-5 py-3">
                                                     <NicheBadge niche={channel.niche} />
