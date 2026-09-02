@@ -30,6 +30,7 @@ export function ClipPreviewModal({
     onReject,
 }: ClipPreviewModalProps) {
     const [device, setDevice] = useState<'mobile' | 'desktop'>('mobile');
+    const [desktopTab, setDesktopTab] = useState<'video' | 'cover'>('cover');
 
     if (!isOpen || !clip) return null;
 
@@ -48,6 +49,7 @@ export function ClipPreviewModal({
     const subtitleColor = tmpl.subtitleColor || '#facc15';
     const ctaText = tmpl.ctaText || 'INSCREVA-SE NO CANAL';
     const isLongo = clip.format === 'longo';
+    const isCurto = !isLongo;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
@@ -123,140 +125,206 @@ export function ClipPreviewModal({
                 {/* CORPO DO PREVIEW */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex items-center justify-center bg-zinc-950/70">
                     {device === 'mobile' ? (
-                        /* SIMULADOR CELULAR SMARTPHONE 9:16 */
-                        <div className="relative w-[320px] sm:w-[360px] aspect-[9/16] max-h-[68vh] rounded-[36px] p-3 bg-zinc-900 border-4 border-zinc-700 shadow-2xl flex flex-col justify-between overflow-hidden">
-                            {/* Borda / Ilha Superior */}
-                            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-4 bg-zinc-800 rounded-full z-20" />
+                        /* SIMULADOR CELULAR SMARTPHONE 9:16 (SEM CORTES) */
+                        <div className="relative w-[320px] sm:w-[350px] aspect-[9/16] max-h-[72vh] rounded-[38px] p-3 bg-zinc-900 border-4 border-zinc-700 shadow-2xl flex flex-col justify-between overflow-hidden">
+                            {/* Câmera / Ilha Superior */}
+                            <div className="absolute top-3.5 left-1/2 -translate-x-1/2 w-28 h-4 bg-zinc-800 rounded-full z-30 shadow-inner" />
 
-                            {/* Canvas Interno 9:16 */}
-                            <div className="relative w-full h-full rounded-[26px] overflow-hidden flex flex-col justify-between bg-black z-10">
-                                {/* Fundo com Blur Dinâmico para vídeos longos */}
-                                {isLongo ? (
-                                    <div
-                                        className="absolute inset-0 bg-cover bg-center opacity-40 blur-xl scale-125 pointer-events-none"
-                                        style={{
-                                            backgroundImage: clip.hasThumbnailFile
-                                                ? `url(${clip.thumbnailUrl})`
-                                                : isPol
-                                                ? 'radial-gradient(circle, #7f1d1d 0%, #1e1b4b 100%)'
-                                                : 'radial-gradient(circle, #064e3b 0%, #0f172a 100%)',
-                                        }}
-                                    />
-                                ) : null}
-
-                                {/* TOPO DO VÍDEO NO CELULAR */}
-                                <div className="relative z-10 pt-7 px-4 text-center flex flex-col items-center">
-                                    <div
-                                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-md uppercase tracking-wider mb-1.5"
-                                        style={{ backgroundColor: accentColor }}
-                                    >
-                                        {headerBadge}
-                                    </div>
-                                    <h4 className="font-extrabold text-xs tracking-wider text-white drop-shadow-md">
-                                        {headerTitle}
-                                    </h4>
-                                    <p className="text-[11px] font-bold text-zinc-100 line-clamp-2 mt-1 px-1 drop-shadow">
-                                        {clip.title}
-                                    </p>
-                                </div>
-
-                                {/* PLAYER CENTRALIZADO */}
-                                <div className="relative z-10 px-2 flex-1 flex items-center justify-center my-2">
-                                    <div className="w-full aspect-video rounded-xl overflow-hidden bg-black/90 border border-white/20 shadow-2xl relative flex items-center justify-center group">
-                                        {clip.hasVideoFile ? (
-                                            <video
-                                                controls
-                                                autoPlay
-                                                className="w-full h-full object-cover"
-                                                src={clip.previewUrl}
-                                                poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-zinc-900/80">
-                                                <div
-                                                    className="w-12 h-12 rounded-full flex items-center justify-center text-white mb-2 shadow-lg group-hover:scale-105 transition-transform"
-                                                    style={{ backgroundColor: accentColor }}
-                                                >
-                                                    <Play className="w-5 h-5 ml-0.5 fill-white" />
-                                                </div>
-                                                <span className="text-[11px] font-semibold text-zinc-200">
-                                                    Corte de {clip.trecho}
-                                                </span>
-                                                <span className="text-[10px] text-zinc-400 mt-0.5">
-                                                    Processado pelo FFmpeg com fundo temático
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* RODAPÉ COM LEGENDAS E CTA */}
-                                <div className="relative z-10 pb-5 px-4 text-center flex flex-col items-center gap-2">
-                                    {/* Legenda em destaque */}
-                                    <div className="px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-xs border border-white/10 max-w-[90%]">
-                                        <p
-                                            className="text-xs font-extrabold uppercase tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,1)]"
-                                            style={{ color: subtitleColor }}
-                                        >
-                                            "A POLÍTICA E O FUTEBOL NÃO PARAM!"
-                                        </p>
-                                    </div>
-
-                                    {/* Botão de Inscrição */}
-                                    <div
-                                        className="w-full py-1.5 px-3 rounded-xl text-center font-black text-[11px] tracking-wider text-white shadow-lg uppercase"
-                                        style={{ backgroundColor: accentColor }}
-                                    >
-                                        {ctaText}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        /* SIMULADOR DESKTOP (PLAYER YOUTUBE 16:9 NO COMPUTADOR) */
-                        <div className="w-full max-w-3xl flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden">
-                            {/* Barra Simulada do Navegador */}
-                            <div className="flex items-center gap-2 px-4 py-2 bg-zinc-950/80 border-b border-zinc-800 text-xs text-zinc-400 font-mono">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/80 inline-block" />
-                                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 inline-block" />
-                                    <span className="w-2.5 h-2.5 rounded-full bg-green-500/80 inline-block" />
-                                </div>
-                                <span className="ml-2 truncate text-zinc-500">
-                                    youtube.com/watch?v={clip.id} — Reprodução Desktop
-                                </span>
-                            </div>
-
-                            {/* Player Widescreen 16:9 */}
-                            <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
+                            {/* Canvas do Smartphone */}
+                            <div className="relative w-full h-full rounded-[26px] overflow-hidden bg-black z-10 flex flex-col items-center justify-center">
                                 {clip.hasVideoFile ? (
+                                    /* O vídeo (seja Longo enquadrado ou Shorts) preenche 100% da tela do celular sem cortar */
                                     <video
                                         controls
                                         autoPlay
-                                        className="w-full h-full object-contain bg-black"
+                                        playsInline
+                                        className="w-full h-full object-cover rounded-[26px]"
                                         src={clip.previewUrl}
                                         poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
                                     />
                                 ) : (
-                                    <div className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-zinc-950 via-zinc-900 to-zinc-950">
+                                    /* Mockup simulado caso o arquivo de vídeo ainda não exista em disco */
+                                    <div className="relative w-full h-full flex flex-col justify-between p-4 bg-zinc-950">
                                         <div
-                                            className="w-16 h-16 rounded-full flex items-center justify-center text-white mb-3 shadow-xl"
-                                            style={{ backgroundColor: accentColor }}
-                                        >
-                                            <Play className="w-7 h-7 ml-1 fill-white" />
+                                            className="absolute inset-0 bg-cover bg-center opacity-30 blur-lg"
+                                            style={{
+                                                backgroundImage: clip.hasThumbnailFile
+                                                    ? `url(${clip.thumbnailUrl})`
+                                                    : isPol
+                                                    ? 'radial-gradient(circle, #7f1d1d 0%, #090a0f 100%)'
+                                                    : 'radial-gradient(circle, #064e3b 0%, #090a0f 100%)',
+                                            }}
+                                        />
+                                        {/* Topo */}
+                                        <div className="relative z-10 pt-7 text-center">
+                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white uppercase" style={{ backgroundColor: accentColor }}>
+                                                {headerBadge}
+                                            </span>
+                                            <h4 className="font-bold text-xs text-white mt-1">{headerTitle}</h4>
                                         </div>
-                                        <h4 className="text-base font-bold text-white px-6 text-center">
-                                            {clip.title}
-                                        </h4>
-                                        <p className="text-xs text-zinc-400 mt-1">
-                                            Capa Oficial 16:9 • Duração do Trecho: {clip.trecho}
-                                        </p>
+                                        {/* Centro */}
+                                        <div className="relative z-10 my-auto p-4 rounded-xl bg-black/60 border border-white/10 text-center">
+                                            <Play className="w-8 h-8 text-white mx-auto mb-2" />
+                                            <p className="text-xs text-zinc-300 font-semibold">{clip.title}</p>
+                                        </div>
+                                        {/* Rodapé */}
+                                        <div className="relative z-10 pb-4 text-center">
+                                            <div className="w-full py-2 rounded-xl text-center font-bold text-xs text-white uppercase" style={{ backgroundColor: accentColor }}>
+                                                {ctaText}
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
-                                <span className="absolute right-3 bottom-3 px-2 py-0.5 rounded bg-black/80 text-[11px] font-mono font-semibold text-white border border-white/10">
-                                    {clip.trecho}
-                                </span>
                             </div>
+                        </div>
+                    ) : isCurto ? (
+                        /* DESKTOP: YOUTUBE SHORTS (PLAYER VERTICAL 9:16 COM BOTÕES LATERAIS DO YOUTUBE) */
+                            <div className="flex items-end gap-4 py-2">
+                                <div className="relative w-[320px] sm:w-[350px] aspect-[9/16] rounded-2xl overflow-hidden bg-black border border-zinc-800 shadow-2xl">
+                                    {clip.hasVideoFile ? (
+                                        <video
+                                            controls
+                                            autoPlay
+                                            playsInline
+                                            className="w-full h-full object-cover"
+                                            src={clip.previewUrl}
+                                            poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-zinc-900">
+                                            <Play className="w-12 h-12 text-white mb-2" />
+                                            <p className="text-xs text-white">{clip.title}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Overlay inferior do Shorts (Canal + Título) */}
+                                    <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none">
+                                        <div className="flex items-center gap-2 mb-1.5 pointer-events-auto">
+                                            <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs text-white" style={{ backgroundColor: accentColor }}>
+                                                {channelName.charAt(0).toUpperCase()}
+                                            </div>
+                                            <span className="font-semibold text-xs text-white">{channelName}</span>
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-black bg-white">Inscrever-se</span>
+                                        </div>
+                                        <p className="text-xs font-semibold text-white line-clamp-2 leading-snug drop-shadow">
+                                            {clip.title}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Barra lateral direita clássica do YouTube Shorts no PC */}
+                                <div className="flex flex-col items-center gap-4 pb-4">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="w-10 h-10 rounded-full bg-zinc-800/90 border border-zinc-700 flex items-center justify-center text-white hover:bg-zinc-700 cursor-pointer transition-colors shadow">
+                                            <ThumbsUp className="w-4 h-4" />
+                                        </div>
+                                        <span className="text-[10px] text-zinc-400 font-semibold">12K</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="w-10 h-10 rounded-full bg-zinc-800/90 border border-zinc-700 flex items-center justify-center text-white hover:bg-zinc-700 cursor-pointer transition-colors shadow">
+                                            <Share2 className="w-4 h-4" />
+                                        </div>
+                                        <span className="text-[10px] text-zinc-400 font-semibold">Compartilhar</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="w-10 h-10 rounded-full bg-zinc-800/90 border border-zinc-700 flex items-center justify-center text-white hover:bg-zinc-700 cursor-pointer transition-colors shadow">
+                                            <Bookmark className="w-4 h-4" />
+                                        </div>
+                                        <span className="text-[10px] text-zinc-400 font-semibold">Salvar</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            /* DESKTOP: YOUTUBE VÍDEO LONGO (PLAYER WIDESCREEN 16:9 + CAPA OFICIAL) */
+                            <div className="w-full max-w-3xl flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden">
+                                {/* Barra do Navegador */}
+                                <div className="flex items-center justify-between px-4 py-2 bg-zinc-950/90 border-b border-zinc-800 text-xs text-zinc-400 font-mono">
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-red-500/80 inline-block" />
+                                            <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 inline-block" />
+                                            <span className="w-2.5 h-2.5 rounded-full bg-green-500/80 inline-block" />
+                                        </div>
+                                        <span className="ml-2 truncate text-zinc-500">
+                                            youtube.com/watch?v={clip.id} — Vídeo Longo Oficial
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1 font-sans bg-zinc-900 p-1 rounded-lg border border-zinc-800">
+                                        <button
+                                            type="button"
+                                            onClick={() => setDesktopTab('cover')}
+                                            className={`px-2.5 py-1 rounded text-xs font-semibold transition-all ${
+                                                desktopTab === 'cover'
+                                                    ? 'bg-amber-500 text-black shadow-sm font-bold'
+                                                    : 'text-zinc-400 hover:text-white'
+                                            }`}
+                                        >
+                                            🖼️ Capa / Thumbnail
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setDesktopTab('video')}
+                                            className={`px-2.5 py-1 rounded text-xs font-semibold transition-all ${
+                                                desktopTab === 'video'
+                                                    ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700'
+                                                    : 'text-zinc-400 hover:text-white'
+                                            }`}
+                                        >
+                                            ▶️ Assistir Vídeo
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Player Widescreen 16:9 com Ambient Mode ou Capa Oficial */}
+                                <div className="relative w-full aspect-video bg-zinc-950 flex items-center justify-center overflow-hidden">
+                                    {/* Fundo com Ambient Lighting para preencher widescreen suavemente */}
+                                    {clip.hasThumbnailFile && (
+                                        <div
+                                            className="absolute inset-0 bg-cover bg-center scale-110 blur-2xl opacity-40 pointer-events-none"
+                                            style={{ backgroundImage: `url(${clip.thumbnailUrl})` }}
+                                        />
+                                    )}
+
+                                    {desktopTab === 'cover' ? (
+                                        /* Exibição da Capa Oficial 16:9 com palavras chamativas */
+                                        <div className="relative z-10 w-full h-full flex items-center justify-center bg-black">
+                                            {clip.hasThumbnailFile ? (
+                                                <img
+                                                    src={clip.thumbnailUrl}
+                                                    alt="Capa Oficial 16:9 do YouTube"
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="text-center p-6">
+                                                    <Play className="w-12 h-12 text-white mx-auto mb-2" />
+                                                    <h4 className="text-base font-bold text-white">{clip.title}</h4>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        /* Reprodução do Vídeo */
+                                        clip.hasVideoFile ? (
+                                            <video
+                                                controls
+                                                autoPlay
+                                                className="relative z-10 max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                                                src={clip.previewUrl}
+                                                poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
+                                            />
+                                        ) : (
+                                            <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
+                                                <div className="text-center p-6">
+                                                    <Play className="w-12 h-12 text-white mx-auto mb-2" />
+                                                    <h4 className="text-base font-bold text-white">{clip.title}</h4>
+                                                </div>
+                                            </div>
+                                        )
+                                    )}
+
+                                    <span className="absolute right-3 bottom-3 px-2 py-0.5 rounded bg-black/80 text-[11px] font-mono font-semibold text-white border border-white/10 z-20">
+                                        {clip.trecho}
+                                    </span>
+                                </div>
 
                             {/* Detalhes do Vídeo no Desktop (Estilo YouTube) */}
                             <div className="p-5 flex flex-col gap-4">

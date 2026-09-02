@@ -97,6 +97,16 @@ class TestVideoProcessor:
         assert '1' in cmd
         assert str(thumbnail) in cmd
 
+    def test_thumbnail_extracted_with_title_and_graphics(self, tmp_path, mocker):
+        mocker.patch('src.video_processor.subprocess.run')
+        mock_graphics = mocker.patch('src.video_processor._apply_youtube_thumbnail_graphics')
+        thumbnail = tmp_path / 'thumb_graphics.jpg'
+
+        result = extract_thumbnail('/app/clips/1.mp4', str(thumbnail), title='DECISÃO BOMBA: SEM DEBATES', niche='politica')
+
+        assert result == str(thumbnail)
+        mock_graphics.assert_called_once_with(str(thumbnail), 'DECISÃO BOMBA: SEM DEBATES', 'politica')
+
     def test_process_clip_updates_paths_and_status(self, tmp_path, mock_db_conn, mocker):
         transcript_path = tmp_path / 'transcript.json'
         transcript_path.write_text(json.dumps(SAMPLE_TRANSCRIPT), encoding='utf-8')

@@ -166,8 +166,14 @@ def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str, templa
     return output_path
 
 
-def extract_thumbnail(clip_path: str, thumbnail_path: str, at_seconds: float = None) -> str:
-    """Extrai um frame do clip como thumbnail JPG."""
+def extract_thumbnail(
+    clip_path: str,
+    thumbnail_path: str,
+    at_seconds: float = None,
+    title: str | None = None,
+    niche: str | None = None,
+) -> str:
+    """Extrai um frame do clip como thumbnail JPG e aplica tipografia de alto CTR estilo YouTube."""
     os.makedirs(os.path.dirname(thumbnail_path), exist_ok=True)
     if at_seconds is None:
         at_seconds = 1.0
@@ -184,7 +190,96 @@ def extract_thumbnail(clip_path: str, thumbnail_path: str, at_seconds: float = N
         check=True,
         capture_output=True,
     )
+
+    if title:
+        try:
+            _apply_youtube_thumbnail_graphics(thumbnail_path, title, niche)
+        except Exception as err:
+            _log(f'[THUMBNAIL] Aviso: Não foi possível aplicar tipografia na thumbnail: {err}')
+
     return thumbnail_path
+
+
+def _apply_youtube_thumbnail_graphics(thumbnail_path: str, title: str, niche: str | None = None):
+    """Aplica tipografia profissional e vinheta de contraste na thumbnail gerada via Pillow."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont, ImageEnhance
+    except ImportError:
+        return
+
+    if not os.path.exists(thumbnail_path):
+        return
+
+    bg = Image.open(thumbnail_path).convert('RGB')
+    bg = bg.resize((1280, 720), Image.Resampling.LANCZOS)
+
+    # Realce leve de contraste e saturação típicos do YouTube
+    bg = ImageEnhance.Contrast(bg).enhance(1.15)
+    bg = ImageEnhance.Color(bg).enhance(1.20)
+
+    # Vinheta escura na lateral esquerda (garante 100% de leitura em qualquer vídeo)
+    overlay = Image.new('RGBA', (1280, 720), (0, 0, 0, 0))
+    d_overlay = ImageDraw.Draw(overlay)
+    for x in range(0, 950):
+        alpha = int(190 * (1 - x / 950) ** 1.5)
+        d_overlay.line([(x, 0), (x, 720)], fill=(0, 0, 0, alpha))
+    bg.paste(overlay, (0, 0), overlay)
+
+    draw = ImageDraw.Draw(bg)
+
+    font_path = '/System/Library/Fonts/Supplemental/Arial Bold.ttf'
+    if not os.path.exists(font_path):
+        font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+
+    def _get_font(size):
+        try:
+            return ImageFont.truetype(font_path, size)
+        except Exception:
+            return ImageFont.load_default()
+
+    is_pol = 'politic' in (niche or '').lower() or 'debate' in title.lower()
+    badge_color = (229, 9, 20) if is_pol else (16, 185, 129)
+    badge_text = '🔴 DEBATE AO VIVO' if is_pol else '⚽ LANCE DECISIVO'
+
+    # 1. Badge Superior
+    font_badge = _get_font(24)
+    badge_w = draw.textlength(badge_text, font=font_badge) + 36
+    draw.rounded_rectangle([60, 60, 60 + badge_w, 104], radius=10, fill=badge_color)
+    draw.text((78, 68), badge_text, font=font_badge, fill='white')
+
+    # 2. Divide o título em palavras chamativas (Gancho Principal + Sub-gancho)
+    parts = title.split(':') if ':' in title else title.split(' - ')
+    if len(parts) >= 2:
+        main_text = parts[0].strip().upper()
+        sub_text = parts[1].strip().upper()
+    else:
+        words = title.strip().split()
+        mid = max(1, len(words) // 2)
+        main_text = ' '.join(words[:mid]).upper()
+        sub_text = ' '.join(words[mid:]).upper()
+
+    if len(main_text) > 28:
+        main_text = main_text[:25] + '...'
+    if len(sub_text) > 30:
+        sub_text = sub_text[:27] + '...'
+
+    # 3. Linha Superior: Amarelo com contorno grosso (stroke)
+    font_main = _get_font(72)
+    x, y = 60, 145
+    for dx in range(-6, 7):
+        for dy in range(-6, 7):
+            if dx * dx + dy * dy <= 36:
+                draw.text((x + dx, y + dy), main_text, font=font_main, fill='black')
+    draw.text((x, y), main_text, font=font_main, fill='#FFE500')
+
+    # 4. Linha Inferior: Branco sobre Tarja de Destaque
+    font_sub = _get_font(54)
+    sub_w = draw.textlength(sub_text, font=font_sub) + 40
+    sub_y = 250
+    draw.rounded_rectangle([60, sub_y, 60 + sub_w, sub_y + 75], radius=14, fill=badge_color, outline='white', width=2)
+    draw.text((80, sub_y + 8), sub_text, font=font_sub, fill='white')
+
+    bg.save(thumbnail_path, 'JPEG', quality=95)
 
 
 def overlay_watermark(input_path: str, watermark_path: str, output_path: str) -> str:
@@ -277,7 +372,13 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             os.rename(subtitled_path, final_clip_path)
 
         duration = max(float(clip['end_time']) - float(clip['start_time']), 1.0)
-        extract_thumbnail(final_clip_path, thumbnail_path, at_seconds=1.0)
+        extract_thumbnail(
+            final_clip_path,
+            thumbnail_path,
+            at_seconds=min(2.0, duration * 0.25),
+            title=clip.get('title'),
+            niche=clip.get('destination_channel_niche'),
+        )
 
         with conn.cursor() as cur:
             cur.execute(
