@@ -52,7 +52,7 @@ return [
         // pra aplicar overlay nos clips cortados. Ver docker-compose.yml (root).
         'branding' => [
             'driver' => 'local',
-            'root' => env('BRANDING_DISK_ROOT', storage_path('app/branding')),
+            'root' => env('BRANDING_DISK_ROOT', (file_exists(base_path('../branding')) ? base_path('../branding') : storage_path('app/branding'))),
             'throw' => false,
             'report' => false,
         ],
@@ -62,7 +62,7 @@ return [
         // o preview player do dashboard (ver ClipPreviewController).
         'clips-videos' => [
             'driver' => 'local',
-            'root' => env('CLIPS_VIDEOS_DISK_ROOT', storage_path('app/clips-videos')),
+            'root' => env('CLIPS_VIDEOS_DISK_ROOT', (file_exists(base_path('../videos')) ? base_path('../videos') : storage_path('app/clips-videos'))),
             'throw' => false,
             'report' => false,
         ],
