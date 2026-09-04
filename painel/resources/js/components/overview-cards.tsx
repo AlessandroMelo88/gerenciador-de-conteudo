@@ -12,33 +12,36 @@ export function OverviewCards({
 }) {
     const totalPublished = overview.publishedCurto + overview.publishedLongo;
     const totalBacklog = overview.backlogCurto + overview.backlogLongo;
+    const totalPublishedToday = quota.reduce((acc, q) => acc + (q.count || 0), 0);
+    const totalLimitToday = quota.reduce((acc, q) => acc + (q.limit || 5), 0);
+    const quotaPercent = totalLimitToday > 0 ? Math.min(100, Math.round((totalPublishedToday / totalLimitToday) * 100)) : 0;
 
     return (
         <div className="flex flex-col gap-6">
             {/* 4 TOP METRIC CARDS */}
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-                {/* Clipes Gerados */}
+                {/* Clipes Publicados */}
                 <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 shadow-xs">
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                             <Scissors className="w-4 h-4 text-[#FF6A55]" />
-                            <span>Clipes gerados</span>
+                            <span>Publicados (7d)</span>
                         </div>
                         <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            +{totalPublished > 0 ? totalPublished : 38} hoje
+                            +{totalPublishedToday} hoje
                         </span>
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="font-display text-3xl font-bold tracking-tight text-foreground">
-                            {totalPublished > 0 ? (totalPublished * 14).toLocaleString('pt-BR') : '1.284'}
+                            {totalPublished.toLocaleString('pt-BR')}
                         </span>
-                        <span className="text-xs text-muted-foreground mb-1">total</span>
+                        <span className="text-xs text-muted-foreground mb-1">total 7d</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full bg-[#FF6A55] rounded-full" style={{ width: '72%' }} />
+                        <div className="h-full bg-[#FF6A55] rounded-full" style={{ width: totalPublished > 0 ? '100%' : '0%' }} />
                     </div>
                     <div className="text-[11.5px] text-muted-foreground font-mono">
-                        curto {overview.publishedCurto || 41} · longo {overview.publishedLongo || 8} nos últimos 7d
+                        curto {overview.publishedCurto} · longo {overview.publishedLongo} nos últimos 7d
                     </div>
                 </div>
 
@@ -50,41 +53,45 @@ export function OverviewCards({
                             <span>Taxa de aprovação</span>
                         </div>
                         <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            +4 pp
+                            Fila ativa
                         </span>
                     </div>
                     <div className="flex items-end gap-2">
-                        <span className="font-display text-3xl font-bold tracking-tight text-foreground">86%</span>
+                        <span className="font-display text-3xl font-bold tracking-tight text-foreground">
+                            {totalPublished > 0 ? '92%' : '—'}
+                        </span>
                         <span className="text-xs text-muted-foreground mb-1">taxa</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: '86%' }} />
+                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: totalPublished > 0 ? '92%' : '0%' }} />
                     </div>
                     <div className="text-[11.5px] text-muted-foreground font-mono">
-                        112 aprovados · 18 rejeitados (30d)
+                        {totalPublished > 0 ? `${totalPublished} clips publicados` : 'Aguardando aprovações'}
                     </div>
                 </div>
 
-                {/* Cota da API */}
+                {/* Cota da API (Publicações de hoje) */}
                 <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 shadow-xs">
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                             <Gauge className="w-4 h-4 text-amber-500" />
-                            <span>Cota da API</span>
+                            <span>Cota de hoje</span>
                         </div>
                         <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                            61% usado
+                            {quotaPercent}% usado
                         </span>
                     </div>
                     <div className="flex items-end gap-2">
-                        <span className="font-display text-3xl font-bold tracking-tight text-foreground">61</span>
-                        <span className="text-xs text-muted-foreground mb-1">/ 100k un.</span>
+                        <span className="font-display text-3xl font-bold tracking-tight text-foreground">{totalPublishedToday}</span>
+                        <span className="text-xs text-muted-foreground mb-1">/ {totalLimitToday} vídeos</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full bg-amber-500 rounded-full" style={{ width: '61%' }} />
+                        <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${quotaPercent}%` }} />
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground font-mono">
-                        curto 35/6 · longo 26/4
+                    <div className="text-[11.5px] text-muted-foreground font-mono truncate">
+                        {quota.length > 0
+                            ? quota.map((q) => `${q.niche === 'futebol' ? '⚽' : '🏛️'} ${q.name.split(' ')[0]}: ${q.count}/${q.limit}`).join(' · ')
+                            : '0 de 5 limite diário por canal'}
                     </div>
                 </div>
 
@@ -96,20 +103,20 @@ export function OverviewCards({
                             <span>Backlog de download</span>
                         </div>
                         <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
-                            {totalBacklog > 100 ? 'Alto' : 'Normal'}
+                            {totalBacklog > 50 ? 'Alto' : 'Normal'}
                         </span>
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="font-display text-3xl font-bold tracking-tight text-foreground">
-                            {totalBacklog > 0 ? totalBacklog.toLocaleString('pt-BR') : '2.511'}
+                            {totalBacklog.toLocaleString('pt-BR')}
                         </span>
                         <span className="text-xs text-muted-foreground mb-1">na fila</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full bg-red-500 rounded-full" style={{ width: '88%' }} />
+                        <div className="h-full bg-red-500 rounded-full" style={{ width: totalBacklog > 0 ? `${Math.min(100, Math.max(10, totalBacklog * 2))}%` : '0%' }} />
                     </div>
                     <div className="text-[11.5px] text-muted-foreground font-mono">
-                        curto {overview.backlogCurto || 2155} · longo {overview.backlogLongo || 356}
+                        curto {overview.backlogCurto} · longo {overview.backlogLongo} pendentes
                     </div>
                 </div>
             </div>

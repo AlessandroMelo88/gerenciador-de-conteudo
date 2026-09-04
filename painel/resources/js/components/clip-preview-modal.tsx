@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     X,
     Smartphone,
@@ -31,6 +31,13 @@ export function ClipPreviewModal({
 }: ClipPreviewModalProps) {
     const [device, setDevice] = useState<'mobile' | 'desktop'>('mobile');
     const [desktopTab, setDesktopTab] = useState<'video' | 'cover'>('cover');
+
+    useEffect(() => {
+        if (clip) {
+            setDevice(clip.format === 'longo' ? 'desktop' : 'mobile');
+            setDesktopTab(clip.hasVideoFile ? 'video' : 'cover');
+        }
+    }, [clip?.id, clip?.format, clip?.hasVideoFile]);
 
     if (!isOpen || !clip) return null;
 
@@ -68,7 +75,7 @@ export function ClipPreviewModal({
                                 <h3 className="font-semibold text-sm truncate text-white">{clip.title}</h3>
                                 {isLongo ? (
                                     <span className="shrink-0 px-2 py-0.5 rounded text-[10.5px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                        ✨ Longo (9:16)
+                                        ✨ Longo (16:9)
                                     </span>
                                 ) : (
                                     <span className="shrink-0 px-2 py-0.5 rounded text-[10.5px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
@@ -144,7 +151,7 @@ export function ClipPreviewModal({
                                     />
                                 ) : (
                                     /* Mockup simulado caso o arquivo de vídeo ainda não exista em disco */
-                                    <div className="relative w-full h-full flex flex-col justify-between p-4 bg-zinc-950">
+                                    <div className="relative w-full h-full flex flex-col justify-between p-3.5 bg-zinc-950">
                                         <div
                                             className="absolute inset-0 bg-cover bg-center opacity-30 blur-lg"
                                             style={{
@@ -156,20 +163,41 @@ export function ClipPreviewModal({
                                             }}
                                         />
                                         {/* Topo */}
-                                        <div className="relative z-10 pt-7 text-center">
-                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white uppercase" style={{ backgroundColor: accentColor }}>
+                                        <div className="relative z-10 pt-5 text-center">
+                                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white uppercase shadow-sm" style={{ backgroundColor: accentColor }}>
                                                 {headerBadge}
                                             </span>
-                                            <h4 className="font-bold text-xs text-white mt-1">{headerTitle}</h4>
+                                            <h4 className="font-bold text-xs text-white mt-1 drop-shadow">{headerTitle}</h4>
                                         </div>
-                                        {/* Centro */}
-                                        <div className="relative z-10 my-auto p-4 rounded-xl bg-black/60 border border-white/10 text-center">
-                                            <Play className="w-8 h-8 text-white mx-auto mb-2" />
-                                            <p className="text-xs text-zinc-300 font-semibold">{clip.title}</p>
+                                        {/* Centro: ocupa todo o espaço útil vertical entre topo e botão */}
+                                        <div className="relative z-10 flex-1 w-full my-2.5 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl flex flex-col items-center justify-center bg-black/75 group">
+                                            {clip.hasThumbnailFile ? (
+                                                <img
+                                                    src={clip.thumbnailUrl}
+                                                    alt={clip.title || 'Preview do vídeo'}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center p-4 text-center">
+                                                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-white mb-2 shadow-lg backdrop-blur-md" style={{ backgroundColor: `${accentColor}EE` }}>
+                                                        <Play className="w-6 h-6 ml-0.5 fill-white" />
+                                                    </div>
+                                                    <p className="text-xs text-zinc-200 font-bold px-2 line-clamp-3 leading-snug">{clip.title}</p>
+                                                </div>
+                                            )}
                                         </div>
-                                        {/* Rodapé */}
-                                        <div className="relative z-10 pb-4 text-center">
-                                            <div className="w-full py-2 rounded-xl text-center font-bold text-xs text-white uppercase" style={{ backgroundColor: accentColor }}>
+                                        {/* Legenda simulada acima do botão */}
+                                        <div className="relative z-10 mb-2 px-2 text-center">
+                                            <span
+                                                className="inline-block px-2.5 py-1 rounded bg-black/80 text-[10.5px] font-extrabold shadow drop-shadow-md"
+                                                style={{ color: subtitleColor }}
+                                            >
+                                                "Golaço e lance espetacular!"
+                                            </span>
+                                        </div>
+                                        {/* Rodapé: Botão Inscreva-se seguro sem sobreposição */}
+                                        <div className="relative z-10 pb-2 text-center">
+                                            <div className="w-full py-2.5 rounded-xl text-center font-black text-xs text-white uppercase shadow-lg tracking-wider transition-transform" style={{ backgroundColor: accentColor }}>
                                                 {ctaText}
                                             </div>
                                         </div>
@@ -257,8 +285,8 @@ export function ClipPreviewModal({
                                 </div>
                             </div>
                         ) : (
-                            /* DESKTOP: YOUTUBE VÍDEO LONGO (PLAYER WIDESCREEN 16:9 + CAPA OFICIAL) */
-                            <div className="w-full max-w-3xl flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden">
+                            /* DESKTOP: YOUTUBE VÍDEO LONGO (PLAYER WIDESCREEN 16:9 COM MOLDURA/BACKGROUND OFICIAL) */
+                            <div className="w-full max-w-4xl flex flex-col rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden">
                                 {/* Barra do Navegador */}
                                 <div className="flex items-center justify-between px-4 py-2 bg-zinc-950/90 border-b border-zinc-800 text-xs text-zinc-400 font-mono">
                                     <div className="flex items-center gap-2">
@@ -268,7 +296,7 @@ export function ClipPreviewModal({
                                             <span className="w-2.5 h-2.5 rounded-full bg-green-500/80 inline-block" />
                                         </div>
                                         <span className="ml-2 truncate text-zinc-500">
-                                            youtube.com/watch?v={clip.id} — Vídeo Longo Oficial
+                                            youtube.com/watch?v={clip.id} — Vídeo Longo Oficial (16:9)
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-1 font-sans bg-zinc-900 p-1 rounded-lg border border-zinc-800">
@@ -297,20 +325,39 @@ export function ClipPreviewModal({
                                     </div>
                                 </div>
 
-                                {/* Player Widescreen 16:9 com Ambient Mode ou Capa Oficial */}
-                                <div className="relative w-full aspect-video bg-zinc-950 flex items-center justify-center overflow-hidden">
-                                    {/* Fundo com Ambient Lighting para preencher widescreen suavemente */}
-                                    {clip.hasThumbnailFile && (
-                                        <div
-                                            className="absolute inset-0 bg-cover bg-center scale-110 blur-2xl opacity-40 pointer-events-none"
-                                            style={{ backgroundImage: `url(${clip.thumbnailUrl})` }}
-                                        />
-                                    )}
+                                {/* Container Widescreen 16:9 com o Background Template do Canal */}
+                                <div className="relative w-full aspect-video bg-zinc-950 overflow-hidden select-none">
+                                    {/* Imagem de Fundo Oficial do Canal */}
+                                    <img
+                                        src={
+                                            clip.destinationChannelBackgroundUrl ||
+                                            (isPol
+                                                ? '/storage/branding/background-cortes-da-politica.png'
+                                                : isFut
+                                                ? '/storage/branding/background-futebol-em-cortes.png'
+                                                : '/storage/branding/background-podcast-cortes.png')
+                                        }
+                                        alt={`Background ${channelName}`}
+                                        className="absolute inset-0 w-full h-full object-cover z-0"
+                                        onError={(e) => {
+                                            // Fallback gracioso caso asset não carregue
+                                            e.currentTarget.style.display = 'none';
+                                        }}
+                                    />
 
-                                    {desktopTab === 'cover' ? (
-                                        /* Exibição da Capa Oficial 16:9 com palavras chamativas */
-                                        <div className="relative z-10 w-full h-full flex items-center justify-center bg-black">
-                                            {clip.hasThumbnailFile ? (
+                                    {/* Janela do Vídeo Centralizado na Moldura Amarela (x=320/1920=16.67%, y=72/1080=6.67%, w=1520/1920=79.17%, h=855/1080=79.17%) */}
+                                    <div
+                                        className="absolute z-10 overflow-hidden bg-black flex items-center justify-center shadow-2xl"
+                                        style={{
+                                            left: '16.67%',
+                                            top: '6.67%',
+                                            width: '79.17%',
+                                            height: '79.17%',
+                                        }}
+                                    >
+                                        {desktopTab === 'cover' ? (
+                                            /* Aba Capa: Thumbnail ou poster na janela */
+                                            clip.hasThumbnailFile ? (
                                                 <img
                                                     src={clip.thumbnailUrl}
                                                     alt="Capa Oficial 16:9 do YouTube"
@@ -319,51 +366,31 @@ export function ClipPreviewModal({
                                             ) : (
                                                 <div className="text-center p-6">
                                                     <Play className="w-12 h-12 text-white mx-auto mb-2" />
-                                                    <h4 className="text-base font-bold text-white">{clip.title}</h4>
+                                                    <h4 className="text-sm font-bold text-white px-4">{clip.title}</h4>
                                                 </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        /* Reprodução do Vídeo */
-                                        clip.hasVideoFile ? (
-                                            <video
-                                                controls
-                                                autoPlay
-                                                className="relative z-10 max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-                                                src={clip.previewUrl}
-                                                poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
-                                            />
+                                            )
                                         ) : (
-                                            <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
+                                            /* Aba Vídeo: Player de Reprodução dentro da janela */
+                                            clip.hasVideoFile ? (
+                                                <video
+                                                    controls
+                                                    autoPlay
+                                                    className="w-full h-full object-cover"
+                                                    src={clip.previewUrl}
+                                                    poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
+                                                />
+                                            ) : (
                                                 <div className="text-center p-6">
                                                     <Play className="w-12 h-12 text-white mx-auto mb-2" />
-                                                    <h4 className="text-base font-bold text-white">{clip.title}</h4>
+                                                    <h4 className="text-sm font-bold text-white px-4">{clip.title}</h4>
                                                 </div>
-                                            </div>
-                                        )
-                                    )}
-
-                                    <span className="absolute right-3 bottom-3 px-2 py-0.5 rounded bg-black/80 text-[11px] font-mono font-semibold text-white border border-white/10 z-20">
-                                        {clip.trecho}
-                                    </span>
-
-                                    {/* Marca d'água / Logo Oficial do Canal no Canto Superior Direito */}
-                                    <div className="absolute top-4 right-4 z-30 pointer-events-none drop-shadow-xl flex items-center">
-                                        {clip.destinationChannelWatermarkUrl ? (
-                                            <img
-                                                src={clip.destinationChannelWatermarkUrl}
-                                                alt={channelName}
-                                                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white/40 shadow-2xl bg-black/40 backdrop-blur-xs p-0.5"
-                                            />
-                                        ) : (
-                                            <div
-                                                className="w-9 h-9 rounded-full flex items-center justify-center font-black text-xs text-white border-2 border-white/30 shadow-lg"
-                                                style={{ backgroundColor: accentColor }}
-                                            >
-                                                {channelName.charAt(0).toUpperCase()}
-                                            </div>
+                                            )
                                         )}
                                     </div>
+
+                                    <span className="absolute right-3 bottom-2.5 px-2 py-0.5 rounded bg-black/80 text-[11px] font-mono font-semibold text-white border border-white/10 z-20">
+                                        {clip.trecho}
+                                    </span>
                                 </div>
 
                             {/* Detalhes do Vídeo no Desktop (Estilo YouTube) */}

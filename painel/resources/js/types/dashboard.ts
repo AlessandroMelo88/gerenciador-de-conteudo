@@ -31,6 +31,7 @@ export type ClipRow = {
         ctaText?: string;
     } | null;
     destinationChannelWatermarkUrl?: string | null;
+    destinationChannelBackgroundUrl?: string | null;
 };
 
 export type QuotaChannel = {
@@ -58,6 +59,8 @@ export type ActiveWindowVideo = {
     processing: boolean;
     canDelete: boolean;
     sourceChannelName: string | null;
+    niche?: string | null;
+    destinationChannelName?: string | null;
     publishedAt: string | null;
     score: number | null;
     clipCount: number;

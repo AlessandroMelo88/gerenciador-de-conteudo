@@ -87,6 +87,27 @@ class DestinationChannelController extends Controller
         return response()->file(Storage::disk('branding')->path($relativePath));
     }
 
+    public function background(DestinationChannel $destinationChannel)
+    {
+        $relativePath = "background-{$destinationChannel->slug}.png";
+        if (! Storage::disk('branding')->exists($relativePath)) {
+            $niche = strtolower($destinationChannel->niche ?? '');
+            if (str_contains($niche, 'fut')) {
+                $relativePath = 'background-futebol-em-cortes.png';
+            } elseif (str_contains($niche, 'pol')) {
+                $relativePath = 'background-cortes-da-politica.png';
+            } elseif (str_contains($niche, 'pod')) {
+                $relativePath = 'background-podcast-cortes.png';
+            }
+        }
+
+        if (! Storage::disk('branding')->exists($relativePath)) {
+            abort(404);
+        }
+
+        return response()->file(Storage::disk('branding')->path($relativePath));
+    }
+
     public function uploadWatermark(Request $request, DestinationChannel $destinationChannel): RedirectResponse
     {
         $request->validate([

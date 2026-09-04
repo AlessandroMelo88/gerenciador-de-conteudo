@@ -25,6 +25,40 @@ from src.metadata_generator import generate_metadata, update_clip_metadata
 VIDEOS_DIR = '/app/videos'
 CLIPS_DIR = '/app/videos/clips'
 THUMBNAILS_DIR = '/app/videos/thumbnails'
+BRANDING_DIR = os.environ.get('BRANDING_DIR', '/app/branding')
+
+
+def resolve_background_path(slug: str | None = None, niche: str | None = None) -> str | None:
+    """Busca a imagem de background 1920x1080 do canal ou nicho."""
+    candidates = []
+    if slug:
+        candidates.append(os.path.join(BRANDING_DIR, f'background-{slug}.png'))
+    if niche:
+        n = niche.lower()
+        if 'fut' in n:
+            candidates.append(os.path.join(BRANDING_DIR, 'background-futebol-em-cortes.png'))
+        elif 'pol' in n:
+            candidates.append(os.path.join(BRANDING_DIR, 'background-cortes-da-politica.png'))
+        elif 'pod' in n:
+            candidates.append(os.path.join(BRANDING_DIR, 'background-podcast-cortes.png'))
+
+    # Fallback para execução local no host
+    local_branding = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'branding'))
+    if slug:
+        candidates.append(os.path.join(local_branding, f'background-{slug}.png'))
+    if niche:
+        n = niche.lower()
+        if 'fut' in n:
+            candidates.append(os.path.join(local_branding, 'background-futebol-em-cortes.png'))
+        elif 'pol' in n:
+            candidates.append(os.path.join(local_branding, 'background-cortes-da-politica.png'))
+        elif 'pod' in n:
+            candidates.append(os.path.join(local_branding, 'background-podcast-cortes.png'))
+
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
 
 
 def resolve_default_template_config(channel_name: str = '', niche: str = '') -> dict:
@@ -46,44 +80,77 @@ def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [VID] {msg}')
 
 
-def cut_clip(source_path: str, start_time: float, end_time: float, output_path: str, fmt: str = 'curto', template_config: dict | None = None) -> str:
+def cut_clip(
+    source_path: str,
+    start_time: float,
+    end_time: float,
+    output_path: str,
+    fmt: str = 'curto',
+    template_config: dict | None = None,
+    background_path: str | None = None,
+) -> str:
     """Corta um trecho do vídeo fonte.
 
     fmt='curto' (padrão): converte pra vertical 1080x1920 (Shorts).
-    fmt='longo': enquadra o vídeo 16:9 centralizado em canvas vertical 9:16 (1080x1920)
-    com fundo temático desfocado (blur) e espaço para branding e legendas.
+    fmt='longo': se background_path for fornecido, compõe o vídeo 16:9 na janela (1520x855 em x=320, y=72)
+    sobre a imagem de background 1920x1080 do canal. Se não houver imagem de fundo, usa o blur vertical 9:16.
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     cfg = template_config or {}
     bg_style = cfg.get('bgStyle', 'blur_dark')
 
-    if fmt == 'longo':
-        if bg_style == 'blur_intense':
-            blur_param = 'boxblur=35:10,eq=brightness=-0.35:contrast=0.90'
-        else:
-            blur_param = 'boxblur=25:5,eq=brightness=-0.30:contrast=0.95'
+    duration = max(float(end_time) - float(start_time), 0.1)
 
-        video_filter = (
-            f'[0:v]split=2[bg_in][fg_in];'
-            f'[bg_in]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,{blur_param}[bg];'
-            f'[fg_in]scale=1080:-2[fg];'
-            f'[bg][fg]overlay=0:(H-h)/2,setsar=1'
-        )
-        filter_args = ['-filter_complex', video_filter]
+    if fmt == 'longo':
+        if background_path and os.path.exists(background_path):
+            video_filter = (
+                '[0:v]scale=1520:855:force_original_aspect_ratio=increase,crop=1520:855[fg];'
+                '[1:v][fg]overlay=320:72,setsar=1'
+            )
+            input_args = [
+                '-ss', str(start_time),
+                '-to', str(end_time),
+                '-i', source_path,
+                '-loop', '1',
+                '-i', background_path,
+                '-t', str(duration),
+            ]
+            filter_args = ['-filter_complex', video_filter]
+        else:
+            if bg_style == 'blur_intense':
+                blur_param = 'boxblur=35:10,eq=brightness=-0.35:contrast=0.90'
+            else:
+                blur_param = 'boxblur=25:5,eq=brightness=-0.30:contrast=0.95'
+
+            video_filter = (
+                f'[0:v]split=2[bg_in][fg_in];'
+                f'[bg_in]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,{blur_param}[bg];'
+                f'[fg_in]scale=1080:-2[fg];'
+                f'[bg][fg]overlay=0:(H-h)/2,setsar=1'
+            )
+            input_args = [
+                '-ss', str(start_time),
+                '-to', str(end_time),
+                '-i', source_path,
+            ]
+            filter_args = ['-filter_complex', video_filter]
     else:
         video_filter = (
             'scale=1080:1920:force_original_aspect_ratio=increase,'
             'crop=1080:1920,'
             'setsar=1'
         )
+        input_args = [
+            '-ss', str(start_time),
+            '-to', str(end_time),
+            '-i', source_path,
+        ]
         filter_args = ['-vf', video_filter]
 
     subprocess.run(
         [
             'ffmpeg',
-            '-ss', str(start_time),
-            '-to', str(end_time),
-            '-i', source_path,
+            *input_args,
             *filter_args,
             '-c:v', 'libx264',
             '-preset', 'veryfast',
@@ -127,7 +194,7 @@ def generate_srt(transcript: dict, start_time: float, end_time: float, srt_path:
     return srt_path
 
 
-def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str, template_config: dict | None = None) -> str:
+def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str, fmt: str = 'curto', template_config: dict | None = None) -> str:
     """Queima legendas SRT no clip usando FFmpeg."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     cfg = template_config or {}
@@ -140,14 +207,25 @@ def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str, templa
         # Padrão amarelo ouro (#facc15 -> BBGGRR: 15CCFA)
         primary_color = '&H0015CCFA'
 
-    subtitle_filter = (
-        f"subtitles={srt_path}:"
-        "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=38,"
-        "PlayResX=1080,PlayResY=1920,"
-        f"PrimaryColour={primary_color},OutlineColour=&H00000000,"
-        "BackColour=&H60000000,"
-        "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=180'"
-    )
+    if fmt == 'longo':
+        subtitle_filter = (
+            f"subtitles={srt_path}:"
+            "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=30,"
+            "PlayResX=1920,PlayResY=1080,"
+            f"PrimaryColour={primary_color},OutlineColour=&H00000000,"
+            "BackColour=&H60000000,"
+            "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=190'"
+        )
+    else:
+        subtitle_filter = (
+            f"subtitles={srt_path}:"
+            "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=38,"
+            "PlayResX=1080,PlayResY=1920,"
+            f"PrimaryColour={primary_color},OutlineColour=&H00000000,"
+            "BackColour=&H60000000,"
+            "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=200'"
+        )
+
     subprocess.run(
         [
             'ffmpeg',
@@ -362,13 +440,26 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
 
         merged_cfg = {**defaults, **cfg}
 
-        cut_clip(clip['local_path'], clip['start_time'], clip['end_time'], raw_clip_path, fmt=clip.get('format') or 'curto', template_config=merged_cfg)
-        generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
-        burn_subtitles(raw_clip_path, srt_path, subtitled_path, template_config=merged_cfg)
-
-        # Aplicar watermark se canal-destino tem slug configurado
         slug = clip.get('destination_channel_slug')
-        if slug:
+        niche = clip.get('destination_channel_niche')
+        fmt = clip.get('format') or 'curto'
+
+        bg_path = resolve_background_path(slug=slug, niche=niche) if fmt == 'longo' else None
+
+        cut_clip(
+            clip['local_path'],
+            clip['start_time'],
+            clip['end_time'],
+            raw_clip_path,
+            fmt=fmt,
+            template_config=merged_cfg,
+            background_path=bg_path,
+        )
+        generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
+        burn_subtitles(raw_clip_path, srt_path, subtitled_path, fmt=fmt, template_config=merged_cfg)
+
+        # Aplicar watermark se canal-destino tem slug configurado e formato curto (vídeo longo já tem branding integrado na moldura)
+        if slug and fmt != 'longo':
             watermark_path = f'/app/branding/watermark-{slug}.png'
             # overlay_watermark retorna subtitled_path se arquivo de watermark não existir (graceful)
             result_path = overlay_watermark(subtitled_path, watermark_path, final_clip_path)
@@ -380,7 +471,7 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
                 if os.path.exists(subtitled_path):
                     os.remove(subtitled_path)
         else:
-            # Sem canal-destino: renomear arquivo legendado para path final
+            # Sem canal-destino ou vídeo longo: renomear arquivo legendado para path final
             os.rename(subtitled_path, final_clip_path)
 
         duration = max(float(clip['end_time']) - float(clip['start_time']), 1.0)

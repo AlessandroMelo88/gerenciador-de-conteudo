@@ -704,7 +704,13 @@ export function ClipQueueTabs({
                     }`}
                 >
                     <span>🎯 Fila de aprovação</span>
-                    <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-mono">
+                    <span
+                        className={`rounded-md px-2 py-0.5 text-[10.5px] font-mono font-bold transition-colors ${
+                            mainTab === 'pending'
+                                ? 'bg-white/20 text-white dark:bg-zinc-900/15 dark:text-zinc-900'
+                                : 'bg-muted text-muted-foreground'
+                        }`}
+                    >
                         {pendingClips.length}
                     </span>
                 </button>
@@ -719,7 +725,13 @@ export function ClipQueueTabs({
                     }`}
                 >
                     <span>⚡ Processados / Janela Ativa</span>
-                    <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-mono">
+                    <span
+                        className={`rounded-md px-2 py-0.5 text-[10.5px] font-mono font-bold transition-colors ${
+                            mainTab === 'active_window'
+                                ? 'bg-white/20 text-white dark:bg-zinc-900/15 dark:text-zinc-900'
+                                : 'bg-muted text-muted-foreground'
+                        }`}
+                    >
                         {activeWindow.length}
                     </span>
                 </button>
@@ -734,7 +746,13 @@ export function ClipQueueTabs({
                     }`}
                 >
                     <span>🚀 Prontos para subir</span>
-                    <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-mono">
+                    <span
+                        className={`rounded-md px-2 py-0.5 text-[10.5px] font-mono font-bold transition-colors ${
+                            mainTab === 'queued'
+                                ? 'bg-white/20 text-white dark:bg-zinc-900/15 dark:text-zinc-900'
+                                : 'bg-muted text-muted-foreground'
+                        }`}
+                    >
                         {queuedClips.length}
                     </span>
                 </button>
@@ -749,7 +767,13 @@ export function ClipQueueTabs({
                     }`}
                 >
                     <span>⚠️ Falhas recentes</span>
-                    <span className="rounded-md bg-muted px-2 py-0.5 text-[10.5px] font-mono">
+                    <span
+                        className={`rounded-md px-2 py-0.5 text-[10.5px] font-mono font-bold transition-colors ${
+                            mainTab === 'failures'
+                                ? 'bg-white/20 text-white dark:bg-zinc-900/15 dark:text-zinc-900'
+                                : 'bg-muted text-muted-foreground'
+                        }`}
+                    >
                         {failures.length}
                     </span>
                 </button>

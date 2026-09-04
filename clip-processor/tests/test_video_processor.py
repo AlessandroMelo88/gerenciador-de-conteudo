@@ -340,3 +340,27 @@ class TestProcessClipWithWatermark:
         assert result is True
         mock_watermark.assert_not_called()
         mock_rename.assert_called_once()
+
+    def test_cut_clip_longo_with_background_template(self, tmp_path, mocker):
+        """Verifica que cut_clip com background_path usa overlay 320:72 e loop de imagem."""
+        mock_run = mocker.patch('src.video_processor.subprocess.run')
+        output = tmp_path / 'clip_template.mp4'
+        bg_img = tmp_path / 'background-futebol.png'
+        bg_img.write_text('fake_image')
+
+        cut_clip(
+            '/app/videos/source.mp4',
+            0.0,
+            120.0,
+            str(output),
+            fmt='longo',
+            background_path=str(bg_img),
+        )
+
+        cmd = mock_run.call_args.args[0]
+        assert '-filter_complex' in cmd
+        filter_arg = cmd[cmd.index('-filter_complex') + 1]
+        assert 'overlay=320:72' in filter_arg
+        assert 'scale=1520:855' in filter_arg
+        assert '-loop' in cmd
+        assert str(bg_img) in cmd

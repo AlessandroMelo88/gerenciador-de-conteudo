@@ -56,9 +56,15 @@ class DashboardController extends Controller
     {
         $processing = ['downloading', 'transcribing', 'selecting'];
 
+        $destinationChannels = DestinationChannel::all();
+        $destMap = [];
+        foreach ($destinationChannels as $dc) {
+            $destMap[strtolower(trim($dc->niche))] = $dc->name;
+        }
+
         return SourceVideo::query()
             ->whereNotNull('local_path')
-            ->with(['sourceChannel', 'generatedClips'])
+            ->with(['sourceChannel', 'generatedClips.destinationChannel'])
             ->get()
             ->sortBy([
                 // Processando agora no topo; depois ordem DnD / prioridade / score baixo
@@ -69,7 +75,7 @@ class DashboardController extends Controller
                 [fn (SourceVideo $video) => $video->generatedClips->max('score') ?? 999, 'asc'],
                 [fn (SourceVideo $video) => $video->published_at, 'asc'],
             ])
-            ->map(function (SourceVideo $video) use ($processing) {
+            ->map(function (SourceVideo $video) use ($processing, $destMap) {
                 $needsRaw = $video->generatedClips
                     ->whereIn('status', ['pending_cut', 'cutting'])
                     ->isNotEmpty();
@@ -85,6 +91,29 @@ class DashboardController extends Controller
                     default => 0,
                 };
 
+                $niche = strtolower(trim($video->sourceChannel?->target_niche ?? ''));
+                if (empty($niche)) {
+                    $firstClipDest = $video->generatedClips->first()?->destinationChannel;
+                    $niche = $firstClipDest ? strtolower(trim($firstClipDest->niche)) : '';
+                }
+
+                if (empty($niche)) {
+                    $ch = strtolower($video->sourceChannel?->channel_name ?? '');
+                    if (str_contains($ch, 'espn') || str_contains($ch, 'cazé') || str_contains($ch, 'caze') || str_contains($ch, 'esporte') || str_contains($ch, 'futebol')) {
+                        $niche = 'futebol';
+                    } elseif (str_contains($ch, 'flow') || str_contains($ch, 'inteligência') || str_contains($ch, 'inteligencia') || str_contains($ch, 'pod')) {
+                        $niche = 'podcast';
+                    } else {
+                        $niche = 'politica';
+                    }
+                }
+
+                $destinationChannelName = $destMap[$niche] ?? match ($niche) {
+                    'futebol' => 'Futebol em Cortes',
+                    'politica' => 'Cortes da Política',
+                    default => ucfirst($niche),
+                };
+
                 return [
                     'id' => $video->id,
                     'title' => $video->title,
@@ -97,6 +126,8 @@ class DashboardController extends Controller
                     'processing' => in_array($video->status, $processing, true),
                     'canDelete' => ! in_array($video->status, ['downloading', 'cutting'], true) && ! $needsRaw,
                     'sourceChannelName' => $video->sourceChannel?->channel_name,
+                    'niche' => $niche,
+                    'destinationChannelName' => $destinationChannelName,
                     'publishedAt' => $video->published_at?->diffForHumans(),
                     'score' => $video->generatedClips->max('score'),
                     'clipCount' => $video->generatedClips->count(),
@@ -198,6 +229,9 @@ class DashboardController extends Controller
                     ? (Storage::disk('branding')->exists("watermark-{$clip->destinationChannel->slug}.png")
                         ? route('destination-channels.watermark', $clip->destinationChannel->id)
                         : null)
+                    : null,
+                'destinationChannelBackgroundUrl' => $clip->destinationChannel?->id
+                    ? route('destination-channels.background', $clip->destinationChannel->id)
                     : null,
             ];
         })->values()->all();

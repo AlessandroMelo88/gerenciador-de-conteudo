@@ -67,11 +67,71 @@ const STATUS_LABEL: Record<string, string> = {
     failed: 'Falha',
 };
 
-function ScoreBadge({ score }: { score: number | null }) {
-    if (score === null) {
-        return <Badge variant="secondary">—</Badge>;
+function ScoreBadge({ score }: { score: number | null | undefined }) {
+    if (score === null || score === undefined) {
+        return <span className="text-muted-foreground">—</span>;
     }
-    return <Badge variant={score >= 7 ? 'default' : 'destructive'}>{score}</Badge>;
+
+    if (score >= 9) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-500 dark:text-red-400 shadow-xs">
+                🔥 {score}/10
+            </span>
+        );
+    }
+    if (score >= 8) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 shadow-xs">
+                ⭐ {score}/10
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-2.5 py-1 text-xs font-medium text-zinc-400">
+            {score}/10
+        </span>
+    );
+}
+
+function NicheBadge({ niche, channelName }: { niche?: string | null; channelName?: string | null }) {
+    const n = (niche ?? '').toLowerCase();
+    const ch = (channelName ?? '').toLowerCase();
+
+    if (n === 'politica' || ch.includes('política') || ch.includes('politica')) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                🏛️ {channelName ?? 'Cortes da Política'}
+            </span>
+        );
+    }
+    if (n === 'podcast' || ch.includes('podcast')) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                🎙️ {channelName ?? 'Podcast'}
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            ⚽ {channelName ?? 'Futebol em Cortes'}
+        </span>
+    );
+}
+
+function FormatBadge({ format }: { format?: string | null }) {
+    const isLongo = format === 'longo';
+    if (isLongo) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-gradient-to-r from-amber-500/15 to-orange-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-500 dark:text-amber-400 shadow-xs">
+                ✨ Longo
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800/80 px-2 py-0.5 text-[11px] font-semibold text-zinc-300">
+            📱 Curto
+        </span>
+    );
 }
 
 function useSelection() {
@@ -192,11 +252,18 @@ function VideoCells({
                     )}
                 </span>
             </TableCell>
-            <TableCell className="text-muted-foreground">{video.sourceChannelName ?? '—'}</TableCell>
             <TableCell>
-                <Badge variant={video.format === 'longo' ? 'default' : 'secondary'}>
-                    {video.format === 'longo' ? 'Longo' : 'Curto'}
-                </Badge>
+                <div className="flex flex-col gap-1 py-0.5 min-w-[130px]">
+                    <span className="font-semibold text-xs text-foreground truncate max-w-[190px]" title={video.sourceChannelName ?? undefined}>
+                        {video.sourceChannelName ?? '—'}
+                    </span>
+                    <div>
+                        <NicheBadge niche={video.niche} channelName={video.destinationChannelName} />
+                    </div>
+                </div>
+            </TableCell>
+            <TableCell>
+                <FormatBadge format={video.format} />
             </TableCell>
             <TableCell>
                 <span
