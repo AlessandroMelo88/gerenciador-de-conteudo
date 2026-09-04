@@ -59,7 +59,7 @@ def _select_pending_videos(db_conn) -> list:
                 'SELECT COUNT(DISTINCT sv.id) AS c FROM source_videos sv '
                 'LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id '
                 'WHERE sv.format = %s AND ('
-                '  sv.local_path IS NOT NULL '
+                "  (sv.local_path IS NOT NULL AND sv.status NOT IN ('failed', 'published')) "
                 "  OR sv.status IN ('downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing') "
                 "  OR (gc.id IS NOT NULL AND gc.status IN ('pending_cut', 'pending', 'cutting', 'approved'))"
                 ')',

@@ -197,6 +197,7 @@ class TestSelectPendingVideos:
         result = _select_pending_videos(mock_conn)
 
         assert result == ['longo1', 'longo2', 'curto1', 'curto2', 'curto3']
+        assert "sv.status NOT IN ('failed', 'published')" in cur.execute.call_args_list[0].args[0]
 
     def test_full_window_skips_format_entirely(self):
         """Formato já na janela cheia não gera nenhuma query SELECT (só o COUNT)."""
