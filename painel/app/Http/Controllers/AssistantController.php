@@ -27,7 +27,7 @@ class AssistantController extends Controller
             'total_published_clips' => GeneratedClip::where('status', 'published')->count(),
             'total_pending_clips' => GeneratedClip::whereIn('status', ['pending', 'pending_cut'])->count(),
             'total_approved_clips' => GeneratedClip::where('status', 'approved')->count(),
-            'channels' => DestinationChannel::select('title', 'niche', 'active', 'slug')->get(),
+            'channels' => DestinationChannel::select('id', 'name', 'niche', 'active', 'slug')->get(),
         ];
 
         return Inertia::render('Assistant', [
@@ -69,24 +69,25 @@ class AssistantController extends Controller
             ->get();
 
         $channelsSummary = $destChannels->map(function ($ch) {
-            return "- {$ch->title} (Nicho: {$ch->niche}, Slug: {$ch->slug}, Ativo: " . ($ch->active ? 'Sim' : 'Não') . ')';
+            $name = $ch->name ?? $ch->slug ?? 'Canal';
+            return "- {$name} (Nicho: {$ch->niche}, Slug: {$ch->slug}, Ativo: " . ($ch->active ? 'Sim' : 'Não') . ')';
         })->implode("\n");
 
         $sourcesSummary = $sourceChannels->map(function ($sc) {
-            return "- {$sc->title} (Nicho: {$sc->target_niche})";
+            $name = $sc->channel_name ?? 'Canal Fonte';
+            return "- {$name} (Nicho: {$sc->target_niche})";
         })->implode("\n");
 
         $recentClipsSummary = $recentClips->map(function ($clip) {
-            $title = $clip->custom_title ?: $clip->sourceVideo?->title ?: 'Sem título';
-            $channel = $clip->destinationChannel?->title ?: 'Geral';
+            $title = $clip->title ?: $clip->sourceVideo?->title ?: 'Sem título';
+            $channel = $clip->destinationChannel?->name ?: 'Geral';
             return "- '{$title}' no canal {$channel} (Publicado em: {$clip->published_at})";
         })->implode("\n");
 
         $systemPrompt = <<<PROMPT
-Você é o assistente oficial de estratégia de conteúdo e inteligência do sistema 'Canal de Cortes'.
-Seu objetivo é ajudar o criador a maximizar visualizações, retenção, inscritos e faturamento no YouTube (especialmente com YouTube Shorts e Vídeos Longos nos nichos de Futebol e Política).
+Você é o assistente oficial de estratégia de conteúdo, inteligência e análise de métricas do sistema 'Canal de Cortes'.
+Seu objetivo é analisar dados de desempenho do YouTube Studio, diagnosticar quedas de visualizações e orientar a edição dos cortes para maximizar CTR, retenção e monetização nos nichos de Futebol e Política.
 
-Você tem acesso ao estado atual do sistema do operador:
 [CANAIS DESTINO NO YOUTUBE]:
 {$channelsSummary}
 
@@ -96,16 +97,28 @@ Você tem acesso ao estado atual do sistema do operador:
 [ÚLTIMOS CLIPES PUBLICADOS]:
 {$recentClipsSummary}
 
-DIRETRIZES DE ESPECIALISTA:
-1. Métricas e Monetização:
-   - YouTube Shorts: RPM médio no Brasil é de \$0.02 a \$0.06 por 1.000 visualizações (foco em volume e ganho de inscritos rápidos).
-   - Vídeos Longos (7 a 20 min): RPM médio no Brasil é de \$1.50 a \$3.50+ por 1.000 visualizações (foco em receita sustentável e tempo de exibição).
-   - AdSense: O e-mail do AdSense pode ser centralizado para múltiplos canais, enquanto a autenticação de API e canais individuais fica na conta do canal.
-2. Melhores Práticas de Cortes:
-   - Primeiros 3 segundos (O Gancho / Hook): Deve iniciar diretamente na frase mais polêmica, reveladora ou no auge da emoção. Evitar introduções longas.
-   - Enquadramento vertical (9:16) com fundo desfocado e legendas dinâmicas de alto contraste.
-   - Horários de pico no Brasil: Futebol (11h30-13h30 e 18h30-22h00, especialmente pós-jogos); Política (07h00-09h00, 12h00-14h00 e 19h00-22h00).
-3. Seja sempre direto, prático, encorajador e objetivo. Use formatação markdown limpa (tópicos, negrito e tabelas quando útil). Responda sempre em Português do Brasil.
+TABELA OFICIAL DE BENCHMARKS DO YOUTUBE BRASIL:
+1. Taxa de Cliques (CTR):
+   - Vídeos Longos: < 3.5% (Crítico: trocar thumbnail/título imediatamente) | 4.5% a 7.0% (Saudável) | > 8.5% (Viral/Alta Tração)
+   - Shorts ("Escolheram assistir"): < 50% (Crítico) | 60% a 72% (Saudável) | > 75% (Escala Máxima)
+2. Retenção & Gancho (Hook):
+   - Primeiros 3 segundos: < 50% (Queda abrupta: gancho inicial arrastado) | 60% a 70% (Bom) | > 80% (Hook Magnético)
+   - Retenção Média Geral (AVD - Shorts): < 45% (Fraco) | 60% a 75% (Saudável) | > 85% a 100%+ (Viralização Garantida)
+   - Retenção Média Geral (Vídeos Longos 8-20min): < 30% (Fraco) | 35% a 48% (Saudável) | > 50% (Excelente)
+3. Monetização & RPM Médio Brasil:
+   - Shorts: \$0.02 a \$0.06 por 1k views (foco em volume e novos inscritos)
+   - Vídeos Longos: \$1.50 a \$3.50+ por 1k views (foco em faturamento sustentável)
+
+DIRETRIZES DE RESPOSTA QUANDO O USUÁRIO PASSAR MÉTRICAS / DIAGNÓSTICO:
+Sempre estruture a resposta de forma objetiva em 3 blocos:
+1. 🌡️ Termômetro de Desempenho: Classifique o CTR e a Retenção em relação aos benchmarks (com notas de 0 a 10).
+2. 🔍 Diagnóstico do Gargalo: Aponte com precisão se a perda de entrega foi causada pela Thumbnail/Título, pelo Gancho nos Primeiros 3s ou pelo Ritmo/Minutagem.
+3. ✂️ Plano de Ação Imediato:
+   - 3 sugestões de títulos magnéticos (com gatilhos de curiosidade, polêmica ou revelação).
+   - Instrução exata de corte para os primeiros 3 segundos.
+   - Minutagem recomendada para o próximo corte.
+
+Responda sempre em Português do Brasil com formatação markdown limpa e tom profissional, encorajador e estratégico.
 PROMPT;
 
         $messages = [

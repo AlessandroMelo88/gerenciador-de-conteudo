@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import {
     BotIcon,
+    UserIcon,
     SendIcon,
     SparklesIcon,
     Trash2Icon,
@@ -36,7 +37,7 @@ type PageProps = {
         total_published_clips: number;
         total_pending_clips: number;
         total_approved_clips: number;
-        channels: Array<{ title: string; niche: string; active: boolean; slug: string }>;
+        channels: Array<{ id?: number; name?: string; title?: string; niche: string; active: boolean; slug: string }>;
     };
     groqModel: string;
 };
@@ -50,26 +51,48 @@ type Message = {
 
 const SUGGESTIONS = [
     {
-        icon: ZapIcon,
-        title: 'Fórmula MBL & Missão',
-        prompt: 'Como funciona a fórmula dos canais de cortes virais de política (ex: MBL, Missão, Kim Kataguiri)? Me explique a estrutura exata do gancho inicial, legendas e fechamento para replicar no meu canal.',
-        tag: 'Política Viral',
+        icon: BarChart3Icon,
+        title: '⚽ Métricas Futebol em Cortes',
+        prompt: `[ANÁLISE DE MÉTRICAS - FUTEBOL EM CORTES]
+- Formato: YouTube Shorts
+- CTR (Escolheram assistir): 58%
+- Retenção Média (AVD): 44%
+- Retenção nos primeiros 3s: 52%
+- Tema do Vídeo: Lance polêmico de arbitragem no clássico
+- Título Atual: Juiz errou feio no lance polêmico ontem
+
+Com base nos benchmarks de futebol no Brasil:
+1. Qual é o principal gargalo (Capa/Título ou Gancho dos 3s)?
+2. Dê 3 opções de títulos com alto gatilho de curiosidade (CTR > 75%).
+3. O que devo cortar nos primeiros 3 segundos para a retenção passar de 70%?`,
+        tag: 'Futebol',
     },
     {
-        icon: BarChart3Icon,
-        title: 'Diagnóstico de Métricas',
-        prompt: 'Tenho um vídeo de corte com 1.200 views, 55% de retenção e 4.2% de CTR, mas parou de ser entregue. O que o algoritmo do YouTube está interpretando e o que devo ajustar no próximo?',
-        tag: 'YouTube Studio',
+        icon: ZapIcon,
+        title: '🏛️ Métricas Cortes da Política',
+        prompt: `[ANÁLISE DE MÉTRICAS - CORTES DA POLÍTICA]
+- Formato: Vídeo Longo (12 min)
+- CTR (Taxa de Cliques): 4.1%
+- Retenção Média (AVD): 34%
+- Retenção nos primeiros 3s: 62%
+- Tema do Vídeo: Debate acalorado sobre decisão do STF
+- Título Atual: Deputado confronta ministro ao vivo no plenário
+
+Com base nos benchmarks de política no Brasil (estilo MBL / Missão):
+1. Onde está o gargalo principal (Thumbnail/Título vs Meio do Vídeo)?
+2. Dê 3 opções de títulos no padrão viral de confronto.
+3. Qual a minutagem ideal para esse corte?`,
+        tag: 'Política',
     },
     {
         icon: DollarSignIcon,
-        title: 'Estimativa de Ganhos',
+        title: '💰 Calculadora de Ganhos',
         prompt: 'Qual a estimativa de faturamento para 200.000 visualizações no YouTube em vídeos longos vs Shorts no Brasil?',
         tag: 'Monetização',
     },
     {
         icon: ClockIcon,
-        title: 'Melhores Horários',
+        title: '⏰ Melhores Horários',
         prompt: 'Quais os melhores horários e frequência diária para postar cortes de futebol e política no YouTube Brasil?',
         tag: 'Algoritmo',
     },
@@ -85,7 +108,7 @@ Estou conectado ao contexto do seu painel:
 - **${stats.total_source_channels}** canais fontes monitorados
 - **${stats.total_published_clips}** clipes já publicados
 
-Como posso te ajudar hoje? Você pode me passar suas métricas do **YouTube Studio** (CTR, Retenção, Views) para diagnóstico, pedir análises de canais concorrentes (ex: MBL, Missão, Futebol) ou tirar dúvidas sobre monetização!`;
+Como posso te ajudar hoje? Você pode clicar em **Diagnóstico YouTube Studio** acima ou usar os cartões abaixo para diagnosticar métricas do **Futebol em Cortes** ou **Cortes da Política**!`;
 
         return [
             {
@@ -105,9 +128,11 @@ Como posso te ajudar hoje? Você pode me passar suas métricas do **YouTube Stud
     // Estado do Diagnóstico do YouTube Studio
     const [diagForm, setDiagForm] = React.useState({
         videoType: 'shorts',
-        niche: 'politica',
+        niche: 'futebol',
+        title: '',
         views: '',
         retention: '',
+        first3s: '',
         ctr: '',
         duration: '',
         problem: 'O vídeo parou de receber impressões após as primeiras 24 horas',
@@ -223,21 +248,51 @@ Como posso te ajudar hoje? Você pode me passar suas métricas do **YouTube Stud
         ]);
     };
 
+    const setPresetDiagnosis = (type: 'futebol' | 'politica') => {
+        if (type === 'futebol') {
+            setDiagForm({
+                videoType: 'shorts',
+                niche: 'futebol',
+                title: 'Juiz errou feio no lance polêmico ontem',
+                views: '3.200',
+                retention: '44%',
+                first3s: '52%',
+                ctr: '58%',
+                duration: '0:45',
+                problem: 'O vídeo teve pico na primeira hora e parou de ser entregue no feed dos Shorts.',
+            });
+        } else {
+            setDiagForm({
+                videoType: 'long',
+                niche: 'politica',
+                title: 'Deputado confronta ministro ao vivo no plenário',
+                views: '1.800',
+                retention: '34%',
+                first3s: '62%',
+                ctr: '4.1%',
+                duration: '11:30',
+                problem: 'A retenção média caiu no meio do vídeo e o CTR está abaixo de 5%.',
+            });
+        }
+    };
+
     const submitDiagnosis = (e: React.FormEvent) => {
         e.preventDefault();
         const prompt = `[DIAGNÓSTICO YOUTUBE STUDIO]
 - Formato: ${diagForm.videoType === 'shorts' ? 'YouTube Shorts (Vertical)' : 'Vídeo Longo (Horizontal)'}
 - Nicho/Assunto: ${diagForm.niche}
+- Título Atual: ${diagForm.title ? diagForm.title : 'Não informado'}
 - Visualizações: ${diagForm.views ? diagForm.views : 'Não informado'}
-- % de Retenção / Duração Média: ${diagForm.retention ? diagForm.retention : 'Não informado'}
+- % de Retenção Média (AVD): ${diagForm.retention ? diagForm.retention : 'Não informado'}
+- Retenção Primeiros 3s (Hook): ${diagForm.first3s ? diagForm.first3s : 'Não informado'}
 - Taxa de Cliques (CTR): ${diagForm.ctr ? diagForm.ctr : 'Não informado'}
 - Duração do Vídeo: ${diagForm.duration ? diagForm.duration : 'Não informado'}
 - Situação / Pergunta: ${diagForm.problem}
 
-Analise esses números como um estrategista sênior do algoritmo do YouTube:
-1. Diagnóstico do Algoritmo: O que esses dados indicam sobre a retenção e entrega?
-2. Identificação de Gargalos: Onde o vídeo perdeu alcance (Thumbnail/CTR, Gancho nos primeiros 3s ou Ritmo)?
-3. Plano de Ação Imediato: 3 passos práticos para aplicar no próximo corte/vídeo para aumentar visualizações e inscritos.`;
+Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
+1. 🌡️ Termômetro de Desempenho (Notas 0-10 para CTR e Retenção).
+2. 🔍 Diagnóstico do Gargalo (Capa/Título vs Gancho dos 3s vs Minutagem).
+3. ✂️ Plano de Ação Imediato (3 novos títulos de alto clique + instrução exata de corte para os primeiros 3 segundos).`;
 
         setDiagOpen(false);
         handleSend(prompt);
@@ -267,7 +322,7 @@ Analise esses números como um estrategista sênior do algoritmo do YouTube:
                                     </Badge>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Respostas rápidas em tempo real com dados contextualizados do seu canal de cortes.
+                                    Respostas instantâneas contextualizadas com os dados e benchmarks dos seus canais de cortes.
                                 </p>
                             </div>
                         </div>
@@ -288,20 +343,42 @@ Analise esses números como um estrategista sênior do algoritmo do YouTube:
                                     <DialogHeader>
                                         <DialogTitle className="font-display font-bold flex items-center gap-2">
                                             <BarChart3Icon className="size-5 text-primary" />
-                                            Diagnosticar Métricas do YouTube
+                                            Diagnosticar Métricas do YouTube Studio
                                         </DialogTitle>
                                         <DialogDescription className="text-xs">
-                                            Insira os dados do seu vídeo obtidos no <strong>YouTube Studio (Analytics)</strong> para que o LLaMA analise a retenção, CTR e recomende melhorias imediatas.
+                                            Insira os dados do vídeo ou clique nos presets rápidos abaixo para o LLaMA analisar gargalos de retenção e CTR.
                                         </DialogDescription>
                                     </DialogHeader>
-                                    <form onSubmit={submitDiagnosis} className="space-y-3.5 text-xs">
+
+                                    {/* Presets Rápidos de 1 Clique */}
+                                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/60 border border-border/80">
+                                        <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">Preencher rápido:</span>
+                                        <div className="flex gap-1.5 flex-wrap">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPresetDiagnosis('futebol')}
+                                                className="px-2 py-1 rounded text-[11px] font-medium bg-background border border-border/80 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-colors"
+                                            >
+                                                ⚽ Futebol em Cortes
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setPresetDiagnosis('politica')}
+                                                className="px-2 py-1 rounded text-[11px] font-medium bg-background border border-border/80 hover:border-red-500/50 hover:bg-red-500/10 transition-colors"
+                                            >
+                                                🏛️ Cortes da Política
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <form onSubmit={submitDiagnosis} className="space-y-3 text-xs">
                                         <div className="grid grid-cols-2 gap-3">
                                             <Field>
                                                 <FieldLabel className="text-xs">Formato</FieldLabel>
                                                 <select
                                                     value={diagForm.videoType}
                                                     onChange={(e) => setDiagForm({ ...diagForm, videoType: e.target.value })}
-                                                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs"
+                                                    className="w-full h-8 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs"
                                                 >
                                                     <option value="shorts">📱 YouTube Shorts (Vertical)</option>
                                                     <option value="long">🎬 Vídeo Longo (Horizontal)</option>
@@ -312,39 +389,58 @@ Analise esses números como um estrategista sênior do algoritmo do YouTube:
                                                 <select
                                                     value={diagForm.niche}
                                                     onChange={(e) => setDiagForm({ ...diagForm, niche: e.target.value })}
-                                                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs"
+                                                    className="w-full h-8 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs"
                                                 >
-                                                    <option value="politica">🏛️ Política / Debates</option>
                                                     <option value="futebol">⚽ Futebol / Esportes</option>
+                                                    <option value="politica">🏛️ Política / Debates</option>
                                                     <option value="podcast">🎙️ Podcast / Entrevistas</option>
                                                     <option value="geral">🌐 Outro Nicho</option>
                                                 </select>
                                             </Field>
                                         </div>
 
-                                        <div className="grid grid-cols-3 gap-2.5">
+                                        <Field>
+                                            <FieldLabel className="text-xs">Título Atual do Vídeo / Manchete</FieldLabel>
+                                            <Input
+                                                placeholder="Ex: Juiz errou feio no lance polêmico ontem"
+                                                value={diagForm.title}
+                                                onChange={(e) => setDiagForm({ ...diagForm, title: e.target.value })}
+                                                className="h-8 text-xs"
+                                            />
+                                        </Field>
+
+                                        <div className="grid grid-cols-4 gap-2">
                                             <Field>
                                                 <FieldLabel className="text-xs">Visualizações</FieldLabel>
                                                 <Input
-                                                    placeholder="Ex: 2.400"
+                                                    placeholder="Ex: 3.200"
                                                     value={diagForm.views}
                                                     onChange={(e) => setDiagForm({ ...diagForm, views: e.target.value })}
                                                     className="h-8 text-xs"
                                                 />
                                             </Field>
                                             <Field>
-                                                <FieldLabel className="text-xs">Retenção (%)</FieldLabel>
+                                                <FieldLabel className="text-xs">Retenção AVD</FieldLabel>
                                                 <Input
-                                                    placeholder="Ex: 58% ou 0:42"
+                                                    placeholder="Ex: 44%"
                                                     value={diagForm.retention}
                                                     onChange={(e) => setDiagForm({ ...diagForm, retention: e.target.value })}
                                                     className="h-8 text-xs"
                                                 />
                                             </Field>
                                             <Field>
-                                                <FieldLabel className="text-xs">CTR / Cliques (%)</FieldLabel>
+                                                <FieldLabel className="text-xs">Primeiros 3s</FieldLabel>
                                                 <Input
-                                                    placeholder="Ex: 4.8%"
+                                                    placeholder="Ex: 52%"
+                                                    value={diagForm.first3s}
+                                                    onChange={(e) => setDiagForm({ ...diagForm, first3s: e.target.value })}
+                                                    className="h-8 text-xs"
+                                                />
+                                            </Field>
+                                            <Field>
+                                                <FieldLabel className="text-xs">CTR (%)</FieldLabel>
+                                                <Input
+                                                    placeholder="Ex: 58%"
                                                     value={diagForm.ctr}
                                                     onChange={(e) => setDiagForm({ ...diagForm, ctr: e.target.value })}
                                                     className="h-8 text-xs"
@@ -372,7 +468,7 @@ Analise esses números como um estrategista sênior do algoritmo do YouTube:
                                                 size="sm"
                                                 style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)', color: '#fff' }}
                                             >
-                                                🧠 Analisar Métricas com IA
+                                                🧠 Analisar com LLaMA
                                             </Button>
                                         </DialogFooter>
                                     </form>
