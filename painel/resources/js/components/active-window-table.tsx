@@ -134,16 +134,45 @@ function FormatBadge({ format }: { format?: string | null }) {
     );
 }
 
-function useSelection() {
+function useSelection(items: ActiveWindowVideo[]) {
     const [selected, setSelected] = useState<number[]>([]);
+    const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
 
-    const toggle = (id: number) =>
-        setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    const toggle = (id: number, shiftKey = false) => {
+        setSelected((prev) => {
+            const isCurrentlySelected = prev.includes(id);
 
-    const toggleAll = (ids: number[]) =>
+            if (shiftKey && lastSelectedId !== null) {
+                const lastIdx = items.findIndex((x) => x.id === lastSelectedId);
+                const currIdx = items.findIndex((x) => x.id === id);
+
+                if (lastIdx !== -1 && currIdx !== -1) {
+                    const start = Math.min(lastIdx, currIdx);
+                    const end = Math.max(lastIdx, currIdx);
+                    const range = items
+                        .slice(start, end + 1)
+                        .filter((v) => v.canDelete)
+                        .map((v) => v.id);
+
+                    return Array.from(new Set([...prev, ...range]));
+                }
+            }
+
+            return isCurrentlySelected ? prev.filter((x) => x !== id) : [...prev, id];
+        });
+
+        setLastSelectedId(id);
+    };
+
+    const toggleAll = (ids: number[]) => {
         setSelected((prev) => (prev.length === ids.length ? [] : ids));
+        setLastSelectedId(null);
+    };
 
-    const clear = () => setSelected([]);
+    const clear = () => {
+        setSelected([]);
+        setLastSelectedId(null);
+    };
 
     return { selected, toggle, toggleAll, clear };
 }
@@ -227,7 +256,7 @@ function VideoCells({
 }: {
     video: ActiveWindowVideo;
     isSelected: boolean;
-    onToggleSelect: () => void;
+    onToggleSelect: (shiftKey: boolean) => void;
     dragHandle?: ReactNode;
 }) {
     return (
@@ -236,7 +265,10 @@ function VideoCells({
                 <Checkbox
                     checked={isSelected}
                     disabled={!video.canDelete}
-                    onCheckedChange={onToggleSelect}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSelect(e.shiftKey);
+                    }}
                     title={!video.canDelete ? 'Arquivo em uso ou clips ainda precisam do bruto' : undefined}
                 />
             </TableCell>
@@ -302,7 +334,7 @@ function SortableRow({
 }: {
     video: ActiveWindowVideo;
     isSelected: boolean;
-    onToggleSelect: () => void;
+    onToggleSelect: (id: number, shiftKey: boolean) => void;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: video.id,
@@ -317,7 +349,7 @@ function SortableRow({
             <VideoCells
                 video={video}
                 isSelected={isSelected}
-                onToggleSelect={onToggleSelect}
+                onToggleSelect={(shiftKey) => onToggleSelect(video.id, shiftKey)}
                 dragHandle={
                     <button
                         type="button"
@@ -345,7 +377,7 @@ function VideoTable({
     sortable?: boolean;
     onReorder?: (ids: number[]) => void;
     selected: number[];
-    onToggleSelect: (id: number) => void;
+    onToggleSelect: (id: number, shiftKey: boolean) => void;
 }) {
     const [items, setItems] = useState(videos);
     useEffect(() => setItems(videos), [videos]);
@@ -401,7 +433,7 @@ function VideoTable({
                                 <VideoCells
                                     video={video}
                                     isSelected={selected.includes(video.id)}
-                                    onToggleSelect={() => onToggleSelect(video.id)}
+                                    onToggleSelect={(shiftKey) => onToggleSelect(video.id, shiftKey)}
                                     dragHandle={<span className="inline-block w-4" />}
                                 />
                             </TableRow>
@@ -424,7 +456,7 @@ function VideoTable({
                                     key={video.id}
                                     video={video}
                                     isSelected={selected.includes(video.id)}
-                                    onToggleSelect={() => onToggleSelect(video.id)}
+                                    onToggleSelect={onToggleSelect}
                                 />
                             ))}
                         </TableBody>
@@ -436,7 +468,7 @@ function VideoTable({
 }
 
 export function ActiveWindowTable({ videos }: { videos: ActiveWindowVideo[] }) {
-    const { selected, toggle, toggleAll, clear } = useSelection();
+    const { selected, toggle, toggleAll, clear } = useSelection(videos);
     const curtoCount = videos.filter((v) => v.format === 'curto').length;
     const longoCount = videos.filter((v) => v.format === 'longo').length;
     const processing = useMemo(() => videos.filter((v) => v.processing && !v.paused), [videos]);

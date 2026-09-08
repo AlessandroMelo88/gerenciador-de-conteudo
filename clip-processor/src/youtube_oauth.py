@@ -35,7 +35,10 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.force-ssl",
+]
 SECRETS_FILE = os.environ.get(
     "YOUTUBE_CLIENT_SECRETS", "/app/youtube/client_secrets.json"
 )

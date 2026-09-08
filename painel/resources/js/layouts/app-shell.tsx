@@ -16,8 +16,9 @@ type AppShellProps = {
 };
 
 const shellStyle = {
-    '--sidebar-width': 'calc(var(--spacing) * 72)',
-    '--header-height': 'calc(var(--spacing) * 12)',
+    '--sidebar-width': '16.5rem',
+    '--sidebar-width-icon': '3.5rem',
+    '--header-height': '4.5rem',
 } as CSSProperties;
 
 /**
@@ -36,9 +37,9 @@ export function AppShell({
         <SidebarProvider style={shellStyle}>
             {withToaster && <Toaster />}
             <AppSidebar variant="inset" user={user} />
-            <SidebarInset>
+            <SidebarInset className="min-w-0 flex-1 w-full max-w-full overflow-x-hidden">
                 <SiteHeader title={title} description={description} actions={actions} />
-                <div className="flex flex-1 flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">{children}</div>
+                <div className="flex flex-1 flex-col gap-4 px-3 py-4 sm:px-4 md:gap-6 md:py-6 lg:px-6 min-w-0 w-full max-w-full">{children}</div>
             </SidebarInset>
         </SidebarProvider>
     );

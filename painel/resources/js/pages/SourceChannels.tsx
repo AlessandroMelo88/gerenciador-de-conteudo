@@ -352,6 +352,18 @@ export default function SourceChannels() {
                                                 <span className="text-xs text-destructive">Bloquear</span>
                                             </div>
                                             <div className="flex-1" />
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 px-2.5 text-xs text-primary border-primary/30 hover:bg-primary/10 gap-1.5"
+                                                onClick={() => {
+                                                    const prompt = `Faça uma análise estratégica completa da estrutura de conteúdo do canal "${channel.channelName}" (${channel.channelHandle || 'YouTube'}) no nicho de ${channel.targetNiche}. Quais são as fórmulas de títulos, ganchos nos primeiros 3 segundos, formatos de corte e temas de maior engajamento para modelarmos no nosso canal?`;
+                                                    router.visit(`/painel/assistente?prompt=${encodeURIComponent(prompt)}`);
+                                                }}
+                                                title="Analisar Estrutura com IA"
+                                            >
+                                                <span>🧠 Analisar IA</span>
+                                            </Button>
                                             <ConfirmButton
                                                 variant="destructive"
                                                 size="sm"
@@ -429,6 +441,18 @@ export default function SourceChannels() {
                                                     </TableCell>
                                                     <TableCell className="px-5 py-3 text-right">
                                                         <div className="flex items-center justify-end gap-1.5">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 px-2.5 text-xs text-primary border-primary/30 hover:bg-primary/10 gap-1"
+                                                                onClick={() => {
+                                                                    const prompt = `Faça uma análise estratégica completa da estrutura de conteúdo do canal "${channel.channelName}" (${channel.channelHandle || 'YouTube'}) no nicho de ${channel.targetNiche}. Quais são as fórmulas de títulos, ganchos nos primeiros 3 segundos, formatos de corte e temas de maior engajamento para modelarmos no nosso canal?`;
+                                                                    router.visit(`/painel/assistente?prompt=${encodeURIComponent(prompt)}`);
+                                                                }}
+                                                                title="Analisar Estrutura com IA"
+                                                            >
+                                                                <span>🧠 Analisar IA</span>
+                                                            </Button>
                                                             <ConfirmButton
                                                                 variant="destructive"
                                                                 size="sm"

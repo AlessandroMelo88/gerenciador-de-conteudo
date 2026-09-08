@@ -21,6 +21,8 @@ import {
     TvIcon,
     BookOpenIcon,
     SparklesIcon,
+    BotIcon,
+    BookmarkIcon,
 } from 'lucide-react';
 
 type NavItem = {
@@ -33,11 +35,13 @@ type NavItem = {
 
 const navItems: (NavItem & { badge?: string | number })[] = [
     { title: 'Dashboard', url: '/painel', icon: LayoutDashboardIcon, badge: 9 },
+    { title: 'Assistente IA', url: '/painel/assistente', icon: BotIcon, badge: 'LLaMA' },
     { title: 'Canais Destino', url: '/painel/canais-destino', icon: TvIcon, badge: 3 },
     { title: 'Canais Fonte', url: '/painel/canais-fonte', icon: RadioTowerIcon, badge: 32 },
     { title: 'Vídeos', url: '/painel/videos', icon: ClapperboardIcon, badge: '2620' },
     { title: 'Processar Vídeo', url: '/painel/processar-video', icon: LinkIcon },
     { title: 'Transcrição Local', url: '/painel/transcricoes', icon: AudioLinesIcon },
+    { title: 'Links Úteis', url: '/painel/links-uteis', icon: BookmarkIcon },
     { title: 'Documentação', url: '/painel/documentacao', icon: BookOpenIcon },
 ];
 
@@ -53,7 +57,7 @@ export function AppSidebar({
     const workers = pageProps.workers || {
         downloader: '35/61',
         transcriber: '1 ativo',
-        cutter: 'idle',
+        cutter: 'ocioso',
     };
 
     return (
@@ -129,12 +133,12 @@ export function AppSidebar({
                         <span className="font-mono text-[10.5px] text-muted-foreground">{workers.downloader}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[12px]">
-                        <span className={`w-1.5 h-1.5 rounded-full ${workers.transcriber !== 'idle' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${workers.transcriber !== 'ocioso' && workers.transcriber !== 'idle' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                         <span className="flex-1 text-foreground/80">transcriber</span>
                         <span className="font-mono text-[10.5px] text-muted-foreground">{workers.transcriber}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[12px]">
-                        <span className={`w-1.5 h-1.5 rounded-full ${workers.cutter !== 'idle' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${workers.cutter !== 'ocioso' && workers.cutter !== 'idle' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                         <span className="flex-1 text-foreground/80">cutter · uploader</span>
                         <span className="font-mono text-[10.5px] text-muted-foreground">{workers.cutter}</span>
                     </div>

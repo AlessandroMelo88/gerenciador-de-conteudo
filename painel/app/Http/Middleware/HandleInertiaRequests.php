@@ -49,8 +49,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'workers' => [
                 'downloader' => \App\Models\SourceVideo::query()->where('status', 'downloading')->count() . '/' . \App\Models\SourceVideo::query()->whereNotNull('local_path')->count(),
-                'transcriber' => \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() > 0 ? \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() . ' ativo' : 'idle',
-                'cutter' => \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() > 0 ? \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() . ' cortando' : 'idle',
+                'transcriber' => \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() > 0 ? \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() . ' ativo' : 'ocioso',
+                'cutter' => \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() > 0 ? \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() . ' cortando' : 'ocioso',
             ],
             'destinationQuotas' => \App\Models\DestinationChannel::query()->where('active', true)->get()->map(function ($c) {
                 $today = \Illuminate\Support\Carbon::today('America/Sao_Paulo');

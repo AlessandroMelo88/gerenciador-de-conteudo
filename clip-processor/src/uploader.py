@@ -12,9 +12,10 @@ from pathlib import Path
 from src.db import get_db_connection as db_connect
 
 
-DEFAULT_TOKEN_FILE = '/app/token.json'
+DEFAULT_TOKEN_FILE = '/app/youtube/token-futebol-em-cortes.json'
 YOUTUBE_UPLOAD_SCOPES = [
     'https://www.googleapis.com/auth/youtube.upload',
+    'https://www.googleapis.com/auth/youtube.force-ssl',
 ]
 
 

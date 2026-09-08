@@ -12,6 +12,9 @@ Eventos suportados (event_type):
   - 'clip_ttl_warning'   — clipe entrou em janela de aviso (WARN_HOURS)
   - 'upload_published'   — upload concluído com sucesso
   - 'pipeline_failure'   — erro crítico em qualquer etapa do pipeline
+  - 'watchdog_alert'     — alerta ou auto-cura de deadlock, clips fantasmas ou fila ociosa
+  - 'oauth_warning'      — ausência ou problema em credencial OAuth dos canais destino
+  - 'disk_warning'       — volume de armazenamento com pouco espaço livre
 
 Comportamento best-effort: nunca propaga exceções (não derruba o pipeline por
 um problema de rede no notificador).

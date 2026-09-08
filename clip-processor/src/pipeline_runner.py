@@ -74,12 +74,14 @@ def _select_pending_videos(db_conn) -> list:
 
         with db_conn.cursor() as cur:
             cur.execute(
-                "SELECT youtube_video_id FROM source_videos "
-                "WHERE status = 'pending' AND paused = 0 AND format = %s "
-                "AND DATE(published_at) >= %s "
-                'ORDER BY priority DESC, '
-                'queue_position IS NULL, queue_position ASC, '
-                'published_at DESC LIMIT %s',
+                "SELECT sv.youtube_video_id FROM source_videos sv "
+                "LEFT JOIN source_channels sc ON sc.id = sv.channel_id "
+                "WHERE sv.status = 'pending' AND sv.paused = 0 AND sv.format = %s "
+                "AND DATE(sv.published_at) >= %s "
+                "ORDER BY sv.priority DESC, "
+                "CASE WHEN LOWER(COALESCE(sc.target_niche, '')) = 'futebol' THEN 0 ELSE 1 END, "
+                "sv.queue_position IS NULL, sv.queue_position ASC, "
+                "sv.published_at DESC LIMIT %s",
                 (fmt, cutoff_date, deficit),
             )
             result.extend(row['youtube_video_id'] for row in cur.fetchall())

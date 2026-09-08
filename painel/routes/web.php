@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DestinationChannelController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SourceVideoController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\TranscriptionController;
+use App\Http\Controllers\UsefulLinksController;
 use App\Models\GeneratedClip;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -88,6 +90,10 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/painel/transcricoes', [TranscriptionController::class, 'store']);
     Route::get('/painel/transcricoes/{job}/download', [TranscriptionController::class, 'download'])->name('transcriptions.download');
 
+    Route::get('/painel/assistente', [AssistantController::class, 'index'])->name('assistant.index');
+    Route::post('/painel/assistente/chat', [AssistantController::class, 'chat'])->name('assistant.chat');
+
+    Route::get('/painel/links-uteis', [UsefulLinksController::class, 'index'])->name('useful-links.index');
     Route::get('/painel/documentacao', [DocumentationController::class, 'show'])->name('documentation.show');
 
     Route::get('/painel/configuracoes', [SettingsController::class, 'show'])->name('settings.show');

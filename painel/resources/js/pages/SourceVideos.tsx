@@ -208,14 +208,41 @@ function PurgeOldDialog() {
 
 export default function SourceVideos() {
     const { props } = usePage<PageProps>();
-    const { videos, filters, statusOptions, storage, downloadWindow, auth } = props;
     const [selected, setSelected] = useState<number[]>([]);
+    const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-    const toggle = (id: number) =>
-        setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-    const toggleAll = () =>
-        setSelected((prev) => (prev.length === videos.data.length ? [] : videos.data.map((v) => v.id)));
+    const toggle = (id: number, shiftKey = false) => {
+        setSelected((prev) => {
+            const isCurrentlySelected = prev.includes(id);
+
+            if (shiftKey && lastSelectedId !== null) {
+                const lastIdx = videos.data.findIndex((x) => x.id === lastSelectedId);
+                const currIdx = videos.data.findIndex((x) => x.id === id);
+
+                if (lastIdx !== -1 && currIdx !== -1) {
+                    const start = Math.min(lastIdx, currIdx);
+                    const end = Math.max(lastIdx, currIdx);
+                    const range = videos.data
+                        .slice(start, end + 1)
+                        .filter((v) => v.canDelete ?? v.hasLocalFile)
+                        .map((v) => v.id);
+
+                    return Array.from(new Set([...prev, ...range]));
+                }
+            }
+
+            return isCurrentlySelected ? prev.filter((x) => x !== id) : [...prev, id];
+        });
+
+        setLastSelectedId(id);
+    };
+
+    const toggleAll = () => {
+        const selectable = videos.data.filter((v) => v.canDelete ?? v.hasLocalFile).map((v) => v.id);
+        setSelected((prev) => (prev.length === selectable.length ? [] : selectable));
+        setLastSelectedId(null);
+    };
 
     function copyToClipboard(text: string, message: string) {
         navigator.clipboard.writeText(text).catch(() => {});
@@ -378,7 +405,10 @@ export default function SourceVideos() {
                                             {(v.canDelete ?? v.hasLocalFile) && (
                                                 <Checkbox
                                                     checked={selected.includes(v.id)}
-                                                    onCheckedChange={() => toggle(v.id)}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggle(v.id, e.shiftKey);
+                                                    }}
                                                     className="mt-1"
                                                 />
                                             )}
@@ -452,7 +482,10 @@ export default function SourceVideos() {
                                                 {(v.canDelete ?? v.hasLocalFile) && (
                                                     <Checkbox
                                                         checked={selected.includes(v.id)}
-                                                        onCheckedChange={() => toggle(v.id)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            toggle(v.id, e.shiftKey);
+                                                        }}
                                                     />
                                                 )}
                                             </TableCell>

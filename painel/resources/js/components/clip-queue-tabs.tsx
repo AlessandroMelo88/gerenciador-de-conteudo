@@ -54,16 +54,42 @@ function EmptyState({ message }: { message: string }) {
     );
 }
 
-function useSelection() {
+function useSelection(items: ClipRow[] = []) {
     const [selected, setSelected] = useState<number[]>([]);
+    const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
 
-    const toggle = (id: number) =>
-        setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    const toggle = (id: number, shiftKey = false) => {
+        setSelected((prev) => {
+            const isCurrentlySelected = prev.includes(id);
 
-    const toggleAll = (ids: number[]) =>
+            if (shiftKey && lastSelectedId !== null && items.length > 0) {
+                const lastIdx = items.findIndex((x) => x.id === lastSelectedId);
+                const currIdx = items.findIndex((x) => x.id === id);
+
+                if (lastIdx !== -1 && currIdx !== -1) {
+                    const start = Math.min(lastIdx, currIdx);
+                    const end = Math.max(lastIdx, currIdx);
+                    const range = items.slice(start, end + 1).map((x) => x.id);
+
+                    return Array.from(new Set([...prev, ...range]));
+                }
+            }
+
+            return isCurrentlySelected ? prev.filter((x) => x !== id) : [...prev, id];
+        });
+
+        setLastSelectedId(id);
+    };
+
+    const toggleAll = (ids: number[]) => {
         setSelected((prev) => (prev.length === ids.length ? [] : ids));
+        setLastSelectedId(null);
+    };
 
-    const clear = () => setSelected([]);
+    const clear = () => {
+        setSelected([]);
+        setLastSelectedId(null);
+    };
 
     return { selected, toggle, toggleAll, clear };
 }
@@ -122,7 +148,6 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [previewingId, setPreviewingId] = useState<number | null>(null);
     const [modalClip, setModalClip] = useState<ClipRow | null>(null);
-    const { selected, toggle, toggleAll, clear } = useSelection();
 
     const counts = {
         todos: clips.length,
@@ -153,6 +178,7 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
     });
 
     const ids = filteredClips.map((c) => c.id);
+    const { selected, toggle, toggleAll, clear } = useSelection(filteredClips);
 
     if (clips.length === 0) return <EmptyState message="Nenhum clip aguardando aprovação" />;
 
@@ -354,7 +380,10 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                     <div className="flex items-start gap-2">
                                         <Checkbox
                                             checked={selected.includes(clip.id)}
-                                            onCheckedChange={() => toggle(clip.id)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggle(clip.id, e.shiftKey);
+                                            }}
                                             className="mt-1"
                                         />
                                         <div className="font-semibold text-sm leading-snug tracking-tight text-foreground line-clamp-2" title={clip.title}>
@@ -445,7 +474,10 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                         <TableCell className="pl-4">
                                             <Checkbox
                                                 checked={selected.includes(clip.id)}
-                                                onCheckedChange={() => toggle(clip.id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggle(clip.id, e.shiftKey);
+                                                }}
                                             />
                                         </TableCell>
 

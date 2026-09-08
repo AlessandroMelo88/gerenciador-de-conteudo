@@ -15,16 +15,16 @@ export function SiteHeader({
     actions?: ReactNode;
 }) {
     return (
-        <header className="sticky top-0 z-30 flex min-h-[74px] shrink-0 flex-col justify-center border-b bg-background/85 px-4 py-3 backdrop-blur-xl transition-[width,height] ease-linear lg:px-8">
-            <div className="flex w-full items-center gap-3">
-                <SidebarTrigger className="-ml-1 md:hidden" />
+        <header className="sticky top-0 z-30 flex min-h-[64px] shrink-0 flex-col justify-center border-b bg-background/85 px-3 py-2.5 sm:px-4 sm:py-3 backdrop-blur-xl transition-[width,height] ease-linear lg:px-6">
+            <div className="flex w-full items-center gap-2.5 sm:gap-3">
+                <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground shrink-0" />
                 <div className="min-w-0 flex-1">
-                    <h1 className="truncate font-display text-lg font-bold tracking-tight text-foreground">{title}</h1>
-                    {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
+                    <h1 className="truncate font-display text-base sm:text-lg font-bold tracking-tight text-foreground">{title}</h1>
+                    {description && <p className="truncate text-xs text-muted-foreground hidden sm:block">{description}</p>}
                 </div>
                 
                 {/* Quota badges rápidos no topo */}
-                <div className="hidden lg:flex items-center gap-2 pr-3 border-r border-border">
+                <div className="hidden xl:flex items-center gap-2 pr-3 border-r border-border shrink-0">
                     <span className="font-mono text-[11px] px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">
                         ⚽ Futebol: 0/5
                     </span>

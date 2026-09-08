@@ -19,20 +19,20 @@ export function OverviewCards({
     return (
         <div className="flex flex-col gap-6">
             {/* 4 TOP METRIC CARDS */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 min-w-0 w-full">
                 {/* Clipes Publicados */}
-                <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 shadow-xs">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <Scissors className="w-4 h-4 text-[#FF6A55]" />
-                            <span>Publicados (7d)</span>
+                <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 shadow-xs min-w-0">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground truncate">
+                            <Scissors className="w-4 h-4 text-[#FF6A55] shrink-0" />
+                            <span className="truncate">Publicados (7d)</span>
                         </div>
-                        <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
                             +{totalPublishedToday} hoje
                         </span>
                     </div>
                     <div className="flex items-end gap-2">
-                        <span className="font-display text-3xl font-bold tracking-tight text-foreground">
+                        <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                             {totalPublished.toLocaleString('pt-BR')}
                         </span>
                         <span className="text-xs text-muted-foreground mb-1">total 7d</span>
@@ -40,24 +40,24 @@ export function OverviewCards({
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                         <div className="h-full bg-[#FF6A55] rounded-full" style={{ width: totalPublished > 0 ? '100%' : '0%' }} />
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground font-mono">
+                    <div className="text-[11.5px] text-muted-foreground font-mono truncate">
                         curto {overview.publishedCurto} · longo {overview.publishedLongo} nos últimos 7d
                     </div>
                 </div>
 
                 {/* Taxa de Aprovação */}
-                <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 shadow-xs">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <ThumbsUp className="w-4 h-4 text-emerald-500" />
-                            <span>Taxa de aprovação</span>
+                <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 shadow-xs min-w-0">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground truncate">
+                            <ThumbsUp className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span className="truncate">Taxa de aprovação</span>
                         </div>
-                        <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
                             Fila ativa
                         </span>
                     </div>
                     <div className="flex items-end gap-2">
-                        <span className="font-display text-3xl font-bold tracking-tight text-foreground">
+                        <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                             {totalPublished > 0 ? '92%' : '—'}
                         </span>
                         <span className="text-xs text-muted-foreground mb-1">taxa</span>
@@ -65,30 +65,30 @@ export function OverviewCards({
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                         <div className="h-full bg-emerald-500 rounded-full" style={{ width: totalPublished > 0 ? '92%' : '0%' }} />
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground font-mono">
+                    <div className="text-[11.5px] text-muted-foreground font-mono truncate">
                         {totalPublished > 0 ? `${totalPublished} clips publicados` : 'Aguardando aprovações'}
                     </div>
                 </div>
 
                 {/* Cota da API (Publicações de hoje) */}
-                <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 shadow-xs">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <Gauge className="w-4 h-4 text-amber-500" />
-                            <span>Cota de hoje</span>
+                <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 shadow-xs min-w-0">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground truncate">
+                            <Gauge className="w-4 h-4 text-amber-500 shrink-0" />
+                            <span className="truncate">Cota de hoje</span>
                         </div>
-                        <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
                             {quotaPercent}% usado
                         </span>
                     </div>
                     <div className="flex items-end gap-2">
-                        <span className="font-display text-3xl font-bold tracking-tight text-foreground">{totalPublishedToday}</span>
+                        <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{totalPublishedToday}</span>
                         <span className="text-xs text-muted-foreground mb-1">/ {totalLimitToday} vídeos</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                         <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${quotaPercent}%` }} />
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground font-mono truncate">
+                    <div className="text-[11.5px] text-muted-foreground font-mono truncate" title={quota.length > 0 ? quota.map((q) => `${q.name}: ${q.count}/${q.limit}`).join(' · ') : undefined}>
                         {quota.length > 0
                             ? quota.map((q) => `${q.niche === 'futebol' ? '⚽' : '🏛️'} ${q.name.split(' ')[0]}: ${q.count}/${q.limit}`).join(' · ')
                             : '0 de 5 limite diário por canal'}
@@ -96,18 +96,18 @@ export function OverviewCards({
                 </div>
 
                 {/* Backlog de Download */}
-                <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 shadow-xs">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <Inbox className="w-4 h-4 text-red-500" />
-                            <span>Backlog de download</span>
+                <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 shadow-xs min-w-0">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground truncate">
+                            <Inbox className="w-4 h-4 text-red-500 shrink-0" />
+                            <span className="truncate">Backlog de download</span>
                         </div>
-                        <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                        <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 shrink-0">
                             {totalBacklog > 50 ? 'Alto' : 'Normal'}
                         </span>
                     </div>
                     <div className="flex items-end gap-2">
-                        <span className="font-display text-3xl font-bold tracking-tight text-foreground">
+                        <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                             {totalBacklog.toLocaleString('pt-BR')}
                         </span>
                         <span className="text-xs text-muted-foreground mb-1">na fila</span>
@@ -115,7 +115,7 @@ export function OverviewCards({
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                         <div className="h-full bg-red-500 rounded-full" style={{ width: totalBacklog > 0 ? `${Math.min(100, Math.max(10, totalBacklog * 2))}%` : '0%' }} />
                     </div>
-                    <div className="text-[11.5px] text-muted-foreground font-mono">
+                    <div className="text-[11.5px] text-muted-foreground font-mono truncate">
                         curto {overview.backlogCurto} · longo {overview.backlogLongo} pendentes
                     </div>
                 </div>

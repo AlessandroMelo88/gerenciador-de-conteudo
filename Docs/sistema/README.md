@@ -44,7 +44,9 @@ horizontal de 7 a 20 min).
 | [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | As 10 rotas do sidecar HTTP 8090, auth fail-closed, controles de fila (pause/resume/reorder/prioritize), rejeição de clip, eventos para o Telegram |
 | [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, **suporte híbrido a MySQL e PostgreSQL**, comandos de backup (`db:backup`) e recuperação (`db:restore`) |
 | [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | Índice módulo a módulo do daemon (21 módulos), padrões comuns de código, o que o Redis guarda, tabela de env vars |
-| [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | Rotas, controllers e páginas do Laravel/Inertia; **Channel Template Studio (9:16)**, **Modal de Preview de Clipes** e como ler cada card do Dashboard |
+| [`ESTRATEGIA-YOUTUBE-E-BENCHMARK.md`](ESTRATEGIA-YOUTUBE-E-BENCHMARK.md) | Estratégia de conteúdo, diagnóstico do YouTube Studio (CTR/Retenção), Benchmark de concorrentes e modelo de cortes de Política (MBL/Missão) |
+| [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | Rotas, controllers e páginas do Laravel/Inertia; **Assistente IA (LLaMA 3.3)**, **Channel Template Studio (9:16)**, **Preview de Clipes** e **Links Úteis** |
+| [`SISTEMA-ALERTAS-E-MONITORAMENTO.md`](SISTEMA-ALERTAS-E-MONITORAMENTO.md) | Observabilidade em 2 camadas: Sentry (crashes), Watchdog proativo (`watchdog.py`, auto-cura de deadlocks e clipes fantasmas) e alertas via Telegram e Email |
 
 ### Infra
 

@@ -272,9 +272,12 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
         try:
             with db_conn.cursor() as cur:
                 cur.execute(
-                    "SELECT youtube_video_id, local_path FROM source_videos "
-                    "WHERE status = 'downloaded' AND local_path IS NOT NULL AND paused = 0 "
-                    "ORDER BY priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC"
+                    "SELECT sv.youtube_video_id, sv.local_path FROM source_videos sv "
+                    "LEFT JOIN source_channels sc ON sc.id = sv.channel_id "
+                    "WHERE sv.status = 'downloaded' AND sv.local_path IS NOT NULL AND sv.paused = 0 "
+                    "ORDER BY sv.priority DESC, "
+                    "CASE WHEN LOWER(COALESCE(sc.target_niche, '')) = 'futebol' THEN 0 ELSE 1 END, "
+                    "sv.queue_position IS NULL, sv.queue_position ASC, sv.published_at DESC"
                 )
                 downloaded_videos = cur.fetchall()
 

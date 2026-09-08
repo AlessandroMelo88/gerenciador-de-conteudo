@@ -67,19 +67,35 @@ class TelegramWebhookController extends Controller
 
         $event   = $request->input('event');
         $payload = $request->input('payload', []);
+        $panelUrl = rtrim((string) config('app.url', 'https://toolscut.alessandromelo.com.br'), '/');
 
         $text = match ($event) {
-            'upload_published' => "Upload publicado: {$payload['title']} — {$payload['youtube_url']}",
-            'pipeline_failure' => "Falha crítica [{$payload['stage']}]: {$payload['error_msg']}",
-            'clip_ttl_warning' => "Clip #{$payload['clip_id']} expira em {$payload['expires_in_hours']}h: {$payload['title']}",
+            'upload_published' => "✅ Upload publicado: {$payload['title']} — {$payload['youtube_url']}",
+            'pipeline_failure' => "🚨 Falha crítica [{$payload['stage']}]: {$payload['error_msg']}\n🔗 Painel: {$panelUrl}/painel",
+            'clip_ttl_warning' => "⚠️ Clip #{$payload['clip_id']} expira em {$payload['expires_in_hours']}h: {$payload['title']}\n🔗 Painel: {$panelUrl}/painel",
             'daily_summary'    => $payload['text'] ?? 'Resumo diário: sem clips pendentes.',
-            default            => "Evento desconhecido: {$event}",
+            'watchdog_alert'   => "🐕 [WATCHDOG] " . ($payload['message'] ?? 'Alerta de integridade do pipeline') . "\n🔗 Painel: {$panelUrl}/painel",
+            'oauth_warning'    => "🔑 [ALERTA OAUTH] " . ($payload['message'] ?? 'Credenciais OAuth ausentes') . "\n" . (isset($payload['warnings']) ? implode("\n", (array) $payload['warnings']) : '') . "\n🔗 Canais: {$panelUrl}/painel/canais",
+            'disk_warning'     => "💾 [ALERTA DISCO] {$payload['free_gb']} GB livres ({$payload['used_percent']}% em uso).\n🔗 Painel: {$panelUrl}/painel",
+            default            => "Evento: {$event}",
         };
 
         Telegram::sendMessage([
             'chat_id' => config('telegram.bots.mybot.chat_id_allowed'),
             'text'    => $text,
         ]);
+
+        $alertEmail = env('ADMIN_ALERT_EMAIL');
+        if ($alertEmail && in_array($event, ['pipeline_failure', 'watchdog_alert', 'oauth_warning'])) {
+            try {
+                \Illuminate\Support\Facades\Mail::raw($text, function ($message) use ($alertEmail, $event) {
+                    $message->to($alertEmail)
+                        ->subject("[Alerta Canal de Cortes] {$event}");
+                });
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Falha ao enviar e-mail de alerta: " . $e->getMessage());
+            }
+        }
 
         return response()->json(['ok' => true]);
     }
