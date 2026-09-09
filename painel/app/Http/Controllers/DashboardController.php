@@ -248,15 +248,19 @@ class DashboardController extends Controller
         return "{$fmt($start)}–{$fmt($end)}";
     }
 
-    public function approve(GeneratedClip $clip): RedirectResponse
+    public function approve(GeneratedClip $clip, ClipProcessorClient $client): RedirectResponse
     {
         $affected = GeneratedClip::query()
             ->where('id', $clip->id)
             ->where('status', 'pending')
             ->update(['status' => 'approved']);
 
+        if ($affected) {
+            $client->publishNow();
+        }
+
         return back()->with($affected ? 'success' : 'error', $affected
-            ? "Clip #{$clip->id} aprovado"
+            ? "Clip #{$clip->id} aprovado e enviado para publicação"
             : 'Clip não estava mais pendente');
     }
 
@@ -286,7 +290,7 @@ class DashboardController extends Controller
      * corte nunca terminou (clip_path vazio), ou pro status publicável (approved/
      * pending, conforme MANUAL_APPROVAL_REQUIRED) se o corte existe e só o upload falhou.
      */
-    public function reprocess(GeneratedClip $clip): RedirectResponse
+    public function reprocess(GeneratedClip $clip, ClipProcessorClient $client): RedirectResponse
     {
         if ($clip->status !== 'failed') {
             return back()->with('error', 'Clip não está mais em falha');
@@ -300,12 +304,16 @@ class DashboardController extends Controller
             ->where('status', 'failed')
             ->update(['status' => $newStatus, 'upload_error' => null]);
 
+        if ($affected && $newStatus === 'approved') {
+            $client->publishNow();
+        }
+
         return back()->with($affected ? 'success' : 'error', $affected
             ? "Clip #{$clip->id} reenviado para reprocessamento"
             : 'Clip não está mais em falha');
     }
 
-    public function bulkApprove(Request $request): RedirectResponse
+    public function bulkApprove(Request $request, ClipProcessorClient $client): RedirectResponse
     {
         $ids = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']])['ids'];
 
@@ -314,7 +322,11 @@ class DashboardController extends Controller
             ->where('status', 'pending')
             ->update(['status' => 'approved']);
 
-        return back()->with('success', "{$affected} clip(s) aprovado(s)");
+        if ($affected > 0) {
+            $client->publishNow();
+        }
+
+        return back()->with('success', "{$affected} clip(s) aprovado(s) e enviado(s) para publicação");
     }
 
     public function bulkDeleteVideos(Request $request): RedirectResponse

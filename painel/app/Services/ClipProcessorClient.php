@@ -203,4 +203,23 @@ class ClipProcessorClient
 
         return $response->json() ?? [];
     }
+
+    /**
+     * Dispara um ciclo imediato de publicação de clipes no clip-processor.
+     */
+    public function publishNow(): bool
+    {
+        try {
+            $response = Http::timeout(5)
+                ->withHeader('X-Internal-Token', (string) $this->token)
+                ->post($this->baseUrl.'/internal/publish-now');
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            \Log::warning('Falha ao disparar publicação imediata: '.$e->getMessage());
+
+            return false;
+        }
+    }
 }
+

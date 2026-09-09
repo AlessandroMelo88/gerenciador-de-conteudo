@@ -178,3 +178,20 @@ def test_purge_old_videos_route_returns_result(client, mocker):
     )
     assert resp.status_code == 200
     assert resp.get_json() == {'deleted_rows': 3, 'freed_bytes': 2048}
+
+
+def test_publish_now_requires_auth(client):
+    resp = client.post('/internal/publish-now')
+    assert resp.status_code == 401
+
+
+def test_publish_now_spawns_thread_and_returns_ok(client, mocker):
+    mock_thread = mocker.patch('src.internal_api.threading.Thread')
+    resp = client.post(
+        '/internal/publish-now',
+        headers={'X-Internal-Token': 'test-token-123'},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()['ok'] is True
+    mock_thread.assert_called_once()
+

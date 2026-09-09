@@ -7,6 +7,12 @@ use Illuminate\Support\Facades\Http;
 
 uses(DatabaseTransactions::class);
 
+beforeEach(function () {
+    Http::fake([
+        '*/internal/publish-now' => Http::response(['ok' => true], 200),
+    ]);
+});
+
 it('approves a pending clip via panel action (UPDATE guard: only pending)', function () {
     $user = User::factory()->create();
     $clip = GeneratedClip::factory()->create(['status' => 'pending']);
@@ -14,6 +20,7 @@ it('approves a pending clip via panel action (UPDATE guard: only pending)', func
         ->post("/painel/clips/{$clip->id}/approve")
         ->assertRedirect();
     expect($clip->refresh()->status)->toBe('approved');
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/internal/publish-now'));
 });
 
 it('does not approve a non-pending clip', function () {

@@ -15,12 +15,14 @@ Rede: bind 0.0.0.0:8090 dentro do container `clip-processor`, rede docker `inter
 import json
 import os
 import subprocess
+import threading
 
 import redis
 from flask import Flask, jsonify, request
 
 from src.db import get_db_connection
 from src.processar import main as processar_main
+from src.publisher import publish_pending_clips
 from src.rejeitar import rejeitar
 from src.transcription_job import start_transcription_job
 
@@ -404,3 +406,30 @@ def _route_prioritize_video(source_video_id: int):
         return jsonify(error=str(e)), 422
     except Exception as e:  # noqa: BLE001
         return jsonify(error=str(e)), 500
+
+
+@app.post('/internal/publish-now')
+def _route_publish_now():
+    """Dispara um ciclo imediato de publicação de clipes aprovados."""
+    if not _check_auth():
+        return jsonify(error='unauthorized'), 401
+
+    def _run_publish():
+        conn = None
+        try:
+            conn = get_db_connection()
+            r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+            published = publish_pending_clips(conn, r)
+            print(f'[INTERNAL_API] Publicação imediata finalizada: {published} clipe(s)', flush=True)
+        except Exception as e:
+            print(f'[INTERNAL_API] Erro durante publicação imediata: {e}', flush=True)
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
+    t = threading.Thread(target=_run_publish, daemon=True)
+    t.start()
+    return jsonify(ok=True, message='Ciclo de publicação imediata iniciado'), 200

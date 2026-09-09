@@ -27,8 +27,14 @@ class AprovarCommand extends Command
             ->update(['status' => 'approved']);
 
         $text = $affected
-            ? "Clip #{$clipId} aprovado."
+            ? "Clip #{$clipId} aprovado e enviado para publicação."
             : "Clip #{$clipId} não encontrado ou status inválido para aprovação.";
+
+        if ($affected) {
+            try {
+                app(\App\Services\ClipProcessorClient::class)->publishNow();
+            } catch (\Throwable) {}
+        }
 
         $this->replyWithMessage(['text' => $text]);
     }
