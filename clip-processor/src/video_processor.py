@@ -283,6 +283,7 @@ def _apply_youtube_thumbnail_graphics(thumbnail_path: str, title: str, niche: st
     try:
         from PIL import Image, ImageDraw, ImageFont, ImageEnhance
     except ImportError:
+        _log('[THUMBNAIL] Pillow não disponível — mantendo frame bruto')
         return
 
     if not os.path.exists(thumbnail_path):
@@ -305,15 +306,24 @@ def _apply_youtube_thumbnail_graphics(thumbnail_path: str, title: str, niche: st
 
     draw = ImageDraw.Draw(bg)
 
-    font_path = '/System/Library/Fonts/Supplemental/Arial Bold.ttf'
-    if not os.path.exists(font_path):
-        font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+    font_path = None
+    for candidate in [
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+        '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
+        '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+        '/Library/Fonts/Arial Bold.ttf',
+    ]:
+        if os.path.exists(candidate):
+            font_path = candidate
+            break
 
     def _get_font(size):
-        try:
-            return ImageFont.truetype(font_path, size)
-        except Exception:
-            return ImageFont.load_default()
+        if font_path:
+            try:
+                return ImageFont.truetype(font_path, size)
+            except Exception:
+                pass
+        return ImageFont.load_default()
 
     is_pol = 'politic' in (niche or '').lower() or 'debate' in title.lower()
     badge_color = (229, 9, 20) if is_pol else (16, 185, 129)
@@ -342,19 +352,19 @@ def _apply_youtube_thumbnail_graphics(thumbnail_path: str, title: str, niche: st
         sub_text = sub_text[:27] + '...'
 
     # 3. Linha Superior: Amarelo com contorno grosso (stroke)
-    font_main = _get_font(72)
+    font_main = _get_font(64)
     x, y = 60, 145
-    for dx in range(-6, 7):
-        for dy in range(-6, 7):
-            if dx * dx + dy * dy <= 36:
+    for dx in range(-5, 6):
+        for dy in range(-5, 6):
+            if dx * dx + dy * dy <= 25:
                 draw.text((x + dx, y + dy), main_text, font=font_main, fill='black')
     draw.text((x, y), main_text, font=font_main, fill='#FFE500')
 
     # 4. Linha Inferior: Branco sobre Tarja de Destaque
-    font_sub = _get_font(54)
+    font_sub = _get_font(48)
     sub_w = draw.textlength(sub_text, font=font_sub) + 40
-    sub_y = 250
-    draw.rounded_rectangle([60, sub_y, 60 + sub_w, sub_y + 75], radius=14, fill=badge_color, outline='white', width=2)
+    sub_y = 245
+    draw.rounded_rectangle([60, sub_y, 60 + sub_w, sub_y + 70], radius=14, fill=badge_color, outline='white', width=2)
     draw.text((80, sub_y + 8), sub_text, font=font_sub, fill='white')
 
     # 5. Logo oficial do canal no Canto Superior Direito
@@ -370,6 +380,7 @@ def _apply_youtube_thumbnail_graphics(thumbnail_path: str, title: str, niche: st
             break
 
     bg.save(thumbnail_path, 'JPEG', quality=95)
+    _log(f'[THUMBNAIL] Thumbnail estilizada gerada com sucesso: {thumbnail_path}')
 
 
 def overlay_watermark(input_path: str, watermark_path: str, output_path: str) -> str:
@@ -474,13 +485,21 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             # Sem canal-destino ou vídeo longo: renomear arquivo legendado para path final
             os.rename(subtitled_path, final_clip_path)
 
+        metadata = generate_metadata(_build_clip_context(clip, transcript), anthropic_client=anthropic_client)
+        update_clip_metadata(conn, clip_id, metadata)
+        title = (metadata.get('title') or clip.get('title') or clip.get('source_title') or 'CORTES EXCLUSIVOS').strip()
+
         duration = max(float(clip['end_time']) - float(clip['start_time']), 1.0)
+        # Para vídeo longo 16:9, captura o frame limpo do vídeo original para qualidade HD na capa
+        thumb_source = clip.get('local_path') if (fmt == 'longo' and clip.get('local_path') and os.path.exists(clip['local_path'])) else final_clip_path
+        at_sec = float(clip['start_time']) + min(3.0, duration * 0.25) if thumb_source == clip.get('local_path') else min(2.0, duration * 0.25)
+
         extract_thumbnail(
-            final_clip_path,
+            thumb_source,
             thumbnail_path,
-            at_seconds=min(2.0, duration * 0.25),
-            title=clip.get('title'),
-            niche=clip.get('destination_channel_niche'),
+            at_seconds=at_sec,
+            title=title,
+            niche=niche,
         )
 
         with conn.cursor() as cur:
@@ -492,8 +511,6 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             )
         conn.commit()
 
-        metadata = generate_metadata(_build_clip_context(clip, transcript), anthropic_client=anthropic_client)
-        update_clip_metadata(conn, clip_id, metadata)
         _update_clip_status(conn, clip_id, 'pending')
         _log(f'Clip {clip_id} processado: {final_clip_path}')
         return True

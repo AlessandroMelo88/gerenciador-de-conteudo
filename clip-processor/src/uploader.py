@@ -118,11 +118,13 @@ class YouTubeUploader:
                     thumbnail_path,
                     chunksize=-1,
                     resumable=True,
+                    mimetype='image/jpeg',
                 )
                 service.thumbnails().set(
                     videoId=video_id,
                     media_body=thumb_media,
                 ).execute()
+                print(f'[UPLOADER] Thumbnail enviada com sucesso para {video_id}')
             except Exception as e:
                 print(f'[UPLOADER] Aviso: não foi possível enviar thumbnail customizada para {video_id}: {e}', file=sys.stderr)
 
