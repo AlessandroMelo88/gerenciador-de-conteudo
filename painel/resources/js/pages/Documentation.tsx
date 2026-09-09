@@ -29,37 +29,37 @@ export default function Documentation() {
                 description="Como o pipeline funciona e o que cada tela do painel faz."
                 withToaster={false}
             >
-                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-                            <div className="mb-2 flex items-center gap-2 font-medium text-amber-200">
-                                <SparklesIcon className="size-4" />
-                                Como o pipeline funciona, resumido
-                            </div>
-                            <p className="mb-3 text-sm text-muted-foreground">
-                                Se você não mexer em nada, o sistema publica sozinho, em loop:
-                            </p>
-                            <div className="flex flex-wrap items-center gap-1.5 text-sm">
-                                {CHAIN.map((step) => (
-                                    <span key={step} className="flex items-center gap-1.5">
-                                        <Badge variant="secondary">{step}</Badge>
-                                        <span className="text-muted-foreground">→</span>
-                                    </span>
-                                ))}
-                                <Badge className="bg-amber-500 text-amber-950">Fila de aprovação</Badge>
-                                <span className="text-muted-foreground">→</span>
-                                <Badge className="bg-emerald-500 text-emerald-950">Publica (cota diária)</Badge>
-                            </div>
-                            <p className="mt-3 text-sm text-muted-foreground">
-                                As seções abaixo explicam cada tela do painel. Clique no título de cada uma pra
-                                abrir/fechar.
-                            </p>
+                <div className="flex flex-col gap-4 max-w-5xl mx-auto w-full pb-8">
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 shadow-xs">
+                        <div className="mb-2 flex items-center gap-2 font-medium text-amber-200">
+                            <SparklesIcon className="size-4" />
+                            Como o pipeline funciona, resumido
                         </div>
+                        <p className="mb-3 text-sm text-muted-foreground">
+                            Se você não mexer em nada, o sistema publica sozinho, em loop:
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5 text-sm">
+                            {CHAIN.map((step) => (
+                                <span key={step} className="flex items-center gap-1.5">
+                                    <Badge variant="secondary">{step}</Badge>
+                                    <span className="text-muted-foreground">→</span>
+                                </span>
+                            ))}
+                            <Badge className="bg-amber-500 text-amber-950">Fila de aprovação</Badge>
+                            <span className="text-muted-foreground">→</span>
+                            <Badge className="bg-emerald-500 text-emerald-950">Publica (cota diária)</Badge>
+                        </div>
+                        <p className="mt-3 text-sm text-muted-foreground">
+                            As seções abaixo explicam cada tela do painel. Clique no título de cada uma pra
+                            abrir/fechar.
+                        </p>
+                    </div>
 
-                        <Accordion type="multiple" className="max-w-4xl space-y-2">
-                            {/* 1. ASSISTENTE IA & DIAGNÓSTICO DO YOUTUBE STUDIO */}
-                            <AccordionItem value="assistente-ia" className="border border-border/80 rounded-xl px-4 bg-card/40 shadow-2xs">
-                                <AccordionTrigger className="font-semibold text-foreground text-sm hover:text-primary">
-                                    🤖 Assistente IA & Diagnóstico de Métricas (YouTube Studio)
-                                </AccordionTrigger>
+                    <Accordion type="multiple" className="w-full space-y-2">
+                        <AccordionItem value="assistente-ia" className="border border-border/80 rounded-xl px-4 bg-card/40 shadow-2xs">
+                            <AccordionTrigger className="font-semibold text-foreground text-sm hover:text-primary">
+                                🤖 Assistente IA & Diagnóstico de Métricas (YouTube Studio)
+                            </AccordionTrigger>
                                 <AccordionContent>
                                     <div className="prose prose-sm prose-invert max-w-none space-y-3 pt-2 text-xs md:text-[13px] leading-relaxed text-muted-foreground">
                                         <p>
@@ -332,12 +332,16 @@ export default function Documentation() {
                                             O sistema conta com uma infraestrutura de <strong className="text-foreground">observabilidade em duas camadas</strong> para garantir que nenhuma falha interrompa a postagem diária nos seus canais:
                                         </p>
 
-                                        <div className="my-3 overflow-hidden rounded-xl border border-border/80 shadow-md">
+                                        <div className="my-3 overflow-hidden rounded-xl border border-border/80 bg-zinc-950/70 p-2 md:p-3 shadow-md not-prose flex flex-col items-center justify-center">
                                             <img
                                                 src="/images/arquitetura_monitoramento_watchdog.jpg"
                                                 alt="Arquitetura de Monitoramento Proativo, Sentry e Watchdog"
-                                                className="w-full h-auto object-cover"
+                                                className="w-full max-w-4xl max-h-[460px] object-contain rounded-lg shadow-inner"
+                                                loading="lazy"
                                             />
+                                            <p className="mt-2 text-center text-[11px] text-muted-foreground/80">
+                                                Diagrama da infraestrutura de observabilidade proativa (Sentry + Watchdog + Hub Laravel)
+                                            </p>
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 my-2 not-prose">
@@ -386,6 +390,7 @@ export default function Documentation() {
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>
+                </div>
             </AppShell>
         </>
     );
