@@ -64,6 +64,13 @@ class DashboardController extends Controller
 
         return SourceVideo::query()
             ->whereNotNull('local_path')
+            ->where('local_path', '!=', '')
+            ->where(function ($query) {
+                $query->whereIn('status', ['downloading', 'downloaded', 'transcribing', 'selecting', 'cutting'])
+                    ->orWhereHas('generatedClips', function ($clipQuery) {
+                        $clipQuery->whereIn('status', ['pending_cut', 'cutting', 'pending']);
+                    });
+            })
             ->with(['sourceChannel', 'generatedClips.destinationChannel'])
             ->get()
             ->sortBy([
@@ -186,9 +193,18 @@ class DashboardController extends Controller
             ->whereHas('sourceVideo', fn ($q) => $q->where('format', 'longo'))
             ->count();
 
+        $publishedTotal = $publishedCurto + $publishedLongo;
+        $rejectedTotal = GeneratedClip::query()
+            ->where('status', 'rejected')
+            ->where('updated_at', '>=', $since)
+            ->count();
+        $decidedTotal = $publishedTotal + $rejectedTotal;
+        $approvalRate = $decidedTotal > 0 ? (int) round(($publishedTotal / $decidedTotal) * 100) : null;
+
         return [
             'publishedCurto' => $publishedCurto,
             'publishedLongo' => $publishedLongo,
+            'approvalRate' => $approvalRate,
             'backlogCurto' => SourceVideo::query()->where('format', 'curto')->where('status', 'pending')->count(),
             'backlogLongo' => SourceVideo::query()->where('format', 'longo')->where('status', 'pending')->count(),
         ];

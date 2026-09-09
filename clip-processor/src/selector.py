@@ -159,31 +159,40 @@ def _remove_overlaps(moments: list[dict], max_count: int = 3) -> list[dict]:
 
 
 def _enforce_longform_duration(moments: list[dict], transcript_duration: float) -> list[dict]:
-    """Garante duração mínima de MIN_LONGFORM_SECONDS para o modo 'longo'.
+    """Garante duração mínima de MIN_LONGFORM_SECONDS e máxima de MAX_LONGFORM_SECONDS para o modo 'longo'.
 
-    O modelo (mesmo instruído) às vezes devolve segmentos curtos — em vez de
-    descartar, estica o segmento simetricamente até o mínimo, respeitando os
-    limites da transcrição e o teto de MAX_LONGFORM_SECONDS.
+    O modelo (mesmo instruído) às vezes devolve segmentos curtos ou excessivamente longos.
+    Ajustamos para garantir conformidade estrita com MIN_LONGFORM_SECONDS e MAX_LONGFORM_SECONDS.
     """
     adjusted = []
     for m in moments:
-        duration = m['end_time'] - m['start_time']
+        m_copy = dict(m)
+        start = float(m_copy.get('start_time', 0))
+        end = float(m_copy.get('end_time', 0))
+        duration = end - start
+
+        # Limitar teto máximo primeiro
+        if duration > MAX_LONGFORM_SECONDS:
+            _log(f'[SELECTOR] Momento longo ({duration:.1f}s) limitado para o máximo ({MAX_LONGFORM_SECONDS}s)')
+            end = start + MAX_LONGFORM_SECONDS
+            duration = MAX_LONGFORM_SECONDS
+            m_copy['end_time'] = end
+
         if duration >= MIN_LONGFORM_SECONDS:
-            adjusted.append(m)
+            adjusted.append(m_copy)
             continue
 
         target = min(MIN_LONGFORM_SECONDS, transcript_duration) if transcript_duration else MIN_LONGFORM_SECONDS
         missing = target - duration
-        new_start = max(0, m['start_time'] - missing / 2)
+        new_start = max(0, start - missing / 2)
         new_end = new_start + target
         if transcript_duration and new_end > transcript_duration:
             new_end = transcript_duration
             new_start = max(0, new_end - target)
 
-        m = dict(m)
-        m['start_time'] = new_start
-        m['end_time'] = min(new_end, new_start + MAX_LONGFORM_SECONDS)
-        adjusted.append(m)
+        m_copy['start_time'] = new_start
+        m_copy['end_time'] = min(new_end, new_start + MAX_LONGFORM_SECONDS)
+        adjusted.append(m_copy)
     return adjusted
 
 

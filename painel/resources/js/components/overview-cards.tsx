@@ -58,12 +58,21 @@ export function OverviewCards({
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                            {totalPublished > 0 ? '92%' : '—'}
+                            {overview.approvalRate !== undefined && overview.approvalRate !== null
+                                ? `${overview.approvalRate}%`
+                                : (totalPublished > 0 ? '100%' : '—')}
                         </span>
                         <span className="text-xs text-muted-foreground mb-1">taxa</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: totalPublished > 0 ? '92%' : '0%' }} />
+                        <div
+                            className="h-full bg-emerald-500 rounded-full transition-all"
+                            style={{
+                                width: overview.approvalRate !== undefined && overview.approvalRate !== null
+                                    ? `${overview.approvalRate}%`
+                                    : (totalPublished > 0 ? '100%' : '0%'),
+                            }}
+                        />
                     </div>
                     <div className="text-[11.5px] text-muted-foreground font-mono truncate">
                         {totalPublished > 0 ? `${totalPublished} clips publicados` : 'Aguardando aprovações'}

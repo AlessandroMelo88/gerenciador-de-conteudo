@@ -208,6 +208,7 @@ function PurgeOldDialog() {
 
 export default function SourceVideos() {
     const { props } = usePage<PageProps>();
+    const { videos, filters, statusOptions, storage, downloadWindow, auth } = props;
     const [selected, setSelected] = useState<number[]>([]);
     const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');

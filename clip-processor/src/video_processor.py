@@ -100,6 +100,16 @@ def cut_clip(
     bg_style = cfg.get('bgStyle', 'blur_dark')
 
     duration = max(float(end_time) - float(start_time), 0.1)
+    if fmt == 'longo':
+        if duration > 1800:
+            _log(f'Aviso: duração de corte longo ({duration}s) excede 1800s. Limitando a 1800s.')
+            duration = 1800.0
+            end_time = float(start_time) + duration
+    else:
+        if duration > 300:
+            _log(f'Aviso: duração de corte curto ({duration}s) excede 300s. Limitando a 300s.')
+            duration = 300.0
+            end_time = float(start_time) + duration
 
     if fmt == 'longo':
         if background_path and os.path.exists(background_path):

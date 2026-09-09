@@ -43,6 +43,7 @@ export type QuotaChannel = {
 export type PipelineOverview = {
     publishedCurto: number;
     publishedLongo: number;
+    approvalRate?: number | null;
     backlogCurto: number;
     backlogLongo: number;
 };
