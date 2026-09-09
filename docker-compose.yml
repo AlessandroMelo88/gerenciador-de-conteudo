@@ -44,7 +44,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-clips_automation}
       MYSQL_USER: ${MYSQL_USER:-clips_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PASSWORD: ${CLIPS_DB_PASSWORD:-${MYSQL_PASSWORD:-gtaWxh9WZbUP6ugiHwZA}}
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -69,7 +69,7 @@ services:
       - MYSQL_HOST=mysql
       - MYSQL_DATABASE=${MYSQL_DATABASE:-clips_automation}
       - MYSQL_USER=${MYSQL_USER:-clips_user}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_PASSWORD=${CLIPS_DB_PASSWORD:-${MYSQL_PASSWORD:-gtaWxh9WZbUP6ugiHwZA}}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - MANUAL_APPROVAL_REQUIRED=true
