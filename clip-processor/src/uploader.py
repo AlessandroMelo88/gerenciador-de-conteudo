@@ -143,11 +143,15 @@ class YouTubeUploader:
         if not token_path.exists():
             raise FileNotFoundError(f'Token OAuth não encontrado: {self.token_file}')
 
-        creds = Credentials.from_authorized_user_file(str(token_path), YOUTUBE_UPLOAD_SCOPES)
+        creds = Credentials.from_authorized_user_file(str(token_path))
         if getattr(creds, 'expired', False) and getattr(creds, 'refresh_token', None):
             from google.auth.transport.requests import Request
             try:
                 creds.refresh(Request())
+                try:
+                    token_path.write_text(creds.to_json())
+                except Exception as save_err:
+                    print(f'[UPLOADER] Aviso: não foi possível persistir token atualizado: {save_err}', file=sys.stderr)
             except RefreshError:
                 self._flag_expired()  # persiste no MySQL antes de re-raise
                 raise
