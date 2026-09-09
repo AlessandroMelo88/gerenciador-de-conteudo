@@ -419,7 +419,7 @@ def _route_publish_now():
         try:
             conn = get_db_connection()
             r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
-            published = publish_pending_clips(conn, r)
+            published = publish_pending_clips(conn, r, bypass_window=True)
             print(f'[INTERNAL_API] Publicação imediata finalizada: {published} clipe(s)', flush=True)
         except Exception as e:
             print(f'[INTERNAL_API] Erro durante publicação imediata: {e}', flush=True)

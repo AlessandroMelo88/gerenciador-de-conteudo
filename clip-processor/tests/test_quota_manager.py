@@ -27,19 +27,32 @@ def dt_sp(hour, minute=0):
 
 
 class TestCanUpload:
-    def test_inside_window_below_quota(self):
-        """Deve permitir upload dentro da janela e abaixo da quota."""
+    def test_inside_evening_window_below_quota(self):
+        """Deve permitir upload dentro da janela da noite (19h às 22h)."""
         r = make_redis(count=0)
         qm = QuotaManager(r, max_uploads_per_day=2)
         assert qm.can_upload(now=dt_sp(19, 30)) is True
 
-    def test_before_window_start(self):
-        """Deve negar upload antes das 19h."""
+    def test_inside_lunch_window_below_quota(self):
+        """Deve permitir upload dentro da janela do almoço/meio-dia (12h às 14h)."""
         r = make_redis(count=0)
         qm = QuotaManager(r, max_uploads_per_day=2)
-        assert qm.can_upload(now=dt_sp(18, 59)) is False
+        assert qm.can_upload(now=dt_sp(12, 30)) is True
+        assert qm.can_upload(now=dt_sp(13, 59)) is True
 
-    def test_after_window_end(self):
+    def test_between_windows_denied_without_bypass(self):
+        """Deve negar upload entre as janelas (ex: 15h) quando não há bypass."""
+        r = make_redis(count=0)
+        qm = QuotaManager(r, max_uploads_per_day=2)
+        assert qm.can_upload(now=dt_sp(15, 0)) is False
+
+    def test_between_windows_allowed_with_bypass(self):
+        """Deve permitir upload fora das janelas quando bypass_window=True."""
+        r = make_redis(count=0)
+        qm = QuotaManager(r, max_uploads_per_day=2)
+        assert qm.can_upload(now=dt_sp(15, 0), bypass_window=True) is True
+
+    def test_after_evening_window_end(self):
         """Deve negar upload às 22h ou depois."""
         r = make_redis(count=0)
         qm = QuotaManager(r, max_uploads_per_day=2)

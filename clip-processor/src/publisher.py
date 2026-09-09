@@ -36,6 +36,7 @@ def publish_pending_clips(
     uploader: YouTubeUploader | None = None,
     quota_manager: QuotaManager | None = None,
     now: datetime | None = None,
+    bypass_window: bool = False,
 ) -> int:
     """Publica clips prontos e retorna quantidade publicada.
 
@@ -54,7 +55,7 @@ def publish_pending_clips(
         _log('[PUBLISHER] Nenhum canal-destino ativo — usando fluxo legado')
         ch_uploader = uploader or YouTubeUploader()
         ch_quota = quota_manager or QuotaManager(redis_client)
-        return _publish_clips_for(conn, _fetch_pending_clips(conn), ch_uploader, ch_quota, now)
+        return _publish_clips_for(conn, _fetch_pending_clips(conn), ch_uploader, ch_quota, now, bypass_window=bypass_window)
 
     total = 0
     for dest in dest_channels:
@@ -75,12 +76,12 @@ def publish_pending_clips(
                     credit_handle,
                 )
             published = _publish_one(
-                conn, clip, ch_uploader, ch_quota, now, longo_waiting=longo_waiting,
+                conn, clip, ch_uploader, ch_quota, now, longo_waiting=longo_waiting, bypass_window=bypass_window,
             )
             remaining.pop(0)
             total += published
             # Sem capacidade total, o resto do canal espera o próximo ciclo.
-            if published == 0 and not ch_quota.has_capacity(now=now):
+            if published == 0 and not ch_quota.has_capacity(now=now, bypass_window=bypass_window):
                 break
 
     return total
@@ -152,10 +153,9 @@ def _has_longo_waiting(clips: list[dict]) -> bool:
     return any((c.get('format') or 'curto') == 'longo' for c in clips)
 
 
-def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
-    """Publica uma sequência de clips com um uploader/quota_manager dado."""
-    current_status = _publishable_status()
+def _publish_clips_for(conn, clips: list[dict], uploader, quota_manager, now, bypass_window: bool = False) -> int:
     published_count = 0
+    current_status = _publishable_status()
     remaining = list(clips)
 
     while remaining:
@@ -164,11 +164,11 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
         clip_format = clip.get('format') or 'curto'
         longo_waiting = _has_longo_waiting(remaining)
 
-        if not quota_manager.has_capacity(now=now):
+        if not quota_manager.has_capacity(now=now, bypass_window=bypass_window):
             _log(f'Clip {clip_id} mantido {current_status} por quota/janela')
             break
 
-        if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting):
+        if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting, bypass_window=bypass_window):
             _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por cota de formato')
             remaining.pop(0)
             continue
@@ -200,13 +200,13 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
     return published_count
 
 
-def _publish_one(conn, clip, uploader, quota_manager, now, *, longo_waiting: bool = False) -> int:
+def _publish_one(conn, clip, uploader, quota_manager, now, *, longo_waiting: bool = False, bypass_window: bool = False) -> int:
     """Publica um único clip. Retorna 1 se publicado, 0 caso contrário."""
     current_status = _publishable_status()
     clip_id = clip['id']
     clip_format = clip.get('format') or 'curto'
 
-    if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting):
+    if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting, bypass_window=bypass_window):
         _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por quota/janela')
         return 0
 
