@@ -137,8 +137,8 @@ class TestUploadClip:
 
         yt.thumbnails.return_value.set.assert_called_once()
 
-    def test_thumbnail_failure_propagates(self, tmp_path):
-        """Falha no upload da thumbnail deve ser propagada ao caller."""
+    def test_thumbnail_failure_is_graceful(self, tmp_path):
+        """Falha no upload da thumbnail customizada deve logar aviso e manter o vídeo publicado."""
         import googleapiclient.errors
         clip_file = tmp_path / 'clip.mp4'
         clip_file.write_bytes(b'fake_mp4')
@@ -156,12 +156,12 @@ class TestUploadClip:
         uploader._load_credentials = lambda: MagicMock(expired=False)
 
         with patch('src.uploader.MediaFileUpload'):
-            with pytest.raises(googleapiclient.errors.HttpError):
-                uploader.upload_clip({
-                    'clip_path': str(clip_file),
-                    'title': 'Clip thumb fail',
-                    'thumbnail_path': str(thumb_file),
-                })
+            result = uploader.upload_clip({
+                'clip_path': str(clip_file),
+                'title': 'Clip thumb fail',
+                'thumbnail_path': str(thumb_file),
+            })
+            assert result == 'thumb_fail_vid'
 
     def test_tags_string_is_parsed_as_list(self, tmp_path):
         """Tags em formato string separado por vírgula devem virar lista."""
