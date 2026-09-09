@@ -26,6 +26,11 @@ def dt_sp(hour, minute=0):
     return datetime(2026, 6, 18, hour, minute, 0, tzinfo=TZ_SP)
 
 
+@pytest.fixture(autouse=True)
+def reset_bypass(monkeypatch):
+    monkeypatch.setenv('UPLOAD_WINDOW_BYPASS', 'false')
+
+
 class TestCanUpload:
     def test_inside_evening_window_below_quota(self):
         """Deve permitir upload dentro da janela da noite (19h às 22h)."""
