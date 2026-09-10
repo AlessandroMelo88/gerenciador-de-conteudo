@@ -29,6 +29,7 @@ SYSTEM_PROMPT = (
     "Para podcasts: priorize discussão intensa, revelação importante, momento de conflito ou humor. "
     "Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente "
     "(10 = viral garantido, 1 = sem valor). "
+    "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
@@ -46,21 +47,23 @@ LONG_SYSTEM_PROMPT = (
     "(end_time - start_time >= 420). "
     "Retorne exatamente 1 momento, com score de 1 a 10 "
     "(10 = análise excelente pra virar vídeo, 1 = sem valor). "
+    "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
 
 POLITICA_SYSTEM_PROMPT = (
-    "Você é um especialista em identificar os momentos de maior impacto, revelações, confrontos e debates em vídeos e podcasts de POLÍTICA "
-    "(focado na fórmula de cortes virais de alta retenção como os de MBL, Missão, debates eleitorais e sabatinas). "
+    "Você é um especialista de elite em identificar os momentos de maior impacto, confrontos, quebras de narrativa e debates em vídeos e podcasts de POLÍTICA "
+    "(focado na fórmula de cortes virais de alta retenção de canais de política e debates eleitorais/sabatinas). "
     "Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS (Shorts/Reels/TikTok), "
     "de PREFERÊNCIA entre 30 segundos e 120 segundos (end_time - start_time >= 30 e <= 120 segundos). "
     "CRITÉRIOS DE CORTE VIRAL DE POLÍTICA: "
     "1. GANCHO FORTE (0 a 5 segundos): O segmento deve começar exatamente no início de uma pergunta provocativa, uma declaração polêmica ou o início de uma refutação contundente. "
-    "2. CONFLITO & REFUTAÇÃO ('Jantada'): Priorize momentos onde uma narrativa é quebrada, contradições são expostas ou há embate direto de ideias com forte emoção. "
-    "3. RACIOCÍNIO FECHADO: Começo, meio e desfecho claro do argumento. Termine logo após a conclusão impactante, sem sobras ou enrolação. "
+    "2. CONFLITO & REFUTAÇÃO ('Jantada'): Priorize momentos onde uma narrativa é desconstruída com fatos/lógica, contradições são expostas ou há embate direto com alta carga emocional. "
+    "3. RACIOCÍNIO FECHADO: Começo, meio e desfecho claro do argumento. Termine logo após a conclusão impactante ou momento de choque, sem sobras. "
     "Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente "
     "(10 = momento épico/altamente compartilhável, 1 = sem relevância). "
+    "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
@@ -73,6 +76,7 @@ POLITICA_LONG_SYSTEM_PROMPT = (
     "uma entrevista reveladora ou um confronto de ideias do início ao desfecho do argumento. "
     "O segmento PRECISA ter pelo menos 420 segundos de duração (end_time - start_time >= 420). "
     "Retorne exatamente 1 momento, com score de 1 a 10. "
+    "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
@@ -86,6 +90,28 @@ MAX_LONGFORM_SECONDS = 1200
 
 def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [AI] {msg}', flush=True)
+
+
+def _to_seconds(val) -> float:
+    """Converte valores numéricos ou strings de tempo (ex: '21:21', '01:15:30', 120) para float em segundos."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        val = val.strip().replace('s', '').replace('S', '')
+        if ':' in val:
+            try:
+                parts = [float(p) for p in val.split(':')]
+                if len(parts) == 2:
+                    return parts[0] * 60 + parts[1]
+                elif len(parts) == 3:
+                    return parts[0] * 3600 + parts[1] * 60 + parts[2]
+            except Exception:
+                return 0.0
+        try:
+            return float(val)
+        except ValueError:
+            return 0.0
+    return 0.0
 
 
 def _normalize_scores(moments: list[dict]) -> list[dict]:
@@ -107,9 +133,21 @@ def _normalize_scores(moments: list[dict]) -> list[dict]:
 
 
 def _parse_moments(raw_text: str) -> list[dict]:
-    """Parse JSON text → lista de dicts de momentos."""
+    """Parse JSON text → lista de dicts de momentos com normalização de timestamps."""
     data = json.loads(raw_text)
-    return _normalize_scores(data.get('moments', []))
+    raw_moments = data.get('moments', [])
+    cleaned = []
+    for m in raw_moments:
+        if not isinstance(m, dict):
+            continue
+        start = _to_seconds(m.get('start_time', 0))
+        end = _to_seconds(m.get('end_time', 0))
+        if end > start:
+            m_clean = dict(m)
+            m_clean['start_time'] = start
+            m_clean['end_time'] = end
+            cleaned.append(m_clean)
+    return _normalize_scores(cleaned)
 
 
 def _select_via_anthropic_client(client, transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -> list[dict]:
@@ -127,15 +165,15 @@ def _select_via_groq(transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -
     """Seleciona momentos via Groq (fallback sempre disponível)."""
     from groq import Groq
     client = Groq()
-    _log('[SELECTOR] Usando Groq LLM')
+    _log('[SELECTOR] Usando Groq LLM (llama-3.3-70b-versatile)')
     response = client.chat.completions.create(
-        model='qwen/qwen3.8-27b',
+        model='llama-3.3-70b-versatile',
         messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': transcript_text},
         ],
         response_format={'type': 'json_object'},
-        temperature=0.3,
+        temperature=0.2,
         max_tokens=2048,
     )
     return _parse_moments(response.choices[0].message.content)
@@ -200,8 +238,8 @@ def _filter_shortform_duration(moments: list[dict], transcript_duration: float =
     """Valida e ajusta momentos do formato 'curto' para respeitar os limites de duração."""
     valid = []
     min_required = MIN_SHORTFORM_SECONDS
-    if transcript_duration and transcript_duration > 5:
-        min_required = min(MIN_SHORTFORM_SECONDS, transcript_duration - 0.5)
+    if transcript_duration and transcript_duration < MIN_SHORTFORM_SECONDS and transcript_duration > 5:
+        min_required = max(5.0, transcript_duration - 0.5)
 
     for m in moments:
         m_copy = dict(m)
@@ -210,17 +248,8 @@ def _filter_shortform_duration(moments: list[dict], transcript_duration: float =
         duration = end - start
 
         if duration < min_required:
-            if transcript_duration and transcript_duration >= min_required:
-                # Estende para frente ou trás para atingir min_required se houver transcrição
-                missing = min_required - duration
-                start = max(0, start - missing / 2)
-                end = min(transcript_duration, start + min_required)
-                m_copy['start_time'] = start
-                m_copy['end_time'] = end
-                duration = end - start
-            if duration < min_required:
-                _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que o mínimo ({min_required:.1f}s)')
-                continue
+            _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que o mínimo ({min_required:.1f}s)')
+            continue
 
         if duration > MAX_SHORTFORM_SECONDS:
             _log(f'[SELECTOR] Momento ajustado: duração {duration:.1f}s limitada para {MAX_SHORTFORM_SECONDS}s')
@@ -243,21 +272,24 @@ def _snap_to_sentence_boundaries(moments: list[dict], segments: list[dict], buff
         start_req = float(m['start_time'])
         end_req = float(m['end_time'])
 
-        # Encontra o melhor início
+        # Encontra o melhor início (apenas se houver fronteira próxima dentro de 3s)
         best_start = start_req
         for seg in segments:
             s_start = float(seg.get('start', 0))
             s_end = float(seg.get('end', 0))
-            if s_start <= start_req <= s_end or s_start >= start_req:
-                best_start = s_start
+            if s_start <= start_req <= s_end:
+                if abs(start_req - s_start) <= 3.0:
+                    best_start = s_start
                 break
 
-        # Encontra o melhor fim (estende até o fim do segmento + buffer de respiro)
+        # Encontra o melhor fim (apenas se houver fronteira próxima dentro de 3s)
         best_end = end_req
         for seg in segments:
+            s_start = float(seg.get('start', 0))
             s_end = float(seg.get('end', 0))
-            if s_end >= end_req:
-                best_end = s_end + buffer_end
+            if s_start <= end_req <= s_end:
+                if abs(s_end - end_req) <= 3.0:
+                    best_end = s_end + buffer_end
                 break
 
         snapped_m = dict(m)
@@ -298,7 +330,7 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', 
         end = int(seg['end'])
         if end > transcript_duration:
             transcript_duration = float(end)
-        lines.append(f'[{start:02d}:{start%60:02d}-{end:02d}:{end%60:02d}] {seg["text"]}')
+        lines.append(f'[{start}s-{end}s] {seg["text"]}')
     transcript_text = '\n'.join(lines)
 
     # Groq free tier: 8k TPM limit. MAX_CHARS=8000 (~2.5k tokens + prompt) garante resposta sem rate limit.

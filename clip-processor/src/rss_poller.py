@@ -167,6 +167,10 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
 
 def _process_pending_clips(conn) -> None:
     """Processa clips com status pending_cut sem abortar o poll por falha isolada."""
+    try:
+        conn.commit()
+    except Exception:
+        pass
     with conn.cursor() as cur:
         cur.execute(
             "SELECT gc.id FROM generated_clips gc "

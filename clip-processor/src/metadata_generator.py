@@ -23,6 +23,15 @@ SYSTEM_PROMPT = (
     "As tags devem ser termos curtos em PT-BR, sem hashtag, focados em futebol, cortes e tema do vídeo."
 )
 
+POLITICA_METADATA_PROMPT = (
+    "Você é um estrategista de elite em SEO e títulos virais de alta retenção para YouTube Shorts e Reels de POLÍTICA e DEBATES. "
+    "Gere metadados de alto impacto e curiosidade para o corte selecionado: "
+    "1. Título (máximo 100 caracteres): Crie um título extremamente chamativo com gancho de confronto, revelação ou refutação "
+    "(ex: 'VEJA O QUE ELE DISSE QUANDO...', 'NÃO ESPERAVA ESSA RESPOSTA...', 'MOMENTO EM QUE FOI DESMASCARADO...', 'JANTADA HISTÓRICA NO DEBATE!'). "
+    "2. Descrição: Resumo rápido do embate ou declaração, provocando a audiência a comentar. "
+    "3. Tags: Lista de tags em PT-BR (sem hashtag), incluindo temas como politica, debate, shorts, cortes, noticias e nomes citados."
+)
+
 METADATA_OUTPUT_SCHEMA = {
     'format': {
         'type': 'json_schema',
@@ -52,9 +61,11 @@ def _normalize_metadata(metadata: dict, clip_context: dict | None = None) -> dic
     title = str(metadata.get('title') or '').strip()
     description = str(metadata.get('description') or '').strip()
     tags = metadata.get('tags') or []
+    niche = (clip_context or {}).get('niche') or 'futebol'
 
     if not title:
-        source_title = (clip_context or {}).get('source_title') or 'Corte de futebol'
+        default_name = 'Corte Político' if niche == 'politica' else 'Corte de futebol'
+        source_title = (clip_context or {}).get('source_title') or default_name
         title = str(source_title)
 
     if not description:
@@ -67,7 +78,7 @@ def _normalize_metadata(metadata: dict, clip_context: dict | None = None) -> dic
         tags = [str(tag).strip() for tag in tags if str(tag).strip()]
 
     if not tags:
-        tags = ['futebol', 'cortes', 'shorts']
+        tags = ['politica', 'debate', 'cortes', 'shorts', 'noticias'] if niche == 'politica' else ['futebol', 'cortes', 'shorts']
 
     return {
         'title': title[:100],
@@ -77,7 +88,9 @@ def _normalize_metadata(metadata: dict, clip_context: dict | None = None) -> dic
 
 
 def _build_prompt(clip_context: dict) -> str:
+    niche = clip_context.get('niche') or 'futebol'
     return (
+        f"Nicho: {niche}\n"
         f"Título original: {clip_context.get('source_title', '')}\n"
         f"Motivo do corte: {clip_context.get('reason', '')}\n"
         f"Score viral: {clip_context.get('score', '')}\n"
@@ -88,15 +101,21 @@ def _build_prompt(clip_context: dict) -> str:
     )
 
 
+def _resolve_system_prompt(clip_context: dict) -> str:
+    niche = (clip_context or {}).get('niche', '').lower()
+    return POLITICA_METADATA_PROMPT if niche == 'politica' else SYSTEM_PROMPT
+
+
 def _generate_via_anthropic(clip_context: dict, anthropic_client) -> dict:
     if anthropic_client is None:
         import anthropic
         anthropic_client = anthropic.Anthropic()
 
+    system_prompt = _resolve_system_prompt(clip_context)
     response = anthropic_client.messages.create(
         model='claude-haiku-4-5',
         max_tokens=1024,
-        system=SYSTEM_PROMPT,
+        system=system_prompt,
         messages=[{'role': 'user', 'content': _build_prompt(clip_context)}],
         output_config=METADATA_OUTPUT_SCHEMA,
     )
@@ -107,11 +126,12 @@ def _generate_via_groq(clip_context: dict) -> dict:
     """Gera metadata via Groq (fallback sempre disponível)."""
     from groq import Groq
     client = Groq()
-    _log('Fallback: gerando metadata via Groq LLM')
+    system_prompt = _resolve_system_prompt(clip_context)
+    _log('Fallback: gerando metadata via Groq LLM (llama-3.3-70b-versatile)')
     response = client.chat.completions.create(
-        model='qwen/qwen3.8-27b',
+        model='llama-3.3-70b-versatile',
         messages=[
-            {'role': 'system', 'content': SYSTEM_PROMPT},
+            {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': _build_prompt(clip_context)},
         ],
         response_format={'type': 'json_object'},
@@ -126,8 +146,7 @@ def generate_metadata(clip_context: dict, anthropic_client=None) -> dict:
 
     Tenta Anthropic primeiro; sem ANTHROPIC_API_KEY ou em erro, cai pro Groq
     (mesmo fallback usado pelo seletor de momentos). Só usa o título bruto do
-    vídeo como último recurso se as duas IAs falharem — isso é o que fazia
-    clips do mesmo vídeo saírem com título idêntico na fila.
+    vídeo como último recurso se as duas IAs falharem.
     """
     try:
         data = _generate_via_anthropic(clip_context, anthropic_client)
@@ -141,11 +160,14 @@ def generate_metadata(clip_context: dict, anthropic_client=None) -> dict:
     except Exception as exc:
         _log(f'Erro ao gerar metadata via Groq: {exc}')
 
-    fallback_title = clip_context.get('source_title') or clip_context.get('reason') or 'Corte de futebol'
+    niche = (clip_context or {}).get('niche') or 'futebol'
+    default_title = 'Corte Político' if niche == 'politica' else 'Corte de futebol'
+    fallback_title = clip_context.get('source_title') or clip_context.get('reason') or default_title
+    fallback_tags = ['politica', 'debate', 'cortes', 'shorts', 'noticias'] if niche == 'politica' else ['futebol', 'cortes', 'shorts']
     return _normalize_metadata({
         'title': fallback_title,
         'description': clip_context.get('reason') or 'Melhor momento selecionado automaticamente.',
-        'tags': ['futebol', 'cortes', 'shorts'],
+        'tags': fallback_tags,
     }, clip_context)
 
 

@@ -575,6 +575,8 @@ def _build_clip_context(clip: dict, transcript: dict) -> dict:
         'score': clip.get('score'),
         'start_time': start_time,
         'end_time': end_time,
+        'niche': clip.get('destination_channel_niche') or 'futebol',
+        'format': clip.get('format') or 'curto',
         'transcript_excerpt': ' '.join(line for line in excerpt_lines if line),
     }
 

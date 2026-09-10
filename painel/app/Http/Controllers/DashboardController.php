@@ -205,8 +205,8 @@ class DashboardController extends Controller
             'publishedCurto' => $publishedCurto,
             'publishedLongo' => $publishedLongo,
             'approvalRate' => $approvalRate,
-            'backlogCurto' => SourceVideo::query()->where('format', 'curto')->where('status', 'pending')->count(),
-            'backlogLongo' => SourceVideo::query()->where('format', 'longo')->where('status', 'pending')->count(),
+            'backlogCurto' => SourceVideo::query()->where('status', 'pending')->where(fn ($q) => $q->where('format', 'curto')->orWhereNull('format'))->count(),
+            'backlogLongo' => SourceVideo::query()->where('status', 'pending')->where('format', 'longo')->count(),
         ];
     }
 

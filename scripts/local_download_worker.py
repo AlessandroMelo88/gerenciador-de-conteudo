@@ -54,7 +54,7 @@ def run_remote_mysql(query: str) -> str:
     cmd = [
         'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-i', SSH_KEY,
         SSH_HOST,
-        f"docker exec canaldecortes-db-1 mysql -uroot -prootpassword canaldecortes --default-character-set=utf8mb4 -s -N -e {subprocess.list2cmdline([query])}"
+        f"docker exec mysql mysql -uroot -prootpassword clips_automation --default-character-set=utf8mb4 -s -N -e {subprocess.list2cmdline([query])}"
     ]
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, errors='replace', timeout=30)
