@@ -3,6 +3,7 @@ services:
     image: nginx:alpine
     container_name: nginx
     restart: always
+    mem_limit: 40m
     ports:
       - '80:80'
       - '443:443'
@@ -20,6 +21,7 @@ services:
       dockerfile: Dockerfile.php
     container_name: php
     restart: always
+    mem_limit: 140m
     command: php-fpm
     volumes:
       - ./painel:/var/www/html/painel
@@ -27,7 +29,7 @@ services:
       - ./branding:/var/www/html/painel/storage/app/branding
       - ./videos:/var/www/html/painel/storage/app/clips-videos:ro
     environment:
-      PHP_MEMORY_LIMIT: 256M
+      PHP_MEMORY_LIMIT: 128M
       MAX_UPLOADS_PER_DAY: '5'
     networks:
       - internal
@@ -39,7 +41,14 @@ services:
     image: mysql:8.4
     container_name: mysql
     restart: always
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    mem_limit: 220m
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=48M
+      --innodb-log-buffer-size=8M
+      --performance-schema=OFF
+      --max-connections=30
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-clips_automation}
@@ -54,6 +63,7 @@ services:
     image: redis:alpine
     container_name: redis
     restart: always
+    mem_limit: 35m
     volumes:
       - redis_data:/data
     networks:
@@ -63,6 +73,7 @@ services:
     build: ./clip-processor
     container_name: clip-processor
     restart: unless-stopped
+    mem_limit: 240m
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GROQ_API_KEY=${GROQ_API_KEY}

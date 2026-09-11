@@ -335,14 +335,18 @@ def run_ingest_cycle(db_conn=None, redis_client=None):
                 'error_msg': str(exc)[:500],
             })
 
-        try:
-            _download_pending_videos(db_conn)
-        except Exception as exc:
-            _log(f'ERRO em _download_pending_videos (ciclo ingest): {exc}')
-            notify('pipeline_failure', {
-                'stage': 'download_pending_videos',
-                'error_msg': str(exc)[:500],
-            })
+        allow_local = os.getenv('ALLOW_LOCAL_DOWNLOAD', 'true').lower() in ('true', '1', 'yes')
+        if not allow_local:
+            try:
+                _download_pending_videos(db_conn)
+            except Exception as exc:
+                _log(f'ERRO em _download_pending_videos (ciclo ingest): {exc}')
+                notify('pipeline_failure', {
+                    'stage': 'download_pending_videos',
+                    'error_msg': str(exc)[:500],
+                })
+        else:
+            _log('ALLOW_LOCAL_DOWNLOAD=true: downloads gerenciados pelo worker local (IP residencial)')
 
         _log('Ciclo de ingestão finalizado')
     finally:

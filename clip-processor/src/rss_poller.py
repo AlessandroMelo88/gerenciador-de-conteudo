@@ -175,7 +175,8 @@ def _process_pending_clips(conn) -> None:
         cur.execute(
             "SELECT gc.id FROM generated_clips gc "
             "JOIN source_videos sv ON sv.id = gc.source_video_id "
-            "WHERE gc.status = 'pending_cut' AND sv.paused = 0"
+            "WHERE gc.status = 'pending_cut' AND sv.paused = 0 "
+            "ORDER BY gc.id ASC LIMIT 2"
         )
         rows = cur.fetchall()
 
@@ -281,7 +282,8 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
                     "WHERE sv.status = 'downloaded' AND sv.local_path IS NOT NULL AND sv.paused = 0 "
                     "ORDER BY sv.priority DESC, "
                     "CASE WHEN LOWER(COALESCE(sc.target_niche, '')) = 'futebol' THEN 0 ELSE 1 END, "
-                    "sv.queue_position IS NULL, sv.queue_position ASC, sv.published_at DESC"
+                    "sv.queue_position IS NULL, sv.queue_position ASC, sv.published_at DESC "
+                    "LIMIT 2"
                 )
                 downloaded_videos = cur.fetchall()
 
