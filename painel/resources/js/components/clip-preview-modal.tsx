@@ -325,39 +325,12 @@ export function ClipPreviewModal({
                                     </div>
                                 </div>
 
-                                {/* Container Widescreen 16:9 com o Background Template do Canal */}
+                                {/* Container Widescreen 16:9 */}
                                 <div className="relative w-full aspect-video bg-zinc-950 overflow-hidden select-none">
-                                    {/* Imagem de Fundo Oficial do Canal */}
-                                    <img
-                                        src={
-                                            clip.destinationChannelBackgroundUrl ||
-                                            (isPol
-                                                ? '/storage/branding/background-cortes-da-politica.png'
-                                                : isFut
-                                                ? '/storage/branding/background-futebol-em-cortes.png'
-                                                : '/storage/branding/background-podcast-cortes.png')
-                                        }
-                                        alt={`Background ${channelName}`}
-                                        className="absolute inset-0 w-full h-full object-cover z-0"
-                                        onError={(e) => {
-                                            // Fallback gracioso caso asset não carregue
-                                            e.currentTarget.style.display = 'none';
-                                        }}
-                                    />
-
-                                    {/* Janela do Vídeo Centralizado na Moldura Amarela (x=320/1920=16.67%, y=72/1080=6.67%, w=1520/1920=79.17%, h=855/1080=79.17%) */}
-                                    <div
-                                        className="absolute z-10 overflow-hidden bg-black flex items-center justify-center shadow-2xl"
-                                        style={{
-                                            left: '16.67%',
-                                            top: '6.67%',
-                                            width: '79.17%',
-                                            height: '79.17%',
-                                        }}
-                                    >
-                                        {desktopTab === 'cover' ? (
-                                            /* Aba Capa: Thumbnail ou poster na janela */
-                                            clip.hasThumbnailFile ? (
+                                    {desktopTab === 'cover' ? (
+                                        /* Aba Capa: Exibe a Thumbnail Oficial 1280x720 em tela cheia 16:9 do YouTube */
+                                        <div className="relative w-full h-full bg-zinc-950 flex items-center justify-center">
+                                            {clip.hasThumbnailFile ? (
                                                 <img
                                                     src={clip.thumbnailUrl}
                                                     alt="Capa Oficial 16:9 do YouTube"
@@ -365,28 +338,58 @@ export function ClipPreviewModal({
                                                 />
                                             ) : (
                                                 <div className="text-center p-6">
-                                                    <Play className="w-12 h-12 text-white mx-auto mb-2" />
+                                                    <Play className="w-12 h-12 text-white mx-auto mb-2 opacity-60" />
                                                     <h4 className="text-sm font-bold text-white px-4">{clip.title}</h4>
+                                                    <p className="text-xs text-zinc-500 mt-1">Thumbnail em processamento</p>
                                                 </div>
-                                            )
-                                        ) : (
-                                            /* Aba Vídeo: Player de Reprodução dentro da janela */
-                                            clip.hasVideoFile ? (
-                                                <video
-                                                    controls
-                                                    autoPlay
-                                                    className="w-full h-full object-cover"
-                                                    src={clip.previewUrl}
-                                                    poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
-                                                />
-                                            ) : (
-                                                <div className="text-center p-6">
-                                                    <Play className="w-12 h-12 text-white mx-auto mb-2" />
-                                                    <h4 className="text-sm font-bold text-white px-4">{clip.title}</h4>
-                                                </div>
-                                            )
-                                        )}
-                                    </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        /* Aba Vídeo: Player de Reprodução dentro da Moldura Oficial */
+                                        <div className="relative w-full h-full bg-zinc-950 overflow-hidden">
+                                            <img
+                                                src={
+                                                    clip.destinationChannelBackgroundUrl ||
+                                                    (isPol
+                                                        ? '/storage/branding/background-cortes-da-politica.png'
+                                                        : isFut
+                                                        ? '/storage/branding/background-futebol-em-cortes.png'
+                                                        : '/storage/branding/background-podcast-cortes.png')
+                                                }
+                                                alt={`Background ${channelName}`}
+                                                className="absolute inset-0 w-full h-full object-cover z-0"
+                                                onError={(e) => {
+                                                    e.currentTarget.style.display = 'none';
+                                                }}
+                                            />
+
+                                            {/* Janela do Vídeo Centralizado na Moldura Amarela (x=320/1920=16.67%, y=72/1080=6.67%, w=1520/1920=79.17%, h=855/1080=79.17%) */}
+                                            <div
+                                                className="absolute z-10 overflow-hidden bg-black flex items-center justify-center shadow-2xl"
+                                                style={{
+                                                    left: '16.67%',
+                                                    top: '6.67%',
+                                                    width: '79.17%',
+                                                    height: '79.17%',
+                                                }}
+                                            >
+                                                {clip.hasVideoFile ? (
+                                                    <video
+                                                        controls
+                                                        autoPlay
+                                                        className="w-full h-full object-cover"
+                                                        src={clip.previewUrl}
+                                                        poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
+                                                    />
+                                                ) : (
+                                                    <div className="text-center p-6">
+                                                        <Play className="w-12 h-12 text-white mx-auto mb-2" />
+                                                        <h4 className="text-sm font-bold text-white px-4">{clip.title}</h4>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <span className="absolute right-3 bottom-2.5 px-2 py-0.5 rounded bg-black/80 text-[11px] font-mono font-semibold text-white border border-white/10 z-20">
                                         {clip.trecho}
