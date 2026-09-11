@@ -160,11 +160,12 @@ def cut_clip(
     subprocess.run(
         [
             'ffmpeg',
+            '-threads', '1',
             *input_args,
             *filter_args,
             '-c:v', 'libx264',
-            '-preset', 'veryfast',
-            '-crf', '23',
+            '-preset', 'ultrafast',
+            '-crf', '24',
             '-c:a', 'aac',
             '-b:a', '128k',
             '-movflags', '+faststart',
@@ -239,11 +240,12 @@ def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str, fmt: s
     subprocess.run(
         [
             'ffmpeg',
+            '-threads', '1',
             '-i', input_clip_path,
             '-vf', subtitle_filter,
             '-c:v', 'libx264',
-            '-preset', 'veryfast',
-            '-crf', '23',
+            '-preset', 'ultrafast',
+            '-crf', '24',
             '-c:a', 'copy',
             output_path,
             '-y',
