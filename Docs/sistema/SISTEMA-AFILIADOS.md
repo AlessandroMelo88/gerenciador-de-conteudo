@@ -264,7 +264,18 @@ Sem `AFFILIATE_API_TOKEN` no painel a API fica desligada (503). Esse é o estado
 O agendamento depende do `schedule:run` que já roda no crontab do container `php`. Não precisa de
 rebuild do `clip-processor`: nada do pipeline de vídeo foi alterado.
 
-**Testes:** 78 Pest (`php vendor/bin/pest`) e 47 pytest (`affiliate-worker`).
+**Testes:** 81 Pest (`php vendor/bin/pest`) e 47 pytest (`affiliate-worker`), contra MySQL 8.4.
+
+Os 36 testes de ofertas e marca também passam contra **PostgreSQL 17**, em banco separado:
+
+```bash
+docker exec postgres psql -U kelnab -d kelnab -c "CREATE DATABASE clips_afiliados_teste;"
+DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 DB_DATABASE=clips_afiliados_teste \
+DB_USERNAME=kelnab DB_PASSWORD=secret DB_URL= php artisan migrate --force
+# depois: php vendor/bin/pest tests/Feature/Offer*Test.php tests/Feature/BrandThemeTest.php
+```
+
+Rodar pelo PHP do host: a imagem `wordpress-php` em uso ainda não traz `pdo_pgsql`.
 
 ---
 
