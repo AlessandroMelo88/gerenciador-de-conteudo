@@ -436,7 +436,7 @@ aberto é enxugar gelo.
 | 3 | Auditar e reclassificar fontes; achar fontes de futebol que aceitam cortes | ⬜ | 2 |
 | 4 | Bugs 11 e 4 | ⬜ | 1 |
 | 5 | VM A1 12 GB + PostgreSQL no mesmo movimento | ⬜ | 4 |
-| 6 | Afiliados: schema, `POST /api/offers`, tela, worker local | ⬜ | 5 |
+| 6 | Afiliados: schema, `POST /api/offers`, tela, worker local | 🟡 código pronto na branch `afiliadas` (15/09/2026), sem deploy — ver [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md) | 5 |
 | 7 | Tema Umbrella Solutions e domínio | ⬜ | 6 |
 | 8 | Divulgação: Telegram, descrições, blog | ⬜ | 6 |
 | 9 | Produto próprio e cursos | ⬜ | 8 |

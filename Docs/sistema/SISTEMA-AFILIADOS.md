@@ -148,13 +148,17 @@ Detalhes de instalação e formato do CSV em [`affiliate-worker/README.md`](../.
 
 **IA:** Anthropic `claude-haiku-4-5` → Groq → template determinístico. Segue a regra do projeto de
 todo caminho novo de IA nascer com fallback Groq ([`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md)).
-O template garante que a etapa de copy nunca trava o fluxo.
+O template garante que a etapa de copy nunca trava o fluxo. Copy gerada pelo template chega com `ai_provider = manual`; campos já preenchidos pelo operador
+nunca são sobrescritos.
 
 **Retry:** 429, 5xx e timeout com backoff. 401 e 422 não repetem — são erro de configuração ou dado.
 
 **Limites conhecidos:**
 - Hotmart, Eduzz e Kiwify não oferecem API de catálogo para afiliado. O caminho é importar planilha.
-- A busca pública do Mercado Livre pode exigir token; sem ele o comando avisa e não quebra.
+- A busca pública do Mercado Livre pode exigir token; sem ele o comando avisa e não quebra. O
+  `MERCADOLIVRE_ACCESS_TOKEN` expira em ~6 h e o worker não renova. Não foi testado contra a API real.
+- As regras "não prometer resultado / não inventar preço" estão no prompt, não no código. A revisão no
+  painel é a barreira final.
 - A Product Advertising API da Amazon só libera após 3 vendas em 180 dias.
 - Nenhuma loja é raspada por HTML.
 
