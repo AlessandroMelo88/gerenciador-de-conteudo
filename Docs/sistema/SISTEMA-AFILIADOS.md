@@ -4,7 +4,8 @@ Como o Canal de Cortes busca, prepara, aprova e divulga ofertas de afiliado. Dec
 e motivos estão em [`PLANO-MESTRE.md`](PLANO-MESTRE.md#6-afiliados); este documento descreve o que
 foi construído.
 
-Última atualização: **15/09/2026** (primeira versão, branch `afiliadas`).
+Última atualização: **15/09/2026** — fase 2 (branch `afiliadas-fase2`): divulgação no Telegram, tela de
+performance e tema Umbrella Solutions.
 
 ---
 
@@ -25,11 +26,17 @@ flowchart LR
 | Buscar produto | Seu computador (`affiliate-worker`) | Você roda um comando, ou importa uma planilha com os links que pegou na Hotmart |
 | Escrever texto | Seu computador | IA (Claude; se falhar, Groq; se falhar, um modelo pronto) |
 | Revisar | Painel → **Ofertas** → aba Rascunhos | Você lê, edita se quiser, aprova ou rejeita |
-| Divulgar | Telegram, comentário fixado, descrição, blog | Você copia o link rastreável da oferta aprovada |
+| Divulgar no Telegram | Canal do Telegram do nicho | **Automático**: a cada 30 min, das 8h às 22h, o painel posta até 3 ofertas aprovadas que ainda não foram ao ar |
+| Divulgar no resto | Comentário fixado, descrição, blog | Você copia o link rastreável da oferta aprovada |
+| Ver resultado | Painel → **Ofertas** → botão **Performance** | Você acompanha cliques por oferta, por canal e por dia |
 
 **Por que o link é "rastreável":** em vez de divulgar o link da Hotmart direto, você divulga um
 link curto do painel (`/o/abc123`). Quando alguém clica, o painel conta o clique, anota de onde veio
 (Telegram, YouTube, blog) e manda a pessoa para o link da Hotmart. Assim você sabe qual canal vende.
+
+**Cada oferta vai ao Telegram uma vez só.** Depois de postada ela ganha o selo "Telegram" na lista. Se
+o Telegram recusar o envio (canal errado, bot sem permissão), a oferta fica na fila e o painel tenta de
+novo na rodada seguinte.
 
 **O que o sistema nunca faz sozinho:** publicar oferta sem aprovação, inventar link de afiliado,
 inventar preço ou desconto.
@@ -44,6 +51,8 @@ inventar preço ou desconto.
 | API de ofertas | `painel/routes/api.php` | Recebe ofertas do worker. Autenticação por token |
 | Tela Ofertas | `/painel/ofertas` | Revisão, edição, aprovação, cópia do link rastreável |
 | Redirect rastreável | `/o/{slug}` | Conta o clique e redireciona para o link da rede |
+| Divulgação Telegram | `php artisan offers:publish-telegram` (agendado) | Posta oferta aprovada no canal do nicho e marca `telegram_posted_at` |
+| Tela Performance | `/painel/ofertas/performance` | Cliques por oferta, canal e dia a partir de `offer_clicks` |
 
 O servidor **nunca chama** o worker. Máquina local desligada não afeta nada em produção.
 
@@ -71,6 +80,7 @@ Schema builder, sem `enum` nativo — roda em MySQL 8.4 e PostgreSQL 17.
 | `status` | string(20) | `draft` → `approved` / `rejected` / `archived` |
 | `clicks_count` | unsigned int | incremento atômico no redirect |
 | `approved_at` | timestamp null | setado ao aprovar, zerado ao sair de approved |
+| `telegram_posted_at` | timestamp null | quando foi postada no Telegram. Não é zerada ao mudar de status — oferta reaprovada não é repostada. Índice `(status, telegram_posted_at)` |
 
 ### `offer_clicks`
 
@@ -164,6 +174,66 @@ nunca são sobrescritos.
 
 ---
 
+## Divulgação no Telegram
+
+Comando `offers:publish-telegram`, agendado em `routes/console.php`: a cada 30 min, 08h–22h
+(America/Sao_Paulo), `withoutOverlapping`. Usa o bot já configurado (`telegram.bots.mybot`).
+
+```mermaid
+flowchart LR
+    A[approved +<br/>telegram_posted_at NULL +<br/>nicho com canal] --> B[UPDATE reserva<br/>WHERE telegram_posted_at IS NULL]
+    B -->|0 linhas| X[outra execução pegou]
+    B -->|1 linha| C[sendMessage]
+    C -->|ok| D[fica marcada]
+    C -->|erro| E[volta para NULL<br/>tenta na próxima rodada]
+```
+
+| Regra | Detalhe |
+|---|---|
+| Mensagem | `copy_short` (ou `cta_text`, ou `title`) + linha em branco + `/o/{slug}?c=telegram`. Texto puro, sem `parse_mode` |
+| Canal por nicho | `AFFILIATE_TELEGRAM_CHANNELS="futebol=@canal,politica=-100123"`. Nicho fora do mapa não é postado nem trava a fila dos outros |
+| Ordem e volume | mais antigas por `approved_at` primeiro; `AFFILIATE_TELEGRAM_PER_RUN` por rodada (padrão 3), `--limit` sobrescreve |
+| Idempotência | reserva atômica antes do envio. Queda entre reserva e envio perde aquele post (at-most-once) — preferível a repetir oferta no canal |
+| Fail-closed | sem `TELEGRAM_BOT_TOKEN` ou sem mapa de canais: não envia nada e sai com código 1 |
+| Teste manual | `php artisan offers:publish-telegram --dry-run` mostra o que seria enviado sem enviar nem marcar |
+
+Sem IA nesse caminho: a copy já veio pronta do worker (Anthropic → Groq → template).
+
+---
+
+## Tela de performance
+
+`/painel/ofertas/performance?days=7|30|90` (padrão 30; valor inválido volta para 30).
+
+| Bloco | Fonte |
+|---|---|
+| Cards | cliques, visitantes únicos (`COUNT(DISTINCT ip_hash)`), ofertas com clique, canal líder |
+| Cliques por dia | `DATE(created_at)` agrupado; dias sem clique entram zerados. O dia é em **UTC** (`config/app.php` fixa `timezone = UTC`): clique depois das 21h de Brasília conta no dia seguinte |
+| Por canal | `channel` agrupado. `NULL` aparece como "Sem canal" (link sem `?c=` ou valor inválido) |
+| Por oferta | top 100 por cliques, com quebra por canal e último clique |
+
+**Privacidade:** `ip_hash` só é usado dentro de `COUNT(DISTINCT)` no banco. Nenhum hash sai nas props — há
+teste que garante isso. Agregação toda em SQL portável (MySQL 8.4 / PostgreSQL 17).
+
+---
+
+## Marca Umbrella Solutions
+
+Mesmo Laravel, mesmo banco, mesmas rotas. Só muda apresentação ([`PLANO-MESTRE.md`](PLANO-MESTRE.md#5-marca--umbrella-solutions)).
+
+| Peça | Onde |
+|---|---|
+| Marcas (nome, tagline, ícone, logo) | `painel/config/branding.php` |
+| Seleção | `App\Support\Brand::resolve()`: host em `BRAND_DOMAINS` → senão `APP_BRAND` → senão `canaldecortes` |
+| Entrega ao front | prop Inertia `brand` + `<html data-brand="...">` + `<title>` |
+| Cores, raio, gráficos, sidebar | `resources/css/app.css`, blocos `:root[data-brand='umbrella']` e `.dark[data-brand='umbrella']` |
+| Tipografia | `--brand-font-sans` / `--brand-font-heading`. Umbrella usa Manrope nos títulos (Google Fonts, carregada só nessa marca) |
+| Logo | componente `BrandMark`: usa `BRAND_UMBRELLA_LOGO` se definido, senão ícone sobre gradiente `--brand-logo-from/to` |
+
+Para adicionar uma marca: nova entrada em `branding.brands` + blocos `[data-brand='<chave>']` no CSS.
+
+---
+
 ## Configuração
 
 | Variável | Onde | Uso |
@@ -172,6 +242,12 @@ nunca são sobrescritos.
 | `AFFILIATE_API_URL` | `affiliate-worker/.env` | ex. `https://toolscut.alessandromelo.com.br` |
 | `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `GROQ_MODEL` | `affiliate-worker/.env` | copy com IA |
 | `MERCADOLIVRE_ACCESS_TOKEN` | `affiliate-worker/.env` | opcional |
+| `AFFILIATE_TELEGRAM_CHANNELS` | `painel/.env` | `nicho=chat` separado por vírgula. Vazio = nada é postado |
+| `AFFILIATE_TELEGRAM_PER_RUN` | `painel/.env` | ofertas por rodada, padrão 3 |
+| `TELEGRAM_BOT_TOKEN` | `painel/.env` | já existia. O bot precisa ser **administrador** de cada canal de destino |
+| `APP_BRAND` | `painel/.env` | `canaldecortes` (padrão) ou `umbrella` |
+| `BRAND_DOMAINS` | `painel/.env` | `host=marca`, vence `APP_BRAND`. Ex. `painel.umbrellasolutions.com.br=umbrella` |
+| `BRAND_UMBRELLA_LOGO`, `BRAND_CANALDECORTES_LOGO` | `painel/.env` | caminho público do logo; vazio = ícone do tema |
 
 Sem `AFFILIATE_API_TOKEN` no painel a API fica desligada (503). Esse é o estado seguro padrão.
 
@@ -179,16 +255,26 @@ Sem `AFFILIATE_API_TOKEN` no painel a API fica desligada (503). Esse é o estado
 
 ## Deploy
 
-1. `php artisan migrate` — só cria `offers` e `offer_clicks`, não altera tabela existente.
-2. Adicionar `AFFILIATE_API_TOKEN` ao `.env` do servidor.
-3. `./deploy.sh` (compila o Vite localmente, sincroniza e limpa cache).
+1. `php artisan migrate` — cria `offers` e `offer_clicks` e adiciona `offers.telegram_posted_at`
+   (nullable). Não altera tabela do pipeline.
+2. `.env` do servidor: `AFFILIATE_API_TOKEN`; para divulgar, `AFFILIATE_TELEGRAM_CHANNELS`.
+3. Criar os canais no Telegram e adicionar o bot como administrador. Validar com `--dry-run`.
+4. `./deploy.sh` (compila o Vite localmente, sincroniza e limpa cache).
 
-Não precisa de rebuild do `clip-processor` — nada do pipeline de vídeo foi alterado.
+O agendamento depende do `schedule:run` que já roda no crontab do container `php`. Não precisa de
+rebuild do `clip-processor`: nada do pipeline de vídeo foi alterado.
+
+**Testes:** 77 Pest (`php vendor/bin/pest`) e 47 pytest (`affiliate-worker`).
 
 ---
 
 ## Próximos passos
 
-- Publicação automática de oferta aprovada em canal do Telegram (usa `GET /api/offers`).
-- Tela de performance: cliques por oferta, por canal e por dia a partir de `offer_clicks`.
-- Tema e domínio Umbrella Solutions ([`PLANO-MESTRE.md`](PLANO-MESTRE.md#5-marca--umbrella-solutions)).
+- Domínio Umbrella: DNS, vhost nginx e certificado apontando para o mesmo painel, e `BRAND_DOMAINS` no
+  `.env`. O código já escolhe o tema pelo host.
+- Agrupar a série diária em `America/Sao_Paulo` em vez de UTC, se o corte das 21h atrapalhar a leitura.
+- Logo real da Umbrella (SVG em `public/`, via `BRAND_UMBRELLA_LOGO`). Hoje é ícone sobre gradiente.
+- Algumas cores de destaque ainda são fixas no código (ex. `#FF6A55` nos cards do Dashboard) e não
+  mudam com a marca.
+- Telegram com imagem (`sendPhoto` com `image_url`). Hoje é só texto.
+- Página de links própria no domínio (substitui Linktree, rastreável).

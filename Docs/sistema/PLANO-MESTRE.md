@@ -336,6 +336,10 @@ Implementação: **mesmo backend, tema diferente.** O painel Inertia + React 19 
 tema de estrutura. Um segundo tema (tokens de cor, tipografia, logo) mais um domínio apontando para
 o mesmo Laravel resolve — não duplicar código nem banco.
 
+**Status (15/09/2026):** tema implementado na branch `afiliadas-fase2`: `config/branding.php`,
+`BRAND_DOMAINS`/`APP_BRAND`, tokens em `[data-brand='umbrella']`. Falta domínio (DNS, vhost,
+certificado) e logo. Detalhes em [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md#marca-umbrella-solutions).
+
 Ponto prático a resolver antes de faturar: rede de afiliado paga pessoa física, mas CNPJ (MEI
 serve) reduz imposto e permite emitir nota. Não bloqueia começar.
 
@@ -436,9 +440,9 @@ aberto é enxugar gelo.
 | 3 | Auditar e reclassificar fontes; achar fontes de futebol que aceitam cortes | ⬜ | 2 |
 | 4 | Bugs 11 e 4 | ⬜ | 1 |
 | 5 | VM A1 12 GB + PostgreSQL no mesmo movimento | ⬜ | 4 |
-| 6 | Afiliados: schema, `POST /api/offers`, tela, worker local | 🟡 código pronto na branch `afiliadas` (15/09/2026), sem deploy — ver [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md) | 5 |
-| 7 | Tema Umbrella Solutions e domínio | ⬜ | 6 |
-| 8 | Divulgação: Telegram, descrições, blog | ⬜ | 6 |
+| 6 | Afiliados: schema, `POST /api/offers`, tela, worker local, tela de performance | 🟡 código pronto nas branches `afiliadas` e `afiliadas-fase2` (15/09/2026), sem deploy — ver [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md) | 5 |
+| 7 | Tema Umbrella Solutions e domínio | 🟡 tema pronto na branch `afiliadas-fase2` (seleção por host ou `APP_BRAND`); falta DNS, vhost, certificado e logo | 6 |
+| 8 | Divulgação: Telegram, descrições, blog | 🟡 Telegram automático pronto na branch `afiliadas-fase2`; falta criar canais e pôr o bot como admin. Descrições e blog ⬜ | 6 |
 | 9 | Produto próprio e cursos | ⬜ | 8 |
 
 ---

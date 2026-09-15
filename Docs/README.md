@@ -35,7 +35,7 @@ Contém as especificações operacionais e de engenharia de todos os componentes
 * [`Docs/sistema/RUNBOOK.md`](sistema/RUNBOOK.md) — Comandos práticos de manutenção, operação e troubleshooting.
 * [`Docs/sistema/BUGS.md`](sistema/BUGS.md) — Histórico e backlog de bugs e correções.
 * [`Docs/sistema/PLANO-MESTRE.md`](sistema/PLANO-MESTRE.md) — **Comece por aqui para retomar trabalho.** Advertência de direitos autorais, gate de licença, migração para A1 12 GB + PostgreSQL, marca Umbrella Solutions, afiliados e ordem de execução.
-* [`Docs/sistema/SISTEMA-AFILIADOS.md`](sistema/SISTEMA-AFILIADOS.md) — Ofertas de afiliado: worker local, API com token, aprovação no painel e link rastreável `/o/{slug}`.
+* [`Docs/sistema/SISTEMA-AFILIADOS.md`](sistema/SISTEMA-AFILIADOS.md) — Ofertas de afiliado: worker local, API com token, aprovação no painel, link rastreável `/o/{slug}`, divulgação automática no Telegram, tela de performance e tema Umbrella Solutions.
 * [`Docs/sistema/RETOMADA-SESSAO-CRON.md`](sistema/RETOMADA-SESSAO-CRON.md) — Agendamento noturno e retomada da sessão Claude Code pós-limite de uso.
 
 ---
