@@ -46,6 +46,7 @@ it('renderiza Offers com as props do contrato', function () {
                 ->where('trackingUrl', url('/o/'.$offer->slug))
                 ->where('status', 'draft')
                 ->where('approvedAt', null)
+                ->where('telegramPostedAt', null)
                 ->hasAll([
                     'network', 'externalId', 'niche', 'title', 'description', 'productUrl',
                     'affiliateUrl', 'imageUrl', 'priceCents', 'currency', 'ctaText', 'copyShort',

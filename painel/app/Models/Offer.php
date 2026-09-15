@@ -30,7 +30,7 @@ class Offer extends Model
         'network', 'external_id', 'niche', 'title', 'description', 'product_url',
         'affiliate_url', 'slug', 'image_url', 'price_cents', 'currency',
         'commission_percent', 'cta_text', 'copy_short', 'copy_long', 'ai_provider',
-        'status', 'approved_at',
+        'status', 'approved_at', 'telegram_posted_at',
     ];
 
     protected $attributes = [
@@ -46,6 +46,7 @@ class Offer extends Model
             'commission_percent' => 'decimal:2',
             'clicks_count' => 'integer',
             'approved_at' => 'datetime',
+            'telegram_posted_at' => 'datetime',
         ];
     }
 

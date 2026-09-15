@@ -58,6 +58,7 @@ type Offer = {
     clicksCount: number;
     createdAt: string | null;
     approvedAt: string | null;
+    telegramPostedAt: string | null;
 };
 
 type TabKey = 'todos' | OfferStatus;
@@ -663,6 +664,15 @@ export default function Offers() {
                                                                     {nicheLabel(offer.niche)}
                                                                 </span>
                                                                 {activeStatus === 'todos' && <StatusBadge status={offer.status} />}
+                                                                {offer.telegramPostedAt && (
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="text-[10.5px] border-sky-500/30 text-sky-600 dark:text-sky-400"
+                                                                        title={`Divulgada no Telegram ${offer.telegramPostedAt}`}
+                                                                    >
+                                                                        Telegram
+                                                                    </Badge>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>

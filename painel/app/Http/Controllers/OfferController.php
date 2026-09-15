@@ -57,6 +57,7 @@ class OfferController extends Controller
                 'clicksCount' => (int) $o->clicks_count,
                 'createdAt' => $o->created_at?->diffForHumans(),
                 'approvedAt' => $o->approved_at?->diffForHumans(),
+                'telegramPostedAt' => $o->telegram_posted_at?->diffForHumans(),
             ]),
             'counts' => $counts,
             'niches' => Niche::query()->orderBy('label')->get(['slug', 'label']),
