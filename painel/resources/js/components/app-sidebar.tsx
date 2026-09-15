@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/sidebar';
 import {
     AudioLinesIcon,
+    BadgeDollarSignIcon,
     ClapperboardIcon,
     LayoutDashboardIcon,
     LinkIcon,
@@ -39,6 +40,7 @@ const navItems: (NavItem & { badge?: string | number })[] = [
     { title: 'Canais Destino', url: '/painel/canais-destino', icon: TvIcon, badge: 3 },
     { title: 'Canais Fonte', url: '/painel/canais-fonte', icon: RadioTowerIcon, badge: 32 },
     { title: 'Vídeos', url: '/painel/videos', icon: ClapperboardIcon, badge: '2620' },
+    { title: 'Ofertas', url: '/painel/ofertas', icon: BadgeDollarSignIcon },
     { title: 'Processar Vídeo', url: '/painel/processar-video', icon: LinkIcon },
     { title: 'Transcrição Local', url: '/painel/transcricoes', icon: AudioLinesIcon },
     { title: 'Links Úteis', url: '/painel/links-uteis', icon: BookmarkIcon },
