@@ -12,6 +12,10 @@
 #   ./deploy.sh                # Deploy padrão rápido (~15s)
 #   ./deploy.sh --skip-vite    # Se mexeu só no backend (~8s)
 #   ./deploy.sh --build-docker # Apenas se mudar dependências de sistema (apt/pip)
+#
+# Produção = branch main. O script recusa deploy fora da main ou com alteração
+# não commitada, e grava REVISION no servidor (commit, branch, data). Trabalho
+# feito em outra branch precisa ser mergeado na main antes do deploy.
 # ==============================================================================
 
 set -eo pipefail
@@ -55,6 +59,27 @@ for arg in "$@"; do
     esac
 done
 
+# 0. Produção só sai da main, sem alteração pendente
+PROD_BRANCH="main"
+CURRENT_BRANCH="$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD)"
+if [ "$CURRENT_BRANCH" != "$PROD_BRANCH" ]; then
+    echo -e "${CLR_RED}❌ Deploy bloqueado: você está na branch '$CURRENT_BRANCH'.${CLR_RESET}"
+    echo -e "   Produção roda a '$PROD_BRANCH'. Faça o merge e rode de novo:"
+    echo -e "   git switch $PROD_BRANCH && git merge $CURRENT_BRANCH && ./deploy.sh"
+    exit 1
+fi
+if ! git -C "$PROJECT_DIR" diff --quiet || ! git -C "$PROJECT_DIR" diff --cached --quiet; then
+    echo -e "${CLR_RED}❌ Deploy bloqueado: há alterações não commitadas na $PROD_BRANCH.${CLR_RESET}"
+    git -C "$PROJECT_DIR" status --short --untracked-files=no
+    exit 1
+fi
+DEPLOY_COMMIT="$(git -C "$PROJECT_DIR" rev-parse --short HEAD)"
+if git -C "$PROJECT_DIR" rev-parse --verify -q "origin/$PROD_BRANCH" >/dev/null; then
+    AHEAD="$(git -C "$PROJECT_DIR" rev-list --count "origin/$PROD_BRANCH..HEAD")"
+    [ "$AHEAD" = "0" ] || echo -e "${CLR_YELLOW}⚠️  $PROD_BRANCH local está $AHEAD commit(s) à frente do GitHub (git push origin $PROD_BRANCH).${CLR_RESET}"
+fi
+echo -e "${CLR_GREEN}✔ Deploy da $PROD_BRANCH @ $DEPLOY_COMMIT${CLR_RESET}"
+
 # 1. Checar chave SSH
 if [ ! -f "$SSH_KEY" ]; then
     echo -e "${CLR_RED}❌ Chave SSH não encontrada em: $SSH_KEY${CLR_RESET}"
@@ -91,11 +116,14 @@ rsync -rlzOv --delete \
     -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
     "$PROJECT_DIR/clip-processor/src/" "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/clip-processor/src/"
 
-# Branding e assets visuais
+# Branding e assets visuais — a pasta no servidor é do www-data (o painel grava
+# watermark/background nela), então o rsync roda com sudo e devolve o dono.
 rsync -rlzOv \
     --no-perms --no-owner --no-group \
+    --rsync-path="sudo rsync" \
     -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
     "$PROJECT_DIR/branding/" "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/branding/"
+ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "sudo chown -R www-data:www-data $REMOTE_DIR/branding"
 
 # Docker Compose e Dockerfile
 rsync -rlzOv \
@@ -122,7 +150,9 @@ else
         # Garante containers ativos com os volumes corretos
         docker compose up -d --no-recreate
         
-        # Reinicia o clip-processor para carregar novo código Python instantaneamente (1s)
+        # Reinicia o clip-processor para carregar novo código Python instantaneamente (1s).
+        # Container pausado (docker pause) não aceita restart.
+        docker unpause clip-processor 2>/dev/null || true
         docker compose restart clip-processor
         
         # Limpa caches e roda migrations no container PHP
@@ -134,6 +164,11 @@ else
 EOF
 fi
 
+# Registra no servidor qual versão está no ar
+printf 'commit=%s\nbranch=%s\ndeployed_at=%s\n' \
+    "$(git -C "$PROJECT_DIR" rev-parse HEAD)" "$CURRENT_BRANCH" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    | ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "cat > $REMOTE_DIR/REVISION"
+
 echo -e "\n${CLR_YELLOW}[4/4] Verificando status dos containers...${CLR_RESET}"
 ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'"
 
@@ -142,5 +177,6 @@ DURATION=$((END_TIME - START_TIME))
 
 echo -e "\n${CLR_GREEN}====================================================${CLR_RESET}"
 echo -e "${CLR_GREEN}   ✅ DEPLOY CONCLUÍDO COM SUCESSO EM ${DURATION}s!       ${CLR_RESET}"
+echo -e "${CLR_GREEN}   Versão no ar: $PROD_BRANCH @ $DEPLOY_COMMIT                ${CLR_RESET}"
 echo -e "${CLR_GREEN}   Painel: https://toolscut.alessandromelo.com.br    ${CLR_RESET}"
 echo -e "${CLR_GREEN}====================================================${CLR_RESET}"

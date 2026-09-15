@@ -4,6 +4,32 @@ Este documento explica como funciona o deploy do **Canal de Cortes**, como execu
 
 ---
 
+## 🌿 Produção = branch `main`
+
+Regra fixa desde 15/09/2026:
+
+1. Todo trabalho acontece numa branch própria (`fix/...`, `feature/...`, `afiliadas`).
+2. **Terminou o serviço → merge na `main`.** A `main` tem tudo que está pronto; só fica fora dela o que
+   ainda está em desenvolvimento (hoje: `afiliadas` e `afiliadas-fase2`).
+3. Deploy só da `main`, sem alteração pendente. O `deploy.sh` **bloqueia** qualquer outro caso.
+
+```bash
+git switch main
+git merge fix/minha-branch
+./deploy.sh
+git push origin main   # opcional, mas o script avisa quando a main local está à frente do GitHub
+```
+
+O servidor não tem git — o código chega por rsync. Para saber qual versão está no ar:
+
+```bash
+ssh -i ~/.ssh/oracle-ssh-key-2026-08-27.key ubuntu@147.15.124.191 cat /home/ubuntu/canaldecortes/REVISION
+```
+
+`REVISION` traz `commit`, `branch` e `deployed_at`, gravados a cada deploy.
+
+---
+
 ## ⚡ Como Fazer Deploy
 
 Na pasta raiz do projeto no seu ambiente local, execute:

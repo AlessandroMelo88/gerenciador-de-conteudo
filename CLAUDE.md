@@ -12,6 +12,16 @@ paths sob `canaldecortes/`.
 
 ---
 
+## Branches e deploy
+
+**Produção roda a `main`.** Ao terminar qualquer serviço numa branch, fazer merge na `main` — ela
+precisa ter tudo que está pronto, menos o que ainda está em desenvolvimento (hoje `afiliadas` e
+`afiliadas-fase2`). `deploy.sh` recusa deploy fora da `main` ou com alteração não commitada e grava
+`/home/ubuntu/canaldecortes/REVISION` (commit, branch, data) — conferir ali qual versão está no ar.
+Detalhes em `DEPLOY.md`.
+
+---
+
 ## Regras para operações destrutivas
 
 Valem para `rm`, `DELETE`/`DROP`/`TRUNCATE`, `docker prune|rm|down -v`, `git clean|reset --hard`.
