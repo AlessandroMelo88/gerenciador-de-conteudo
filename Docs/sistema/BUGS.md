@@ -14,7 +14,7 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 4 | PARCIAL | Estados sem recuperação automática seguram arquivo em disco |
 | 5 | FEITO | `_subtitled.mp4` órfão |
 | 6 | ABERTO | Painel não consegue apagar o backlog de download |
-| 7 | ABERTO | 4 testes de `test_pipeline_runner.py` falhando |
+| 7 | FEITO | 4 testes de `test_pipeline_runner.py` falhando |
 | 8 | ABERTO | Docker Desktop travado sob pressão de disco |
 | 9 | FEITO | Download falho vazava disco e entupia a janela |
 | 10 | ABERTO | 287 clips com `clip_path` apontando para arquivo inexistente |
@@ -172,20 +172,21 @@ trata o sintoma; a causa é o RSS ingerir mais do que a janela consome.
 
 ---
 
-## 7. ABERTO — 4 testes de `test_pipeline_runner.py` falhando
+## 7. FEITO — testes do `clip-processor` verdes
 
-Falhas **pré-existentes**, confirmadas em 11/08/2026 rodando a suíte com as mudanças do bug 1 em stash
-— mesmas 4 falhas antes e depois.
+**Fechado em 15/09/2026.** A suíte inteira passa: **222 testes, 0 falhas**, rodando dentro da imagem
+do `clip-processor` (é assim que o `flask` do sidecar está disponível — no host ele não existe, que era
+a causa de uma das falhas):
 
-- `test_scheduler_compatible_coalesce`: `ModuleNotFoundError: No module named 'flask'` — o host não tem
-  as dependências do sidecar instaladas;
-- os outros 3: `StopIteration` em mock de cursor com `side_effect` esgotado.
+```bash
+C=$PWD/clip-processor
+docker run --rm --network none -v "$C/src:/app/src" -v "$C/tests:/app/tests" \
+  -w /app --entrypoint python wordpress-clip-processor -m pytest tests/ -q
+```
 
-Rodar a suíte **dentro do container** resolve o caso do flask. Os mocks precisam de revisão à parte.
-
-> **Não reverificado em 13/08/2026.** A contagem pode ter mudado com as correções dos bugs 9 e 4.
-
----
+As falhas restantes eram **testes desatualizados**, não defeito de código: `test_rss_poller` esperava
+`select_moments` sem o argumento `niche`, e `test_selector` esperava descarte de um momento de 20 s que
+o código estica até 30 s (ver decisão em [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md)).
 
 ## 8. ABERTO — Docker Desktop travado sob pressão de disco
 

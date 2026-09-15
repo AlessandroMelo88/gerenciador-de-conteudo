@@ -64,7 +64,7 @@ A validação real é um ciclo completo rodando contra o Postgres (etapa A6).
   - [x] `scripts/local_download_worker.py`: `NOW() - INTERVAL 2 DAY` virou corte calculado em Python
   - [ ] `scripts/local_download_worker.py`: `docker exec mysql mysql` precisa virar `psql` (fase B)
 - [ ] **A6.** Ciclo real do `clip-processor` contra o Postgres local: poll → download → transcrição → seleção → corte
-- [ ] **A7.** Testes do `clip-processor` e do worker verdes; teste novo que trave regressão de SQL não portável
+- [x] **A7 (parcial).** Suíte do `clip-processor` verde: **222 testes, 0 falhas** (fechou o bug 7). Falta o teste que trave regressão de SQL não portável
 - [ ] **A8.** Documentação: `BANCO-DE-DADOS.md`, `SISTEMA-CLIP-PROCESSOR.md` e `RUNBOOK.md` (8 comandos `mysql` viram `psql`)
 - [ ] **A9.** Merge na `master` pela skill `finalizar-e-deploy` — **sem deploy de produção nesta fase**
 
