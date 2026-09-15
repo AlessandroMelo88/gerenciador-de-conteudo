@@ -140,27 +140,26 @@ if [ "$BUILD_DOCKER" = true ]; then
     echo -e "${CLR_YELLOW}⚠️  Aviso: Rebuild do Docker solicitado (--build-docker)...${CLR_RESET}"
     ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" << 'EOF'
         cd /home/ubuntu/canaldecortes
-        docker compose build clip-processor
-        docker compose up -d
+        docker compose build clip-processor </dev/null
+        docker compose up -d </dev/null
 EOF
 else
     ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" << 'EOF'
         cd /home/ubuntu/canaldecortes
+        # Todo docker abaixo usa </dev/null: sem isso ele consome o resto deste heredoc
+        # e as etapas seguintes (migrate, restart php) não rodam.
         
         # Garante containers ativos com os volumes corretos
-        docker compose up -d --no-recreate
-        
+        docker compose up -d --no-recreate </dev/null
         # Reinicia o clip-processor para carregar novo código Python instantaneamente (1s).
         # Container pausado (docker pause) não aceita restart.
-        docker unpause clip-processor 2>/dev/null || true
-        docker compose restart clip-processor
-        
+        docker unpause clip-processor </dev/null 2>/dev/null || true
+        docker compose restart clip-processor </dev/null
         # Limpa caches e roda migrations no container PHP
-        docker compose exec -T php php /var/www/html/painel/artisan optimize:clear
-        docker compose exec -T php php /var/www/html/painel/artisan migrate --force
-        
+        docker compose exec -T php php /var/www/html/painel/artisan optimize:clear </dev/null
+        docker compose exec -T php php /var/www/html/painel/artisan migrate --force </dev/null
         # Reinicia o PHP-FPM para zerar opcache (1s)
-        docker compose restart php
+        docker compose restart php </dev/null
 EOF
 fi
 
