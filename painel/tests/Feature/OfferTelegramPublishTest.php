@@ -14,12 +14,20 @@ beforeEach(function () {
         'affiliates.telegram.per_run' => 10,
     ]);
 
+    // Cada teste registra o próprio fake: o primeiro fake que casa com a URL vence,
+    // então um fake genérico aqui esconderia o de erro.
+    Http::preventStrayRequests();
+});
+
+function fakeTelegramOk(): void
+{
     Http::fake([
         '*api.telegram.org*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]], 200),
     ]);
-});
+}
 
 it('envia oferta aprovada para o canal do nicho e marca telegram_posted_at', function () {
+    fakeTelegramOk();
     $offer = Offer::factory()->approved()->create(['niche' => 'tg-teste-a', 'copy_short' => 'Camisa com 30% off']);
 
     $this->artisan('offers:publish-telegram')->assertExitCode(0);
@@ -33,6 +41,7 @@ it('envia oferta aprovada para o canal do nicho e marca telegram_posted_at', fun
 });
 
 it('é idempotente: segunda execução não reenvia', function () {
+    fakeTelegramOk();
     Offer::factory()->approved()->create(['niche' => 'tg-teste-a']);
 
     $this->artisan('offers:publish-telegram')->assertExitCode(0);
@@ -42,6 +51,7 @@ it('é idempotente: segunda execução não reenvia', function () {
 });
 
 it('ignora oferta não aprovada, já enviada ou de nicho sem canal', function () {
+    fakeTelegramOk();
     Offer::factory()->create(['niche' => 'tg-teste-a']); // draft
     Offer::factory()->create(['niche' => 'tg-teste-a', 'status' => 'rejected']);
     Offer::factory()->approved()->create(['niche' => 'tg-teste-a', 'telegram_posted_at' => now()->subDay()]);
@@ -69,6 +79,7 @@ it('não marca a oferta quando o Telegram recusa, e tenta de novo depois', funct
 });
 
 it('respeita o limite por execução, mais antigas primeiro', function () {
+    fakeTelegramOk();
     $antiga = Offer::factory()->approved()->create(['niche' => 'tg-teste-a', 'approved_at' => now()->subDays(2)]);
     $nova = Offer::factory()->approved()->create(['niche' => 'tg-teste-a', 'approved_at' => now()]);
 
@@ -80,6 +91,7 @@ it('respeita o limite por execução, mais antigas primeiro', function () {
 });
 
 it('dry-run não envia nem marca', function () {
+    fakeTelegramOk();
     $offer = Offer::factory()->approved()->create(['niche' => 'tg-teste-a']);
 
     $this->artisan('offers:publish-telegram', ['--dry-run' => true])->assertExitCode(0);
@@ -89,6 +101,7 @@ it('dry-run não envia nem marca', function () {
 });
 
 it('falha fechado sem token ou sem canais configurados', function () {
+    fakeTelegramOk();
     Offer::factory()->approved()->create(['niche' => 'tg-teste-a']);
 
     config(['telegram.bots.mybot.token' => null]);
