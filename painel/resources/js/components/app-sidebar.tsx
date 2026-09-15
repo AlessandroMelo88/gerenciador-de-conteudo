@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Link, usePage } from '@inertiajs/react';
 
+import { BrandMark, useBrand } from '@/components/brand-logo';
 import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
@@ -52,6 +53,7 @@ export function AppSidebar({
     ...props
 }: React.ComponentProps<typeof Sidebar> & { user: { name: string; email: string } | null }) {
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    const brand = useBrand();
     const { props: pageProps } = usePage<{
         workers?: { downloader: string; transcriber: string; cutter: string };
     }>();
@@ -69,15 +71,10 @@ export function AppSidebar({
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
                             <Link href="/painel">
-                                <div
-                                    className="flex aspect-square size-9 items-center justify-center rounded-xl text-white shadow-sm"
-                                    style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)' }}
-                                >
-                                    <ClapperboardIcon className="size-4.5" />
-                                </div>
+                                <BrandMark className="size-9 rounded-xl" iconClassName="size-4.5" />
                                 <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-display font-bold text-foreground">Canal de Cortes</span>
-                                    <span className="truncate text-xs text-muted-foreground">Pipeline de clipes</span>
+                                    <span className="truncate font-display font-bold text-foreground">{brand.name}</span>
+                                    <span className="truncate text-xs text-muted-foreground">{brand.tagline}</span>
                                 </div>
                             </Link>
                         </SidebarMenuButton>
