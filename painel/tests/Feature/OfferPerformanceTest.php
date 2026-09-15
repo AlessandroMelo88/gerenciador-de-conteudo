@@ -3,6 +3,7 @@
 use App\Models\Offer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -53,7 +54,7 @@ it('renderiza OfferPerformance com as props do contrato', function () {
                 ->whereType('offersWithClicks', 'integer')
                 ->whereType('approvedOffers', 'integer'))
             ->has('byDay', 30)
-            ->where('byDay.29.date', now()->toDateString())
+            ->where('byDay.29.date', now('America/Sao_Paulo')->toDateString())
             ->has('byChannel')
             ->has('byOffer')
             ->has('niches'));
@@ -92,6 +93,23 @@ it('agrega cliques por oferta, canal e dia, respeitando o período', function ()
 
     $row90 = collect(performanceProps($user, '?days=90')['byOffer'])->firstWhere('id', $offer->id);
     expect($row90['clicks'])->toBe(4);
+});
+
+it('conta o dia no horário de Brasília, não em UTC', function () {
+    $this->travelTo(Carbon::parse('2026-09-15 12:00', 'America/Sao_Paulo'));
+    $user = User::factory()->create();
+    $before = performanceProps($user, '?days=7');
+
+    $offer = Offer::factory()->approved()->create();
+    // 23:30 de 14/09 em Brasília = 02:30 de 15/09 em UTC.
+    insertClick($offer, 'telegram', str_repeat('d', 64), Carbon::parse('2026-09-14 23:30', 'America/Sao_Paulo')->utc());
+
+    $after = performanceProps($user, '?days=7');
+    $day = fn (array $props, string $date) => collect($props['byDay'])->firstWhere('date', $date)['clicks'];
+
+    expect(end($after['byDay'])['date'])->toBe('2026-09-15')
+        ->and($day($after, '2026-09-14') - $day($before, '2026-09-14'))->toBe(1)
+        ->and($day($after, '2026-09-15') - $day($before, '2026-09-15'))->toBe(0);
 });
 
 it('nunca expõe ip_hash nas props', function () {

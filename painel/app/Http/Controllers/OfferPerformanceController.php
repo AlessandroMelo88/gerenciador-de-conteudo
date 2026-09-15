@@ -29,9 +29,12 @@ class OfferPerformanceController extends Controller
             $days = 30;
         }
 
-        $today = now()->startOfDay();
+        // Dias contados no horário de Brasília; created_at é gravado no fuso do app (UTC).
+        $tz = config('affiliates.report_timezone', 'America/Sao_Paulo');
+        $today = now($tz)->startOfDay();
         $since = $today->copy()->subDays($days - 1);
-        $clicks = fn (): Builder => OfferClick::query()->where('created_at', '>=', $since);
+        $sinceStored = $since->copy()->setTimezone(config('app.timezone'));
+        $clicks = fn (): Builder => OfferClick::query()->where('created_at', '>=', $sinceStored);
 
         $byChannel = $clicks()
             ->selectRaw('channel, COUNT(*) as clicks, COUNT(DISTINCT ip_hash) as visitors')
@@ -46,9 +49,16 @@ class OfferPerformanceController extends Controller
             ])
             ->values();
 
-        // DATE() existe em MySQL, PostgreSQL e SQLite.
+        // Desloca UTC → Brasília antes de truncar o dia. Offset fixo (Brasil sem horário de verão desde 2019).
+        $offset = $today->format('P'); // "-03:00"
+        $dayExpr = match (OfferClick::query()->getConnection()->getDriverName()) {
+            'mysql', 'mariadb' => "DATE(CONVERT_TZ(created_at, '+00:00', '{$offset}'))",
+            'pgsql' => "DATE(created_at + INTERVAL '{$offset}')",
+            default => "DATE(created_at, '{$offset}')", // sqlite
+        };
+
         $perDay = $clicks()
-            ->selectRaw('DATE(created_at) as day, COUNT(*) as clicks')
+            ->selectRaw("{$dayExpr} as day, COUNT(*) as clicks")
             ->groupBy('day')
             ->pluck('clicks', 'day');
 

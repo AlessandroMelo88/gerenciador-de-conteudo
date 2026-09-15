@@ -208,7 +208,7 @@ Sem IA nesse caminho: a copy já veio pronta do worker (Anthropic → Groq → t
 | Bloco | Fonte |
 |---|---|
 | Cards | cliques, visitantes únicos (`COUNT(DISTINCT ip_hash)`), ofertas com clique, canal líder |
-| Cliques por dia | `DATE(created_at)` agrupado; dias sem clique entram zerados. O dia é em **UTC** (`config/app.php` fixa `timezone = UTC`): clique depois das 21h de Brasília conta no dia seguinte |
+| Cliques por dia | `DATE(created_at)` agrupado; dias sem clique entram zerados. O dia é contado no **horário de Brasília** (`affiliates.report_timezone`): o banco grava em UTC e a consulta desloca o horário antes de separar os dias (`CONVERT_TZ` no MySQL, `INTERVAL` no PostgreSQL) |
 | Por canal | `channel` agrupado. `NULL` aparece como "Sem canal" (link sem `?c=` ou valor inválido) |
 | Por oferta | top 100 por cliques, com quebra por canal e último clique |
 
@@ -264,16 +264,14 @@ Sem `AFFILIATE_API_TOKEN` no painel a API fica desligada (503). Esse é o estado
 O agendamento depende do `schedule:run` que já roda no crontab do container `php`. Não precisa de
 rebuild do `clip-processor`: nada do pipeline de vídeo foi alterado.
 
-**Testes:** 77 Pest (`php vendor/bin/pest`) e 47 pytest (`affiliate-worker`).
+**Testes:** 78 Pest (`php vendor/bin/pest`) e 47 pytest (`affiliate-worker`).
 
 ---
 
 ## Próximos passos
 
 - Domínio Umbrella: DNS, vhost nginx e certificado apontando para o mesmo painel, e `BRAND_DOMAINS` no
-  `.env`. O código já escolhe o tema pelo host.
-- Agrupar a série diária em `America/Sao_Paulo` em vez de UTC, se o corte das 21h atrapalhar a leitura.
-- Logo real da Umbrella (SVG em `public/`, via `BRAND_UMBRELLA_LOGO`). Hoje é ícone sobre gradiente.
+  `.env`. O código já escolhe o tema pelo host.- Logo real da Umbrella (SVG em `public/`, via `BRAND_UMBRELLA_LOGO`). Hoje é ícone sobre gradiente.
 - Algumas cores de destaque ainda são fixas no código (ex. `#FF6A55` nos cards do Dashboard) e não
   mudam com a marca.
 - Telegram com imagem (`sendPhoto` com `image_url`). Hoje é só texto.

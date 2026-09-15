@@ -20,6 +20,9 @@ foreach (explode(',', (string) env('AFFILIATE_TELEGRAM_CHANNELS', '')) as $pair)
 }
 
 return [
+    // Fuso dos relatórios (tela de performance). O banco grava em UTC.
+    'report_timezone' => 'America/Sao_Paulo',
+
     'telegram' => [
         'bot' => 'mybot',
         'channels' => $channels,
