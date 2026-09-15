@@ -20,13 +20,25 @@ from zoneinfo import ZoneInfo
 from src.telegram_notifier import notify
 
 SAO_PAULO_TZ = ZoneInfo('America/Sao_Paulo')
-DOWNLOAD_WINDOW_FUTEBOL = int(os.environ.get('DOWNLOAD_WINDOW_FUTEBOL', 10))
-DOWNLOAD_WINDOW_POLITICA = int(os.environ.get('DOWNLOAD_WINDOW_POLITICA', 6))
-MAX_WINDOW_SLOTS = DOWNLOAD_WINDOW_FUTEBOL + DOWNLOAD_WINDOW_POLITICA
+# Mesma regra do pipeline_runner: 10 vagas por canal destino ativo.
+DOWNLOAD_WINDOW_PER_CHANNEL = int(os.environ.get('DOWNLOAD_WINDOW_PER_CHANNEL', 10))
+# Fallback se a contagem de canais destino falhar (2 canais hoje).
+MAX_WINDOW_SLOTS = 2 * DOWNLOAD_WINDOW_PER_CHANNEL
 WINDOW_STUCK_HOURS = 2
 APPROVAL_IDLE_HOURS = 6
 MIN_FREE_DISK_GB = 5.0
 MAX_DISK_PERCENT = 85.0
+
+
+def _max_window_slots(conn) -> int:
+    """Teto total da janela: DOWNLOAD_WINDOW_PER_CHANNEL × canais destino ativos."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute('SELECT COUNT(*) AS n FROM destination_channels WHERE active = 1')
+            row = cur.fetchone() or {}
+        return int(row.get('n') or 0) * DOWNLOAD_WINDOW_PER_CHANNEL
+    except Exception:
+        return MAX_WINDOW_SLOTS
 
 
 def _log(msg: str) -> None:
@@ -143,7 +155,8 @@ def check_download_window_health(conn) -> bool:
         )
         occupied = int(cur.fetchone().get('occupied') or 0)
 
-    if occupied < MAX_WINDOW_SLOTS:
+    max_slots = _max_window_slots(conn)
+    if occupied < max_slots:
         return True  # Janela saudável com vagas livres
 
     # Se a janela está cheia (>= 7), verifica se algum vídeo mudou nos últimos 2h
@@ -159,13 +172,13 @@ def check_download_window_health(conn) -> bool:
         active_recent = int(cur.fetchone().get('active_recent') or 0)
 
     if active_recent == 0:
-        _log(f'DEADLOCK DETECTADO: Janela de download cheia ({occupied}/{MAX_WINDOW_SLOTS}) sem atividade há >{WINDOW_STUCK_HOURS}h!')
+        _log(f'DEADLOCK DETECTADO: Janela de download cheia ({occupied}/{max_slots}) sem atividade há >{WINDOW_STUCK_HOURS}h!')
         notify('watchdog_alert', {
             'type': 'download_window_deadlock',
             'occupied': occupied,
-            'max_slots': MAX_WINDOW_SLOTS,
+            'max_slots': max_slots,
             'stuck_hours': WINDOW_STUCK_HOURS,
-            'message': f'🚨 Alerta Crítico: A Janela de Download está travada em {occupied}/{MAX_WINDOW_SLOTS} vagas sem progresso há mais de {WINDOW_STUCK_HOURS} horas. O robô está impedido de baixar novos vídeos.',
+            'message': f'🚨 Alerta Crítico: A Janela de Download está travada em {occupied}/{max_slots} vagas sem progresso há mais de {WINDOW_STUCK_HOURS} horas. O robô está impedido de baixar novos vídeos.',
         })
         return False
 

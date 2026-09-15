@@ -15,6 +15,9 @@ from src.watchdog import (
     check_approval_queue_activity,
     check_youtube_tokens,
     run_watchdog_cycle,
+    _max_window_slots,
+    DOWNLOAD_WINDOW_PER_CHANNEL,
+    MAX_WINDOW_SLOTS,
 )
 
 SAO_PAULO_TZ = ZoneInfo('America/Sao_Paulo')
@@ -68,6 +71,26 @@ class TestCheckGhostClips:
             assert any("UPDATE source_videos SET status = 'published'" in sql for sql in executed_sqls)
 
 
+class TestMaxWindowSlots:
+    """Teto = DOWNLOAD_WINDOW_PER_CHANNEL por canal destino ativo."""
+
+    def test_dez_por_canal_destino_ativo(self, mock_db_conn):
+        mock_db_conn.cursor.return_value.fetchone.return_value = {'n': 2}
+        assert _max_window_slots(mock_db_conn) == 2 * DOWNLOAD_WINDOW_PER_CHANNEL
+
+    def test_falha_usa_fallback(self, mock_db_conn):
+        mock_db_conn.cursor.return_value.execute.side_effect = RuntimeError('db fora')
+        assert _max_window_slots(mock_db_conn) == MAX_WINDOW_SLOTS
+
+
+@pytest.fixture
+def janela_16():
+    """Mantém os cenários abaixo com teto 16, isolados da consulta a destination_channels."""
+    with patch('src.watchdog._max_window_slots', return_value=16):
+        yield
+
+
+@pytest.mark.usefixtures('janela_16')
 class TestCheckDownloadWindowHealth:
     def test_window_healthy_when_slots_available(self, mock_db_conn):
         cursor = mock_db_conn.cursor.return_value
@@ -160,6 +183,7 @@ class TestCheckYouTubeTokens:
 
 
 class TestRunWatchdogCycle:
+    @pytest.mark.usefixtures('janela_16')
     def test_run_watchdog_cycle_executes_all(self, mock_db_conn):
         cursor = mock_db_conn.cursor.return_value
         cursor.fetchall.return_value = []

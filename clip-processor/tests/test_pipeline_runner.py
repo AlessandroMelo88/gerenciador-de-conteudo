@@ -10,9 +10,62 @@ from src.pipeline_runner import (
     _discard_failed_download,
     _download_pending_videos,
     _select_pending_videos,
+    _niche_windows,
     DOWNLOAD_WINDOW_FUTEBOL,
     DOWNLOAD_WINDOW_POLITICA,
+    DOWNLOAD_WINDOW_PER_CHANNEL,
 )
+
+
+@pytest.fixture(autouse=True)
+def _janela_fixa(request):
+    """Isola os testes da consulta a destination_channels: 1 canal por nicho."""
+    if request.node.cls is TestNicheWindows:
+        yield
+        return
+    with patch('src.pipeline_runner._niche_windows',
+               return_value=[('futebol', DOWNLOAD_WINDOW_FUTEBOL), ('politica', DOWNLOAD_WINDOW_POLITICA)]):
+        yield
+
+
+class TestNicheWindows:
+    """Teto = DOWNLOAD_WINDOW_PER_CHANNEL por canal destino ativo do nicho."""
+
+    def _conn(self, rows=None, error=None):
+        cur = MagicMock()
+        if error:
+            cur.execute.side_effect = error
+        cur.fetchall.return_value = rows
+        cur.__enter__ = lambda s: s
+        cur.__exit__ = MagicMock(return_value=False)
+        conn = MagicMock()
+        conn.cursor.return_value = cur
+        return conn
+
+    def test_dez_por_canal_destino_ativo(self):
+        conn = self._conn([{'niche': 'politica', 'n': 1}, {'niche': 'futebol', 'n': 1}])
+        assert _niche_windows(conn) == [
+            ('futebol', DOWNLOAD_WINDOW_PER_CHANNEL),
+            ('politica', DOWNLOAD_WINDOW_PER_CHANNEL),
+        ]
+
+    def test_canal_novo_soma_mais_dez(self):
+        conn = self._conn([{'niche': 'futebol', 'n': 2}, {'niche': 'politica', 'n': 1}])
+        assert dict(_niche_windows(conn)) == {
+            'futebol': 2 * DOWNLOAD_WINDOW_PER_CHANNEL,
+            'politica': DOWNLOAD_WINDOW_PER_CHANNEL,
+        }
+
+    def test_total_com_dois_canais_e_vinte(self):
+        conn = self._conn([{'niche': 'futebol', 'n': 1}, {'niche': 'politica', 'n': 1}])
+        assert sum(w for _, w in _niche_windows(conn)) == 20
+
+    def test_sem_canal_destino_ativo_nao_baixa(self):
+        assert _niche_windows(self._conn([])) == []
+
+    def test_falha_na_consulta_usa_padrao(self):
+        conn = self._conn(error=RuntimeError('db fora'))
+        assert _niche_windows(conn) == [('futebol', DOWNLOAD_WINDOW_FUTEBOL), ('politica', DOWNLOAD_WINDOW_POLITICA)]
 
 
 class TestRunPipelineOnce:

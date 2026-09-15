@@ -27,12 +27,16 @@ def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [RUN] {msg}', flush=True)
 
 
-# Janela: no máximo esses tantos vídeos com arquivo em disco (local_path IS NOT
-# NULL) ao mesmo tempo, por nicho — não baixa mais que isso independente do
-# tamanho do backlog. Repõe só o déficit (janela - ocupação atual) a cada rodada,
-# mantendo a prioridade do canal de futebol (10) e moderando o canal de política (6).
-DOWNLOAD_WINDOW_FUTEBOL = int(os.environ.get('DOWNLOAD_WINDOW_FUTEBOL', 10))
-DOWNLOAD_WINDOW_POLITICA = int(os.environ.get('DOWNLOAD_WINDOW_POLITICA', 6))
+# Janela: no máximo DOWNLOAD_WINDOW_PER_CHANNEL vídeos ocupando o servidor por
+# canal destino ativo do nicho — arquivo em disco, em processamento ou com clip
+# ainda na fila de aprovação. Hoje: Futebol em Cortes + Fatos & Debates = 20 no
+# total. Cada canal destino novo soma mais 10 ao nicho dele. Repõe só o déficit
+# (janela - ocupação atual) a cada rodada, independente do tamanho do backlog.
+DOWNLOAD_WINDOW_PER_CHANNEL = int(os.environ.get('DOWNLOAD_WINDOW_PER_CHANNEL', 10))
+
+# Fallback só se a consulta aos canais destino falhar.
+DOWNLOAD_WINDOW_FUTEBOL = int(os.environ.get('DOWNLOAD_WINDOW_FUTEBOL', DOWNLOAD_WINDOW_PER_CHANNEL))
+DOWNLOAD_WINDOW_POLITICA = int(os.environ.get('DOWNLOAD_WINDOW_POLITICA', DOWNLOAD_WINDOW_PER_CHANNEL))
 
 # Aliases de compatibilidade
 DOWNLOAD_WINDOW_CURTO = int(os.environ.get('DOWNLOAD_WINDOW_CURTO', 6))
@@ -44,23 +48,43 @@ DOWNLOAD_WINDOW_LONGO = int(os.environ.get('DOWNLOAD_WINDOW_LONGO', 4))
 FRESHNESS_DAYS = int(os.environ.get('FRESHNESS_DAYS', 3))
 
 
+def _niche_windows(db_conn) -> list:
+    """Teto da janela por nicho: DOWNLOAD_WINDOW_PER_CHANNEL × canais destino ativos.
+
+    Futebol vem primeiro (prioridade de reposição). Nicho sem canal destino ativo
+    não entra — não há para onde publicar, então não baixa. Se a consulta falhar,
+    usa DOWNLOAD_WINDOW_FUTEBOL/POLITICA para não parar a ingestão.
+    """
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute(
+                "SELECT LOWER(TRIM(niche)) AS niche, COUNT(*) AS n "
+                "FROM destination_channels WHERE active = 1 "
+                "GROUP BY LOWER(TRIM(niche))"
+            )
+            rows = cur.fetchall() or []
+    except Exception as e:
+        _log(f'Falha ao ler canais destino ({e}) — usando janela padrão')
+        return [('futebol', DOWNLOAD_WINDOW_FUTEBOL), ('politica', DOWNLOAD_WINDOW_POLITICA)]
+
+    windows = [(row['niche'], int(row['n']) * DOWNLOAD_WINDOW_PER_CHANNEL) for row in rows if row.get('niche')]
+    return sorted(windows, key=lambda w: (w[0] != 'futebol', w[0]))
+
+
 def _select_pending_videos(db_conn) -> list:
     """Seleciona vídeos pendentes pra repor a janela de download ativo por nicho.
 
-    Para cada nicho (futebol: 10, política: 6): conta quantos vídeos já ocupam a janela
+    Para cada nicho com canal destino ativo (10 por canal): conta quantos vídeos já ocupam a janela
     (com arquivo bruto em disco, status em processamento ativo ou clips pendentes/aprovados
     que ainda estão sendo trabalhados), calcula o déficit até o teto do nicho
-    (DOWNLOAD_WINDOW_FUTEBOL / DOWNLOAD_WINDOW_POLITICA) e busca só esse tanto, restrito
+    (_niche_windows) e busca só esse tanto, restrito
     a published_at de até FRESHNESS_DAYS dias atrás, ordenado por prioridade,
     posição na fila e published_at DESC. Se um nicho já está na janela cheia, não baixa
     nada dele nesta rodada.
     """
     cutoff_date = (datetime.now(SAO_PAULO_TZ) - timedelta(days=FRESHNESS_DAYS)).date()
 
-    niche_windows = [
-        ('futebol', DOWNLOAD_WINDOW_FUTEBOL),
-        ('politica', DOWNLOAD_WINDOW_POLITICA),
-    ]
+    niche_windows = _niche_windows(db_conn)
 
     result = []
     for niche, window in niche_windows:

@@ -42,7 +42,7 @@ lendo. **Conferir a data da imagem antes de investigar qualquer bug** —
 | Arquivo | Responsabilidade |
 |---|---|
 | `main.py` | Entrypoint. Recovery no boot, sobe o sidecar em thread, roda um ciclo síncrono e entrega ao APScheduler. Jobs: `ingest_cycle` 20 min, `publish_cycle` 20 min, `clip_pending_ttl` 1 h, `state_recovery` **30 min** |
-| `pipeline_runner.py` | Descoberta de vaga e **download**. Janela por formato (6 `curto` + 4 `longo`), `FRESHNESS_DAYS=1`, `_discard_failed_download` |
+| `pipeline_runner.py` | Descoberta de vaga e **download**. Janela de 10 vídeos por canal destino ativo (`_niche_windows`), `FRESHNESS_DAYS`, `_discard_failed_download` |
 | `rss_poller.py` | **Nome enganoso:** além do polling RSS, executa o estágio de IA (transcrição + seleção) e dispara o corte. `poll_all_channels` é o coração do ciclo |
 
 ### Aquisição — [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md)
@@ -153,8 +153,8 @@ Todas as env vars são injetadas pelo `docker-compose.yml` da raiz `wordpress/`,
 | `LARAVEL_NOTIFY_URL` / `LARAVEL_HOST_HEADER` | endpoint de eventos e Host para o roteamento nginx | `http://nginx/internal/pipeline-event` / `canaldecortes.local` |
 | `CLIP_PENDING_TTL_HOURS` / `CLIP_PENDING_WARN_HOURS` | TTL de auto-rejeição | 48 / 24 (constantes) |
 
-**Não declaradas no compose** (valem os defaults do código): `DOWNLOAD_WINDOW_CURTO` (6),
-`DOWNLOAD_WINDOW_LONGO` (4), `WHISPER_CPP_BIN`, `WHISPER_MODEL_PATH` (vêm do `ENV` do Dockerfile).
+**Não declaradas no compose** (valem os defaults do código): `DOWNLOAD_WINDOW_PER_CHANNEL` (10, vagas por
+canal destino ativo), `WHISPER_CPP_BIN`, `WHISPER_MODEL_PATH` (vêm do `ENV` do Dockerfile).
 
 Armadilha de drift: o default de `MAX_UPLOADS_PER_DAY` é `:-1` no `clip-processor` e `:-2` no serviço
 `php`. Só não morde porque a var está setada no `.env` da raiz.
