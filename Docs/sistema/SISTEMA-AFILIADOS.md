@@ -264,18 +264,20 @@ Sem `AFFILIATE_API_TOKEN` no painel a API fica desligada (503). Esse é o estado
 O agendamento depende do `schedule:run` que já roda no crontab do container `php`. Não precisa de
 rebuild do `clip-processor`: nada do pipeline de vídeo foi alterado.
 
-**Testes:** 81 Pest (`php vendor/bin/pest`) e 47 pytest (`affiliate-worker`), contra MySQL 8.4.
+**Testes:** 81 Pest e 47 pytest (`affiliate-worker`). A suíte do painel passa igual nos dois bancos:
+**MySQL 8.4** e **PostgreSQL 17** (81 testes, 391 asserções em cada).
 
-Os 36 testes de ofertas e marca também passam contra **PostgreSQL 17**, em banco separado:
+Para rodar contra PostgreSQL, em banco separado do usado pela migração:
 
 ```bash
 docker exec postgres psql -U kelnab -d kelnab -c "CREATE DATABASE clips_afiliados_teste;"
-DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 DB_DATABASE=clips_afiliados_teste \
-DB_USERNAME=kelnab DB_PASSWORD=secret DB_URL= php artisan migrate --force
-# depois: php vendor/bin/pest tests/Feature/Offer*Test.php tests/Feature/BrandThemeTest.php
+docker run --rm --network wordpress_internal -v "$PWD":/app -w /app \
+  -e DB_CONNECTION=pgsql -e DB_HOST=postgres -e DB_DATABASE=clips_afiliados_teste \
+  -e DB_USERNAME=kelnab -e DB_PASSWORD=secret -e DB_URL= \
+  canaldecortes-php:pg sh -c 'php artisan migrate --force && php vendor/bin/pest'
 ```
 
-Rodar pelo PHP do host: a imagem `wordpress-php` em uso ainda não traz `pdo_pgsql`.
+Use a imagem `canaldecortes-php:pg`: a `wordpress-php` não traz `pdo_pgsql`.
 
 ---
 
