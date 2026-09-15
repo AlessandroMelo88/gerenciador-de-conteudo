@@ -79,7 +79,7 @@ Com base nos benchmarks de futebol no Brasil:
 - Título Atual: Deputado confronta ministro ao vivo no plenário
 
 Com base nos benchmarks de política no Brasil (estilo MBL / Missão):
-1. Onde está o gargalo principal (Thumbnail/Título vs Meio do Vídeo)?
+1. Onde está o gargalo principal (Capa/Título vs Meio do Vídeo)?
 2. Dê 3 opções de títulos no padrão viral de confronto.
 3. Qual a minutagem ideal para esse corte?`,
         tag: 'Política',

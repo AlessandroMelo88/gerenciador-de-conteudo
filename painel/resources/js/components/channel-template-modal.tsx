@@ -265,7 +265,7 @@ export function ChannelTemplateModal({ channel, open, onOpenChange }: Props) {
                                         {channel.hasWatermark ? 'Logo do canal configurada' : 'Nenhuma logo personalizada'}
                                     </p>
                                     <p className="text-[11px] text-zinc-400 leading-snug">
-                                        Exibida automaticamente no canto superior direito dos vídeos e thumbnails.
+                                        Exibida automaticamente no canto superior direito dos vídeos e capas.
                                     </p>
                                     <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-white cursor-pointer transition-colors border border-white/10 mt-1">
                                         <Upload className="w-3.5 h-3.5" />
@@ -585,7 +585,7 @@ export function ChannelTemplateModal({ channel, open, onOpenChange }: Props) {
                         )}
 
                         <p className="text-[10px] text-zinc-500 mt-3 text-center">
-                            Renderizado via FFmpeg em 1080x1920 (Full HD) no celular e 16:9 com thumbnail no desktop.
+                            Renderizado via FFmpeg em 1080x1920 (Full HD) no celular e 16:9 com capa no desktop.
                         </p>
                     </div>
                 </div>

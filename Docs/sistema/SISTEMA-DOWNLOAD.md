@@ -67,23 +67,20 @@ não re-ingere o vídeo nesse período.
 ## Janela de download
 
 O pipeline **não** baixa tudo que descobre. Ele mantém um número fixo de vídeos com arquivo em disco,
-**por formato**, e as duas janelas não se canibalizam.
+**por nicho**, garantindo prioridade para Futebol (10 vagas) e moderando Política (6 vagas) para evitar esgotamento de disco:
 
 | Constante | Default | Env var | Onde |
 |---|---|---|---|
-| `DOWNLOAD_WINDOW_CURTO` | 6 | `DOWNLOAD_WINDOW_CURTO` | [`pipeline_runner.py:35`](../clip-processor/src/pipeline_runner.py#L35) |
-| `DOWNLOAD_WINDOW_LONGO` | 4 | `DOWNLOAD_WINDOW_LONGO` | [`pipeline_runner.py:36`](../clip-processor/src/pipeline_runner.py#L36) |
-| `FRESHNESS_DAYS` | 1 | — (constante, não é env) | [`pipeline_runner.py:41`](../clip-processor/src/pipeline_runner.py#L41) |
-
-Nenhuma das duas `DOWNLOAD_WINDOW_*` está declarada no `docker-compose.yml`, então em produção valem
-os defaults 6 e 4.
+| `DOWNLOAD_WINDOW_FUTEBOL` | 10 | `DOWNLOAD_WINDOW_FUTEBOL` | [`pipeline_runner.py:33`](../clip-processor/src/pipeline_runner.py#L33) |
+| `DOWNLOAD_WINDOW_POLITICA` | 6 | `DOWNLOAD_WINDOW_POLITICA` | [`pipeline_runner.py:34`](../clip-processor/src/pipeline_runner.py#L34) |
+| `FRESHNESS_DAYS` | 3 | `FRESHNESS_DAYS` | [`pipeline_runner.py:41`](../clip-processor/src/pipeline_runner.py#L41) |
 
 `_select_pending_videos` ([`pipeline_runner.py:44`](../clip-processor/src/pipeline_runner.py#L44)),
-por formato:
+por nicho:
 
-1. conta a **ocupação** — quantos vídeos daquele formato ocupam a janela agora;
-2. `deficit = max(0, window - occupied)`; se zero, não baixa nada daquele formato nesta rodada;
-3. busca exatamente `deficit` vídeos `pending`, `paused = 0`, `DATE(published_at) >= hoje - 1 dia`,
+1. conta a **ocupação** — quantos vídeos daquele nicho ocupam a janela agora;
+2. `deficit = max(0, window - occupied)`; se zero, não baixa nada daquele nicho nesta rodada;
+3. busca exatamente `deficit` vídeos `pending`, `paused = 0`, `DATE(published_at) >= hoje - FRESHNESS_DAYS dias`,
    ordenados por `priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC`.
 
 A definição de "ocupa a janela" está em

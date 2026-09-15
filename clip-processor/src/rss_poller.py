@@ -61,7 +61,22 @@ def _detect_format(video_id: str) -> str:
     anterior), sem abortar a ingestão do vídeo por isso.
     """
     try:
-        with yt_dlp.YoutubeDL({'quiet': True, 'no_color': True, 'skip_download': True}) as ydl:
+        ydl_opts = {
+            'quiet': True,
+            'no_color': True,
+            'skip_download': True,
+            'remote_components': ['ejs:github'],
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['mweb', 'tv', 'ios', 'android']
+                }
+            },
+        }
+        cookie_file = '/app/youtube/cookies.txt'
+        if os.path.exists(cookie_file):
+            ydl_opts['cookiefile'] = cookie_file
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
         duration = info.get('duration') if info else None
         if duration and duration >= MIN_LONGFORM_SECONDS:
@@ -207,8 +222,19 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
         redis_client = redis.Redis(
             host=REDIS_HOST,
             port=REDIS_PORT,
-            decode_responses=True,
         )
+    lock_acquired = False
+    lock_key = 'lock:poll_all_channels'
+    if redis_client:
+        try:
+            lock_acquired = bool(redis_client.set(lock_key, '1', ex=600, nx=True))
+            if not lock_acquired:
+                _log('AVISO: Outro ciclo de poll_all_channels já está em execução — pulando para evitar sobrecarga.')
+                if _own_db:
+                    db_conn.close()
+                return
+        except Exception as lock_err:
+            _log(f'Aviso: falha ao checar lock Redis: {lock_err}')
 
     try:
         # Buscar canais ativos (canais blacklistados filtrados no SELECT — COPY-03)
@@ -306,5 +332,10 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
             _log(f'[VID] ERRO ao buscar clips pending_cut para processamento: {exc}')
 
     finally:
+        if lock_acquired and redis_client:
+            try:
+                redis_client.delete(lock_key)
+            except Exception:
+                pass
         if _own_db:
             db_conn.close()

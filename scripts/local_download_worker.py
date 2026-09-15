@@ -95,7 +95,7 @@ def get_video_duration(file_path: Path) -> float:
 
 
 def fetch_pending_videos():
-    """Busca até 20 vídeos recentes (máx 2 dias) com status 'pending' (10 futebol, 10 política)."""
+    """Busca até 16 vídeos recentes (máx 2 dias) com status 'pending' (10 futebol, 6 política)."""
     # Auto-expurgo de vídeos com mais de 2 dias (notícia velha)
     run_remote_mysql("UPDATE source_videos SET status = 'failed' WHERE status = 'pending' AND published_at < NOW() - INTERVAL 2 DAY;")
 
@@ -125,7 +125,7 @@ def fetch_pending_videos():
       ORDER BY
         CASE WHEN sv.title LIKE '%#shorts%' OR sv.title LIKE '%#short%' THEN 1 ELSE 0 END ASC,
         sv.id DESC
-      LIMIT 10
+      LIMIT 6
     );
     """
     output = run_remote_mysql(query)
@@ -230,11 +230,7 @@ def process_single_video(video: dict):
     # 5. Atualiza no MySQL do servidor para 'downloaded' e define local_path e format real
     remote_path = f'/app/videos/{vid_id}.mp4'
     run_remote_mysql(f"UPDATE source_videos SET status = 'downloaded', local_path = '{remote_path}', format = '{fmt}' WHERE id = {db_id};")
-    _log(f'Vídeo {vid_id} salvo com sucesso no servidor como {fmt}!')
-
-    # 6. Notifica o servidor para rodar o pipeline de IA imediatamente (em background)
-    _log(f'Acionando IA (Whisper + LLaMA + FFmpeg) no servidor...')
-    run_remote_cmd("docker exec -d clip-processor python -c 'from src.rss_poller import poll_all_channels; poll_all_channels()'")
+    _log(f'Vídeo {vid_id} salvo com sucesso no servidor como {fmt}! O daemon do servidor irá processar na fila.')
 
 
 def run_cycle():

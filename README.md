@@ -56,3 +56,18 @@ docker compose up -d --build
 ```
 
 O painel fica disponível via Nginx (ver `docker/nginx_conf`); o `clip-processor` roda como daemon em background, sem porta exposta ao host.
+
+## Deploy em Produção (Rápido ~20s)
+
+Para publicar alterações no servidor de produção (`147.15.124.191`), use o script automatizado:
+
+```bash
+# Deploy completo (compila frontend Vite + sincroniza código + reinicia serviços)
+./deploy.sh
+
+# Deploy apenas de backend (Python / PHP / Branding) em ~10s
+./deploy.sh --skip-vite
+```
+
+Para detalhes sobre a arquitetura de deploy, volumes mapeados e solução de lentidão do Docker, consulte [`DEPLOY.md`](DEPLOY.md).
+

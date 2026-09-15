@@ -37,10 +37,10 @@ class DashboardController extends Controller
                     ->get()
             ),
             'failures' => $this->clipPayload(
-                GeneratedClip::with(['destinationChannel'])
+                GeneratedClip::with(['sourceVideo.sourceChannel', 'destinationChannel'])
                     ->where('status', 'failed')
                     ->latest('updated_at')
-                    ->limit(10)
+                    ->limit(20)
                     ->get()
             ),
             'failedSourceVideoCount' => SourceVideo::where('status', 'failed')->count(),
@@ -112,6 +112,8 @@ class DashboardController extends Controller
                         $niche = 'futebol';
                     } elseif (str_contains($ch, 'flow') || str_contains($ch, 'inteligência') || str_contains($ch, 'inteligencia') || str_contains($ch, 'pod')) {
                         $niche = 'podcast';
+                    } elseif (str_contains($ch, 'monetiz') || str_contains($ch, '3g') || str_contains($ch, 'marketing')) {
+                        $niche = 'monetizacao';
                     } else {
                         $niche = 'politica';
                     }
@@ -119,7 +121,8 @@ class DashboardController extends Controller
 
                 $destinationChannelName = $destMap[$niche] ?? match ($niche) {
                     'futebol' => 'Futebol em Cortes',
-                    'politica' => 'Cortes da Política',
+                    'politica' => 'Fatos & Debates',
+                    'monetizacao' => 'Monetização 3G',
                     default => ucfirst($niche),
                 };
 
@@ -220,9 +223,20 @@ class DashboardController extends Controller
             $hasVideo = $disk->exists("clips/{$clip->id}.mp4");
             $hasThumb = $disk->exists("thumbnails/{$clip->id}.jpg");
 
+            $displayTitle = $clip->title;
+            if (empty($displayTitle)) {
+                $sourceTitle = $clip->sourceVideo?->title;
+                $displayTitle = $sourceTitle ? "Corte de: {$sourceTitle}" : "Clip #{$clip->id}";
+            }
+
+            $uploadError = $clip->upload_error;
+            if (empty($uploadError) && $clip->status === 'failed') {
+                $uploadError = 'Falha no corte ou processamento do vídeo fonte';
+            }
+
             return [
                 'id' => $clip->id,
-                'title' => $clip->title,
+                'title' => $displayTitle,
                 'score' => $clip->score,
                 'trecho' => $this->formatTrecho($clip->start_time, $clip->end_time),
                 'startTime' => $clip->start_time,
@@ -235,9 +249,9 @@ class DashboardController extends Controller
                 'niche' => $clip->destinationChannel?->niche ?? $clip->sourceVideo?->sourceChannel?->target_niche ?? 'futebol',
                 'createdAt' => $clip->created_at?->diffForHumans(),
                 'updatedAt' => $clip->updated_at?->diffForHumans(),
-                'uploadError' => $clip->upload_error,
+                'uploadError' => $uploadError,
                 'previewUrl' => route('clips.preview', $clip->id),
-                'thumbnailUrl' => route('clips.thumbnail', $clip->id),
+                'thumbnailUrl' => route('clips.thumbnail', $clip->id) . ($hasThumb ? '?v=' . (@filemtime($disk->path("thumbnails/{$clip->id}.jpg")) ?: time()) : ''),
                 'hasVideoFile' => $hasVideo,
                 'hasThumbnailFile' => $hasThumb,
                 'description' => $clip->description,
@@ -469,5 +483,43 @@ class DashboardController extends Controller
             ->update(['status' => 'rejected']);
 
         return back()->with('success', "{$affected} clip(s) rejeitado(s)");
+    }
+
+    public function purgeFailedClips(): RedirectResponse
+    {
+        $clips = GeneratedClip::where('status', 'failed')->get();
+        $disk = Storage::disk('clips-videos');
+        $count = 0;
+
+        foreach ($clips as $clip) {
+            $id = $clip->id;
+            $disk->delete([
+                "clips/{$id}.mp4",
+                "clips/{$id}_raw.mp4",
+                "clips/{$id}_subtitled.mp4",
+                "clips/{$id}.srt",
+                "thumbnails/{$id}.jpg",
+            ]);
+            $clip->delete();
+            $count++;
+        }
+
+        return back()->with('success', "{$count} clip(s) com falha removido(s) com sucesso");
+    }
+
+    public function deleteClip(GeneratedClip $clip): RedirectResponse
+    {
+        $disk = Storage::disk('clips-videos');
+        $id = $clip->id;
+        $disk->delete([
+            "clips/{$id}.mp4",
+            "clips/{$id}_raw.mp4",
+            "clips/{$id}_subtitled.mp4",
+            "clips/{$id}.srt",
+            "thumbnails/{$id}.jpg",
+        ]);
+        $clip->delete();
+
+        return back()->with('success', "Clip #{$id} removido com sucesso");
     }
 }

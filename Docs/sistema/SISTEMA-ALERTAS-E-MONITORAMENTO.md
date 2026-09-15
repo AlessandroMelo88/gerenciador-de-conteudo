@@ -10,20 +10,28 @@ Este documento descreve a arquitetura de observabilidade, tratamento de erros, d
 
 ![Visão Geral da Arquitetura de Monitoramento e Watchdog](./assets/arquitetura_monitoramento_watchdog.jpg)
 
-O sistema adota uma abordagem de **defesa em duas camadas** para garantir que nenhuma falha interrompa silenciosamente a operação diária dos canais no YouTube:
+O sistema adota uma abordagem de **defesa em três camadas** para garantir que nenhuma falha interrompa a operação diária dos canais no YouTube:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                          CAMADA 1: SENTRY                              │
+│                   CAMADA 1: BETTER STACK (UPTIME & EXTERNO)            │
+│  - Monitoramento contínuo 24/7 de disponibilidade HTTPS externa        │
+│  - Checagem de Heartbeats de Cronjobs e Daemons periódicos             │
+│  - Monitoramento de Certificados SSL e Métricas de Latência            │
+│  - Alertas instantâneos de Incidentes (SMS, Ligação, Push, Telegram)   │
+└────────────────────────────────────────────────────────────────────────┘
+                                    │
+┌────────────────────────────────────────────────────────────────────────┐
+│                   CAMADA 2: SENTRY (CÓDIGO & RUNTIME)                  │
 │  - Captura Exceções não tratadas (Python & PHP)                        │
 │  - Traces de Performance e chamadas a APIs (Groq, YouTube, OpenAI)     │
-│  - Alertas instantâneos de Crash em tempo real                         │
+│  - Rastreamento de Erros 500 e Falhas no Laravel / clip-processor      │
 └────────────────────────────────────────────────────────────────────────┘
-
+                                    │
 ┌────────────────────────────────────────────────────────────────────────┐
-│                     CAMADA 2: WATCHDOG PROATIVO                        │
+│                     CAMADA 3: WATCHDOG PROATIVO                        │
 │  - Executado a cada 30 min pelo daemon (watchdog.py)                   │
-│  - Detecta Deadlocks de Negócio (janela 7/7 ocupada >2h sem progresso) │
+│  - Detecta Deadlocks de Negócio (janela 16 vagas: 10 fut / 6 pol)      │
 │  - Auto-Cura de Clipes Fantasmas (remove órfãos sem .mp4 do disco)     │
 │  - Monitor de Fila Vazia em horário comercial (>6h sem aprovações)     │
 │  - Validador prévio de Credenciais OAuth antes das postagens           │
@@ -46,7 +54,19 @@ O sistema adota uma abordagem de **defesa em duas camadas** para garantir que ne
 
 ---
 
-## 2. Camada 1: Sentry (Erros de Código e Runtime)
+## 2. Camada 1: Better Stack (Uptime, Heartbeat e Incidentes)
+
+O Better Stack atua no perímetro externo e na integridade dos processos de background:
+
+### Principais Recursos
+1. **Monitoramento HTTPS 24/7**: Checa periodicamente `https://toolscut.alessandromelo.com.br/painel`, alertando imediatamente caso o Nginx, PHP-FPM ou servidor fiquem inacessíveis.
+2. **Heartbeats de Cronjobs / Workers**: Monitora a frequência dos jobs periódicos (ingestão, publicação e watchdog). Caso um job falhe ou congele, o Better Stack sinaliza ausência de sinal (heartbeat missing).
+3. **Gestão de Incidentes**: Notificações multi-canal configuráveis (chamada de emergência, SMS, Telegram, Webhook e E-mail).
+4. **Monitoramento SSL e DNS**: Avisos prévios de renovação de certificados Let's Encrypt.
+
+---
+
+## 3. Camada 2: Sentry (Erros de Código e Runtime)
 
 O Sentry atua interceptando exceções de baixo nível, erros 500 no Laravel e falhas imprevistas em chamadas de API externas no `clip-processor`.
 
@@ -63,36 +83,36 @@ Quando a variável não está definida, o sistema roda normalmente sem tentar re
 
 ---
 
-## 3. Camada 2: Watchdog Inteligente (`watchdog.py`)
+## 4. Camada 3: Watchdog Inteligente (`watchdog.py`)
 
 Muitas interrupções em pipelines de dados ocorrem por **deadlocks lógicos silenciosos** — situações onde nenhum erro de código é lançado (e o Sentry não detecta nada), mas o robô para de baixar novos vídeos porque as regras de negócio foram satisfeitas de forma incorreta.
 
 O `watchdog.py` roda a cada **30 minutos** e executa 5 verificações essenciais:
 
-### 3.1. Auto-Cura de Clipes Fantasmas (`check_ghost_clips`)
+### 4.1. Auto-Cura de Clipes Fantasmas (`check_ghost_clips`)
 - **Problema**: Clipes marcados como `approved` ou `pending_cut` que não possuem o arquivo `.mp4` correspondente no disco `/app/videos/`. Clipes nesse estado seguram permanentemente o slot de download do vídeo fonte.
 - **Ação**: Marca o clipe órfão como `failed`, limpa o `clip_path`, atualiza o vídeo fonte para `published` e notifica o operador.
 - **Resultado**: Vagas na janela de download são destravadas imediatamente sem intervenção humana.
 
-### 3.2. Monitor de Deadlock da Janela de Download (`check_download_window_health`)
-- **Problema**: Se as 7 vagas da janela estiverem ocupadas e nenhum vídeo fonte tiver sido atualizado nas últimas **2 horas**, a ingestão de novos conteúdos está travada.
+### 4.2. Monitor de Deadlock da Janela de Download (`check_download_window_health`)
+- **Problema**: Se as 16 vagas da janela ativa (10 Futebol + 6 Política) estiverem ocupadas e nenhum vídeo fonte tiver sido atualizado nas últimas **2 horas**, a ingestão de novos conteúdos está travada.
 - **Ação**: Dispara um alerta crítico imediato no Telegram e por E-mail informando que a janela está estagnada.
 
-### 3.3. Monitor de Fila Ociosa (`check_approval_queue_activity`)
+### 4.3. Monitor de Fila Ociosa (`check_approval_queue_activity`)
 - **Problema**: Fila de aprovação com 0 cortes pendentes e 0 cortes gerados nas últimas **6 horas** durante o horário útil (08:00 às 23:00).
 - **Ação**: Envia alerta preventivo para verificar se os canais fonte publicaram vídeos novos ou se houve bloqueio no YouTube RSS.
 
-### 3.4. Validador Prévio de OAuth (`check_youtube_tokens`)
+### 4.4. Validador Prévio de OAuth (`check_youtube_tokens`)
 - **Problema**: Canal ativo configurado no painel sem o arquivo `token-{slug}.json` em `/app/youtube/`.
 - **Ação**: Envia alerta com link direto para `/painel/canais` para reautenticação antes que ocorra a tentativa de upload na janela nobre (19h–22h).
 
-### 3.5. Monitor de Armazenamento SSD (`check_disk_space`)
+### 4.5. Monitor de Armazenamento SSD (`check_disk_space`)
 - **Problema**: Espaço livre menor que 5 GB ou uso do disco superior a 85%.
 - **Ação**: Emite alerta de armazenamento para que seja executada a limpeza de arquivos de vídeo temporários.
 
 ---
 
-## 4. Hub de Notificações e Eventos
+## 5. Hub de Notificações e Eventos
 
 O `clip-processor` publica eventos através do cliente HTTP `telegram_notifier.py`, fazendo um POST autenticado para o Laravel:
 
@@ -104,9 +124,9 @@ O `clip-processor` publica eventos através do cliente HTTP `telegram_notifier.p
     "event": "watchdog_alert",
     "payload": {
       "type": "download_window_deadlock",
-      "occupied": 7,
-      "max_slots": 7,
-      "message": "🚨 Alerta Crítico: A Janela de Download está travada em 7/7 vagas sem progresso há mais de 2 horas."
+      "occupied": 16,
+      "max_slots": 16,
+      "message": "🚨 Alerta Crítico: A Janela de Download está travada em 16/16 vagas (10 futebol + 6 política) sem progresso há mais de 2 horas."
     }
   }
   ```
@@ -125,7 +145,7 @@ O `clip-processor` publica eventos através do cliente HTTP `telegram_notifier.p
 
 ---
 
-## 5. Formato das Mensagens com Links Diretos
+## 6. Formato das Mensagens com Links Diretos
 
 Todas as mensagens enviadas para o Telegram do operador contêm links clicáveis direcionando imediatamente para a tela de resolução no painel:
 
@@ -135,7 +155,7 @@ Todas as mensagens enviadas para o Telegram do operador contêm links clicáveis
 
 ---
 
-## 6. Variáveis de Ambiente Relevantes
+## 7. Variáveis de Ambiente Relevantes
 
 ### No `clip-processor` (`.env` ou `docker-compose.yml`):
 ```env
@@ -155,7 +175,7 @@ CLIP_PROCESSOR_INTERNAL_TOKEN=seu_token_secreto_aqui
 
 ---
 
-## 7. Como Testar e Simular Alertas
+## 8. Como Testar e Simular Alertas
 
 ### Testar ciclo completo do Watchdog via CLI no container:
 ```bash

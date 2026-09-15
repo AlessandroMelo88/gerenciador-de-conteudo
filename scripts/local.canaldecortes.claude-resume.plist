@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>local.canaldecortes.claude-resume</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/alessandrobm1/develop/server/wordpress/canaldecortes/scripts/resume_claude_session.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/alessandrobm1/develop/server/wordpress/canaldecortes</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>21</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/alessandrobm1/develop/server/wordpress/canaldecortes/scripts/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/alessandrobm1/develop/server/wordpress/canaldecortes/scripts/launchd.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/alessandrobm1/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>/Users/alessandrobm1</string>
+    <key>USER</key>
+    <string>/Users/alessandrobm1</string>
+  </dict>
+</dict>
+</plist>

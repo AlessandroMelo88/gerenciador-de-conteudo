@@ -76,7 +76,7 @@ export default function Documentation() {
                                             <div className="p-3 rounded-lg border border-border bg-muted/40">
                                                 <div className="font-bold text-foreground text-xs">1. Taxa de Cliques (CTR)</div>
                                                 <div className="text-[11px] text-muted-foreground mt-0.5">
-                                                    Mede o poder do Título e da Capa (Thumbnail).
+                                                    Mede o poder do Título e da Capa.
                                                 </div>
                                                 <div className="text-[11px] mt-1 text-emerald-500 font-mono">
                                                     Ideal: 5% a 10%+ (Abaixo de 4% o YouTube freia impressões)
@@ -119,7 +119,7 @@ export default function Documentation() {
                                             <li>Selecione o formato (<em>Shorts Vertical</em> ou <em>Vídeo Longo Horizontal</em>) e o nicho (<em>Política</em>, <em>Futebol</em>, etc.).</li>
                                             <li>Preencha as visualizações, a retenção % e o CTR obtidos no YouTube Studio.</li>
                                             <li>Digite a dúvida ou sintoma (ex: <em>&quot;O vídeo teve 1.500 views na primeira hora e parou de entregar&quot;</em>) e clique em <strong>Analisar Métricas</strong>.</li>
-                                            <li>A IA entregará um diagnóstico com o gargalo exato (Hook nos 3 primeiros segundos, Thumbnail/CTR ou Ritmo) e um plano de ação para o próximo vídeo.</li>
+                                            <li>A IA entregará um diagnóstico com o gargalo exato (Hook nos 3 primeiros segundos, Capa/CTR ou Ritmo) e um plano de ação para o próximo vídeo.</li>
                                         </ol>
                                     </div>
                                 </AccordionContent>
@@ -210,7 +210,7 @@ export default function Documentation() {
                                                 <strong>Cota de Uploads</strong> — uploads diários realizados por canal destino versus o limite diário da API do YouTube.
                                             </li>
                                             <li>
-                                                <strong>Fila de Aprovação</strong> — clipes cortados, legendados e prontos com thumbnail para você aprovar, editar título ou descartar com 1 clique.
+                                                <strong>Fila de Aprovação</strong> — clipes cortados, legendados e prontos com capa para você aprovar, editar título ou descartar com 1 clique.
                                             </li>
                                             <li>
                                                 <strong>Na Fila (Aguardando Cota)</strong> — clipes aprovados que serão postados automaticamente pelo robô respeitando a janela de publicação.
@@ -321,38 +321,44 @@ export default function Documentation() {
                                 </AccordionContent>
                             </AccordionItem>
 
-                            {/* 9. MONITORAMENTO, SENTRY & WATCHDOG PROATIVO */}
+                            {/* 9. MONITORAMENTO: BETTER STACK, SENTRY & WATCHDOG PROATIVO */}
                             <AccordionItem value="monitoramento-watchdog" className="border border-border/80 rounded-xl px-4 bg-card/40 shadow-2xs">
                                 <AccordionTrigger className="font-semibold text-foreground text-sm hover:text-primary">
-                                    🛡️ Monitoramento, Sentry & Watchdog Proativo
+                                    🛡️ Monitoramento: Better Stack, Sentry & Watchdog Proativo
                                 </AccordionTrigger>
                                 <AccordionContent>
                                     <div className="prose prose-sm prose-invert max-w-none space-y-3 pt-2 text-xs md:text-[13px] leading-relaxed text-muted-foreground">
                                         <p>
-                                            O sistema conta com uma infraestrutura de <strong className="text-foreground">observabilidade em duas camadas</strong> para garantir que nenhuma falha interrompa a postagem diária nos seus canais:
+                                            O sistema conta com uma infraestrutura robusta de <strong className="text-foreground">observabilidade em três camadas</strong> para garantir 100% de disponibilidade e assegurar que nenhuma falha interrompa a postagem diária nos seus canais:
                                         </p>
 
                                         <div className="my-3 overflow-hidden rounded-xl border border-border/80 bg-zinc-950/70 p-2 md:p-3 shadow-md not-prose flex flex-col items-center justify-center">
                                             <img
                                                 src="/images/arquitetura_monitoramento_watchdog.jpg"
-                                                alt="Arquitetura de Monitoramento Proativo, Sentry e Watchdog"
+                                                alt="Arquitetura de Monitoramento Proativo, Better Stack, Sentry e Watchdog"
                                                 className="w-full max-w-4xl max-h-[460px] object-contain rounded-lg shadow-inner"
                                                 loading="lazy"
                                             />
                                             <p className="mt-2 text-center text-[11px] text-muted-foreground/80">
-                                                Diagrama da infraestrutura de observabilidade proativa (Sentry + Watchdog + Hub Laravel)
+                                                Diagrama da infraestrutura de observabilidade proativa (Better Stack + Sentry + Watchdog + Hub Laravel)
                                             </p>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 my-2 not-prose">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 my-2 not-prose">
+                                            <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                                                <div className="font-bold text-emerald-400 text-xs">Camada 1: Better Stack (Uptime & Incidentes)</div>
+                                                <div className="text-[11px] text-muted-foreground mt-1">
+                                                    Monitoramento externo contínuo 24/7 de disponibilidade HTTPS, verificação de Heartbeats dos cronjobs/daemons, alerta de expiração SSL e gestão de incidentes em tempo real.
+                                                </div>
+                                            </div>
                                             <div className="p-3 rounded-lg border border-red-500/20 bg-red-500/5">
-                                                <div className="font-bold text-red-400 text-xs">Camada 1: Sentry (Crashes & Código)</div>
+                                                <div className="font-bold text-red-400 text-xs">Camada 2: Sentry (Crashes & Código)</div>
                                                 <div className="text-[11px] text-muted-foreground mt-1">
                                                     Captura exceções de baixo nível, erros 500 no PHP/Laravel e falhas imprevistas em chamadas às APIs do YouTube e Groq, notificando o operador instantaneamente.
                                                 </div>
                                             </div>
                                             <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
-                                                <div className="font-bold text-amber-400 text-xs">Camada 2: Watchdog Proativo (watchdog.py)</div>
+                                                <div className="font-bold text-amber-400 text-xs">Camada 3: Watchdog Proativo (watchdog.py)</div>
                                                 <div className="text-[11px] text-muted-foreground mt-1">
                                                     Monitor inteligente executado a cada 30 min. Detecta deadlocks de regras de negócio silenciosos e executa rotinas de auto-cura automáticas.
                                                 </div>
@@ -367,7 +373,7 @@ export default function Documentation() {
                                                 <strong>Auto-Cura de Clipes Fantasmas:</strong> Identifica clipes aprovados sem arquivo .mp4 físico no disco, marcando-os como falhos e destravando imediatamente as vagas da janela de download.
                                             </li>
                                             <li>
-                                                <strong>Deadlock da Janela de Download:</strong> Alerta imediatamente se as 7 vagas estiverem 100% ocupadas por mais de 2 horas sem nenhum progresso.
+                                                <strong>Deadlock da Janela de Download:</strong> Alerta imediatamente se as 16 vagas ativas (10 Futebol + 6 Política) estiverem 100% ocupadas por mais de 2 horas sem nenhum progresso.
                                             </li>
                                             <li>
                                                 <strong>Fila de Aprovação Vazia:</strong> Avisa se não houver clipes novos gerados há mais de 6 horas durante o horário diurno (08h às 23h).

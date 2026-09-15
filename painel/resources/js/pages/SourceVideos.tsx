@@ -76,6 +76,7 @@ type PageProps = {
         per_page: number;
     };
     statusOptions: Record<string, string>;
+    failedCount?: number;
     storage?: StorageMetrics;
     downloadWindow?: DownloadWindowMetrics;
     auth: { user: { name: string; email: string } | null };
@@ -206,9 +207,104 @@ function PurgeOldDialog() {
     );
 }
 
+function PaginationControls({
+    currentPage,
+    lastPage,
+    total,
+    perPage,
+    onPageChange,
+    onPerPageChange,
+}: {
+    currentPage: number;
+    lastPage: number;
+    total: number;
+    perPage: number;
+    onPageChange: (page: number) => void;
+    onPerPageChange: (perPage: number) => void;
+}) {
+    const getPageNumbers = () => {
+        if (lastPage <= 7) {
+            return Array.from({ length: lastPage }, (_, i) => i + 1);
+        }
+        if (currentPage <= 4) {
+            return [1, 2, 3, 4, 5, '...', lastPage];
+        }
+        if (currentPage >= lastPage - 3) {
+            return [1, '...', lastPage - 4, lastPage - 3, lastPage - 2, lastPage - 1, lastPage];
+        }
+        return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', lastPage];
+    };
+
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-border">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span>
+                    Página <strong className="text-foreground">{currentPage}</strong> de <strong className="text-foreground">{lastPage}</strong> ({total} vídeos no total)
+                </span>
+                <div className="flex items-center gap-1.5 ml-2 border-l border-border pl-3">
+                    <span>Exibir:</span>
+                    <select
+                        value={perPage}
+                        onChange={(e) => onPerPageChange(Number(e.target.value))}
+                        className="bg-card border border-border rounded-md px-2 py-1 text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                        <option value={15}>15 por pág</option>
+                        <option value={20}>20 por pág</option>
+                        <option value={30}>30 por pág</option>
+                        <option value={50}>50 por pág</option>
+                        <option value={100}>100 por pág</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-1">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2.5 text-xs"
+                    disabled={currentPage <= 1}
+                    onClick={() => onPageChange(currentPage - 1)}
+                >
+                    Anterior
+                </Button>
+
+                <div className="hidden sm:flex items-center gap-1 mx-1">
+                    {getPageNumbers().map((p, idx) =>
+                        p === '...' ? (
+                            <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-muted-foreground">
+                                …
+                            </span>
+                        ) : (
+                            <Button
+                                key={`page-${p}`}
+                                variant={p === currentPage ? 'default' : 'outline'}
+                                size="sm"
+                                className="h-8 w-8 p-0 text-xs font-medium"
+                                onClick={() => onPageChange(p as number)}
+                            >
+                                {p}
+                            </Button>
+                        ),
+                    )}
+                </div>
+
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2.5 text-xs"
+                    disabled={currentPage >= lastPage}
+                    onClick={() => onPageChange(currentPage + 1)}
+                >
+                    Próxima
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 export default function SourceVideos() {
     const { props } = usePage<PageProps>();
-    const { videos, filters, statusOptions, storage, downloadWindow, auth } = props;
+    const { videos, filters, statusOptions, failedCount = 0, storage, downloadWindow, auth } = props;
     const [selected, setSelected] = useState<number[]>([]);
     const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -285,6 +381,27 @@ export default function SourceVideos() {
                                 ☰ Tabela
                             </button>
                         </div>
+                        {failedCount > 0 && (
+                            <ConfirmButton
+                                variant="destructive"
+                                size="sm"
+                                className="gap-1.5 h-8 text-xs font-semibold border-destructive/30"
+                                description={`Deseja excluir definitivamente todos os ${failedCount} registros de vídeos que falharam no download ou processamento?`}
+                                onConfirm={() =>
+                                    router.post(
+                                        '/painel/videos/purge-failed',
+                                        {},
+                                        {
+                                            preserveScroll: true,
+                                            onSuccess: () => toast.success('Registros de falhas removidos com sucesso!'),
+                                        },
+                                    )
+                                }
+                            >
+                                <Trash2Icon className="h-3.5 w-3.5" />
+                                Limpar {failedCount} falhas
+                            </ConfirmButton>
+                        )}
                         <PurgeOldDialog />
                     </div>
                 }
@@ -298,7 +415,14 @@ export default function SourceVideos() {
                     >
                         <TabsList>
                             <TabsTrigger value="ativos">Ativos</TabsTrigger>
-                            <TabsTrigger value="falharam">Falharam</TabsTrigger>
+                            <TabsTrigger value="falharam" className="relative">
+                                Falharam
+                                {failedCount > 0 && (
+                                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-destructive text-destructive-foreground">
+                                        {failedCount}
+                                    </span>
+                                )}
+                            </TabsTrigger>
                             <TabsTrigger value="todos">Todos</TabsTrigger>
                         </TabsList>
                     </Tabs>
@@ -341,11 +465,27 @@ export default function SourceVideos() {
                 </div>
 
                 {selected.length > 0 && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <ConfirmButton
                             variant="destructive"
                             size="sm"
-                            description={`Apagar os arquivos brutos dos ${selected.length} vídeo(s) selecionado(s)?`}
+                            description={`Excluir definitivamente os ${selected.length} registro(s) do banco de dados e arquivos locais? Esta ação não pode ser desfeita.`}
+                            onConfirm={() => {
+                                router.post(
+                                    '/painel/videos/bulk-destroy-records',
+                                    { ids: selected },
+                                    { preserveScroll: true, onSuccess: () => setSelected([]) },
+                                );
+                            }}
+                        >
+                            <Trash2Icon className="h-3.5 w-3.5 mr-1" />
+                            Excluir do Banco ({selected.length})
+                        </ConfirmButton>
+                        <ConfirmButton
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                            description={`Apagar somente os arquivos brutos dos ${selected.length} vídeo(s) selecionado(s) para liberar HD?`}
                             onConfirm={() => {
                                 router.post(
                                     '/painel/videos/bulk-delete-files',
@@ -354,7 +494,7 @@ export default function SourceVideos() {
                                 );
                             }}
                         >
-                            Apagar arquivos selecionados ({selected.length})
+                            Apagar só arquivos ({selected.length})
                         </ConfirmButton>
                         <Button
                             variant="outline"
@@ -435,17 +575,33 @@ export default function SourceVideos() {
                                             </a>
                                             <div className="flex-1" />
                                             {(v.canDelete ?? v.hasLocalFile) && (
-                                                <ConfirmButton
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    className="h-8 px-2.5 text-xs"
-                                                    description={`Apagar arquivo bruto do vídeo #${v.id}?`}
-                                                    onConfirm={() => {
-                                                        router.post(`/painel/videos/${v.id}/delete-file`, {}, { preserveScroll: true });
-                                                    }}
-                                                >
-                                                    Apagar arquivo
-                                                </ConfirmButton>
+                                                <div className="flex items-center gap-1">
+                                                    {v.hasLocalFile && (
+                                                        <ConfirmButton
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-8 px-2 text-[11px] text-destructive border-destructive/30 hover:bg-destructive/10"
+                                                            description={`Apagar arquivo bruto (.mp4) do vídeo #${v.id} para liberar HD?`}
+                                                            onConfirm={() => {
+                                                                router.post(`/painel/videos/${v.id}/delete-file`, {}, { preserveScroll: true });
+                                                            }}
+                                                        >
+                                                            Arquivo
+                                                        </ConfirmButton>
+                                                    )}
+                                                    <ConfirmButton
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        className="h-8 px-2 text-[11px] gap-1"
+                                                        description={`Excluir definitivamente o registro do vídeo #${v.id} do banco de dados?`}
+                                                        onConfirm={() => {
+                                                            router.post(`/painel/videos/${v.id}/destroy-record`, {}, { preserveScroll: true });
+                                                        }}
+                                                    >
+                                                        <Trash2Icon className="h-3 w-3" />
+                                                        Excluir
+                                                    </ConfirmButton>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -557,20 +713,41 @@ export default function SourceVideos() {
                                                         </Button>
                                                     )}
                                                     {(v.canDelete ?? v.hasLocalFile) && (
-                                                        <ConfirmButton
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            description="Apaga o vídeo bruto (.mp4), clips gerados em disco e thumbnails para liberar espaço no HD. Essa ação não pode ser desfeita."
-                                                            onConfirm={() =>
-                                                                router.post(
-                                                                    `/painel/videos/${v.id}/delete-file`,
-                                                                    {},
-                                                                    { preserveScroll: true },
-                                                                )
-                                                            }
-                                                        >
-                                                            Apagar
-                                                        </ConfirmButton>
+                                                        <div className="flex items-center gap-1">
+                                                            {v.hasLocalFile && (
+                                                                <ConfirmButton
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="text-xs h-7 text-destructive border-destructive/30 hover:bg-destructive/10"
+                                                                    description="Apaga o arquivo de vídeo bruto (.mp4) para liberar espaço no HD. O registro permanece no histórico."
+                                                                    onConfirm={() =>
+                                                                        router.post(
+                                                                            `/painel/videos/${v.id}/delete-file`,
+                                                                            {},
+                                                                            { preserveScroll: true },
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Arquivo
+                                                                </ConfirmButton>
+                                                            )}
+                                                            <ConfirmButton
+                                                                variant="destructive"
+                                                                size="sm"
+                                                                className="text-xs h-7 gap-1"
+                                                                description="Exclui definitivamente este vídeo e todos os seus clips do banco de dados e arquivos locais. Essa ação não pode ser desfeita."
+                                                                onConfirm={() =>
+                                                                    router.post(
+                                                                        `/painel/videos/${v.id}/destroy-record`,
+                                                                        {},
+                                                                        { preserveScroll: true },
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2Icon className="h-3 w-3" />
+                                                                Excluir
+                                                            </ConfirmButton>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </TableCell>
@@ -581,29 +758,14 @@ export default function SourceVideos() {
                         </div>
                     )}
 
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">
-                                Página {videos.currentPage} de {videos.lastPage} — {videos.total} vídeo(s)
-                            </p>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={videos.currentPage <= 1}
-                                    onClick={() => applyFilters({ page: videos.currentPage - 1 }, filters)}
-                                >
-                                    Anterior
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={videos.currentPage >= videos.lastPage}
-                                    onClick={() => applyFilters({ page: videos.currentPage + 1 }, filters)}
-                                >
-                                    Próxima
-                                </Button>
-                            </div>
-                        </div>
+                    <PaginationControls
+                        currentPage={videos.currentPage}
+                        lastPage={videos.lastPage}
+                        total={videos.total}
+                        perPage={videos.perPage}
+                        onPageChange={(page) => applyFilters({ page }, filters)}
+                        onPerPageChange={(per_page) => applyFilters({ per_page, page: 1 }, filters)}
+                    />
             </AppShell>
         </>
     );

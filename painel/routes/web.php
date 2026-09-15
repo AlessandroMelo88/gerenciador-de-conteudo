@@ -33,6 +33,8 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/painel/clips/{clip}/reprocess', [DashboardController::class, 'reprocess'])->name('dashboard.clips.reprocess');
     Route::post('/painel/clips/bulk-approve', [DashboardController::class, 'bulkApprove'])->name('dashboard.clips.bulk-approve');
     Route::post('/painel/clips/bulk-reject', [DashboardController::class, 'bulkReject'])->name('dashboard.clips.bulk-reject');
+    Route::post('/painel/clips/purge-failed', [DashboardController::class, 'purgeFailedClips'])->name('dashboard.clips.purge-failed');
+    Route::post('/painel/clips/{clip}/delete', [DashboardController::class, 'deleteClip'])->name('dashboard.clips.delete');
     Route::post('/painel/videos/reorder', [DashboardController::class, 'reorderVideos'])->name('dashboard.videos.reorder');
     Route::post('/painel/videos/bulk-delete', [DashboardController::class, 'bulkDeleteVideos'])->name('dashboard.videos.bulk-delete');
     Route::post('/painel/videos/{video}/delete', [DashboardController::class, 'deleteVideo'])->name('dashboard.videos.delete');
@@ -60,7 +62,12 @@ Route::middleware(['web', 'auth'])->group(function () {
             abort(404);
         }
 
-        return response()->file(Storage::disk('clips-videos')->path($relativePath));
+        $path = Storage::disk('clips-videos')->path($relativePath);
+        return response()->file($path, [
+            'Cache-Control' => 'no-cache, no-store, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     })->name('clips.thumbnail');
 
     Route::post('/painel/niches', [NicheController::class, 'store'])->name('niches.store');
@@ -80,7 +87,10 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/painel/videos', [SourceVideoController::class, 'index'])->name('source-videos.index');
     Route::post('/painel/videos/{video}/delete-file', [SourceVideoController::class, 'deleteFile']);
+    Route::post('/painel/videos/{video}/destroy-record', [SourceVideoController::class, 'destroyRecord']);
     Route::post('/painel/videos/bulk-delete-files', [SourceVideoController::class, 'bulkDeleteFiles']);
+    Route::post('/painel/videos/bulk-destroy-records', [SourceVideoController::class, 'bulkDestroyRecords']);
+    Route::post('/painel/videos/purge-failed', [SourceVideoController::class, 'purgeFailed'])->name('source-videos.purge-failed');
     Route::post('/painel/videos/purge-old', [SourceVideoController::class, 'purgeOld']);
 
     Route::get('/painel/processar-video', [ProcessVideoController::class, 'show'])->name('process-video.show');

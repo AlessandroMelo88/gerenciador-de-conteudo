@@ -73,7 +73,7 @@ services:
     build: ./clip-processor
     container_name: clip-processor
     restart: unless-stopped
-    mem_limit: 240m
+    mem_limit: 512m
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GROQ_API_KEY=${GROQ_API_KEY}
@@ -89,6 +89,7 @@ services:
       - MAX_LONGO_UPLOADS_PER_DAY=${MAX_LONGO_UPLOADS_PER_DAY:-2}
       - YOUTUBE_CLIENT_SECRETS=/app/youtube/client_secret.json
       - UPLOAD_WINDOW_BYPASS=true
+      - ALLOW_LOCAL_DOWNLOAD=true
       - CLIP_PROCESSOR_INTERNAL_TOKEN=${CLIP_PROCESSOR_INTERNAL_TOKEN}
       - LARAVEL_NOTIFY_URL=http://nginx/internal/pipeline-event
       - LARAVEL_HOST_HEADER=toolscut.alessandromelo.com.br
@@ -96,6 +97,7 @@ services:
       - ./youtube:/app/youtube
       - ./videos:/app/videos
       - ./branding:/app/branding:ro
+      - ./clip-processor/src:/app/src
     networks:
       - internal
     depends_on:

@@ -46,12 +46,13 @@ horizontal de 7 a 20 min).
 | [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | Índice módulo a módulo do daemon (21 módulos), padrões comuns de código, o que o Redis guarda, tabela de env vars |
 | [`ESTRATEGIA-YOUTUBE-E-BENCHMARK.md`](ESTRATEGIA-YOUTUBE-E-BENCHMARK.md) | Estratégia de conteúdo, diagnóstico do YouTube Studio (CTR/Retenção), Benchmark de concorrentes e modelo de cortes de Política (MBL/Missão) |
 | [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | Rotas, controllers e páginas do Laravel/Inertia; **Assistente IA (LLaMA 3.3)**, **Channel Template Studio (9:16)**, **Preview de Clipes** e **Links Úteis** |
-| [`SISTEMA-ALERTAS-E-MONITORAMENTO.md`](SISTEMA-ALERTAS-E-MONITORAMENTO.md) | Observabilidade em 2 camadas: Sentry (crashes), Watchdog proativo (`watchdog.py`, auto-cura de deadlocks e clipes fantasmas) e alertas via Telegram e Email |
+| [`SISTEMA-ALERTAS-E-MONITORAMENTO.md`](SISTEMA-ALERTAS-E-MONITORAMENTO.md) | Observabilidade em 3 camadas: Better Stack (uptime/heartbeats), Sentry (crashes), Watchdog proativo (`watchdog.py`, auto-cura de deadlocks e clipes fantasmas) e alertas via Telegram e Email |
 
 ### Infra
 
 | Documento | Responde |
 |---|---|
+| [`PLANO-MESTRE.md`](PLANO-MESTRE.md) | **Ponto de retomada.** Advertência de direitos autorais de 14/09/2026, gate de licença em `source_channels`, migração A1 12 GB + PostgreSQL, marca Umbrella Solutions, plano de afiliados, ordem de execução e decisões registradas |
 | [`PLANO-ORACLE.md`](PLANO-ORACLE.md) | Migração para Oracle Cloud Always Free: decisão, como o custo zero é garantido, riscos e checklist por fase |
 
 ### Planos (nada implementado)

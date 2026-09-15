@@ -38,6 +38,7 @@ def resolve_background_path(slug: str | None = None, niche: str | None = None) -
         if 'fut' in n:
             candidates.append(os.path.join(BRANDING_DIR, 'background-futebol-em-cortes.png'))
         elif 'pol' in n:
+            candidates.append(os.path.join(BRANDING_DIR, 'background-fatos-e-debates.png'))
             candidates.append(os.path.join(BRANDING_DIR, 'background-cortes-da-politica.png'))
         elif 'pod' in n:
             candidates.append(os.path.join(BRANDING_DIR, 'background-podcast-cortes.png'))
@@ -51,6 +52,7 @@ def resolve_background_path(slug: str | None = None, niche: str | None = None) -
         if 'fut' in n:
             candidates.append(os.path.join(local_branding, 'background-futebol-em-cortes.png'))
         elif 'pol' in n:
+            candidates.append(os.path.join(local_branding, 'background-fatos-e-debates.png'))
             candidates.append(os.path.join(local_branding, 'background-cortes-da-politica.png'))
         elif 'pod' in n:
             candidates.append(os.path.join(local_branding, 'background-podcast-cortes.png'))
@@ -67,9 +69,9 @@ def resolve_default_template_config(channel_name: str = '', niche: str = '') -> 
     is_politica = 'pol' in n
     is_futebol = 'fut' in n
     return {
-        'headerTitle': (channel_name or 'CANAL DE CORTES').upper(),
-        'headerBadge': '🔴 DEBATE AO VIVO' if is_politica else ('⚽ LANCE DECISIVO' if is_futebol else '🎙️ CORTES EXCLUSIVOS'),
-        'accentColor': '#E50914' if is_politica else ('#10B981' if is_futebol else '#8B5CF6'),
+        'headerTitle': (channel_name or ('FATOS & DEBATES' if is_politica else 'CANAL DE CORTES')).upper(),
+        'headerBadge': '🔴 FATOS & DEBATES' if is_politica else ('⚽ LANCE DECISIVO' if is_futebol else '🎙️ CORTES EXCLUSIVOS'),
+        'accentColor': '#0284c7' if is_politica else ('#10B981' if is_futebol else '#8B5CF6'),
         'bgStyle': 'blur_dark',
         'subtitleColor': '#facc15',
         'ctaText': 'INSCREVA-SE NO CANAL',
@@ -291,11 +293,17 @@ def extract_thumbnail(
 
 
 def _apply_youtube_thumbnail_graphics(thumbnail_path: str, title: str, niche: str | None = None):
-    """Aplica tipografia profissional e vinheta de contraste na thumbnail gerada via Pillow."""
+    """Aplica tipografia profissional e efeito de nuvem de sombra de alto CTR estilo YouTube:
+    - Efeito de nuvem de sombra suave (sem caixa quadrada rígida)
+    - Tipografia de altíssimo impacto (Anton / Bebas Neue / Arial Black)
+    - Texto 1 (Branco) + Texto 2 (Ciano Neon para Política / Amarelo Ouro para Futebol) com efeito 3D
+    - Círculo no canto direito com aura luminosa neon e brasão oficial do canal
+    - Badge de destaque no canto superior esquerdo com ponto luminoso
+    """
     try:
         from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
     except ImportError:
-        _log('[THUMBNAIL] Pillow não disponível — mantendo frame bruto')
+        _log('[CAPA] Pillow não disponível — mantendo frame bruto')
         return
 
     if not os.path.exists(thumbnail_path):
@@ -306,48 +314,32 @@ def _apply_youtube_thumbnail_graphics(thumbnail_path: str, title: str, niche: st
 
     # 1. Tratamento profissional de imagem (Contraste + Saturação + Nitidez)
     bg = ImageEnhance.Contrast(bg).enhance(1.22)
-    bg = ImageEnhance.Color(bg).enhance(1.25)
+    bg = ImageEnhance.Color(bg).enhance(1.20)
     bg = ImageEnhance.Sharpness(bg).enhance(1.15)
 
-    is_pol = 'politic' in (niche or '').lower() or 'debate' in title.lower() or 'mbl' in title.lower()
-    theme_accent = (0, 240, 255) if is_pol else (255, 229, 0)       # Ciano Neon (Política) ou Amarelo Ouro (Futebol)
-    theme_second = (255, 229, 0) if is_pol else (255, 255, 255)     # Amarelo (Política) ou Branco (Futebol)
-    badge_color = (229, 9, 20) if is_pol else (16, 185, 129)        # Vermelho ou Verde Esmeralda
-    badge_text = '🔴 DEBATE AO VIVO' if is_pol else '⚽ LANCE DECISIVO'
+    n = (niche or '').lower()
+    is_pol = 'pol' in n or 'debate' in n or 'fatos' in n or 'mbl' in title.lower() or 'congresso' in title.lower()
+    is_fut = 'fut' in n or 'bola' in n or 'golaço' in title.lower() or 'vasco' in title.lower() or 'gol' in title.lower()
+    is_mon = 'monetiz' in n or '3g' in n or 'market' in n
 
-    # 2. Vinheta gradiente escura na base e lateral para garantir contraste 100% perfeito
-    overlay = Image.new('RGBA', (1280, 720), (0, 0, 0, 0))
-    d_overlay = ImageDraw.Draw(overlay)
-    # Gradiente inferior (onde fica o texto principal)
-    for y in range(320, 720):
-        factor = (y - 320) / 400.0
-        alpha = int(220 * (factor ** 1.3))
-        d_overlay.line([(0, y), (1280, y)], fill=(0, 0, 0, alpha))
-    # Gradiente lateral esquerdo sutil
-    for x in range(0, 500):
-        factor = 1.0 - (x / 500.0)
-        alpha = int(140 * (factor ** 1.5))
-        d_overlay.line([(x, 0), (x, 720)], fill=(0, 0, 0, alpha))
-    bg.paste(overlay, (0, 0), overlay)
-
-    draw = ImageDraw.Draw(bg)
-
-    # 3. Carregamento robusto de fontes do sistema (macOS e Linux/Docker)
+    # 2. Carregamento de fontes de alto impacto (Anton / Bebas Neue / Arial Black / Impact)
+    local_branding = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'branding'))
     font_path = None
-    for candidate in [
+    for cand in [
+        os.path.join(BRANDING_DIR, 'fonts', 'Anton-Regular.ttf'),
+        os.path.join(local_branding, 'fonts', 'Anton-Regular.ttf'),
+        os.path.join(BRANDING_DIR, 'fonts', 'BebasNeue-Regular.ttf'),
+        os.path.join(local_branding, 'fonts', 'BebasNeue-Regular.ttf'),
+        '/System/Library/Fonts/Supplemental/Arial Black.ttf',
         '/System/Library/Fonts/Supplemental/Impact.ttf',
+        '/Library/Fonts/Arial Black.ttf',
         '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-        '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
-        '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
-        '/Library/Fonts/Arial Bold.ttf',
-        '/System/Library/Fonts/Helvetica.ttc',
-        '/System/Library/Fonts/Supplemental/Trebuchet MS Bold.ttf',
     ]:
-        if os.path.exists(candidate):
-            font_path = candidate
+        if os.path.exists(cand):
+            font_path = cand
             break
 
-    def _get_font(size):
+    def _get_font(size: int):
         if font_path:
             try:
                 return ImageFont.truetype(font_path, size)
@@ -355,101 +347,164 @@ def _apply_youtube_thumbnail_graphics(thumbnail_path: str, title: str, niche: st
                 pass
         return ImageFont.load_default()
 
-    # 4. Borda / Glow Neon estético nas bordas do YouTube (Estilo MBL / Brigadeiro)
-    border_color = (0, 240, 255, 180) if is_pol else (255, 215, 0, 180)
-    border_overlay = Image.new('RGBA', (1280, 720), (0, 0, 0, 0))
-    d_border = ImageDraw.Draw(border_overlay)
-    d_border.rounded_rectangle([16, 16, 1264, 704], radius=14, outline=border_color, width=4)
-    bg.paste(border_overlay, (0, 0), border_overlay)
-
-    # 5. Badge Superior Esquerdo (com indicador circular vetorial sem depender de emojis de fonte)
-    badge_label = 'DEBATE AO VIVO' if is_pol else 'LANCE DECISIVO'
-    font_badge = _get_font(22)
-    text_w = draw.textlength(badge_label, font=font_badge)
-    badge_w = text_w + 54  # espaço para o ponto indicador + margens
-    badge_h = 42
-    bx, by = 48, 38
-    draw.rounded_rectangle([bx, by, bx + badge_w, by + badge_h], radius=10, fill=badge_color)
-    # Ponto circular indicador (branco ou vermelho pulsante)
-    dot_color = (255, 255, 255) if is_pol else (255, 255, 255)
-    draw.ellipse([bx + 14, by + 13, bx + 28, by + 27], fill=dot_color)
-    draw.text((bx + 38, by + 7), badge_label, font=font_badge, fill='white')
-
-    # 6. Processamento inteligente das linhas de texto (Gatilho de Alto CTR)
+    # 3. Processamento inteligente das linhas de chamada (Texto 1 e Texto 2)
     clean_title = title.replace('"', '').replace("'", "").strip()
     parts = clean_title.split(':') if ':' in clean_title else clean_title.split(' - ') if ' - ' in clean_title else clean_title.split('! ')
     if len(parts) >= 2:
-        main_text = parts[0].strip().upper()
-        if not main_text.endswith('!') and not main_text.endswith('?'):
-            main_text += '!'
-        sub_text = ' '.join(parts[1:]).strip().upper()
+        text1 = parts[0].strip().upper()
+        if not text1.endswith('!') and not text1.endswith('?'):
+            text1 += '!'
+        text2 = ' '.join(parts[1:]).strip().upper()
     else:
         words = clean_title.strip().split()
         if len(words) <= 4:
-            main_text = clean_title.upper()
-            sub_text = ''
+            text1 = clean_title.upper()
+            text2 = 'DECISÃO URGENTE!' if is_pol else ('GOLAÇO HISTÓRICO!' if is_fut else 'MÉTODO REVELADO!')
         else:
             mid = max(2, len(words) // 2)
-            main_text = ' '.join(words[:mid]).upper()
-            sub_text = ' '.join(words[mid:]).upper()
+            text1 = ' '.join(words[:mid]).upper() + '!'
+            text2 = ' '.join(words[mid:]).upper()
 
-    if len(main_text) > 30:
-        main_text = main_text[:27] + '...'
-    if len(sub_text) > 34:
-        sub_text = sub_text[:31] + '...'
+    # Cores e Estilos por Nicho
+    if is_pol:
+        # Fatos & Debates: Branco Puro + Ciano Elétrico Neon (#00E5FF)
+        color_line1 = (255, 255, 255)
+        color_line2 = (0, 225, 255)
+        badge_label = 'FATOS & DEBATES'
+        badge_dot_color = (239, 68, 68)
+        badge_bg = (180, 15, 25, 240)
+        glow_color = (0, 210, 255, 170)
+        neon_border = (0, 225, 255, 230)
+        slug = 'fatos-e-debates'
+    elif is_fut:
+        # Futebol em Cortes: Branco Puro + Amarelo Ouro Elétrico (#FFE100)
+        color_line1 = (255, 255, 255)
+        color_line2 = (255, 225, 0)
+        badge_label = 'LANCE DECISIVO'
+        badge_dot_color = (34, 197, 94)
+        badge_bg = (16, 140, 75, 240)
+        glow_color = (34, 197, 94, 170)
+        neon_border = (34, 197, 94, 230)
+        slug = 'futebol-em-cortes'
+    else:
+        # Monetização 3G / Geral: Branco Puro + Amarelo Ouro
+        color_line1 = (255, 255, 255)
+        color_line2 = (255, 215, 0)
+        badge_label = 'MONETIZAÇÃO 3G'
+        badge_dot_color = (168, 85, 247)
+        badge_bg = (109, 40, 217, 240)
+        glow_color = (168, 85, 247, 170)
+        neon_border = (234, 179, 8, 230)
+        slug = None
 
-    # Helper para desenhar texto com contorno 3D pesado (Stroke de 8px + Sombra)
-    def _draw_stroked_text(x, y, text, font, fill_color, stroke_radius=8, shadow_offset=(4, 6)):
-        if not text:
-            return
-        # Sombra profunda
-        sx, sy = shadow_offset
-        for dx in range(-stroke_radius, stroke_radius + 1):
-            for dy in range(-stroke_radius, stroke_radius + 1):
-                if dx * dx + dy * dy <= stroke_radius * stroke_radius:
-                    draw.text((x + sx + dx, y + sy + dy), text, font=font, fill=(0, 0, 0))
-        # Contorno preto nítido 360 graus
-        for dx in range(-stroke_radius, stroke_radius + 1):
-            for dy in range(-stroke_radius, stroke_radius + 1):
-                if dx * dx + dy * dy <= stroke_radius * stroke_radius:
-                    draw.text((x + dx, y + dy), text, font=font, fill=(0, 0, 0))
-        # Texto colorido frontal
-        draw.text((x, y), text, font=font, fill=fill_color)
+    # 4. Cálculo dinâmico do tamanho das fontes (horizontal, sem rotação diagonal)
+    base_x = 60
+    available_w = 980
 
-    # 7. Renderização da Linha 1 (Frase de Impacto Principal)
-    font_main = _get_font(70 if len(main_text) <= 22 else 60)
-    pos_y_main = 460 if sub_text else 540
-    _draw_stroked_text(48, pos_y_main, main_text, font_main, fill_color=theme_accent, stroke_radius=8)
+    font_size1 = 76
+    f1 = _get_font(font_size1)
+    dummy = ImageDraw.Draw(bg)
+    while dummy.textlength(text1, font=f1) > available_w and font_size1 > 38:
+        font_size1 -= 2
+        f1 = _get_font(font_size1)
 
-    # 8. Renderização da Linha 2 (Sub-gancho ou Tarja de Destaque)
-    if sub_text:
-        font_sub = _get_font(48 if len(sub_text) <= 26 else 40)
-        pos_y_sub = pos_y_main + 88
-        _draw_stroked_text(48, pos_y_sub, sub_text, font_sub, fill_color=theme_second, stroke_radius=7)
+    font_size2 = 80
+    f2 = _get_font(font_size2)
+    while dummy.textlength(text2, font=f2) > available_w and font_size2 > 38:
+        font_size2 -= 2
+        f2 = _get_font(font_size2)
 
-    # 9. Logo oficial do canal no Canto Superior Direito
-    slug = 'cortes-da-politica' if is_pol else 'futebol-em-cortes'
-    for candidate in [
-        f'/app/branding/watermark-{slug}.png',
-        f'branding/watermark-{slug}.png',
-        f'/Users/alessandrobm1/develop/server/wordpress/canaldecortes/branding/watermark-{slug}.png',
-    ]:
-        if os.path.exists(candidate):
-            try:
-                wm = Image.open(candidate).convert('RGBA')
-                wm = wm.resize((92, 92), Image.Resampling.LANCZOS)
-                # Fundo circular escuro para a logo
-                wm_bg = Image.new('RGBA', (100, 100), (0, 0, 0, 160))
-                d_wmbg = ImageDraw.Draw(wm_bg)
-                d_wmbg.ellipse([0, 0, 99, 99], fill=(0, 0, 0, 180), outline=border_color, width=2)
-                bg.paste(wm_bg, (1280 - 100 - 40, 36), wm_bg)
-                bg.paste(wm, (1280 - 92 - 44, 40), wm)
-            except Exception as e:
-                _log(f'[THUMBNAIL] Aviso: Logo watermark não aplicada: {e}')
-            break
+    # 5. Sombra preta profunda na base estilo CSS linear-gradient (Sombra suave e uniforme, sem cortes)
+    # linear-gradient(to top, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.88) 45%, rgba(0,0,0,0.3) 85%, transparent 100%)
+    shadow_overlay = Image.new('RGBA', (1280, 720), (0, 0, 0, 0))
+    d_shadow = ImageDraw.Draw(shadow_overlay)
+
+    grad_start_y = 350
+    grad_height = 720 - grad_start_y
+    for y in range(grad_start_y, 720):
+        t = (y - grad_start_y) / float(grad_height)
+        alpha = int(252 * min(1.0, (t * 1.30) ** 1.25))
+        d_shadow.line([(0, y), (1280, y)], fill=(0, 0, 0, alpha))
+
+    shadow_overlay = shadow_overlay.filter(ImageFilter.GaussianBlur(radius=4))
+    bg.paste(shadow_overlay, (0, 0), shadow_overlay)
+
+    # 6. Renderização do texto PERFEITAMENTE ALINHADO (HORIZONTAL, sem inclinação)
+    draw = ImageDraw.Draw(bg)
+
+    def draw_aligned_text(d, x, y, text, font, fill_color, stroke_w=6, drop_shadow_offset=4):
+        # Drop shadow profunda projetada para baixo (estilo CSS text-shadow: 0 4px 10px rgba(0,0,0,0.85))
+        for s in range(1, drop_shadow_offset + 1):
+            d.text((x, y + s + 2), text, font=font, fill=(0, 0, 0, 200))
+        # Contorno reforçado em 360° para legibilidade impecável
+        for dx in range(-stroke_w, stroke_w + 1):
+            for dy in range(-stroke_w, stroke_w + 1):
+                if dx * dx + dy * dy <= stroke_w * stroke_w:
+                    d.text((x + dx, y + dy), text, font=font, fill=(0, 0, 0, 255))
+        # Texto principal
+        d.text((x, y), text, font=font, fill=fill_color)
+
+    bbox1 = f1.getbbox(text1)
+    h1 = (bbox1[3] - bbox1[1]) if bbox1 else font_size1
+    bbox2 = f2.getbbox(text2)
+    h2 = (bbox2[3] - bbox2[1]) if bbox2 else font_size2
+
+    total_text_h = h1 + h2 + 16
+    y1 = 720 - total_text_h - 45
+    y2 = y1 + h1 + 14
+
+    draw_aligned_text(draw, base_x, y1, text1, f1, color_line1, stroke_w=6)
+    draw_aligned_text(draw, base_x, y2, text2, f2, color_line2, stroke_w=7)
+
+    # 7. Efeito da Bola / Brasão com Aura Neon no canto direito
+    circle_size = 145
+    ball_x = 1075
+    ball_y = 515
+
+    ball_glow = Image.new('RGBA', (circle_size + 60, circle_size + 60), (0, 0, 0, 0))
+    d_bglow = ImageDraw.Draw(ball_glow)
+    d_bglow.ellipse([10, 10, circle_size + 50, circle_size + 50], fill=glow_color)
+    ball_glow = ball_glow.filter(ImageFilter.GaussianBlur(radius=20))
+    bg.paste(ball_glow, (ball_x - 30, ball_y - 30), ball_glow)
+
+    emblem_layer = Image.new('RGBA', (circle_size, circle_size), (0, 0, 0, 0))
+    d_emb = ImageDraw.Draw(emblem_layer)
+    d_emb.ellipse([4, 4, circle_size - 4, circle_size - 4], fill=(8, 12, 22, 245), outline=(212, 175, 55, 255), width=4)
+    d_emb.ellipse([8, 8, circle_size - 8, circle_size - 8], outline=neon_border, width=3)
+
+    if slug:
+        for candidate_wm in [
+            os.path.join(BRANDING_DIR, f'watermark-{slug}.png'),
+            os.path.join(local_branding, f'watermark-{slug}.png'),
+            f'branding/watermark-{slug}.png',
+        ]:
+            if os.path.exists(candidate_wm):
+                try:
+                    wm = Image.open(candidate_wm).convert('RGBA')
+                    wm = wm.resize((circle_size - 22, circle_size - 22), Image.Resampling.LANCZOS)
+                    emblem_layer.paste(wm, (11, 11), wm)
+                except Exception:
+                    pass
+                break
+
+    bg.paste(emblem_layer, (ball_x, ball_y), emblem_layer)
+
+    # 8. Badge Superior Esquerdo com ponto luminoso
+    d_final = ImageDraw.Draw(bg)
+    font_badge = _get_font(23)
+    text_w = d_final.textlength(badge_label, font=font_badge)
+    badge_w = int(text_w + 58)
+    badge_h = 42
+
+    d_final.rounded_rectangle([45, 35, 45 + badge_w, 35 + badge_h], radius=10, fill=badge_bg, outline=(255, 255, 255, 200), width=2)
+    d_final.ellipse([58, 48, 72, 62], fill=badge_dot_color, outline=(255, 255, 255, 240), width=1)
+    d_final.text((80, 42), badge_label, font=font_badge, fill='white')
+
+    # Moldura fina dourada de acabamento
+    d_final.rounded_rectangle([10, 10, 1270, 710], radius=16, outline=(212, 175, 55, 130), width=3)
 
     bg.save(thumbnail_path, 'JPEG', quality=95)
-    _log(f'[THUMBNAIL] Thumbnail estilizada gerada com sucesso: {thumbnail_path}')
+    _log(f'[CAPA] Capa customizada de alto CTR gerada com sucesso: {thumbnail_path}')
 
 
 def overlay_watermark(input_path: str, watermark_path: str, output_path: str) -> str:
@@ -585,9 +640,10 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
         return True
 
     except Exception as exc:
+        err_msg = f'Falha no corte/processamento: {str(exc)[:400]}'
         _log(f'Erro ao processar clip {clip_id}: {exc}')
         try:
-            _update_clip_status(conn, clip_id, 'failed')
+            _update_clip_status(conn, clip_id, 'failed', error_msg=err_msg)
         except Exception:
             pass
         return False
@@ -609,12 +665,18 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
         return cur.fetchone()
 
 
-def _update_clip_status(conn, clip_id: int, status: str) -> None:
+def _update_clip_status(conn, clip_id: int, status: str, error_msg: str | None = None) -> None:
     with conn.cursor() as cur:
-        cur.execute(
-            'UPDATE generated_clips SET status=%s WHERE id=%s',
-            (status, clip_id),
-        )
+        if error_msg is not None:
+            cur.execute(
+                'UPDATE generated_clips SET status=%s, upload_error=%s WHERE id=%s',
+                (status, error_msg, clip_id),
+            )
+        else:
+            cur.execute(
+                'UPDATE generated_clips SET status=%s WHERE id=%s',
+                (status, clip_id),
+            )
     conn.commit()
 
 

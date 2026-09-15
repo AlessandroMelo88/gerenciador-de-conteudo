@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\GeneratedClip;
 use App\Models\SourceVideo;
 use App\Services\ClipProcessorClient;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +33,7 @@ class SourceVideoController extends Controller
     public function index(Request $request): Response
     {
         $tab = $request->query('tab', 'ativos');
-        $perPage = (int) $request->query('per_page', 100);
+        $perPage = (int) $request->query('per_page', 20);
         $search = $request->query('search');
 
         $query = SourceVideo::query()
@@ -98,6 +99,7 @@ class SourceVideoController extends Controller
                 'per_page' => $perPage,
             ],
             'statusOptions' => self::STATUS_LABEL,
+            'failedCount' => SourceVideo::where('status', 'failed')->count(),
             'storage' => $this->storageMetrics(),
             'downloadWindow' => $this->downloadWindowMetrics(),
         ]);
@@ -133,14 +135,17 @@ class SourceVideoController extends Controller
 
     private function downloadWindowMetrics(): array
     {
-        $activeVideos = SourceVideo::whereNotNull('local_path')
-            ->orWhereIn('status', ['downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing'])
-            ->get();
+        $base = SourceVideo::query()
+            ->where(function ($q) {
+                $q->whereNotNull('local_path')
+                    ->where('local_path', '!=', '')
+                    ->orWhereIn('status', ['downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing']);
+            });
 
-        $curtoCount = $activeVideos->where('format', 'curto')->count();
-        $longoCount = $activeVideos->where('format', 'longo')->count();
-        $total = $activeVideos->count();
-        $processingCount = $activeVideos->whereIn('status', ['downloading', 'transcribing', 'selecting', 'cutting'])->count();
+        $total = (clone $base)->count();
+        $curtoCount = (clone $base)->where('format', 'curto')->count();
+        $longoCount = (clone $base)->where('format', 'longo')->count();
+        $processingCount = SourceVideo::whereIn('status', ['downloading', 'transcribing', 'selecting', 'cutting'])->count();
 
         return [
             'total' => $total,
@@ -196,6 +201,31 @@ class SourceVideoController extends Controller
         return back()->with('success', "Arquivos apagados com sucesso");
     }
 
+    public function destroyRecord(SourceVideo $video): RedirectResponse
+    {
+        $disk = Storage::disk('clips-videos');
+        $ytId = $video->youtube_video_id;
+        if ($ytId) {
+            $disk->delete(["{$ytId}.mp4", "{$ytId}_raw.mp4"]);
+        }
+
+        foreach ($video->generatedClips as $clip) {
+            $id = $clip->id;
+            $disk->delete([
+                "clips/{$id}.mp4",
+                "clips/{$id}_raw.mp4",
+                "clips/{$id}_subtitled.mp4",
+                "clips/{$id}.srt",
+                "thumbnails/{$id}.jpg",
+            ]);
+            $clip->delete();
+        }
+
+        $video->delete();
+
+        return back()->with('success', "Registro do vídeo #{$video->id} removido do banco com sucesso");
+    }
+
     public function bulkDeleteFiles(Request $request): RedirectResponse
     {
         $ids = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']])['ids'];
@@ -216,6 +246,80 @@ class SourceVideoController extends Controller
         }
 
         return back()->with('success', "{$deletedCount} arquivo(s) de vídeo apagado(s)");
+    }
+
+    public function bulkDestroyRecords(Request $request): RedirectResponse
+    {
+        $ids = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']])['ids'];
+        $videos = SourceVideo::query()->whereIn('id', $ids)->get();
+        $disk = Storage::disk('clips-videos');
+        $deletedCount = 0;
+
+        foreach ($videos as $video) {
+            $ytId = $video->youtube_video_id;
+            if ($ytId) {
+                $disk->delete(["{$ytId}.mp4", "{$ytId}_raw.mp4"]);
+            }
+            foreach ($video->generatedClips as $clip) {
+                $id = $clip->id;
+                $disk->delete([
+                    "clips/{$id}.mp4",
+                    "clips/{$id}_raw.mp4",
+                    "clips/{$id}_subtitled.mp4",
+                    "clips/{$id}.srt",
+                    "thumbnails/{$id}.jpg",
+                ]);
+                $clip->delete();
+            }
+            $video->delete();
+            $deletedCount++;
+        }
+
+        return back()->with('success', "{$deletedCount} registro(s) excluído(s) do banco de dados");
+    }
+
+    public function purgeFailed(): RedirectResponse
+    {
+        $failedVideos = SourceVideo::where('status', 'failed')->get();
+        $disk = Storage::disk('clips-videos');
+        $count = 0;
+
+        foreach ($failedVideos as $video) {
+            $ytId = $video->youtube_video_id;
+            if ($ytId) {
+                $disk->delete(["{$ytId}.mp4", "{$ytId}_raw.mp4"]);
+            }
+            foreach ($video->generatedClips as $clip) {
+                $id = $clip->id;
+                $disk->delete([
+                    "clips/{$id}.mp4",
+                    "clips/{$id}_raw.mp4",
+                    "clips/{$id}_subtitled.mp4",
+                    "clips/{$id}.srt",
+                    "thumbnails/{$id}.jpg",
+                ]);
+                $clip->delete();
+            }
+            $video->delete();
+            $count++;
+        }
+
+        $failedClips = GeneratedClip::where('status', 'failed')->get();
+        $clipCount = 0;
+        foreach ($failedClips as $clip) {
+            $id = $clip->id;
+            $disk->delete([
+                "clips/{$id}.mp4",
+                "clips/{$id}_raw.mp4",
+                "clips/{$id}_subtitled.mp4",
+                "clips/{$id}.srt",
+                "thumbnails/{$id}.jpg",
+            ]);
+            $clip->delete();
+            $clipCount++;
+        }
+
+        return back()->with('success', "{$count} vídeo(s) e {$clipCount} clip(s) com falha removidos com sucesso");
     }
 
     public function purgeOld(Request $request): RedirectResponse

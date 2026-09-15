@@ -12,6 +12,7 @@ Convenções:
   - tags são persistidas em generated_clips.tags como texto
 """
 import json
+import os
 from datetime import datetime
 
 
@@ -122,14 +123,17 @@ def _generate_via_anthropic(clip_context: dict, anthropic_client) -> dict:
     return json.loads(response.content[0].text)
 
 
+GROQ_MODEL = os.environ.get('GROQ_MODEL', 'qwen/qwen3.8-27b')
+
+
 def _generate_via_groq(clip_context: dict) -> dict:
     """Gera metadata via Groq (fallback sempre disponível)."""
     from groq import Groq
     client = Groq()
     system_prompt = _resolve_system_prompt(clip_context)
-    _log('Fallback: gerando metadata via Groq LLM (llama-3.3-70b-versatile)')
+    _log(f'Fallback: gerando metadata via Groq LLM ({GROQ_MODEL})')
     response = client.chat.completions.create(
-        model='llama-3.3-70b-versatile',
+        model=GROQ_MODEL,
         messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': _build_prompt(clip_context)},

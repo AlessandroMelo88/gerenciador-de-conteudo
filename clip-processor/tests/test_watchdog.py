@@ -80,9 +80,9 @@ class TestCheckDownloadWindowHealth:
 
     def test_window_deadlock_detected(self, mock_db_conn):
         cursor = mock_db_conn.cursor.return_value
-        # 1st query: 7 slots ocupados; 2nd query: 0 vídeos ativos recentes
+        # 1st query: 16 slots ocupados; 2nd query: 0 vídeos ativos recentes
         cursor.fetchone.side_effect = [
-            {'occupied': 7},
+            {'occupied': 16},
             {'active_recent': 0},
         ]
 
@@ -96,9 +96,9 @@ class TestCheckDownloadWindowHealth:
 
     def test_window_full_but_active(self, mock_db_conn):
         cursor = mock_db_conn.cursor.return_value
-        # 1st query: 7 slots ocupados; 2nd query: 2 vídeos ativos recentes
+        # 1st query: 16 slots ocupados; 2nd query: 2 vídeos ativos recentes
         cursor.fetchone.side_effect = [
-            {'occupied': 7},
+            {'occupied': 16},
             {'active_recent': 2},
         ]
 

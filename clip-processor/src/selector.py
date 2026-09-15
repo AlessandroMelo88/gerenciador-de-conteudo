@@ -161,13 +161,16 @@ def _select_via_anthropic_client(client, transcript_text: str, system_prompt: st
     return _parse_moments(response.content[0].text)
 
 
+GROQ_MODEL = os.environ.get('GROQ_MODEL', 'qwen/qwen3.8-27b')
+
+
 def _select_via_groq(transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -> list[dict]:
     """Seleciona momentos via Groq (fallback sempre disponível)."""
     from groq import Groq
     client = Groq()
-    _log('[SELECTOR] Usando Groq LLM (llama-3.3-70b-versatile)')
+    _log(f'[SELECTOR] Usando Groq LLM ({GROQ_MODEL})')
     response = client.chat.completions.create(
-        model='llama-3.3-70b-versatile',
+        model=GROQ_MODEL,
         messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': transcript_text},
@@ -248,8 +251,16 @@ def _filter_shortform_duration(moments: list[dict], transcript_duration: float =
         duration = end - start
 
         if duration < min_required:
-            _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que o mínimo ({min_required:.1f}s)')
-            continue
+            if transcript_duration and transcript_duration >= min_required and duration >= 15.0:
+                missing = min_required - duration
+                start = max(0.0, start - missing / 2)
+                end = min(transcript_duration, start + min_required)
+                m_copy['start_time'] = start
+                m_copy['end_time'] = end
+                duration = end - start
+            if duration < min_required:
+                _log(f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que o mínimo ({min_required:.1f}s)')
+                continue
 
         if duration > MAX_SHORTFORM_SECONDS:
             _log(f'[SELECTOR] Momento ajustado: duração {duration:.1f}s limitada para {MAX_SHORTFORM_SECONDS}s')

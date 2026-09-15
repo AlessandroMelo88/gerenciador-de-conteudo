@@ -35,24 +35,25 @@ export function ClipPreviewModal({
     useEffect(() => {
         if (clip) {
             setDevice(clip.format === 'longo' ? 'desktop' : 'mobile');
-            setDesktopTab(clip.hasVideoFile ? 'video' : 'cover');
+            setDesktopTab('cover');
         }
-    }, [clip?.id, clip?.format, clip?.hasVideoFile]);
+    }, [clip?.id, clip?.format]);
 
     if (!isOpen || !clip) return null;
 
     const isPol =
         (clip.niche ?? '').toLowerCase().includes('politica') ||
-        (clip.destinationChannelName ?? '').toLowerCase().includes('política');
+        (clip.destinationChannelName ?? '').toLowerCase().includes('política') ||
+        (clip.destinationChannelName ?? '').toLowerCase().includes('fatos');
     const isFut =
         (clip.niche ?? '').toLowerCase().includes('futebol') ||
         (clip.destinationChannelName ?? '').toLowerCase().includes('futebol');
 
     const tmpl = clip.destinationTemplate || {};
-    const channelName = clip.destinationChannelName || (isPol ? 'Cortes da Política' : isFut ? 'Futebol em Cortes' : 'Canal de Cortes');
+    const channelName = clip.destinationChannelName || (isPol ? 'Fatos & Debates' : isFut ? 'Futebol em Cortes' : 'Canal de Cortes');
     const headerTitle = tmpl.headerTitle || channelName.toUpperCase();
-    const headerBadge = tmpl.headerBadge || (isPol ? '🔴 DEBATE AO VIVO' : isFut ? '⚽ LANCE DECISIVO' : '🎙️ CORTES EXCLUSIVOS');
-    const accentColor = tmpl.accentColor || (isPol ? '#E50914' : isFut ? '#10B981' : '#8B5CF6');
+    const headerBadge = tmpl.headerBadge || (isPol ? '🔴 FATOS & DEBATES' : isFut ? '⚽ LANCE DECISIVO' : '🎙️ CORTES EXCLUSIVOS');
+    const accentColor = tmpl.accentColor || (isPol ? '#0284c7' : isFut ? '#10B981' : '#8B5CF6');
     const subtitleColor = tmpl.subtitleColor || '#facc15';
     const ctaText = tmpl.ctaText || 'INSCREVA-SE NO CANAL';
     const isLongo = clip.format === 'longo';
@@ -130,7 +131,7 @@ export function ClipPreviewModal({
                 </div>
 
                 {/* CORPO DO PREVIEW */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 flex items-center justify-center bg-zinc-950/70">
+                <div className="flex-1 overflow-y-auto p-3 sm:p-5 flex flex-col items-center justify-start sm:justify-center bg-zinc-950/70">
                     {device === 'mobile' ? (
                         /* SIMULADOR CELULAR SMARTPHONE 9:16 (SEM CORTES) */
                         <div className="relative w-[320px] sm:w-[350px] aspect-[9/16] max-h-[72vh] rounded-[38px] p-3 bg-zinc-900 border-4 border-zinc-700 shadow-2xl flex flex-col justify-between overflow-hidden">
@@ -309,7 +310,7 @@ export function ClipPreviewModal({
                                                     : 'text-zinc-400 hover:text-white'
                                             }`}
                                         >
-                                            🖼️ Capa / Thumbnail
+                                            🖼️ Capa
                                         </button>
                                         <button
                                             type="button"
@@ -326,68 +327,60 @@ export function ClipPreviewModal({
                                 </div>
 
                                 {/* Container Widescreen 16:9 */}
-                                <div className="relative w-full aspect-video bg-zinc-950 overflow-hidden select-none">
+                                <div className="relative w-full aspect-video max-h-[48vh] bg-zinc-950 overflow-hidden select-none flex items-center justify-center mx-auto">
                                     {desktopTab === 'cover' ? (
-                                        /* Aba Capa: Exibe a Thumbnail Oficial 1280x720 em tela cheia 16:9 do YouTube */
+                                        /* Aba Capa: Exibe a Capa Oficial 1280x720 em tela cheia 16:9 do YouTube */
                                         <div className="relative w-full h-full bg-zinc-950 flex items-center justify-center">
                                             {clip.hasThumbnailFile ? (
                                                 <img
                                                     src={clip.thumbnailUrl}
                                                     alt="Capa Oficial 16:9 do YouTube"
-                                                    className="w-full h-full object-cover"
+                                                    className="w-full h-full object-contain bg-black"
                                                 />
                                             ) : (
                                                 <div className="text-center p-6">
                                                     <Play className="w-12 h-12 text-white mx-auto mb-2 opacity-60" />
                                                     <h4 className="text-sm font-bold text-white px-4">{clip.title}</h4>
-                                                    <p className="text-xs text-zinc-500 mt-1">Thumbnail em processamento</p>
+                                                    <p className="text-xs text-zinc-500 mt-1">Capa em processamento</p>
                                                 </div>
                                             )}
                                         </div>
                                     ) : (
-                                        /* Aba Vídeo: Player de Reprodução dentro da Moldura Oficial */
-                                        <div className="relative w-full h-full bg-zinc-950 overflow-hidden">
-                                            <img
-                                                src={
-                                                    clip.destinationChannelBackgroundUrl ||
-                                                    (isPol
-                                                        ? '/storage/branding/background-cortes-da-politica.png'
-                                                        : isFut
-                                                        ? '/storage/branding/background-futebol-em-cortes.png'
-                                                        : '/storage/branding/background-podcast-cortes.png')
-                                                }
-                                                alt={`Background ${channelName}`}
-                                                className="absolute inset-0 w-full h-full object-cover z-0"
-                                                onError={(e) => {
-                                                    e.currentTarget.style.display = 'none';
-                                                }}
-                                            />
-
-                                            {/* Janela do Vídeo Centralizado na Moldura Amarela (x=320/1920=16.67%, y=72/1080=6.67%, w=1520/1920=79.17%, h=855/1080=79.17%) */}
-                                            <div
-                                                className="absolute z-10 overflow-hidden bg-black flex items-center justify-center shadow-2xl"
-                                                style={{
-                                                    left: '16.67%',
-                                                    top: '6.67%',
-                                                    width: '79.17%',
-                                                    height: '79.17%',
-                                                }}
-                                            >
-                                                {clip.hasVideoFile ? (
-                                                    <video
-                                                        controls
-                                                        autoPlay
-                                                        className="w-full h-full object-cover"
-                                                        src={clip.previewUrl}
-                                                        poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
+                                        /* Aba Vídeo: Player de Reprodução do Vídeo Longo 16:9 */
+                                        <div className="relative w-full h-full bg-zinc-950 flex items-center justify-center">
+                                            {clip.hasVideoFile ? (
+                                                <video
+                                                    controls
+                                                    autoPlay
+                                                    playsInline
+                                                    className="w-full h-full object-contain bg-black"
+                                                    src={clip.previewUrl}
+                                                    poster={clip.hasThumbnailFile ? clip.thumbnailUrl : undefined}
+                                                />
+                                            ) : (
+                                                <div className="relative w-full h-full bg-zinc-950 overflow-hidden flex items-center justify-center">
+                                                    <img
+                                                        src={
+                                                            clip.destinationChannelBackgroundUrl ||
+                                                            (isPol
+                                                                ? '/storage/branding/background-fatos-e-debates.png'
+                                                                : isFut
+                                                                ? '/storage/branding/background-futebol-em-cortes.png'
+                                                                : '/storage/branding/background-podcast-cortes.png')
+                                                        }
+                                                        alt={`Background ${channelName}`}
+                                                        className="absolute inset-0 w-full h-full object-cover z-0"
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = 'none';
+                                                        }}
                                                     />
-                                                ) : (
-                                                    <div className="text-center p-6">
-                                                        <Play className="w-12 h-12 text-white mx-auto mb-2" />
+                                                    <div className="relative z-10 text-center p-6 bg-black/60 rounded-2xl border border-white/10 backdrop-blur-sm">
+                                                        <Play className="w-12 h-12 text-white mx-auto mb-2 opacity-75" />
                                                         <h4 className="text-sm font-bold text-white px-4">{clip.title}</h4>
+                                                        <p className="text-xs text-zinc-400 mt-1">Vídeo em processamento</p>
                                                     </div>
-                                                )}
-                                            </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 

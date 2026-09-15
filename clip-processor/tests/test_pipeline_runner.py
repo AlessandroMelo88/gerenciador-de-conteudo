@@ -10,8 +10,8 @@ from src.pipeline_runner import (
     _discard_failed_download,
     _download_pending_videos,
     _select_pending_videos,
-    DOWNLOAD_WINDOW_CURTO,
-    DOWNLOAD_WINDOW_LONGO,
+    DOWNLOAD_WINDOW_FUTEBOL,
+    DOWNLOAD_WINDOW_POLITICA,
 )
 
 
@@ -139,7 +139,7 @@ class TestRunPipelineOnce:
 
 
 class TestSelectPendingVideos:
-    """Testes para _select_pending_videos — janela de download ativo (DOWNLOAD-01)."""
+    """Testes para _select_pending_videos — janela de download ativo por nicho."""
 
     def _make_cursor(self, fetchone_results, fetchall_results):
         cur = MagicMock()
@@ -150,90 +150,88 @@ class TestSelectPendingVideos:
         return cur
 
     def test_empty_window_fills_up_to_ceiling(self):
-        """Janela vazia (occupied=0) deve buscar até o teto de cada formato."""
+        """Janela vazia (occupied=0) deve buscar até o teto de cada nicho."""
         mock_conn = MagicMock()
-        longos = [{'youtube_video_id': 'longo1'}, {'youtube_video_id': 'longo2'}]
-        curtos = [
-            {'youtube_video_id': 'curto1'},
-            {'youtube_video_id': 'curto2'},
-            {'youtube_video_id': 'curto3'},
+        futebol_vids = [{'youtube_video_id': 'fut1'}, {'youtube_video_id': 'fut2'}]
+        politica_vids = [
+            {'youtube_video_id': 'pol1'},
+            {'youtube_video_id': 'pol2'},
+            {'youtube_video_id': 'pol3'},
         ]
         cur = self._make_cursor(
             fetchone_results=[{'c': 0}, {'c': 0}],
-            fetchall_results=[longos, curtos],
+            fetchall_results=[futebol_vids, politica_vids],
         )
         mock_conn.cursor.return_value = cur
 
         result = _select_pending_videos(mock_conn)
 
-        assert result == ['longo1', 'longo2', 'curto1', 'curto2', 'curto3']
+        assert result == ['fut1', 'fut2', 'pol1', 'pol2', 'pol3']
 
-    def test_full_window_skips_format_entirely(self):
-        """Formato já na janela cheia não gera nenhuma query SELECT (só o COUNT)."""
+    def test_full_window_skips_niche_entirely(self):
+        """Nicho já na janela cheia não gera nenhuma query SELECT (só o COUNT)."""
         mock_conn = MagicMock()
         cur = self._make_cursor(
-            fetchone_results=[{'c': DOWNLOAD_WINDOW_LONGO}, {'c': 0}],
-            fetchall_results=[[{'youtube_video_id': 'curto1'}]],
+            fetchone_results=[{'c': DOWNLOAD_WINDOW_FUTEBOL}, {'c': 0}],
+            fetchall_results=[[{'youtube_video_id': 'pol1'}]],
         )
         mock_conn.cursor.return_value = cur
 
         result = _select_pending_videos(mock_conn)
 
-        assert result == ['curto1']
-        # 2 COUNTs (longo+curto) + 1 SELECT (só curto, longo pulado) = 3 execute
+        assert result == ['pol1']
+        # 2 COUNTs (futebol+politica) + 1 SELECT (só politica, futebol pulado) = 3 execute
         assert cur.execute.call_count == 3
 
     def test_deficit_limits_query_to_missing_slots(self):
-        """Déficit parcial (occupied=1 de janela 4) deve pedir LIMIT 3, não o teto inteiro."""
+        """Déficit parcial (occupied=9 de janela 10) deve pedir LIMIT 1, não o teto inteiro."""
         mock_conn = MagicMock()
         cur = self._make_cursor(
-            fetchone_results=[{'c': DOWNLOAD_WINDOW_LONGO - 1}, {'c': DOWNLOAD_WINDOW_CURTO}],
-            fetchall_results=[[{'youtube_video_id': 'longo1'}]],
+            fetchone_results=[{'c': DOWNLOAD_WINDOW_FUTEBOL - 1}, {'c': DOWNLOAD_WINDOW_POLITICA}],
+            fetchall_results=[[{'youtube_video_id': 'fut1'}]],
         )
         mock_conn.cursor.return_value = cur
 
         result = _select_pending_videos(mock_conn)
 
-        assert result == ['longo1']
+        assert result == ['fut1']
         select_call = cur.execute.call_args_list[1]
-        assert select_call.args[1][-1] == 1  # LIMIT = déficit (4 - 3 = 1)
+        assert select_call.args[1][-1] == 1  # LIMIT = déficit (10 - 9 = 1)
 
     def test_filters_by_freshness_cutoff(self):
-        """SELECT deve restringir a published_at de hoje ou ontem (FRESHNESS_DAYS=1)."""
+        """SELECT deve restringir a published_at de até FRESHNESS_DAYS dias atrás."""
         from datetime import datetime, timedelta
-        from src.pipeline_runner import SAO_PAULO_TZ
+        from src.pipeline_runner import SAO_PAULO_TZ, FRESHNESS_DAYS
 
         mock_conn = MagicMock()
         cur = self._make_cursor(
-            fetchone_results=[{'c': 0}, {'c': DOWNLOAD_WINDOW_CURTO}],
+            fetchone_results=[{'c': 0}, {'c': DOWNLOAD_WINDOW_POLITICA}],
             fetchall_results=[[]],
         )
         mock_conn.cursor.return_value = cur
 
         _select_pending_videos(mock_conn)
 
-        expected_cutoff = (datetime.now(SAO_PAULO_TZ) - timedelta(days=1)).date()
+        expected_cutoff = (datetime.now(SAO_PAULO_TZ) - timedelta(days=FRESHNESS_DAYS)).date()
         select_call = cur.execute.call_args_list[1]
-        assert select_call.args[1][1] == expected_cutoff
+        assert select_call.args[1][2] == expected_cutoff
 
 
 class TestDownloadPendingVideos:
     def _make_cursor_with_side_effect(self, fetchone_results, fetchall_results):
-        """Cursor fake cujo fetchone cai num default depois da lista informada.
-
-        Os testes passam só as contagens da janela; as consultas auxiliares do
-        loop (checagem de `paused` e de clips que ainda precisam do raw) caem no
-        default `{'paused': 0, 'c': 0}` — assim adicionar uma query nova ao
-        caminho de download não estoura StopIteration em todos os testes.
-        """
-        pending = list(fetchone_results)
+        """Cursor fake cujo fetchone e fetchall caem num default depois da lista informada."""
+        pending_one = list(fetchone_results)
+        pending_all = list(fetchall_results)
 
         def _fetchone():
-            return pending.pop(0) if pending else {'paused': 0, 'c': 0}
+            return pending_one.pop(0) if pending_one else {'paused': 0, 'c': 0}
+
+        def _fetchall():
+            return pending_all.pop(0) if pending_all else []
 
         cur = MagicMock()
         cur.fetchone.side_effect = _fetchone
-        cur.fetchall.side_effect = fetchall_results
+        cur.fetchall.side_effect = _fetchall
         cur.__enter__ = lambda s: s
         cur.__exit__ = MagicMock(return_value=False)
         return cur
@@ -275,7 +273,7 @@ class TestDownloadPendingVideos:
         mock_conn = MagicMock()
         cur = self._make_cursor_with_side_effect(
             fetchone_results=[{'c': 0}, {'c': 0}],
-            fetchall_results=[[], []],
+            fetchall_results=[[], [], []],
         )
         mock_conn.cursor.return_value = cur
 
@@ -285,11 +283,11 @@ class TestDownloadPendingVideos:
         mock_dl.assert_not_called()
 
     def test_window_full_does_nothing(self):
-        """Janela já cheia nos dois formatos não deve chamar download_video."""
+        """Janela já cheia nos dois nichos não deve chamar download_video."""
         mock_conn = MagicMock()
         cur = self._make_cursor_with_side_effect(
-            fetchone_results=[{'c': DOWNLOAD_WINDOW_LONGO}, {'c': DOWNLOAD_WINDOW_CURTO}],
-            fetchall_results=[],
+            fetchone_results=[{'c': DOWNLOAD_WINDOW_FUTEBOL}, {'c': DOWNLOAD_WINDOW_POLITICA}],
+            fetchall_results=[[]],
         )
         mock_conn.cursor.return_value = cur
 
@@ -298,18 +296,18 @@ class TestDownloadPendingVideos:
 
         mock_dl.assert_not_called()
 
-    def test_downloads_longos_then_curtos_in_sequence(self):
-        """Ordem fixa: repõe longos primeiro, depois curtos."""
+    def test_downloads_futebol_then_politica_in_sequence(self):
+        """Ordem fixa: repõe futebol primeiro, depois política."""
         mock_conn = MagicMock()
-        longos = [{'youtube_video_id': 'longo1'}, {'youtube_video_id': 'longo2'}]
-        curtos = [
-            {'youtube_video_id': 'curto1'},
-            {'youtube_video_id': 'curto2'},
-            {'youtube_video_id': 'curto3'},
+        futebol_vids = [{'youtube_video_id': 'fut1'}, {'youtube_video_id': 'fut2'}]
+        politica_vids = [
+            {'youtube_video_id': 'pol1'},
+            {'youtube_video_id': 'pol2'},
+            {'youtube_video_id': 'pol3'},
         ]
         cur = self._make_cursor_with_side_effect(
             fetchone_results=[{'c': 0}, {'c': 0}],
-            fetchall_results=[longos, curtos],
+            fetchall_results=[[], futebol_vids, politica_vids],
         )
         mock_conn.cursor.return_value = cur
 
@@ -318,10 +316,11 @@ class TestDownloadPendingVideos:
             _download_pending_videos(mock_conn)
 
         downloaded_order = [call.args[0] for call in mock_dl.call_args_list]
-        assert downloaded_order == ['longo1', 'longo2', 'curto1', 'curto2', 'curto3']
+        assert downloaded_order == ['fut1', 'fut2', 'pol1', 'pol2', 'pol3']
 
     def test_scheduler_compatible_coalesce(self):
         """Importar main.py não deve iniciar o scheduler (coalesce = True verificado via import)."""
+        pytest.importorskip('flask')
         import src.main as main_module
 
         job = None

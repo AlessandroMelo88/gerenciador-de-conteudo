@@ -30,10 +30,12 @@ Contém as especificações operacionais e de engenharia de todos os componentes
 * [`Docs/sistema/SISTEMA-TRANSCRICAO.md`](sistema/SISTEMA-TRANSCRICAO.md) — Transcrição via Groq Whisper API e Transcrição Local com whisper.cpp.
 * [`Docs/sistema/SISTEMA-SIDECAR.md`](sistema/SISTEMA-SIDECAR.md) — API interna HTTP na porta 8090 para comunicação com o painel.
 * [`Docs/sistema/PIPELINE-E-SCHEDULER.md`](sistema/PIPELINE-E-SCHEDULER.md) — Agendamento de rotinas do daemon e cron jobs.
-* [`Docs/sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md`](sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md) — Observabilidade em duas camadas: Sentry (crashes), Watchdog proativo (auto-cura de deadlocks e clipes fantasmas) e alertas via Telegram e Email.
+* [`Docs/sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md`](sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md) — Observabilidade em três camadas: Better Stack (uptime/heartbeats), Sentry (crashes), Watchdog proativo (auto-cura de deadlocks e clipes fantasmas) e alertas via Telegram e Email.
 * [`Docs/sistema/ESTADOS-E-TRANSICOES.md`](sistema/ESTADOS-E-TRANSICOES.md) — Máquina de estados dos vídeos e clipes.
 * [`Docs/sistema/RUNBOOK.md`](sistema/RUNBOOK.md) — Comandos práticos de manutenção, operação e troubleshooting.
 * [`Docs/sistema/BUGS.md`](sistema/BUGS.md) — Histórico e backlog de bugs e correções.
+* [`Docs/sistema/PLANO-MESTRE.md`](sistema/PLANO-MESTRE.md) — **Comece por aqui para retomar trabalho.** Advertência de direitos autorais, gate de licença, migração para A1 12 GB + PostgreSQL, marca Umbrella Solutions, afiliados e ordem de execução.
+* [`Docs/sistema/RETOMADA-SESSAO-CRON.md`](sistema/RETOMADA-SESSAO-CRON.md) — Agendamento noturno e retomada da sessão Claude Code pós-limite de uso.
 
 ---
 

@@ -1,0 +1,80 @@
+# Guia de Deploy Rápido (Produção)
+
+Este documento explica como funciona o deploy do **Canal de Cortes**, como executá-lo em **~20 segundos** e a arquitetura adotada para evitar travamentos e lentidão na VPS Oracle Cloud.
+
+---
+
+## ⚡ Como Fazer Deploy
+
+Na pasta raiz do projeto no seu ambiente local, execute:
+
+### 1. Deploy Padrão (~20 a 25 segundos)
+Compila o frontend (Vite/React), sincroniza os arquivos de backend (PHP, Python, assets) e reinicia os serviços no servidor:
+```bash
+./deploy.sh
+```
+
+### 2. Deploy Ultrarrápido Backend (~8 a 12 segundos)
+Se você **não** alterou nada no React/CSS do painel (apenas código Python, regras PHP, migrations ou assets de branding), pule a compilação do Vite:
+```bash
+./deploy.sh --skip-vite
+```
+
+### 3. Deploy com Rebuild do Docker (Apenas quando estritamente necessário)
+Se você adicionou novas dependências no `requirements.txt` do Python ou novos pacotes no sistema operacional via `apt`:
+```bash
+./deploy.sh --build-docker
+```
+> ⚠️ **Atenção**: O `--build-docker` reconstrói a imagem base do Whisper e faz compilação C++, levando cerca de 10 a 15 minutos na VPS Oracle Micro. **Evite usar no dia a dia.**
+
+---
+
+## 🔍 O que o script `./deploy.sh` faz por você
+
+1. **Compilação Local do Vite (`painel/`)**: Gera os bundles otimizados de produção no seu computador, poupando a CPU da VPS na nuvem.
+2. **Sincronização Rsync Otimizada**:
+   * Sincroniza `painel/` (excluindo `node_modules`, `.env`, `.git` e `storage`).
+   * Sincroniza `clip-processor/src/` (código Python do robô).
+   * Sincroniza `branding/` (logos, marcas d'água, fontes).
+   * Ignora permissões e tempos de diretórios para evitar conflitos com o usuário `www-data` do PHP-FPM.
+3. **Recarga Instantânea dos Containers**:
+   * `docker compose restart clip-processor` (carrega novo código Python em **1 segundo**).
+   * `php artisan optimize:clear` (limpa cache de rotas, views e config do Laravel).
+   * `php artisan migrate --force` (executa migrações do banco de dados com segurança).
+   * `docker compose restart php` (limpa o cache opcache do PHP).
+
+---
+
+## 🏗️ Por que antes demorava tanto e como foi resolvido?
+
+### O Problema Antigo
+Anteriormente, o `docker-compose.yml` não possuía bind mount para a pasta de código do `clip-processor`. A cada alteração em um arquivo `.py` (como ajustar títulos de capas ou prompt de IA), era disparado um `docker compose build`. 
+Dentro do Dockerfile do `clip-processor`:
+* O código C++ do motor de áudio Whisper (`whisper.cpp`) era clonado e compilado do zero via `cmake`.
+* O modelo neural de IA (`ggml-small.bin`, ~500 MB) era baixado.
+* Dezenas de bibliotecas pesadas de IA e vídeo eram instaladas.
+* Na VPS Oracle Cloud Free Tier (1 vCPU e 1 GB de RAM com disco burstable), essa compilação esgotava os créditos de CPU, ativando **CPU Throttling** (CPU Steal de até 75%), travando a escrita em disco e demorando de 15 a 30 minutos.
+
+### A Solução Definitiva
+1. **Volume Mapeado no `docker-compose.yml`**:
+   ```yaml
+   clip-processor:
+     volumes:
+       - ./youtube:/app/youtube
+       - ./videos:/app/videos
+       - ./branding:/app/branding:ro
+       - ./clip-processor/src:/app/src
+   ```
+   Agora, o código Python dentro de `/app/src` é lido diretamente do sistema de arquivos do servidor.
+2. **Zero Rebuild**: Ao alterar arquivos `.py`, o `deploy.sh` apenas envia o arquivo via rsync e reinicia o container em **1 segundo**.
+3. **Preservação de Memória e CPU**: O Whisper C++ e as bibliotecas compiladas permanecem intactos e em cache na imagem Docker fixa.
+
+---
+
+## 🌐 Informações do Servidor de Produção
+
+* **IP**: `147.15.124.191` (Oracle Cloud Ubuntu 24.04 LTS)
+* **Usuário**: `ubuntu`
+* **Chave SSH**: `~/.ssh/oracle-ssh-key-2026-08-27.key`
+* **Diretório da Aplicação**: `/home/ubuntu/canaldecortes`
+* **URL Pública do Painel**: [https://toolscut.alessandromelo.com.br](https://toolscut.alessandromelo.com.br)

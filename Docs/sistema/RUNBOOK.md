@@ -33,23 +33,20 @@ Um ciclo saudável loga `Ciclo de ingestão finalizado` a cada 20 min.
 
 ---
 
-## O container está rodando código velho?
+## O container está rodando código atualizado?
 
-**A armadilha mais recorrente do projeto.** Não há bind mount para `src/` — a imagem embute o código
-no build. Em 13/08/2026 o container rodava código de 01/08 enquanto o host tinha commits de 12/08, e o
-comportamento observado não correspondia a nenhuma versão do código que se estava lendo.
+Desde **11/09/2026**, o `docker-compose.yml` possui **bind mount** configurado para o código Python:
+`- ./clip-processor/src:/app/src`.
 
+Isso significa que **não é mais necessário rebuildar a imagem Docker** a cada alteração de código (o que demorava 15 min por recompilar o Whisper C++ na VPS com CPU limitada).
+
+Para atualizar o código do `clip-processor` em produção:
 ```bash
-# data da imagem que o container está rodando
-docker inspect clip-processor --format '{{.Created}} {{.Image}}'
-# data do último commit no host
-git -C canaldecortes log -1 --format='%ad %h %s' --date=iso
-```
+# Via script automático a partir do ambiente local (leva ~10s):
+./deploy.sh --skip-vite
 
-Divergiu ⇒ rebuild:
-
-```bash
-docker compose build clip-processor && docker compose up -d clip-processor
+# Ou manualmente direto no servidor:
+docker compose restart clip-processor
 ```
 
 Conferir na dúvida se um arquivo específico dentro do container já tem a mudança:
@@ -58,7 +55,7 @@ Conferir na dúvida se um arquivo específico dentro do container já tem a muda
 docker exec clip-processor grep -n "MIN_SHORTFORM_SECONDS" /app/src/selector.py
 ```
 
-**Sempre confirmar isso antes de investigar qualquer bug de pipeline.**
+> ⚠️ **Rebuild da imagem (`docker compose build clip-processor`) só é necessário se forem adicionados novos pacotes no `requirements.txt` ou ferramentas de sistema (`apt`).** Consulte [`../../DEPLOY.md`](../../DEPLOY.md) para detalhes.
 
 ---
 

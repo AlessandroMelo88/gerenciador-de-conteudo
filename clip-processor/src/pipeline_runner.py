@@ -28,10 +28,13 @@ def _log(msg: str) -> None:
 
 
 # Janela: no máximo esses tantos vídeos com arquivo em disco (local_path IS NOT
-# NULL) ao mesmo tempo, por formato — não baixa mais que isso independente do
+# NULL) ao mesmo tempo, por nicho — não baixa mais que isso independente do
 # tamanho do backlog. Repõe só o déficit (janela - ocupação atual) a cada rodada,
-# então vaga aberta (por publicação concluída ou por exclusão manual no painel)
-# é reposta na rodada seguinte, mantendo a janela sempre perto de cheia.
+# mantendo a prioridade do canal de futebol (10) e moderando o canal de política (6).
+DOWNLOAD_WINDOW_FUTEBOL = int(os.environ.get('DOWNLOAD_WINDOW_FUTEBOL', 10))
+DOWNLOAD_WINDOW_POLITICA = int(os.environ.get('DOWNLOAD_WINDOW_POLITICA', 6))
+
+# Aliases de compatibilidade
 DOWNLOAD_WINDOW_CURTO = int(os.environ.get('DOWNLOAD_WINDOW_CURTO', 6))
 DOWNLOAD_WINDOW_LONGO = int(os.environ.get('DOWNLOAD_WINDOW_LONGO', 4))
 
@@ -42,29 +45,39 @@ FRESHNESS_DAYS = int(os.environ.get('FRESHNESS_DAYS', 3))
 
 
 def _select_pending_videos(db_conn) -> list:
-    """Seleciona vídeos pendentes pra repor a janela de download ativo.
+    """Seleciona vídeos pendentes pra repor a janela de download ativo por nicho.
 
-    Para cada formato: conta quantos vídeos já ocupam a janela (com arquivo bruto
-    em disco, status em processamento ativo ou clips pendentes/aprovados que ainda
-    estão sendo trabalhados), calcula o déficit até o teto (DOWNLOAD_WINDOW_LONGO/CURTO)
-    e busca só esse tanto, restrito a published_at de hoje ou ontem (FRESHNESS_DAYS),
-    ordenado por prioridade e publicado_at DESC. Se um formato já está na janela
-    cheia, não baixa nada dele nesta rodada.
+    Para cada nicho (futebol: 10, política: 6): conta quantos vídeos já ocupam a janela
+    (com arquivo bruto em disco, status em processamento ativo ou clips pendentes/aprovados
+    que ainda estão sendo trabalhados), calcula o déficit até o teto do nicho
+    (DOWNLOAD_WINDOW_FUTEBOL / DOWNLOAD_WINDOW_POLITICA) e busca só esse tanto, restrito
+    a published_at de até FRESHNESS_DAYS dias atrás, ordenado por prioridade,
+    posição na fila e published_at DESC. Se um nicho já está na janela cheia, não baixa
+    nada dele nesta rodada.
     """
     cutoff_date = (datetime.now(SAO_PAULO_TZ) - timedelta(days=FRESHNESS_DAYS)).date()
 
+    niche_windows = [
+        ('futebol', DOWNLOAD_WINDOW_FUTEBOL),
+        ('politica', DOWNLOAD_WINDOW_POLITICA),
+    ]
+
     result = []
-    for fmt, window in (('longo', DOWNLOAD_WINDOW_LONGO), ('curto', DOWNLOAD_WINDOW_CURTO)):
+    for niche, window in niche_windows:
         with db_conn.cursor() as cur:
             cur.execute(
                 'SELECT COUNT(DISTINCT sv.id) AS c FROM source_videos sv '
+                'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
                 'LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id '
-                'WHERE sv.format = %s AND ('
+                'WHERE ('
+                '  (LOWER(COALESCE(sc.target_niche, \'futebol\')) = %s) '
+                '  OR (%s = \'futebol\' AND (sc.target_niche IS NULL OR sc.target_niche = \'\'))'
+                ') AND ('
                 '  sv.local_path IS NOT NULL '
                 "  OR sv.status IN ('downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing') "
                 "  OR (gc.id IS NOT NULL AND gc.status IN ('pending_cut', 'pending', 'cutting', 'approved'))"
                 ')',
-                (fmt,),
+                (niche, niche),
             )
             occupied = cur.fetchone()['c']
 
@@ -76,13 +89,16 @@ def _select_pending_videos(db_conn) -> list:
             cur.execute(
                 "SELECT sv.youtube_video_id FROM source_videos sv "
                 "LEFT JOIN source_channels sc ON sc.id = sv.channel_id "
-                "WHERE sv.status = 'pending' AND sv.paused = 0 AND sv.format = %s "
+                "WHERE sv.status = 'pending' AND sv.paused = 0 "
+                "AND ("
+                "  (LOWER(COALESCE(sc.target_niche, 'futebol')) = %s) "
+                "  OR (%s = 'futebol' AND (sc.target_niche IS NULL OR sc.target_niche = ''))"
+                ") "
                 "AND DATE(sv.published_at) >= %s "
                 "ORDER BY sv.priority DESC, "
-                "CASE WHEN LOWER(COALESCE(sc.target_niche, '')) = 'futebol' THEN 0 ELSE 1 END, "
                 "sv.queue_position IS NULL, sv.queue_position ASC, "
                 "sv.published_at DESC LIMIT %s",
-                (fmt, cutoff_date, deficit),
+                (niche, niche, cutoff_date, deficit),
             )
             result.extend(row['youtube_video_id'] for row in cur.fetchall())
 
@@ -237,7 +253,7 @@ def run_pipeline_once(db_conn=None, redis_client=None):
                 'error_msg': str(exc)[:500],
             })
 
-        allow_local = os.getenv('ALLOW_LOCAL_DOWNLOAD', 'true').lower() in ('true', '1', 'yes')
+        allow_local = os.getenv('ALLOW_LOCAL_DOWNLOAD', 'false').lower() in ('true', '1', 'yes')
         if not allow_local:
             try:
                 _download_pending_videos(db_conn)
@@ -335,7 +351,7 @@ def run_ingest_cycle(db_conn=None, redis_client=None):
                 'error_msg': str(exc)[:500],
             })
 
-        allow_local = os.getenv('ALLOW_LOCAL_DOWNLOAD', 'true').lower() in ('true', '1', 'yes')
+        allow_local = os.getenv('ALLOW_LOCAL_DOWNLOAD', 'false').lower() in ('true', '1', 'yes')
         if not allow_local:
             try:
                 _download_pending_videos(db_conn)

@@ -95,7 +95,9 @@ class DestinationChannelController extends Controller
             if (str_contains($niche, 'fut')) {
                 $relativePath = 'background-futebol-em-cortes.png';
             } elseif (str_contains($niche, 'pol')) {
-                $relativePath = 'background-cortes-da-politica.png';
+                $relativePath = Storage::disk('branding')->exists('background-fatos-e-debates.png')
+                    ? 'background-fatos-e-debates.png'
+                    : 'background-cortes-da-politica.png';
             } elseif (str_contains($niche, 'pod')) {
                 $relativePath = 'background-podcast-cortes.png';
             }

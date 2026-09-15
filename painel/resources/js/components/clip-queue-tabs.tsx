@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import type { FormDataConvertible } from '@inertiajs/core';
 import { toast } from 'sonner';
-import { Check, Play, X, Eye } from 'lucide-react';
+import { Check, Play, X, Eye, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -345,27 +345,39 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                 key={clip.id}
                                 className="group rounded-2xl border border-border bg-card overflow-hidden flex flex-col hover:border-primary/40 transition-all shadow-xs"
                             >
-                                <div className="relative aspect-video overflow-hidden" style={{ background: bgGradient }}>
+                                <div className="relative aspect-video overflow-hidden bg-zinc-950 cursor-pointer" style={{ background: bgGradient }} onClick={() => setModalClip(clip)}>
+                                    {clip.hasThumbnailFile && clip.thumbnailUrl ? (
+                                        <img
+                                            src={clip.thumbnailUrl}
+                                            alt={clip.title}
+                                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                            loading="lazy"
+                                        />
+                                    ) : null}
+                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors pointer-events-none" />
                                     <div className="absolute inset-0 grid place-items-center">
                                         <button
                                             type="button"
-                                            onClick={() => setModalClip(clip)}
-                                            className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md border border-white/20 grid place-items-center text-white group-hover:scale-105 transition-transform"
-                                            title="Abrir preview no celular (9:16) ou computador (16:9)"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setModalClip(clip);
+                                            }}
+                                            className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20 grid place-items-center text-white group-hover:scale-110 transition-transform shadow-lg"
+                                            title="Abrir preview e capa oficial"
                                         >
                                             <Play className="w-5 h-5 ml-0.5 fill-white" />
                                         </button>
                                     </div>
-                                    <span className="absolute left-2.5 top-2.5 font-semibold text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
-                                        {isPol ? '🏛️ Política' : '⚽ Futebol'}
+                                    <span className="absolute left-2.5 top-2.5 font-semibold text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10 z-10">
+                                        {isPol ? '🏛️ Fatos & Debates' : '⚽ Futebol'}
                                     </span>
-                                    <span className="absolute right-2.5 top-2.5">
+                                    <span className="absolute right-2.5 top-2.5 z-10">
                                         <FormatBadge format={clip.format} />
                                     </span>
-                                    <span className="absolute left-2.5 bottom-2.5 font-mono text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10">
+                                    <span className="absolute left-2.5 bottom-2.5 font-mono text-[11px] px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-md border border-white/10 z-10">
                                         {clip.trecho}
                                     </span>
-                                    <span className="absolute right-2.5 bottom-2.5">
+                                    <span className="absolute right-2.5 bottom-2.5 z-10">
                                         <ScoreBadge score={clip.score} />
                                     </span>
                                 </div>
@@ -481,16 +493,25 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                             />
                                         </TableCell>
 
-                                        {/* Coluna CLIPE: Thumbnail + Título + Badges (Nicho e Formato) */}
+                                        {/* Coluna CLIPE: Capa + Título + Badges (Nicho e Formato) */}
                                         <TableCell className="px-4 py-3 max-w-[360px]">
                                             <div className="flex items-start gap-3">
                                                 <div
-                                                    className="w-12 h-9 rounded-lg shrink-0 grid place-items-center text-white shadow-xs cursor-pointer hover:opacity-90 transition-opacity"
+                                                    className="w-14 h-9 rounded-lg shrink-0 overflow-hidden relative grid place-items-center text-white shadow-xs cursor-pointer hover:opacity-90 transition-opacity bg-zinc-900 border border-border"
                                                     style={{ background: bgGradient }}
                                                     onClick={() => setModalClip(clip)}
-                                                    title="Clique para ver o preview no celular (9:16) ou computador (16:9)"
+                                                    title="Clique para abrir o preview e ver a capa"
                                                 >
-                                                    <Play className="w-3.5 h-3.5 ml-0.5 fill-white" />
+                                                    {clip.hasThumbnailFile && clip.thumbnailUrl ? (
+                                                        <img
+                                                            src={clip.thumbnailUrl}
+                                                            alt={clip.title}
+                                                            className="w-full h-full object-cover"
+                                                            loading="lazy"
+                                                        />
+                                                    ) : (
+                                                        <Play className="w-3.5 h-3.5 ml-0.5 fill-white" />
+                                                    )}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
                                                     <div className="font-semibold text-sm text-foreground tracking-tight line-clamp-1" title={clip.title}>
@@ -650,57 +671,134 @@ function FailuresTable({
     return (
         <div className="flex flex-col gap-4">
             {failedSourceVideoCount > 0 && (
-                <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-between text-xs">
-                    <span>⚠️ {failedSourceVideoCount} vídeo(s) fonte falharam no download ou processamento.</span>
-                    <a href="/painel/videos?tab=falharam" className="underline font-semibold">
-                        Ver falhas em Vídeos →
-                    </a>
+                <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2">
+                        <span>⚠️ {failedSourceVideoCount} vídeo(s) fonte falharam no download ou processamento.</span>
+                        <a href="/painel/videos?tab=falharam" className="underline font-semibold ml-1">
+                            Ver detalhes →
+                        </a>
+                    </div>
+                    <ConfirmButton
+                        variant="destructive"
+                        size="sm"
+                        className="h-8 text-xs font-semibold gap-1.5 shadow-xs"
+                        description={`Tem certeza que deseja apagar todos os ${failedSourceVideoCount} registros de vídeos com falha e seus arquivos temporários?`}
+                        onConfirm={() => post('/painel/videos/purge-failed')}
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Remover {failedSourceVideoCount} vídeos falhados
+                    </ConfirmButton>
                 </div>
             )}
 
             {clips.length > 0 && (
-                <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
-                    <Table className="w-full text-xs">
-                        <TableHeader className="bg-muted/40">
-                            <TableRow>
-                                <TableHead className="px-5 py-3 font-semibold">ID</TableHead>
-                                <TableHead className="px-5 py-3 font-semibold">Título & Erro</TableHead>
-                                <TableHead className="px-5 py-3 font-semibold">Canal Destino</TableHead>
-                                <TableHead className="px-5 py-3 font-semibold">Data</TableHead>
-                                <TableHead className="px-5 py-3 font-semibold text-right">Ação</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {clips.map((clip) => (
-                                <TableRow key={clip.id} className="hover:bg-muted/30">
-                                    <TableCell className="px-5 py-3 font-mono text-muted-foreground">#{clip.id}</TableCell>
-                                    <TableCell className="px-5 py-3 max-w-[350px]">
-                                        <div className="font-medium text-foreground">{clip.title}</div>
-                                        {clip.uploadError && (
-                                            <span className="text-[11px] text-destructive block truncate mt-0.5" title={clip.uploadError}>
-                                                {clip.uploadError}
-                                            </span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="px-5 py-3">
-                                        <NicheBadge niche={clip.niche} channelName={clip.destinationChannelName} />
-                                    </TableCell>
-                                    <TableCell className="px-5 py-3 text-muted-foreground font-mono text-[11px]">{clip.updatedAt}</TableCell>
-                                    <TableCell className="px-5 py-3 text-right">
-                                        <ConfirmButton
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-8 text-xs rounded-lg"
-                                            description={`Reenviar clip #${clip.id} para reprocessamento?`}
-                                            onConfirm={() => post(`/painel/clips/${clip.id}/reprocess`)}
-                                        >
-                                            Reprocessar
-                                        </ConfirmButton>
-                                    </TableCell>
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">
+                            {clips.length} clip(s) com falha recente
+                        </span>
+                        <ConfirmButton
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 gap-1.5"
+                            description={`Excluir definitivamente todos os ${clips.length} registros de clips com falha?`}
+                            onConfirm={() => post('/painel/clips/purge-failed')}
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Limpar todos os clips falhados
+                        </ConfirmButton>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+                        <Table className="w-full text-xs">
+                            <TableHeader className="bg-muted/40">
+                                <TableRow>
+                                    <TableHead className="w-16 px-5 py-3 font-semibold">ID</TableHead>
+                                    <TableHead className="px-5 py-3 font-semibold">Vídeo & Detalhes da Falha</TableHead>
+                                    <TableHead className="w-44 px-5 py-3 font-semibold">Canal Destino</TableHead>
+                                    <TableHead className="w-32 px-5 py-3 font-semibold">Data</TableHead>
+                                    <TableHead className="w-40 px-5 py-3 font-semibold text-right">Ações</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {clips.map((clip) => {
+                                    const clipTitle = clip.title || (clip.sourceVideoTitle ? `Corte de: ${clip.sourceVideoTitle}` : `Clip #${clip.id}`);
+                                    const hasDistinctSource = Boolean(clip.sourceVideoTitle && clip.title && clip.title !== clip.sourceVideoTitle && !clip.title.includes(clip.sourceVideoTitle));
+
+                                    return (
+                                        <TableRow key={clip.id} className="hover:bg-muted/30">
+                                            <TableCell className="px-5 py-4 font-mono text-muted-foreground align-top font-semibold">
+                                                #{clip.id}
+                                            </TableCell>
+                                            <TableCell className="px-5 py-4 align-top">
+                                                <div className="flex flex-col gap-2 max-w-3xl">
+                                                    <div>
+                                                        <div className="font-semibold text-foreground text-[13px] leading-snug" title={clipTitle}>
+                                                            {clipTitle}
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                                                            {hasDistinctSource && (
+                                                                <span title={clip.sourceVideoTitle ?? ''} className="truncate max-w-md">
+                                                                    🎬 <span className="font-medium text-foreground/70">Fonte:</span> {clip.sourceVideoTitle}
+                                                                </span>
+                                                            )}
+                                                            {clip.trecho && (
+                                                                <span className="font-mono text-[10.5px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/40">
+                                                                    ⏱️ Trecho: {clip.trecho}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Box de Diagnóstico do Erro com quebra de linha garantida */}
+                                                    <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                                                        <div className="flex items-center gap-1.5 font-semibold text-destructive mb-1 text-[11px] uppercase tracking-wider">
+                                                            <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-destructive" />
+                                                            <span>Diagnóstico da Falha</span>
+                                                        </div>
+                                                        <div className="text-[11.5px] leading-relaxed break-words font-mono text-destructive/95 bg-destructive/5 p-2 rounded-lg border border-destructive/15">
+                                                            {clip.uploadError || 'Falha no corte ou processamento do vídeo'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="px-5 py-4 align-top">
+                                                <div className="pt-0.5">
+                                                    <NicheBadge niche={clip.niche} channelName={clip.destinationChannelName} />
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="px-5 py-4 text-muted-foreground font-mono text-[11px] align-top whitespace-nowrap">
+                                                <div className="pt-1">{clip.updatedAt}</div>
+                                            </TableCell>
+                                            <TableCell className="px-5 py-4 text-right align-top">
+                                                <div className="flex items-center justify-end gap-1.5 pt-0.5">
+                                                    <ConfirmButton
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 text-xs font-semibold rounded-lg gap-1 border-primary/40 hover:bg-primary/10 hover:text-primary shadow-xs"
+                                                        description={`Reenviar clip #${clip.id} para reprocessamento? Ele voltará para a fila de corte.`}
+                                                        onConfirm={() => post(`/painel/clips/${clip.id}/reprocess`)}
+                                                    >
+                                                        <RefreshCw className="w-3.5 h-3.5" />
+                                                        Reprocessar
+                                                    </ConfirmButton>
+                                                    <ConfirmButton
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                                                        description={`Excluir o clip #${clip.id} definitivamente do banco?`}
+                                                        onConfirm={() => post(`/painel/clips/${clip.id}/delete`)}
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </ConfirmButton>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </div>
             )}
         </div>

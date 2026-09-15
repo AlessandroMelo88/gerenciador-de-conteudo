@@ -20,7 +20,9 @@ from zoneinfo import ZoneInfo
 from src.telegram_notifier import notify
 
 SAO_PAULO_TZ = ZoneInfo('America/Sao_Paulo')
-MAX_WINDOW_SLOTS = 7
+DOWNLOAD_WINDOW_FUTEBOL = int(os.environ.get('DOWNLOAD_WINDOW_FUTEBOL', 10))
+DOWNLOAD_WINDOW_POLITICA = int(os.environ.get('DOWNLOAD_WINDOW_POLITICA', 6))
+MAX_WINDOW_SLOTS = DOWNLOAD_WINDOW_FUTEBOL + DOWNLOAD_WINDOW_POLITICA
 WINDOW_STUCK_HOURS = 2
 APPROVAL_IDLE_HOURS = 6
 MIN_FREE_DISK_GB = 5.0
@@ -54,16 +56,20 @@ def check_disk_space(path: str = '/app/videos') -> dict | None:
 
 
 def check_ghost_clips(conn) -> int:
-    """Identifica e cura clipes marcados como 'approved' ou 'pending_cut' sem arquivo .mp4 no disco.
+    """Identifica e cura clipes que perderam seus arquivos no disco:
+    1. Clipes em 'approved' ou 'pending' cujo arquivo de corte (.mp4) não existe mais.
+    2. Clipes em 'pending_cut' cujo vídeo fonte original não existe mais no disco.
 
     Retorna a quantidade de clipes curados.
     """
     curated_count = 0
     with conn.cursor() as cur:
         cur.execute(
-            'SELECT gc.id, gc.source_video_id, gc.clip_path, gc.status, gc.title '
+            'SELECT gc.id, gc.source_video_id, gc.clip_path, gc.status, gc.title, '
+            'sv.title AS source_title, sv.local_path AS source_local_path '
             'FROM generated_clips gc '
-            "WHERE gc.status IN ('approved', 'pending_cut', 'cutting') "
+            'LEFT JOIN source_videos sv ON sv.id = gc.source_video_id '
+            "WHERE gc.status IN ('approved', 'pending', 'pending_cut') "
         )
         clips = cur.fetchall() or []
 
@@ -71,21 +77,32 @@ def check_ghost_clips(conn) -> int:
         clip_id = clip['id']
         source_id = clip['source_video_id']
         clip_path = clip.get('clip_path')
+        status = clip.get('status')
+        source_local_path = clip.get('source_local_path')
 
         is_ghost = False
-        if not clip_path:
-            is_ghost = True
-        elif not os.path.exists(clip_path):
-            is_ghost = True
+        error_reason = ''
+
+        if status in ('approved', 'pending'):
+            # Clip já foi cortado — arquivo final deve existir
+            if not clip_path or not os.path.exists(clip_path):
+                is_ghost = True
+                error_reason = 'Arquivo .mp4 do corte não encontrado no disco (auto-cura watchdog)'
+        elif status == 'pending_cut':
+            # Clip ainda não foi cortado — arquivo fonte original deve existir para permitir o corte
+            if not source_local_path or not os.path.exists(source_local_path):
+                is_ghost = True
+                error_reason = 'Vídeo fonte original não encontrado no disco para realizar o corte'
 
         if is_ghost:
-            _log(f'Auto-cura: Clip fantasma #{clip_id} ("{clip.get("title")}") sem arquivo em disco. Marcando failed.')
+            title = clip.get('title') or clip.get('source_title') or f'Clip #{clip_id}'
+            _log(f'Auto-cura: Clip fantasma #{clip_id} ("{title}") status={status}. Marcando failed: {error_reason}')
             with conn.cursor() as cur:
                 cur.execute(
                     "UPDATE generated_clips SET status = 'failed', clip_path = NULL, "
-                    "upload_error = 'Arquivo .mp4 não encontrado no disco (auto-cura watchdog)' "
+                    "upload_error = %s "
                     "WHERE id = %s",
-                    (clip_id,),
+                    (error_reason, clip_id),
                 )
                 # Libera o vídeo fonte se não houver outros clipes válidos
                 cur.execute(
