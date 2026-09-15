@@ -52,6 +52,7 @@ horizontal de 7 a 20 min).
 
 | Documento | Responde |
 |---|---|
+| [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md) | Ofertas de afiliado: `affiliate-worker` local que empurra ofertas, `POST /api/offers` com token fail-closed, tela Ofertas, redirect rastreável `/o/{slug}` com clique sem IP cru |
 | [`PLANO-MESTRE.md`](PLANO-MESTRE.md) | **Ponto de retomada.** Advertência de direitos autorais de 14/09/2026, gate de licença em `source_channels`, migração A1 12 GB + PostgreSQL, marca Umbrella Solutions, plano de afiliados, ordem de execução e decisões registradas |
 | [`PLANO-ORACLE.md`](PLANO-ORACLE.md) | Migração para Oracle Cloud Always Free: decisão, como o custo zero é garantido, riscos e checklist por fase |
 
