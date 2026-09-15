@@ -1,6 +1,6 @@
 FROM php:8.3-fpm
 
-RUN apt-get update && apt-get install -y     libzip-dev unzip git curl libpng-dev libjpeg-dev libfreetype6-dev     libwebp-dev libonig-dev libxml2-dev libicu-dev cron procps     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp     && docker-php-ext-install intl gd pdo_mysql mysqli zip exif pcntl bcmath     && docker-php-ext-enable opcache
+RUN apt-get update && apt-get install -y     libzip-dev unzip git curl libpng-dev libjpeg-dev libfreetype6-dev     libwebp-dev libonig-dev libxml2-dev libicu-dev libpq-dev cron procps     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp     && docker-php-ext-install intl gd pdo_mysql mysqli pdo_pgsql pgsql zip exif pcntl bcmath     && docker-php-ext-enable opcache
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 

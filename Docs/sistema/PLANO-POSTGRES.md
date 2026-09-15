@@ -22,6 +22,11 @@ Fluxo de branch e deploy: [`../../DEPLOY.md`](../../DEPLOY.md).
 **Regra de isolamento:** o container `postgres` da raiz `wordpress/` é compartilhado. Criar/alterar
 apenas o banco `clips_automation` e o usuário `clips_user`.
 
+O container `php` local também é compartilhado (feeb, kelnab, riodelux, placebeads) e é construído pelo
+`wordpress/Dockerfile`, fora deste projeto. Como ele não tem `pdo_pgsql`, a fase A usa uma **imagem
+própria** construída do `canaldecortes/Dockerfile.php` — o mesmo arquivo que vai para produção. Assim
+nada do ambiente dos outros projetos é alterado, e a correção já nasce pronta para a fase B.
+
 ---
 
 ## Situação apurada (15/09/2026)
@@ -45,6 +50,9 @@ A validação real é um ciclo completo rodando contra o Postgres (etapa A6).
 
 - [x] **A1.** Banco e usuário próprios no Postgres local — `clips_automation` com owner `clips_user`, criado em 15/09/2026 no container `postgres` (17.2). Outros bancos do container intocados
 - [ ] **A2.** `php artisan migrate` num Postgres vazio e comparação do schema com o MySQL (tabelas, colunas, tipos, índices, FKs)
+  - [x] **A2.0 — obstáculo encontrado:** a imagem PHP não tem `pdo_pgsql` (`could not find driver`). Só `pdo_mysql` e `pdo_sqlite`
+  - [x] `Dockerfile.php` (o do projeto, usado em produção) ganhou `libpq-dev` + `pdo_pgsql`/`pgsql`
+  - [ ] imagem local `canaldecortes-php` construída a partir dele, para rodar artisan e testes contra o Postgres
 - [ ] **A3.** Painel local sai do SQLite e passa para Postgres (`painel/.env`); `phpunit.xml` aponta para o Postgres local
 - [ ] **A4.** Suíte do painel verde contra Postgres (`php artisan test`)
 - [ ] **A5.** Auditoria das 85 queries do `clip-processor` e correção dos pontos não portáveis:
