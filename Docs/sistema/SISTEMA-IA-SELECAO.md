@@ -217,8 +217,8 @@ Quatro constantes, [`selector.py:58-62`](../clip-processor/src/selector.py#L58):
 
 | Constante | Valor atual | Linha | Significado |
 |---|---|---|---|
-| `MIN_SHORTFORM_SECONDS` | **30** (era 15 até 13/08/2026) | [`:58`](../clip-processor/src/selector.py#L58) | Piso do curto. Abaixo disso, momento é **descartado** |
-| `MAX_SHORTFORM_SECONDS` | **180** | [`:59`](../clip-processor/src/selector.py#L59) | Teto do curto. Acima disso, momento é **descartado** |
+| `MIN_SHORTFORM_SECONDS` | **30** (era 15 até 13/08/2026) | [`:58`](../clip-processor/src/selector.py#L58) | Alvo do curto. De 15 s a 30 s o momento é **esticado** até bater 30 s; abaixo de 15 s é **descartado** |
+| `MAX_SHORTFORM_SECONDS` | **180** | [`:59`](../clip-processor/src/selector.py#L59) | Teto do curto (limite do Shorts). Acima disso o `end_time` é **cortado no teto**, não descartado |
 | `MIN_LONGFORM_SECONDS` | **420** | [`:61`](../clip-processor/src/selector.py#L61) | Piso do longo. Abaixo disso, o segmento é **esticado** |
 | `MAX_LONGFORM_SECONDS` | **1200** | [`:62`](../clip-processor/src/selector.py#L62) | Teto do longo, aplicado ao esticar |
 
@@ -237,6 +237,9 @@ percorre os momentos, e qualquer um fora de `[30, 180]` é **jogado fora** com l
 [SELECTOR] Momento descartado: duração 4.2s menor que o mínimo (30s)
 ```
 
+**Curto — `_filter_shortform_duration()`**: abaixo de 15 s descarta; entre 15 s e 30 s estica
+simetricamente até 30 s, respeitando `0` e a duração real da transcrição; acima de 180 s corta no teto.
+
 **Longo — `_enforce_longform_duration()`** ([`selector.py:139`](../clip-processor/src/selector.py#L139)):
 segmento abaixo de 420 s é **esticado simetricamente** — metade do que falta para trás, metade para
 frente — respeitando `0` e a duração real da transcrição, e com o `end_time` clampado em
@@ -247,6 +250,10 @@ frente — respeitando `0` e a duração real da transcrição, e com o `end_tim
 - Esticar um trecho de 3 s para 30 s **não cria assunto** — adiciona 27 s de contexto aleatório em
   volta de uma interjeição. O resultado é um short ruim de 30 s em vez de um short ruim de 3 s.
   Descartar é melhor: sobra vaga para outro momento, ou o vídeo vira `failed` e libera a janela.
+- **Piso de esticamento em 15 s** (decisão do operador, 15/09/2026): de 15 s para cima já existe
+  assunto, e completar até 30 s com o contexto em volta melhora o short em vez de estragá-lo. É por
+  isso que o curto tem os dois comportamentos: **descarta abaixo de 15 s, estica entre 15 s e 30 s.**
+  O clip pode ir até 180 s, o limite do Shorts.
 - No longo, esticar **funciona**: numa entrevista, os 6 minutos em volta do trecho escolhido são
   quase certamente mais da mesma conversa. Esticar recupera contexto real. E como o modo longo
   produz **1** clip por vídeo, descartar significaria não publicar nada daquele vídeo — custo alto

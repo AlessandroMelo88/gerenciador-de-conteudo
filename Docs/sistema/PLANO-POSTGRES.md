@@ -87,9 +87,11 @@ coluna.**
 
 - `test_rss_poller`: o código passa `niche=` para `select_moments` e o teste esperava a chamada sem
   esse argumento. Teste alinhado.
-- `test_selector::test_shortform_under_30s_discarded`: o teste espera que um momento de 20 s seja
-  **descartado**, mas `_filter_shortform_duration` hoje **estica** momentos de 15 s ou mais até os 30 s
-  (o de 20 s virou 45–75 s). Ou o código ou o teste está errado — **decisão de produto, não toquei**.
+- `test_selector::test_shortform_under_30s_discarded`: o teste esperava descarte de um momento de 20 s,
+  mas o código **estica** momentos de 15 s ou mais até 30 s. **Decisão do operador (15/09/2026): o código
+  está certo** — clip de 2-5 s não é assunto, de 15 s para cima vale completar até 30 s, e o teto é 180 s
+  (limite do Shorts). Teste reescrito em três casos (descarta <15 s, estica 15-30 s, corta em 180 s) e
+  `SISTEMA-IA-SELECAO.md` atualizado.
 
 ## Fase B — produção (fazer junto da VM A1 de 12 GB)
 
