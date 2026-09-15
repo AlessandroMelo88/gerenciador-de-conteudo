@@ -12,8 +12,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     const brand = useBrand();
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
-        email: 'alessandrobm1988@gmail.com',
-        password: 'CanalCortes2026!',
+        email: '',
+        password: '',
         remember: true,
     });
 
