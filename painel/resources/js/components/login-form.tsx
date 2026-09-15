@@ -12,6 +12,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     const brand = useBrand();
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
+        // Nunca pré-preencher credencial: este arquivo vira bundle JS público e o repositório é público.
         email: '',
         password: '',
         remember: true,
