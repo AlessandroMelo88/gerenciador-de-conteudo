@@ -4,7 +4,7 @@ Status: **FEITO** (corrigido e verificado) · **PARCIAL** (parte corrigida, part
 **ABERTO** (confirmado, não corrigido) · **SUSPEITA** (evidência parcial, falta confirmar).
 
 Numeração é estável — não renumerar ao fechar um item, outros documentos linkam por número.
-Última atualização: **13/08/2026**.
+Última atualização: **15/09/2026**.
 
 | # | Status | Título |
 |---|---|---|
@@ -19,6 +19,8 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 9 | FEITO | Download falho vazava disco e entupia a janela |
 | 10 | ABERTO | 287 clips com `clip_path` apontando para arquivo inexistente |
 | 11 | ABERTO | Container não honra SIGTERM — todo `docker stop` vira SIGKILL |
+| 12 | FEITO | Worker local de download ignorava a janela — disco em 100% e painel fora do ar |
+| 13 | FEITO | Rejeitar no painel não apagava os arquivos do clip |
 
 ---
 
@@ -270,3 +272,40 @@ Não testei essa hipótese.
 
 Mitigação até então: seguir [`RUNBOOK.md`](RUNBOOK.md#reiniciar-o-clip-processor-com-segurança) —
 conferir se há `cutting`/`publishing` em trânsito **antes** de parar o container.
+
+---
+
+## 12. FEITO — Worker local de download ignorava a janela
+
+**Incidente 15/09/2026.** Better Stack: `Timeout (no headers received)` em `/painel` por mais de 1 h.
+Cadeia: disco 100% → MySQL `Disk is full writing './binlog.000012' ... Waiting for someone to free
+space` → requisições do PHP presas → `server reached pm.max_children setting (5)` → nginx sem resposta.
+
+Causa: `scripts/local_download_worker.py` (launchd `com.canaldecortes.downloader`) buscava 10 vídeos de
+futebol + 6 de política **a cada ciclo de 5–30 s**, sem contar quantos já ocupavam o servidor. O teto
+só existia no `pipeline_runner`, que com `ALLOW_LOCAL_DOWNLOAD=true` não baixa. 306 downloads num dia,
+325 vídeos de política parados em `downloaded` (a VM de 1 GB não transcreve nesse ritmo), 377 na janela.
+
+**Correção:** regra única nos dois lados — **10 vídeos por canal destino ativo** (`_niche_windows` no
+servidor, `niche_windows` no worker; watchdog usa o mesmo teto). Worker baixa um vídeo por ciclo, reconta
+a ocupação e não baixa nada se a contagem falhar.
+
+**Destrave feito:** worker parado, `clip-processor` congelado com `docker pause`, cache de build e journal
+limpos (3,5 G) e 1.980 arquivos órfãos apagados após listagem por id (20,5 G): `_raw` de clip encerrado,
+vídeo/áudio/transcrição sem registro, `.mp4` final de clip apagado do banco e artefatos de clips rejeitados.
+Disco de 100% para 57%.
+
+---
+
+## 13. FEITO — Rejeitar no painel não apagava os arquivos do clip
+
+`DashboardController::reject`/`bulkReject` apagavam com `Storage::disk('clips-videos')`, mas o volume de
+vídeos é montado **read-only** no container `php` (`docker-compose.yml`) e os arquivos são do root do
+`clip-processor`. Com `'throw' => false` a falha era silenciosa: o clip virava `rejected` e o `.mp4`, o
+`_raw` e a thumbnail continuavam no disco (33 clips, 4 G em 15/09/2026). O caminho do sidecar
+(`rejeitar.py`) apagava só o `.mp4` final.
+
+**Correção:** o painel chama `POST /internal/reject-clip`; `rejeitar.py` apaga todos os artefatos pelo id
+(`<id>.mp4`, `<id>_raw.mp4`, `<id>_subtitled.mp4`, `<id>.srt`, `thumbnails/<id>.jpg`) e preserva o vídeo-fonte.
+Sidecar fora do ar → painel mostra erro e o clip continua `pending`. O Redis não participa da rejeição.
+

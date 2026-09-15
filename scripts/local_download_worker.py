@@ -31,6 +31,13 @@ TEMP_DOWNLOAD_DIR = Path('/tmp/gdc_downloads')
 TEMP_DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 PID_FILE = Path('/tmp/local_download_worker.pid')
 
+# Teto de vídeos ocupando o servidor: 10 por canal destino ativo do nicho — mesma
+# regra do clip-processor (pipeline_runner._niche_windows). Dois canais destino =
+# 20 no total; cada canal novo soma 10. Sem esse teto o worker baixava 16 vídeos a
+# cada ciclo de 5–30 s: em 15/09/2026 foram 306 downloads num dia, 377 vídeos
+# parados na janela e o disco do servidor em 100%.
+DOWNLOAD_WINDOW_PER_CHANNEL = int(os.environ.get('DOWNLOAD_WINDOW_PER_CHANNEL', 10))
+
 
 def _log(msg: str):
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [LOCAL-WORKER] {msg}', flush=True)
@@ -94,54 +101,108 @@ def get_video_duration(file_path: Path) -> float:
         return 0.0
 
 
+def _niche_filter(niche: str) -> str:
+    """Filtro SQL do nicho; futebol também absorve canal sem nicho (igual ao pipeline_runner)."""
+    if niche == 'futebol':
+        return "(sc.target_niche = 'futebol' OR sc.target_niche IS NULL OR sc.target_niche = '')"
+    # niche vem de destination_channels; só slug simples entra na query.
+    if not niche.replace('_', '').replace('-', '').isalnum():
+        raise ValueError(f'nicho inválido: {niche!r}')
+    return f"sc.target_niche = '{niche}'"
+
+
+def niche_windows() -> dict:
+    """Teto por nicho = DOWNLOAD_WINDOW_PER_CHANNEL × canais destino ativos.
+
+    Futebol primeiro. Falha na consulta devolve {} — sem download (fail-closed).
+    """
+    output = run_remote_mysql(
+        "SELECT LOWER(TRIM(niche)), COUNT(*) FROM destination_channels "
+        "WHERE active = 1 GROUP BY LOWER(TRIM(niche));"
+    )
+    windows = {}
+    for line in output.splitlines():
+        parts = line.split('\t')
+        if len(parts) == 2 and parts[0] and parts[1].strip().isdigit():
+            windows[parts[0]] = int(parts[1]) * DOWNLOAD_WINDOW_PER_CHANNEL
+    if not windows:
+        _log('Nenhum canal destino ativo lido — sem download neste ciclo')
+    return dict(sorted(windows.items(), key=lambda w: (w[0] != 'futebol', w[0])))
+
+
+def window_deficit(occupied: int, window: int) -> int:
+    """Quantas vagas faltam na janela do nicho. Nunca negativo."""
+    return max(0, window - occupied)
+
+
+def count_window_occupancy(niche: str) -> int | None:
+    """Conta vídeos do nicho que já ocupam o servidor.
+
+    Mesmo critério de `_select_pending_videos` no pipeline_runner: arquivo em disco,
+    status em processamento ou clip ainda sendo trabalhado. Retorna None se a
+    consulta falhar — quem chama não deve baixar nada nesse caso (fail-closed).
+    """
+    query = (
+        "SELECT COUNT(DISTINCT sv.id) FROM source_videos sv "
+        "LEFT JOIN source_channels sc ON sc.id = sv.channel_id "
+        "LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id "
+        f"WHERE {_niche_filter(niche)} AND ("
+        "  (sv.local_path IS NOT NULL AND sv.local_path <> '') "
+        "  OR sv.status IN ('downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing') "
+        "  OR (gc.id IS NOT NULL AND gc.status IN ('pending_cut', 'pending', 'cutting', 'approved'))"
+        ");"
+    )
+    output = run_remote_mysql(query)
+    try:
+        return int(output.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        _log(f'Não consegui contar a janela de {niche} (saída: {output[:80]!r}) — sem download neste ciclo')
+        return None
+
+
 def fetch_pending_videos():
-    """Busca até 16 vídeos recentes (máx 2 dias) com status 'pending' (10 futebol, 6 política)."""
+    """Busca vídeos 'pending' recentes (máx 2 dias) só até completar a janela de cada nicho."""
     # Auto-expurgo de vídeos com mais de 2 dias (notícia velha)
     run_remote_mysql("UPDATE source_videos SET status = 'failed' WHERE status = 'pending' AND published_at < NOW() - INTERVAL 2 DAY;")
 
-    query = """
-    (
-      SELECT sv.id, sv.youtube_video_id, sv.title, sv.format
-      FROM source_videos sv
-      LEFT JOIN source_channels sc ON sv.channel_id = sc.id
-      WHERE sv.status = 'pending'
-        AND (sv.local_path IS NULL OR sv.local_path = '')
-        AND sv.published_at >= NOW() - INTERVAL 2 DAY
-        AND (sc.target_niche = 'futebol' OR sc.target_niche IS NULL)
-      ORDER BY
-        CASE WHEN sv.title LIKE '%#shorts%' OR sv.title LIKE '%#short%' THEN 1 ELSE 0 END ASC,
-        sv.id DESC
-      LIMIT 10
-    )
-    UNION ALL
-    (
-      SELECT sv.id, sv.youtube_video_id, sv.title, sv.format
-      FROM source_videos sv
-      LEFT JOIN source_channels sc ON sv.channel_id = sc.id
-      WHERE sv.status = 'pending'
-        AND (sv.local_path IS NULL OR sv.local_path = '')
-        AND sv.published_at >= NOW() - INTERVAL 2 DAY
-        AND sc.target_niche = 'politica'
-      ORDER BY
-        CASE WHEN sv.title LIKE '%#shorts%' OR sv.title LIKE '%#short%' THEN 1 ELSE 0 END ASC,
-        sv.id DESC
-      LIMIT 6
-    );
-    """
-    output = run_remote_mysql(query)
-    if not output:
-        return []
-
     videos = []
-    for line in output.split('\n'):
-        parts = line.split('\t')
-        if len(parts) >= 4:
-            videos.append({
-                'id': int(parts[0]),
-                'youtube_video_id': parts[1],
-                'title': parts[2],
-                'format': parts[3]
-            })
+    for niche, window in niche_windows().items():
+        occupied = count_window_occupancy(niche)
+        if occupied is None:
+            continue
+        deficit = window_deficit(occupied, window)
+        if deficit == 0:
+            continue
+        _log(f'Janela {niche}: {occupied}/{window} ocupada — buscando até {deficit} vídeo(s)')
+
+        query = f"""
+        SELECT sv.id, sv.youtube_video_id, sv.title, sv.format
+        FROM source_videos sv
+        LEFT JOIN source_channels sc ON sv.channel_id = sc.id
+        WHERE sv.status = 'pending'
+          AND sv.paused = 0
+          AND (sv.local_path IS NULL OR sv.local_path = '')
+          AND sv.published_at >= NOW() - INTERVAL 2 DAY
+          AND {_niche_filter(niche)}
+        ORDER BY
+          CASE WHEN sv.title LIKE '%#shorts%' OR sv.title LIKE '%#short%' THEN 1 ELSE 0 END ASC,
+          sv.priority DESC,
+          sv.id DESC
+        LIMIT {deficit};
+        """
+        output = run_remote_mysql(query)
+        if not output:
+            continue
+
+        for line in output.split('\n'):
+            parts = line.split('\t')
+            if len(parts) >= 4:
+                videos.append({
+                    'id': int(parts[0]),
+                    'youtube_video_id': parts[1],
+                    'title': parts[2],
+                    'format': parts[3]
+                })
     return videos
 
 
@@ -239,10 +300,9 @@ def run_cycle():
         return 0
 
     _log(f'Encontrados {len(videos)} vídeo(s) pendente(s) de download.')
-    for v in videos:
-        process_single_video(v)
-        time.sleep(5)
-    return len(videos)
+    # Só o primeiro: a janela é recontada no próximo ciclo, depois que ele entrou.
+    process_single_video(videos[0])
+    return 1
 
 
 def main():
@@ -254,10 +314,8 @@ def main():
     while True:
         try:
             count = run_cycle()
-            if count == 0:
-                time.sleep(30)
-            else:
-                time.sleep(5)
+            # Janela cheia ou nada pendente: espera mais antes de recontar.
+            time.sleep(60 if count == 0 else 5)
         except KeyboardInterrupt:
             _log('Worker encerrado pelo usuário.')
             break

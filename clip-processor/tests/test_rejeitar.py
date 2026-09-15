@@ -68,3 +68,37 @@ def test_clip_nao_existe(mock_db_conn):
         if 'UPDATE' in str(c).upper() and 'rejected' in str(c)
     ]
     assert len(update_calls) == 0
+
+
+def test_apaga_todos_os_artefatos_do_clip(mock_db_conn):
+    """Rejeitar remove final, _raw, _subtitled, .srt e thumbnail — antes só o final saía."""
+    cursor = mock_db_conn.cursor.return_value
+    cursor.rowcount = 1
+    cursor.fetchone.return_value = {'status': 'pending', 'clip_path': '/app/videos/clips/42.mp4'}
+
+    with patch('src.rejeitar.db_connect', return_value=mock_db_conn), \
+         patch('src.rejeitar.os.path.exists', return_value=True), \
+         patch('src.rejeitar.os.remove') as mock_remove:
+        assert rejeitar(42) == 0
+
+    removed = {c.args[0] for c in mock_remove.call_args_list}
+    assert removed == {
+        '/app/videos/clips/42.mp4',
+        '/app/videos/clips/42_raw.mp4',
+        '/app/videos/clips/42_subtitled.mp4',
+        '/app/videos/clips/42.srt',
+        '/app/videos/thumbnails/42.jpg',
+    }
+
+
+def test_status_invalido_nao_apaga_nada(mock_db_conn):
+    """Clip published não é rejeitado e nenhum arquivo é tocado."""
+    cursor = mock_db_conn.cursor.return_value
+    cursor.fetchone.return_value = {'status': 'published', 'clip_path': '/app/videos/clips/9.mp4'}
+
+    with patch('src.rejeitar.db_connect', return_value=mock_db_conn), \
+         patch('src.rejeitar.os.remove') as mock_remove:
+        assert rejeitar(9) == 2
+
+    mock_remove.assert_not_called()
+

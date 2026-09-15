@@ -296,25 +296,27 @@ class DashboardController extends Controller
             : 'Clip não estava mais pendente');
     }
 
-    public function reject(GeneratedClip $clip): RedirectResponse
+    public function reject(GeneratedClip $clip, ClipProcessorClient $client): RedirectResponse
     {
         if (! in_array($clip->status, ['pending', 'approved'], true)) {
             return back()->with('error', 'Status inválido para rejeitar');
         }
 
-        $disk = Storage::disk('clips-videos');
-        $id = $clip->id;
-        $disk->delete([
-            "clips/{$id}.mp4",
-            "clips/{$id}_raw.mp4",
-            "clips/{$id}_subtitled.mp4",
-            "clips/{$id}.srt",
-            "thumbnails/{$id}.jpg",
-        ]);
+        // O volume de vídeos é montado read-only no php (docker-compose.yml) e os
+        // arquivos são do root do clip-processor: Storage::delete falhava calado e o
+        // clip virava 'rejected' com mp4, _raw e thumbnail ainda no disco. Quem apaga
+        // é o sidecar, que grava no volume.
+        try {
+            $exitCode = $client->rejectClip($clip->id);
+        } catch (RuntimeException $e) {
+            return back()->with('error', "Não foi possível rejeitar o clip #{$clip->id}: {$e->getMessage()}");
+        }
 
-        $clip->update(['status' => 'rejected']);
-
-        return back()->with('success', "Clip #{$clip->id} rejeitado");
+        return match ($exitCode) {
+            0 => back()->with('success', "Clip #{$clip->id} rejeitado"),
+            1 => back()->with('error', "Clip #{$clip->id} não existe mais"),
+            default => back()->with('error', 'Status inválido para rejeitar'),
+        };
     }
 
     /**
@@ -456,31 +458,31 @@ class DashboardController extends Controller
         return back()->with('success', 'Ordem da janela atualizada');
     }
 
-    public function bulkReject(Request $request): RedirectResponse
+    public function bulkReject(Request $request, ClipProcessorClient $client): RedirectResponse
     {
         $ids = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']])['ids'];
 
-        $clips = GeneratedClip::query()
+        $clipIds = GeneratedClip::query()
             ->whereIn('id', $ids)
             ->whereIn('status', ['pending', 'approved'])
-            ->get();
+            ->pluck('id');
 
-        $disk = Storage::disk('clips-videos');
-        foreach ($clips as $clip) {
-            $id = $clip->id;
-            $disk->delete([
-                "clips/{$id}.mp4",
-                "clips/{$id}_raw.mp4",
-                "clips/{$id}_subtitled.mp4",
-                "clips/{$id}.srt",
-                "thumbnails/{$id}.jpg",
-            ]);
+        // Mesmo motivo do reject(): arquivo só sai do disco pelo sidecar.
+        $affected = 0;
+        $failed = [];
+        foreach ($clipIds as $clipId) {
+            try {
+                if ($client->rejectClip((int) $clipId) === 0) {
+                    $affected++;
+                }
+            } catch (RuntimeException) {
+                $failed[] = $clipId;
+            }
         }
 
-        $affected = GeneratedClip::query()
-            ->whereIn('id', $ids)
-            ->whereIn('status', ['pending', 'approved'])
-            ->update(['status' => 'rejected']);
+        if ($failed !== []) {
+            return back()->with('error', "{$affected} clip(s) rejeitado(s); falhou em: #".implode(', #', $failed));
+        }
 
         return back()->with('success', "{$affected} clip(s) rejeitado(s)");
     }

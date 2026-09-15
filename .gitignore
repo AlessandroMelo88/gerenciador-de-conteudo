@@ -56,7 +56,10 @@ venv/
 # ============================================================
 .DS_Store
 Thumbs.db
-.claude/
+# Config local do Claude fica de fora, menos as skills do projeto — todo agente
+# e toda sessão precisa enxergar o fluxo de deploy.
+.claude/*
+!.claude/skills/
 # Laravel / Frontend
 painel/vendor/
 painel/node_modules/

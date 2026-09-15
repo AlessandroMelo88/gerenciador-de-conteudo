@@ -66,22 +66,44 @@ não re-ingere o vídeo nesse período.
 
 ## Janela de download
 
-O pipeline **não** baixa tudo que descobre. Ele mantém um número fixo de vídeos com arquivo em disco,
-**por nicho**, garantindo prioridade para Futebol (10 vagas) e moderando Política (6 vagas) para evitar esgotamento de disco:
+O pipeline **não** baixa tudo que descobre. Regra (15/09/2026):
+
+> **10 vídeos por canal destino ativo.** Hoje há 2 canais destino ativos (Futebol em Cortes e
+> Fatos & Debates), então a janela é **20 no total — 10 de futebol e 10 de política**. Cada canal
+> destino novo soma mais 10 ao nicho dele. Canal destino inativo não conta.
+
+Esse teto vale para tudo que ocupa o servidor: vídeo baixando, baixado, transcrevendo, selecionando,
+cortando e vídeo com clip ainda na **fila de aprovação** (`pending`). Por isso a fila de aprovação
+também fica limitada: se há 10 clips de futebol esperando aprovação, não entra vídeo novo de futebol
+até você aprovar ou rejeitar.
 
 | Constante | Default | Env var | Onde |
 |---|---|---|---|
-| `DOWNLOAD_WINDOW_FUTEBOL` | 10 | `DOWNLOAD_WINDOW_FUTEBOL` | [`pipeline_runner.py:33`](../clip-processor/src/pipeline_runner.py#L33) |
-| `DOWNLOAD_WINDOW_POLITICA` | 6 | `DOWNLOAD_WINDOW_POLITICA` | [`pipeline_runner.py:34`](../clip-processor/src/pipeline_runner.py#L34) |
-| `FRESHNESS_DAYS` | 3 | `FRESHNESS_DAYS` | [`pipeline_runner.py:41`](../clip-processor/src/pipeline_runner.py#L41) |
+| `DOWNLOAD_WINDOW_PER_CHANNEL` | 10 | `DOWNLOAD_WINDOW_PER_CHANNEL` | [`pipeline_runner.py`](../clip-processor/src/pipeline_runner.py) |
+| `DOWNLOAD_WINDOW_FUTEBOL` / `_POLITICA` | 10 | idem | fallback só se a leitura de `destination_channels` falhar |
+| `FRESHNESS_DAYS` | 3 | `FRESHNESS_DAYS` | [`pipeline_runner.py`](../clip-processor/src/pipeline_runner.py) |
 
-`_select_pending_videos` ([`pipeline_runner.py:44`](../clip-processor/src/pipeline_runner.py#L44)),
-por nicho:
+`_niche_windows` lê `destination_channels WHERE active = 1`, agrupa por nicho e multiplica por
+`DOWNLOAD_WINDOW_PER_CHANNEL`. `_select_pending_videos`, por nicho:
 
 1. conta a **ocupação** — quantos vídeos daquele nicho ocupam a janela agora;
 2. `deficit = max(0, window - occupied)`; se zero, não baixa nada daquele nicho nesta rodada;
 3. busca exatamente `deficit` vídeos `pending`, `paused = 0`, `DATE(published_at) >= hoje - FRESHNESS_DAYS dias`,
    ordenados por `priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC`.
+
+### Worker local (`scripts/local_download_worker.py`) segue a mesma regra
+
+Com `ALLOW_LOCAL_DOWNLOAD=true` quem baixa é o worker no Mac (IP residencial), iniciado pelo launchd
+(`com.canaldecortes.downloader`). **Até 15/09/2026 ele ignorava a janela**: pegava 16 vídeos a cada
+ciclo de 5–30 s. Resultado: 306 downloads num dia, 377 vídeos na janela, disco do servidor em 100% e
+painel fora do ar. Agora ele:
+
+- lê os canais destino ativos e calcula o mesmo teto (`niche_windows`);
+- conta a ocupação com o mesmo critério do servidor (`count_window_occupancy`);
+- baixa **um vídeo por ciclo** e reconta antes do próximo;
+- se qualquer contagem falhar, **não baixa nada** (fail-closed).
+
+Testes: `scripts/test_local_download_worker.py`.
 
 A definição de "ocupa a janela" está em
 [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md#estados--ocupação-da-janela-de-download) — é mais

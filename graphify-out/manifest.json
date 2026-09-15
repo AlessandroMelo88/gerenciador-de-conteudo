@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/pipeline_runner.py": {
-    "mtime": 1789500056.309407,
-    "ast_hash": "f66b20de1d1379849771a12411c6fe2d",
+    "mtime": 1789514488.6299913,
+    "ast_hash": "8077be62fbc9a97114987cd82cf5a668",
     "semantic_hash": ""
   },
   "clip-processor/src/processar.py": {
@@ -60,9 +60,9 @@
     "semantic_hash": ""
   },
   "clip-processor/src/rejeitar.py": {
-    "mtime": 1789500056.3315463,
-    "ast_hash": "d83f6d0d9b8f77fdce77515b311574ab",
-    "semantic_hash": "d83f6d0d9b8f77fdce77515b311574ab"
+    "mtime": 1789514488.6328835,
+    "ast_hash": "79bfd7cb4280d3977f387743d3b1fa31",
+    "semantic_hash": ""
   },
   "clip-processor/src/rss_poller.py": {
     "mtime": 1789500056.3351,
@@ -145,8 +145,8 @@
     "semantic_hash": "1a627369981db3d6f7f65ba68e9846c8"
   },
   "clip-processor/tests/test_pipeline_runner.py": {
-    "mtime": 1789500056.4390235,
-    "ast_hash": "3399e65605f2339b8bf654481940bb9b",
+    "mtime": 1789514488.635498,
+    "ast_hash": "13032a4898489793222dea84d848ffda",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_processar.py": {
@@ -165,9 +165,9 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_rejeitar.py": {
-    "mtime": 1789500056.4557707,
-    "ast_hash": "5a6a4b7e82d7206ba2073ef285aae9a5",
-    "semantic_hash": "5a6a4b7e82d7206ba2073ef285aae9a5"
+    "mtime": 1789514488.6366124,
+    "ast_hash": "20b4764540a3439ac6630bd5c645e3cc",
+    "semantic_hash": ""
   },
   "clip-processor/tests/test_rss_poller.py": {
     "mtime": 1789500056.459861,
@@ -250,8 +250,8 @@
     "semantic_hash": "25a307335c0719bc9a91b3f7babd186d"
   },
   "painel/app/Http/Controllers/DashboardController.php": {
-    "mtime": 1789500057.3404908,
-    "ast_hash": "ce523cff87e51b5d9b1ada4846dd209c",
+    "mtime": 1789514488.7132025,
+    "ast_hash": "6a493eaad514b770c88317ef5aac62c4",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/DestinationChannelController.php": {
@@ -825,8 +825,8 @@
     "semantic_hash": "f3de41494782e2453a3faab1d768134f"
   },
   "painel/tests/Feature/ClipApprovalActionTest.php": {
-    "mtime": 1789500057.503727,
-    "ast_hash": "b95cfab7deb70c4d957f441a4c03d4a8",
+    "mtime": 1789514488.7154944,
+    "ast_hash": "70b9b9c8a8e5a0f9667e9ac8c5deb5d3",
     "semantic_hash": ""
   },
   "painel/tests/Feature/CreatePainelUserCommandTest.php": {
@@ -1590,8 +1590,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1789500055.9157956,
-    "ast_hash": "f4f53765b73b2fc4ca09e1ac47ff16e0",
+    "mtime": 1789514488.6243653,
+    "ast_hash": "5d62430daa954973115b1d0480f71826",
     "semantic_hash": ""
   },
   "PROJECT_BRIEF.md": {
@@ -1719,104 +1719,19 @@
     "ast_hash": "5602e8cd94b61142830d1e7ba1e5f577",
     "semantic_hash": ""
   },
-  "affiliate-worker/affiliate_worker/__init__.py": {
-    "mtime": 1789500056.1396556,
-    "ast_hash": "1cccb2dffd36f21933498a9bddacbb5c",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/affiliate_worker/__main__.py": {
-    "mtime": 1789500056.140273,
-    "ast_hash": "0b37530bca67ff4be2918ab9d531be3a",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/affiliate_worker/api_client.py": {
-    "mtime": 1789500056.1423109,
-    "ast_hash": "7eb9245a59ecb4b6c14154fd2c1eabc1",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/affiliate_worker/cli.py": {
-    "mtime": 1789500056.1489003,
-    "ast_hash": "377b2595c61334297b14e463d4aeca32",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/affiliate_worker/copywriter.py": {
-    "mtime": 1789500056.153254,
-    "ast_hash": "5a886d969183fc0ab47ca9b095402397",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/affiliate_worker/models.py": {
-    "mtime": 1789500056.1605518,
-    "ast_hash": "c987a0b422228c44adfb5b658e68ad38",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/affiliate_worker/sources/__init__.py": {
-    "mtime": 1789500056.16237,
-    "ast_hash": "f63a0826620e9cb8100db8a819ed18ed",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/affiliate_worker/sources/manual.py": {
-    "mtime": 1789500056.1677682,
-    "ast_hash": "c0bdcb61dda539c86b94ce25272a0dff",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/affiliate_worker/sources/mercadolivre.py": {
-    "mtime": 1789500056.171336,
-    "ast_hash": "a9ccd1ecd73a72c505c684d5ba2b0f16",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/affiliate_worker/storage.py": {
-    "mtime": 1789500056.1723504,
-    "ast_hash": "ff487df59a214927ec369024d791e35b",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/tests/__init__.py": {
-    "mtime": 1789500056.1850407,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/tests/conftest.py": {
-    "mtime": 1789500056.1891131,
-    "ast_hash": "136ac2be67267d1587369488c6f0bc51",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/tests/test_api_client.py": {
-    "mtime": 1789500056.192005,
-    "ast_hash": "39098c0afd87ce459a81920ca0536182",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/tests/test_cli.py": {
-    "mtime": 1789500056.19395,
-    "ast_hash": "55731ce51fd83de2521f5cfb8027f9f6",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/tests/test_copywriter.py": {
-    "mtime": 1789500056.2186832,
-    "ast_hash": "7b97f6c652642967d0cee94101f39bfd",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/tests/test_models.py": {
-    "mtime": 1789500056.220415,
-    "ast_hash": "19a507bbf46a26623b8467146bd313ca",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/tests/test_sources.py": {
-    "mtime": 1789500056.2222319,
-    "ast_hash": "6b040d39a1a32e3d62f3987ea863cf0f",
-    "semantic_hash": ""
-  },
   "clip-processor/src/watchdog.py": {
-    "mtime": 1789500056.34994,
-    "ast_hash": "b193ea744293a03d30d03665359153cc",
+    "mtime": 1789514488.6340902,
+    "ast_hash": "5b6a320dfd293f28e7b3b374362bedfd",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_watchdog.py": {
-    "mtime": 1789500056.6062698,
-    "ast_hash": "399ca96944e193c3cc59b3a0df220bcc",
+    "mtime": 1789514488.6375294,
+    "ast_hash": "1aa0fe971ed705173d7cb51bae928d6b",
     "semantic_hash": ""
   },
   "deploy.sh": {
-    "mtime": 1789500056.6069558,
-    "ast_hash": "1e0fc8ae79c26349bc76f112f3a87860",
+    "mtime": 1789514488.638017,
+    "ast_hash": "c48ce19c58a154015c20c31186170868",
     "semantic_hash": ""
   },
   "painel/app/Console/Commands/BackupDatabaseCommand.php": {
@@ -1829,24 +1744,9 @@
     "ast_hash": "411192449cac9e6f4c13901784c8434f",
     "semantic_hash": ""
   },
-  "painel/app/Http/Controllers/Api/OfferApiController.php": {
-    "mtime": 1789500057.3240345,
-    "ast_hash": "dee39adcd90fd6625c13e146ac1e5b6d",
-    "semantic_hash": ""
-  },
   "painel/app/Http/Controllers/AssistantController.php": {
     "mtime": 1789500057.3248043,
     "ast_hash": "0bd61969353653f26380b88831dc405f",
-    "semantic_hash": ""
-  },
-  "painel/app/Http/Controllers/OfferController.php": {
-    "mtime": 1789504006.3447597,
-    "ast_hash": "9dba2ceeb77670143b549c40142afb9c",
-    "semantic_hash": ""
-  },
-  "painel/app/Http/Controllers/OfferRedirectController.php": {
-    "mtime": 1789500057.3479736,
-    "ast_hash": "16982b9fb0bf55ccd6c7610cc0fd18d9",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/UsefulLinksController.php": {
@@ -1854,29 +1754,9 @@
     "ast_hash": "28ba112e7fd76eb46fc5e1f6d51d95ec",
     "semantic_hash": ""
   },
-  "painel/app/Http/Middleware/AffiliateApiToken.php": {
-    "mtime": 1789500057.3554142,
-    "ast_hash": "f5de4f895eb45f3b45aa731a0adcc0d6",
-    "semantic_hash": ""
-  },
-  "painel/app/Models/Offer.php": {
-    "mtime": 1789504004.1063056,
-    "ast_hash": "1ef3ee23e1d50d69fbd8735b62e73b3f",
-    "semantic_hash": ""
-  },
-  "painel/app/Models/OfferClick.php": {
-    "mtime": 1789500057.3612795,
-    "ast_hash": "69dc9409f430c9139d0ab66ccd36b1e7",
-    "semantic_hash": ""
-  },
   "painel/app/Models/SystemSetting.php": {
     "mtime": 1789500057.368375,
     "ast_hash": "442eea691fb84aa61b8056768664f7dd",
-    "semantic_hash": ""
-  },
-  "painel/database/factories/OfferFactory.php": {
-    "mtime": 1789500057.4099991,
-    "ast_hash": "b5634e5fbae9605c2f97a22ca64d9fd3",
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_07_13_000000_create_clips_core_tables.php": {
@@ -1899,11 +1779,6 @@
     "ast_hash": "87a0b05b81cbeb3134a00f4d1faf4bb5",
     "semantic_hash": ""
   },
-  "painel/database/migrations/2026_09_15_000000_create_offers_and_offer_clicks_tables.php": {
-    "mtime": 1789500057.4248302,
-    "ast_hash": "2e5611af3657cff76224d4e6ba910993",
-    "semantic_hash": ""
-  },
   "painel/resources/js/components/channel-template-modal.tsx": {
     "mtime": 1789500057.4664338,
     "ast_hash": "c66069133e2aa63c0f6d93ca63a7913a",
@@ -1924,34 +1799,9 @@
     "ast_hash": "ee80a551d6f5c2fd2dc48c521e369df7",
     "semantic_hash": ""
   },
-  "painel/resources/js/pages/Offers.tsx": {
-    "mtime": 1789504221.530886,
-    "ast_hash": "7e6b08cfc841fe8bbbbbd5d3677769ca",
-    "semantic_hash": ""
-  },
   "painel/resources/js/pages/UsefulLinks.tsx": {
     "mtime": 1789500057.4942732,
     "ast_hash": "18a2dcb2b19b80e7fac943f6780116e5",
-    "semantic_hash": ""
-  },
-  "painel/routes/api.php": {
-    "mtime": 1789500057.498635,
-    "ast_hash": "5efbd2cf4237493c66c8b46de8b77f18",
-    "semantic_hash": ""
-  },
-  "painel/tests/Feature/OfferApiTest.php": {
-    "mtime": 1789500057.5085967,
-    "ast_hash": "483af1720918e2a26889985f561ebb4d",
-    "semantic_hash": ""
-  },
-  "painel/tests/Feature/OfferPanelTest.php": {
-    "mtime": 1789504007.9495108,
-    "ast_hash": "8e28f2cc0101e9a18b9d82693cbfce97",
-    "semantic_hash": ""
-  },
-  "painel/tests/Feature/OfferRedirectTest.php": {
-    "mtime": 1789500057.5098364,
-    "ast_hash": "48c9b7b4ce0b662df8d273fec5b00273",
     "semantic_hash": ""
   },
   "scripts/apply_aligned_all.py": {
@@ -1980,8 +1830,8 @@
     "semantic_hash": ""
   },
   "scripts/local_download_worker.py": {
-    "mtime": 1789500057.5552692,
-    "ast_hash": "ced494dfe51aa4910282d86c1f21bcbf",
+    "mtime": 1789514488.7181923,
+    "ast_hash": "e32efcc149f35a5374f0a14e6f1d01cf",
     "semantic_hash": ""
   },
   "scripts/resume_claude_daemon.sh": {
@@ -2004,14 +1854,19 @@
     "ast_hash": "69ec7fd7686f3a30b1c0e239b77de5a4",
     "semantic_hash": ""
   },
+  "scripts/test_local_download_worker.py": {
+    "mtime": 1789514488.719809,
+    "ast_hash": "92ea588f9dbd9b1ab1b7b3fdb8603d24",
+    "semantic_hash": ""
+  },
   "scripts/test_thumb_generator.py": {
     "mtime": 1789500057.5601792,
     "ast_hash": "d09af37741e341b6748e91f53c982edb",
     "semantic_hash": ""
   },
   "DEPLOY.md": {
-    "mtime": 1789500055.9268236,
-    "ast_hash": "f26960eb4353dd9d8753a6d20c6d2d9d",
+    "mtime": 1789514488.6250718,
+    "ast_hash": "b93f3cd2f9d696f3f72adf79a791ac23",
     "semantic_hash": ""
   },
   "Docs/sistema/BANCO-DE-DADOS.md": {
@@ -2020,8 +1875,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/BUGS.md": {
-    "mtime": 1789500055.9861462,
-    "ast_hash": "c195e8cfe7a4657fb7fdb41835ecf585",
+    "mtime": 1789514488.625932,
+    "ast_hash": "de1443d593d02c465e45b8365f5a03d0",
     "semantic_hash": ""
   },
   "Docs/sistema/ESTADOS-E-TRANSICOES.md": {
@@ -2069,24 +1924,19 @@
     "ast_hash": "75e3f6519d3555a22b0d3b4d0a079091",
     "semantic_hash": ""
   },
-  "Docs/sistema/SISTEMA-AFILIADOS.md": {
-    "mtime": 1789504963.0555937,
-    "ast_hash": "6e9226146bcffad1d57a8746fc2df81d",
-    "semantic_hash": ""
-  },
   "Docs/sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md": {
     "mtime": 1789500056.017624,
     "ast_hash": "95a87e5385de6d1fef9fbaab64049f06",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-CLIP-PROCESSOR.md": {
-    "mtime": 1789500056.0192692,
-    "ast_hash": "469df911ba059425317f725062660362",
+    "mtime": 1789514488.626551,
+    "ast_hash": "3a94b8a8a5c81df3af7a0032717a0125",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-DOWNLOAD.md": {
-    "mtime": 1789500056.020988,
-    "ast_hash": "828eaf76e53bba0559f726bba9c1169d",
+    "mtime": 1789514488.6275294,
+    "ast_hash": "2312ee881f2f31d47fa4c48807b3a145",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-IA-SELECAO.md": {
@@ -2122,16 +1972,6 @@
   "Docs/sistema/SISTEMA-VIDEO.md": {
     "mtime": 1789500056.0585992,
     "ast_hash": "f4775ee0797cece215b87ea5cbb1c0df",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/README.md": {
-    "mtime": 1789500056.1380513,
-    "ast_hash": "566fd4b1c939ab11235a828bc4fd9fd0",
-    "semantic_hash": ""
-  },
-  "affiliate-worker/requirements.txt": {
-    "mtime": 1789500056.1833522,
-    "ast_hash": "6da23cdbf30d59e05d2a5c543d977b81",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -2259,14 +2099,129 @@
     "ast_hash": "81b59c5afa87c6c0ec25d6ac26020108",
     "semantic_hash": ""
   },
+  "affiliate-worker/affiliate_worker/__init__.py": {
+    "mtime": 1789500056.1396556,
+    "ast_hash": "1cccb2dffd36f21933498a9bddacbb5c",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/affiliate_worker/__main__.py": {
+    "mtime": 1789500056.140273,
+    "ast_hash": "0b37530bca67ff4be2918ab9d531be3a",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/affiliate_worker/api_client.py": {
+    "mtime": 1789500056.1423109,
+    "ast_hash": "7eb9245a59ecb4b6c14154fd2c1eabc1",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/affiliate_worker/cli.py": {
+    "mtime": 1789500056.1489003,
+    "ast_hash": "377b2595c61334297b14e463d4aeca32",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/affiliate_worker/copywriter.py": {
+    "mtime": 1789500056.153254,
+    "ast_hash": "5a886d969183fc0ab47ca9b095402397",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/affiliate_worker/models.py": {
+    "mtime": 1789500056.1605518,
+    "ast_hash": "c987a0b422228c44adfb5b658e68ad38",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/affiliate_worker/sources/__init__.py": {
+    "mtime": 1789500056.16237,
+    "ast_hash": "f63a0826620e9cb8100db8a819ed18ed",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/affiliate_worker/sources/manual.py": {
+    "mtime": 1789500056.1677682,
+    "ast_hash": "c0bdcb61dda539c86b94ce25272a0dff",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/affiliate_worker/sources/mercadolivre.py": {
+    "mtime": 1789500056.171336,
+    "ast_hash": "a9ccd1ecd73a72c505c684d5ba2b0f16",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/affiliate_worker/storage.py": {
+    "mtime": 1789500056.1723504,
+    "ast_hash": "ff487df59a214927ec369024d791e35b",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/tests/__init__.py": {
+    "mtime": 1789500056.1850407,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/tests/conftest.py": {
+    "mtime": 1789500056.1891131,
+    "ast_hash": "136ac2be67267d1587369488c6f0bc51",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/tests/test_api_client.py": {
+    "mtime": 1789500056.192005,
+    "ast_hash": "39098c0afd87ce459a81920ca0536182",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/tests/test_cli.py": {
+    "mtime": 1789500056.19395,
+    "ast_hash": "55731ce51fd83de2521f5cfb8027f9f6",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/tests/test_copywriter.py": {
+    "mtime": 1789500056.2186832,
+    "ast_hash": "7b97f6c652642967d0cee94101f39bfd",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/tests/test_models.py": {
+    "mtime": 1789500056.220415,
+    "ast_hash": "19a507bbf46a26623b8467146bd313ca",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/tests/test_sources.py": {
+    "mtime": 1789500056.2222319,
+    "ast_hash": "6b040d39a1a32e3d62f3987ea863cf0f",
+    "semantic_hash": ""
+  },
   "painel/app/Console/Commands/PublishOffersToTelegram.php": {
     "mtime": 1789503956.1154559,
     "ast_hash": "9cf21c268062f69af0967634f904296f",
     "semantic_hash": ""
   },
+  "painel/app/Http/Controllers/Api/OfferApiController.php": {
+    "mtime": 1789500057.3240345,
+    "ast_hash": "dee39adcd90fd6625c13e146ac1e5b6d",
+    "semantic_hash": ""
+  },
+  "painel/app/Http/Controllers/OfferController.php": {
+    "mtime": 1789504006.3447597,
+    "ast_hash": "9dba2ceeb77670143b549c40142afb9c",
+    "semantic_hash": ""
+  },
   "painel/app/Http/Controllers/OfferPerformanceController.php": {
-    "mtime": 1789504115.2543774,
-    "ast_hash": "2ef645450c70c539dc4dfe4e4f003620",
+    "mtime": 1789506436.4678013,
+    "ast_hash": "acf4133d07b6f0b4d6836a9f3d621995",
+    "semantic_hash": ""
+  },
+  "painel/app/Http/Controllers/OfferRedirectController.php": {
+    "mtime": 1789500057.3479736,
+    "ast_hash": "16982b9fb0bf55ccd6c7610cc0fd18d9",
+    "semantic_hash": ""
+  },
+  "painel/app/Http/Middleware/AffiliateApiToken.php": {
+    "mtime": 1789500057.3554142,
+    "ast_hash": "f5de4f895eb45f3b45aa731a0adcc0d6",
+    "semantic_hash": ""
+  },
+  "painel/app/Models/Offer.php": {
+    "mtime": 1789504004.1063056,
+    "ast_hash": "1ef3ee23e1d50d69fbd8735b62e73b3f",
+    "semantic_hash": ""
+  },
+  "painel/app/Models/OfferClick.php": {
+    "mtime": 1789500057.3612795,
+    "ast_hash": "69dc9409f430c9139d0ab66ccd36b1e7",
     "semantic_hash": ""
   },
   "painel/app/Support/Brand.php": {
@@ -2275,13 +2230,23 @@
     "semantic_hash": ""
   },
   "painel/config/affiliates.php": {
-    "mtime": 1789503941.57462,
-    "ast_hash": "4477b43e08374ed2b485d3d05b004d15",
+    "mtime": 1789506438.321393,
+    "ast_hash": "dd0c27e02223fdc6c6c5ab4de4cccbbc",
     "semantic_hash": ""
   },
   "painel/config/branding.php": {
     "mtime": 1789504312.6944294,
     "ast_hash": "47eb4d3c9fb2292a123886cb477f12f3",
+    "semantic_hash": ""
+  },
+  "painel/database/factories/OfferFactory.php": {
+    "mtime": 1789500057.4099991,
+    "ast_hash": "b5634e5fbae9605c2f97a22ca64d9fd3",
+    "semantic_hash": ""
+  },
+  "painel/database/migrations/2026_09_15_000000_create_offers_and_offer_clicks_tables.php": {
+    "mtime": 1789500057.4248302,
+    "ast_hash": "2e5611af3657cff76224d4e6ba910993",
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_09_16_000000_add_telegram_posted_at_to_offers_table.php": {
@@ -2299,19 +2264,64 @@
     "ast_hash": "600ea11ae8e5bb2770bbc950d4d2712e",
     "semantic_hash": ""
   },
+  "painel/resources/js/pages/Offers.tsx": {
+    "mtime": 1789504221.530886,
+    "ast_hash": "7e6b08cfc841fe8bbbbbd5d3677769ca",
+    "semantic_hash": ""
+  },
+  "painel/routes/api.php": {
+    "mtime": 1789500057.498635,
+    "ast_hash": "5efbd2cf4237493c66c8b46de8b77f18",
+    "semantic_hash": ""
+  },
   "painel/tests/Feature/BrandThemeTest.php": {
     "mtime": 1789504415.516487,
     "ast_hash": "a706fb17e4766ea7a772ee1be879baa5",
     "semantic_hash": ""
   },
+  "painel/tests/Feature/OfferApiTest.php": {
+    "mtime": 1789500057.5085967,
+    "ast_hash": "483af1720918e2a26889985f561ebb4d",
+    "semantic_hash": ""
+  },
+  "painel/tests/Feature/OfferPanelTest.php": {
+    "mtime": 1789504007.9495108,
+    "ast_hash": "8e28f2cc0101e9a18b9d82693cbfce97",
+    "semantic_hash": ""
+  },
   "painel/tests/Feature/OfferPerformanceTest.php": {
-    "mtime": 1789504166.1169372,
-    "ast_hash": "117609cef12cd0be55da4311c2078fbb",
+    "mtime": 1789506447.034837,
+    "ast_hash": "25166bb5021f3ce001250b0ef4cf95c1",
+    "semantic_hash": ""
+  },
+  "painel/tests/Feature/OfferRedirectTest.php": {
+    "mtime": 1789500057.5098364,
+    "ast_hash": "48c9b7b4ce0b662df8d273fec5b00273",
     "semantic_hash": ""
   },
   "painel/tests/Feature/OfferTelegramPublishTest.php": {
     "mtime": 1789504675.881485,
     "ast_hash": "19779d402dd6b1d0449a81f0f7456534",
+    "semantic_hash": ""
+  },
+  ".claude/skills/finalizar-e-deploy/SKILL.md": {
+    "mtime": 1789514488.6231287,
+    "ast_hash": "b5504812a2bdf11aad7bda82a12a27ba",
+    "semantic_hash": ""
+  },
+  "Docs/sistema/SISTEMA-AFILIADOS.md": {
+    "mtime": 1789506487.8045852,
+    "ast_hash": "82b1542d25646a8ffe9de8bcd5e55a92",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/README.md": {
+    "mtime": 1789500056.1380513,
+    "ast_hash": "566fd4b1c939ab11235a828bc4fd9fd0",
+    "semantic_hash": ""
+  },
+  "affiliate-worker/requirements.txt": {
+    "mtime": 1789500056.1833522,
+    "ast_hash": "6da23cdbf30d59e05d2a5c543d977b81",
     "semantic_hash": ""
   }
 }
