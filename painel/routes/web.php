@@ -7,6 +7,7 @@ use App\Http\Controllers\DestinationChannelController;
 use App\Http\Controllers\DocumentationController;
 use App\Http\Controllers\NicheController;
 use App\Http\Controllers\OfferController;
+use App\Http\Controllers\OfferPerformanceController;
 use App\Http\Controllers\OfferRedirectController;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Controllers\ProcessVideoController;
@@ -106,6 +107,7 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/painel/assistente', [AssistantController::class, 'index'])->name('assistant.index');
     Route::post('/painel/assistente/chat', [AssistantController::class, 'chat'])->name('assistant.chat');
 
+    Route::get('/painel/ofertas/performance', [OfferPerformanceController::class, 'index'])->name('offers.performance');
     Route::get('/painel/ofertas', [OfferController::class, 'index'])->name('offers.index');
     Route::post('/painel/ofertas', [OfferController::class, 'store'])->name('offers.store');
     Route::put('/painel/ofertas/{offer}', [OfferController::class, 'update'])->name('offers.update');

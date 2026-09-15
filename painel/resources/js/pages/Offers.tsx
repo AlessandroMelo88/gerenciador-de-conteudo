@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     ArchiveIcon,
+    ChartColumnIcon,
     CheckIcon,
     CopyIcon,
     ExternalLinkIcon,
@@ -599,7 +600,16 @@ export default function Offers() {
                 title="Ofertas"
                 user={auth.user}
                 description="Ofertas de afiliados chegam como rascunho do worker local. Só as aprovadas geram link rastreável."
-                actions={<CreateOfferDialog niches={niches} />}
+                actions={
+                    <>
+                        <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-xl" asChild>
+                            <Link href={`${BASE_URL}/performance`}>
+                                <ChartColumnIcon className="w-4 h-4" /> Performance
+                            </Link>
+                        </Button>
+                        <CreateOfferDialog niches={niches} />
+                    </>
+                }
             >
                 <div className="flex flex-col gap-4">
                     {/* Tabs de status com contagem vinda do backend */}
