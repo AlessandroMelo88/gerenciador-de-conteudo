@@ -4,20 +4,26 @@ Este documento explica como funciona o deploy do **Canal de Cortes**, como execu
 
 ---
 
-## 🌿 Produção = branch `main`
+## 🌿 Produção = branch `master`, via GitHub
 
-Regra fixa desde 15/09/2026:
+Regra fixa (15/09/2026): **branch → testes → `master` → GitHub → servidor.**
 
 1. Todo trabalho acontece numa branch própria (`fix/...`, `feature/...`, `afiliadas`).
-2. **Terminou o serviço → merge na `main`.** A `main` tem tudo que está pronto; só fica fora dela o que
-   ainda está em desenvolvimento (hoje: `afiliadas` e `afiliadas-fase2`).
-3. Deploy só da `main`, sem alteração pendente. O `deploy.sh` **bloqueia** qualquer outro caso.
+2. **Terminou o serviço → merge na `master`.** Ela tem tudo que está pronto; só fica fora o que ainda
+   está em desenvolvimento (hoje: `afiliadas` e `afiliadas-fase2`).
+3. **Push antes do deploy.** O `deploy.sh` só aceita a `master` sem alteração pendente e **idêntica a
+   `origin/master`** — commit que não está no GitHub não chega ao servidor.
+4. Conflito com o GitHub: a máquina local prevalece, com tag `backup/origin-master-<data>` antes do
+   force push.
+
+O fluxo inteiro está na skill **`finalizar-e-deploy`** (`.claude/skills/finalizar-e-deploy/SKILL.md`):
+basta pedir "finaliza a branch e sobe". Manualmente:
 
 ```bash
-git switch main
-git merge fix/minha-branch
+git switch master
+git merge <branch>
+git push origin master
 ./deploy.sh
-git push origin main   # opcional, mas o script avisa quando a main local está à frente do GitHub
 ```
 
 O servidor não tem git — o código chega por rsync. Para saber qual versão está no ar:

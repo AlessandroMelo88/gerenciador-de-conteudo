@@ -13,9 +13,10 @@
 #   ./deploy.sh --skip-vite    # Se mexeu só no backend (~8s)
 #   ./deploy.sh --build-docker # Apenas se mudar dependências de sistema (apt/pip)
 #
-# Produção = branch main. O script recusa deploy fora da main ou com alteração
-# não commitada, e grava REVISION no servidor (commit, branch, data). Trabalho
-# feito em outra branch precisa ser mergeado na main antes do deploy.
+# Produção = branch master, e só o que já está no GitHub vai para o servidor.
+# O script recusa deploy fora da master, com alteração não commitada ou com a
+# master local diferente de origin/master, e grava REVISION no servidor.
+# Fluxo completo: skill finalizar-e-deploy (.claude/skills).
 # ==============================================================================
 
 set -eo pipefail
@@ -60,7 +61,7 @@ for arg in "$@"; do
 done
 
 # 0. Produção só sai da main, sem alteração pendente
-PROD_BRANCH="main"
+PROD_BRANCH="master"
 CURRENT_BRANCH="$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD)"
 if [ "$CURRENT_BRANCH" != "$PROD_BRANCH" ]; then
     echo -e "${CLR_RED}❌ Deploy bloqueado: você está na branch '$CURRENT_BRANCH'.${CLR_RESET}"
@@ -74,9 +75,22 @@ if ! git -C "$PROJECT_DIR" diff --quiet || ! git -C "$PROJECT_DIR" diff --cached
     exit 1
 fi
 DEPLOY_COMMIT="$(git -C "$PROJECT_DIR" rev-parse --short HEAD)"
-if git -C "$PROJECT_DIR" rev-parse --verify -q "origin/$PROD_BRANCH" >/dev/null; then
-    AHEAD="$(git -C "$PROJECT_DIR" rev-list --count "origin/$PROD_BRANCH..HEAD")"
-    [ "$AHEAD" = "0" ] || echo -e "${CLR_YELLOW}⚠️  $PROD_BRANCH local está $AHEAD commit(s) à frente do GitHub (git push origin $PROD_BRANCH).${CLR_RESET}"
+# Git → servidor: o commit que sobe precisa ser exatamente o que está no GitHub.
+if ! git -C "$PROJECT_DIR" fetch -q origin "$PROD_BRANCH"; then
+    echo -e "${CLR_RED}❌ Deploy bloqueado: não consegui consultar origin/$PROD_BRANCH no GitHub.${CLR_RESET}"
+    exit 1
+fi
+AHEAD="$(git -C "$PROJECT_DIR" rev-list --count "origin/$PROD_BRANCH..HEAD")"
+BEHIND="$(git -C "$PROJECT_DIR" rev-list --count "HEAD..origin/$PROD_BRANCH")"
+if [ "$AHEAD" != "0" ]; then
+    echo -e "${CLR_RED}❌ Deploy bloqueado: $PROD_BRANCH local tem $AHEAD commit(s) que não estão no GitHub.${CLR_RESET}"
+    echo -e "   git push origin $PROD_BRANCH && ./deploy.sh"
+    exit 1
+fi
+if [ "$BEHIND" != "0" ]; then
+    echo -e "${CLR_RED}❌ Deploy bloqueado: o GitHub tem $BEHIND commit(s) que não estão na $PROD_BRANCH local.${CLR_RESET}"
+    echo -e "   git pull --ff-only origin $PROD_BRANCH && ./deploy.sh"
+    exit 1
 fi
 echo -e "${CLR_GREEN}✔ Deploy da $PROD_BRANCH @ $DEPLOY_COMMIT${CLR_RESET}"
 

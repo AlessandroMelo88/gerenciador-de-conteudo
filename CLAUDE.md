@@ -14,11 +14,13 @@ paths sob `canaldecortes/`.
 
 ## Branches e deploy
 
-**Produção roda a `main`.** Ao terminar qualquer serviço numa branch, fazer merge na `main` — ela
-precisa ter tudo que está pronto, menos o que ainda está em desenvolvimento (hoje `afiliadas` e
-`afiliadas-fase2`). `deploy.sh` recusa deploy fora da `main` ou com alteração não commitada e grava
-`/home/ubuntu/canaldecortes/REVISION` (commit, branch, data) — conferir ali qual versão está no ar.
-Detalhes em `DEPLOY.md`.
+**Produção roda a `master`, e só o que está no GitHub vai para o servidor.** Fluxo: branch → testes →
+merge na `master` → `git push origin master` → `./deploy.sh`. Use a skill `finalizar-e-deploy`.
+A `master` tem tudo que está pronto, menos o que ainda está em desenvolvimento (hoje `afiliadas` e
+`afiliadas-fase2`). `deploy.sh` recusa deploy fora da `master`, com alteração não commitada ou com a
+`master` diferente de `origin/master`, e grava `/home/ubuntu/canaldecortes/REVISION` (commit, branch,
+data). Conflito com o GitHub: a máquina local prevalece, com tag de backup antes do force push.
+O repositório é **público** — nunca commitar `.env`, chave, token ou `client_secret`. Detalhes em `DEPLOY.md`.
 
 ---
 
