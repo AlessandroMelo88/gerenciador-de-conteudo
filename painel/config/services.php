@@ -48,4 +48,10 @@ return [
         'model' => env('GROQ_MODEL', 'openai/gpt-oss-120b'),
     ],
 
+    // Worker local de afiliados empurra ofertas via POST /api/offers (Bearer).
+    // Vazio = API responde 503 (fail-closed).
+    'affiliate' => [
+        'token' => env('AFFILIATE_API_TOKEN'),
+    ],
+
 ];
