@@ -59,7 +59,7 @@ def _niche_windows(db_conn) -> list:
         with db_conn.cursor() as cur:
             cur.execute(
                 "SELECT LOWER(TRIM(niche)) AS niche, COUNT(*) AS n "
-                "FROM destination_channels WHERE active = 1 "
+                "FROM destination_channels WHERE active = TRUE "
                 "GROUP BY LOWER(TRIM(niche))"
             )
             rows = cur.fetchall() or []
@@ -113,7 +113,7 @@ def _select_pending_videos(db_conn) -> list:
             cur.execute(
                 "SELECT sv.youtube_video_id FROM source_videos sv "
                 "LEFT JOIN source_channels sc ON sc.id = sv.channel_id "
-                "WHERE sv.status = 'pending' AND sv.paused = 0 "
+                "WHERE sv.status = 'pending' AND sv.paused = FALSE "
                 "AND ("
                 "  (LOWER(COALESCE(sc.target_niche, 'futebol')) = %s) "
                 "  OR (%s = 'futebol' AND (sc.target_niche IS NULL OR sc.target_niche = ''))"

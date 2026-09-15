@@ -26,7 +26,7 @@ class GeneratedClip extends Model
         'end_time',
         'youtube_video_id',
         'status',
-        'rejection_reason',
+        'reason',
         'upload_error',
     ];
 

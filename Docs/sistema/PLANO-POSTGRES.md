@@ -52,18 +52,44 @@ A validação real é um ciclo completo rodando contra o Postgres (etapa A6).
 - [ ] **A2.** `php artisan migrate` num Postgres vazio e comparação do schema com o MySQL (tabelas, colunas, tipos, índices, FKs)
   - [x] **A2.0 — obstáculo encontrado:** a imagem PHP não tem `pdo_pgsql` (`could not find driver`). Só `pdo_mysql` e `pdo_sqlite`
   - [x] `Dockerfile.php` (o do projeto, usado em produção) ganhou `libpq-dev` + `pdo_pgsql`/`pgsql`
-  - [ ] imagem local `canaldecortes-php` construída a partir dele, para rodar artisan e testes contra o Postgres
+  - [x] imagem local `canaldecortes-php:pg` construída a partir dele
+  - [x] **as 9 migrations rodaram limpas no Postgres vazio**
+  - [x] comparação de schema: produção (122 colunas) x migrations (122) — divergem em **2 colunas**
 - [ ] **A3.** Painel local sai do SQLite e passa para Postgres (`painel/.env`); `phpunit.xml` aponta para o Postgres local
 - [ ] **A4.** Suíte do painel verde contra Postgres (`php artisan test`)
 - [ ] **A5.** Auditoria das 85 queries do `clip-processor` e correção dos pontos não portáveis:
-  - [ ] booleanos: helper único em vez de `= 0` / `= 1` espalhado (10 ocorrências)
-  - [ ] `DATE_SUB` no `watchdog.py` (2)
+  - [x] booleanos: `= 0`/`= 1` viraram `TRUE`/`FALSE`, que funciona nos dois bancos (10 ocorrências, sem ramo por driver)
+  - [x] `DATE_SUB` no `watchdog.py`: corte de tempo calculado em Python e passado como parâmetro (2)
   - [ ] conferir crases (`` `local_path` ``) — na inspeção parecem estar só em comentários
-  - [ ] `scripts/local_download_worker.py`: `docker exec mysql mysql` vira `psql`, e `NOW() - INTERVAL 2 DAY` vira sintaxe ANSI
+  - [x] `scripts/local_download_worker.py`: `NOW() - INTERVAL 2 DAY` virou corte calculado em Python
+  - [ ] `scripts/local_download_worker.py`: `docker exec mysql mysql` precisa virar `psql` (fase B)
 - [ ] **A6.** Ciclo real do `clip-processor` contra o Postgres local: poll → download → transcrição → seleção → corte
 - [ ] **A7.** Testes do `clip-processor` e do worker verdes; teste novo que trave regressão de SQL não portável
 - [ ] **A8.** Documentação: `BANCO-DE-DADOS.md`, `SISTEMA-CLIP-PROCESSOR.md` e `RUNBOOK.md` (8 comandos `mysql` viram `psql`)
 - [ ] **A9.** Merge na `master` pela skill `finalizar-e-deploy` — **sem deploy de produção nesta fase**
+
+### Divergência encontrada na A2 (importante para a fase B)
+
+As tabelas do pipeline na produção nasceram de **SQL cru**, não das migrations, e duas colunas de
+`generated_clips` ficaram com nome diferente:
+
+| Produção (real) | Migration dizia | Quem usa |
+|---|---|---|
+| `reason` | `rejection_reason` | `clip-processor`, 22 lugares |
+| `scheduled_for` | `scheduled_at` | ninguém escreve; só constava no `$fillable` do model |
+
+A produção é a fonte da verdade: a migration e o `GeneratedClip` foram alinhados para `reason` e
+`scheduled_for`. Para a produção isso é inócuo (a migration já consta como aplicada); para um banco
+novo — o Postgres — é o que impede o `clip-processor` de quebrar. **O resto do schema bate coluna a
+coluna.**
+
+### Falhas de teste pré-existentes encontradas (não são da migração)
+
+- `test_rss_poller`: o código passa `niche=` para `select_moments` e o teste esperava a chamada sem
+  esse argumento. Teste alinhado.
+- `test_selector::test_shortform_under_30s_discarded`: o teste espera que um momento de 20 s seja
+  **descartado**, mas `_filter_shortform_duration` hoje **estica** momentos de 15 s ou mais até os 30 s
+  (o de 20 s virou 45–75 s). Ou o código ou o teste está errado — **decisão de produto, não toquei**.
 
 ## Fase B — produção (fazer junto da VM A1 de 12 GB)
 
