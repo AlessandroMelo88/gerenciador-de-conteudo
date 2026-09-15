@@ -43,7 +43,7 @@ A validação real é um ciclo completo rodando contra o Postgres (etapa A6).
 
 ## Fase A — local
 
-- [ ] **A1.** Banco e usuário próprios no Postgres local (`clips_automation` / `clips_user`)
+- [x] **A1.** Banco e usuário próprios no Postgres local — `clips_automation` com owner `clips_user`, criado em 15/09/2026 no container `postgres` (17.2). Outros bancos do container intocados
 - [ ] **A2.** `php artisan migrate` num Postgres vazio e comparação do schema com o MySQL (tabelas, colunas, tipos, índices, FKs)
 - [ ] **A3.** Painel local sai do SQLite e passa para Postgres (`painel/.env`); `phpunit.xml` aponta para o Postgres local
 - [ ] **A4.** Suíte do painel verde contra Postgres (`php artisan test`)
