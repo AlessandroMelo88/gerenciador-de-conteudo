@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 export function LoginForm({ className, ...props }: React.ComponentProps<'form'>) {
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
-        email: 'alessandrobm1988@gmail.com',
-        password: 'CanalCortes2026!',
+        // Nunca pré-preencher credencial: este arquivo vira bundle JS público e o repositório é público.
+        email: '',
+        password: '',
         remember: true,
     });
 
