@@ -6,7 +6,7 @@ Documento de progresso. **Se a sessão reiniciar, comece por aqui**: cada etapa 
 Contexto e justificativa: [`PLANO-MESTRE.md`](PLANO-MESTRE.md#3-banco-de-dados--mysql-para-postgresql).
 Fluxo de branch e deploy: [`../../DEPLOY.md`](../../DEPLOY.md).
 
-Última atualização: **15/09/2026**.
+Última atualização: **15/09/2026** — A1 a A4 concluídas; falta o ciclo real do pipeline (A6).
 
 ---
 
@@ -49,14 +49,14 @@ A validação real é um ciclo completo rodando contra o Postgres (etapa A6).
 ## Fase A — local
 
 - [x] **A1.** Banco e usuário próprios no Postgres local — `clips_automation` com owner `clips_user`, criado em 15/09/2026 no container `postgres` (17.2). Outros bancos do container intocados
-- [ ] **A2.** `php artisan migrate` num Postgres vazio e comparação do schema com o MySQL (tabelas, colunas, tipos, índices, FKs)
+- [x] **A2.** Migrations num Postgres vazio e comparação com a produção: **122 colunas dos dois lados, idênticas**, depois do alinhamento de `reason`/`scheduled_for`
   - [x] **A2.0 — obstáculo encontrado:** a imagem PHP não tem `pdo_pgsql` (`could not find driver`). Só `pdo_mysql` e `pdo_sqlite`
   - [x] `Dockerfile.php` (o do projeto, usado em produção) ganhou `libpq-dev` + `pdo_pgsql`/`pgsql`
   - [x] imagem local `canaldecortes-php:pg` construída a partir dele
   - [x] **as 9 migrations rodaram limpas no Postgres vazio**
   - [x] comparação de schema: produção (122 colunas) x migrations (122) — divergem em **2 colunas**
-- [ ] **A3.** Painel local sai do SQLite e passa para Postgres (`painel/.env`); `phpunit.xml` aponta para o Postgres local
-- [ ] **A4.** Suíte do painel verde contra Postgres (`php artisan test`)
+- [x] **A3.** Painel local saiu do SQLite: `painel/.env` e `phpunit.xml` apontam para o Postgres local
+- [x] **A4.** Suíte do painel verde contra Postgres: **45 testes, 115 asserções**, na imagem `canaldecortes-php:pg`
 - [ ] **A5.** Auditoria das 85 queries do `clip-processor` e correção dos pontos não portáveis:
   - [x] booleanos: `= 0`/`= 1` viraram `TRUE`/`FALSE`, que funciona nos dois bancos (10 ocorrências, sem ramo por driver)
   - [x] `DATE_SUB` no `watchdog.py`: corte de tempo calculado em Python e passado como parâmetro (2)
