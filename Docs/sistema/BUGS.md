@@ -10,7 +10,7 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 |---|---|---|
 | 1 | FEITO | Órfãos de download nunca eram apagados |
 | 2 | FEITO | `_raw.mp4` nunca era apagado |
-| 3 | SUSPEITA | Thumbnail não aplicada nos vídeos longos no YouTube |
+| 3 | FEITO | Thumbnail não aplicada nos vídeos longos no YouTube — hipótese refutada |
 | 4 | PARCIAL | Estados sem recuperação automática seguram arquivo em disco |
 | 5 | FEITO | `_subtitled.mp4` órfão |
 | 6 | ABERTO | Painel não consegue apagar o backlog de download |
@@ -105,6 +105,28 @@ Mais `docker compose logs clip-processor | grep -i thumb`.
 
 **Se confirmado:** envolver o `thumbnails().set` em try/except próprio — o vídeo já subiu, falhar a
 thumbnail não deveria marcar o clip inteiro como `failed`.
+
+### Fechado em 15/09/2026 — a hipótese não se sustenta
+
+Duas verificações independentes derrubam o diagnóstico acima:
+
+1. **Nenhum caso em produção.** A prova proposta era `status='failed'` com `youtube_video_id`
+   preenchido — upload feito, falha depois. A contagem real é **zero**:
+
+   ```sql
+   SELECT COUNT(*) FROM generated_clips
+   WHERE status='failed' AND youtube_video_id IS NOT NULL AND youtube_video_id <> '';
+   ```
+
+2. **A correção proposta já estava no código.** `thumbnails().set` **já roda dentro de try/except
+   próprio** ([`uploader.py:116-129`](../clip-processor/src/uploader.py#L116)); a falha vira um aviso
+   em `stderr` e `upload_video` devolve o `video_id` normalmente. Não há caminho em que a thumbnail
+   marque o clip como `failed`.
+
+O texto acima ficou desatualizado em relação ao código. Se o sintoma reaparecer (vídeo longo no ar
+sem a thumbnail custom), a investigação recomeça **do lado da API**, não do estado do clip: conferir
+o aviso no log (`docker compose logs clip-processor | grep -i thumb`) e se o canal destino está
+verificado no YouTube — thumbnail custom exige verificação.
 
 ---
 

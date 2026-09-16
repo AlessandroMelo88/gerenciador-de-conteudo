@@ -142,6 +142,39 @@ elos.
 Conclusão operacional: desativar ESPN, TNT, CazéTV e TiaGOL em `source_channels`; manter Jovem Pan
 Esportes e Canal do Nicola sob verificação; procurar novas fontes de programa falado.
 
+### Executado em 15/09/2026
+
+**Desativadas** (`active=0`, nada apagado — reverter é `active=1`): SporTV (id 3), ge.globo (4),
+ESPN Brasil (5), TNT Sports (7), CazéTV (204), TiaGOL (277).
+
+**Adicionadas**, via `SourceChannelsSeeder` — canal de pessoa física ou produção própria, conteúdo
+falado, e nenhum é canal de cortes:
+
+| Canal | Handle | Formato observado |
+|---|---|---|
+| PVC | `@PVCoelho` | **curto** (299–452s) |
+| Denílson Show | `@DenilsonShow` | **curto** (163–378s) |
+| Charla Podcast | `@CharlaPodcast` | misto (165–913s) |
+| Mauro Cezar Pereira | `@MauroCezar` | longo (491–983s) |
+| Rica Perrone | `@RicaPerrone` | longo (457–696s) |
+| Tati Mantovani | `@TatiMantovani` | longo (502–866s) |
+| Marcelo Bechler | `@MarceloBechler1` | longo (481–2878s) |
+| Fred Caldeira | `@FredCaldeira` | longo (701–3903s) |
+| Desimpedidos | `@Desimpedidos` | misto (493–2077s) |
+
+PVC, Denílson e Charla entregam vídeo abaixo de `MIN_LONGFORM_SECONDS` (420s), então **mantêm a
+cadência de Shorts** do canal — os outros geram corte horizontal longo.
+
+Reprovados na verificação: `@CortesdoCasimitoOFICIAL` e `@CasimiroMiguel` (o primeiro é canal de
+cortes, e o conteúdo recente dos dois é reação/variedades, não futebol); `@Pilhado` (é política);
+`@JaoBastos` (produção própria, mas é pelada, não análise); `@CanalDoGB` (canal morto, só duas
+intros de 11s).
+
+**Risco que sobra:** jornalista de futebol insere imagem de jogo dentro do próprio vídeo. Corte que
+cair em cima desse trecho herda o risco da detentora, mesmo vindo de fonte aprovada. O seletor
+escolhe por transcrição e **não sabe o que está na tela** — não há hoje como barrar isso
+automaticamente. Entra como requisito do gate de licença (seção 2).
+
 ### Privar ou apagar?
 
 **Privar. Nunca apagar.**

@@ -70,8 +70,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/selector.py": {
-    "mtime": 1789511602.9587877,
-    "ast_hash": "fee0964f18ff5763e36fa642e1c3bc0b",
+    "mtime": 1789525789.8145523,
+    "ast_hash": "80596243f236136cca3281c6f7854b8e",
     "semantic_hash": ""
   },
   "clip-processor/src/telegram_notifier.py": {
@@ -175,8 +175,8 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_selector.py": {
-    "mtime": 1789518075.0331345,
-    "ast_hash": "cbb99746c1a8ffe60ce16df806b42200",
+    "mtime": 1789526082.7142866,
+    "ast_hash": "b597bbee09d9a836e7095937aed03c5c",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_telegram_notifier.py": {
@@ -500,9 +500,9 @@
     "semantic_hash": "5a1e30153ceda9c708e9a5e64859810d"
   },
   "painel/database/seeders/DatabaseSeeder.php": {
-    "mtime": 1779750712.0,
-    "ast_hash": "ab1e985d74209458e33e0f4eb89fb77e",
-    "semantic_hash": "ab1e985d74209458e33e0f4eb89fb77e"
+    "mtime": 1789525673.5811539,
+    "ast_hash": "2d4173817c70913d720e8b6884e56389",
+    "semantic_hash": ""
   },
   "painel/package.json": {
     "mtime": 1784139599.9272707,
@@ -1885,8 +1885,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/BUGS.md": {
-    "mtime": 1789521495.6688912,
-    "ast_hash": "ca620a1ab41fef8601ddb14c6673399d",
+    "mtime": 1789525800.5064244,
+    "ast_hash": "b2c988c33b38be06610f4dafa1fdea1d",
     "semantic_hash": ""
   },
   "Docs/sistema/ESTADOS-E-TRANSICOES.md": {
@@ -1905,8 +1905,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/PLANO-MESTRE.md": {
-    "mtime": 1789521488.298615,
-    "ast_hash": "c728efdaa0dc8296e3702c28c5f7397e",
+    "mtime": 1789526230.8163497,
+    "ast_hash": "b090ba9f638653798c46dfba901bef65",
     "semantic_hash": ""
   },
   "Docs/sistema/PLANO-ORACLE.md": {
@@ -1930,8 +1930,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/RUNBOOK.md": {
-    "mtime": 1789511602.9328575,
-    "ast_hash": "75e3f6519d3555a22b0d3b4d0a079091",
+    "mtime": 1789526186.399789,
+    "ast_hash": "c818ed74b289b03ca9876c8114078014",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md": {
@@ -1950,8 +1950,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-IA-SELECAO.md": {
-    "mtime": 1789518075.030444,
-    "ast_hash": "3743497496ecddf40d7841e141ee96c0",
+    "mtime": 1789526169.893667,
+    "ast_hash": "01dc9ba2114818b80b489a81cc2eaced",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-PAINEL.md": {
@@ -2110,12 +2110,12 @@
     "semantic_hash": ""
   },
   "painel/database/seeders/BaselineSeeder.php": {
-    "mtime": 1789521184.8277369,
+    "mtime": 1789521671.5474439,
     "ast_hash": "85edd31732f5f1a0ed6e6b8ffca5c149",
     "semantic_hash": ""
   },
   "painel/database/seeders/SourceChannelsSeeder.php": {
-    "mtime": 1789521172.348461,
+    "mtime": 1789521671.548529,
     "ast_hash": "6284b8b71fee7dbe5185514df3b9c5f8",
     "semantic_hash": ""
   },

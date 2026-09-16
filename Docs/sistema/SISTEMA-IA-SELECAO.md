@@ -451,6 +451,28 @@ existe, o ciclo de iteração é editar → build → restart → esperar o pró
 | 9 | **`_remove_overlaps` roda duas vezes** | [`:233`](../clip-processor/src/selector.py#L233) e [`:304`](../clip-processor/src/selector.py#L304) | A segunda chamada usa o default `max_count=3` mesmo no modo longo. Inofensivo hoje (longo já tem 1 momento), mas é uma pegadinha se `max_moments` do longo mudar |
 | 10 | **Sem A/B de prompt** | — | Não há versionamento nem registro de qual versão do prompt gerou qual clip. Depois de um rebuild, é impossível comparar a safra nova com a antiga a partir do banco |
 
+### A justificativa (`reason`) é higienizada antes de gravar
+
+Corrigido em **15/09/2026**. O `reason` que o modelo devolve vai direto para `generated_clips.reason`
+e é lido no painel e no log. Modelo que raciocina em voz alta despejava a cadeia de pensamento
+inteira nesse campo. Caso real, colhido na produção:
+
+> "…com duração de aproximadamente 3 minutos (174s), que, embora abaixo do mínimo ideal de 420s, é o
+> único bloco contínuo de alto valor narrativo no final. No entanto, como a instrução exige >= 420s,
+> devo reavaliar. O trecho de 0s a 454s é o jogo inteiro. (…) Vou selecionar o trecho de 0s a 454s?
+> Não, o início é fraco."
+
+A coluna é `TEXT`, então nada estourava — o estrago era metadado ilegível, exatamente onde a
+justificativa deveria ajudar a decidir aprovação.
+
+`_clean_reason` ([`selector.py`](../clip-processor/src/selector.py)) colapsa espaços e corta em
+`MAX_REASON_CHARS = 300`, com reticência no fim. Roda dentro de `_parse_moments`, então vale para
+**os dois caminhos de IA** (Anthropic e Groq) sem duplicar lógica. Também garante a chave `reason`
+sempre presente — `insert_selected_moments` lê `moment['reason']` direto e levantaria `KeyError` se
+o modelo omitisse o campo.
+
+Coberto por `TestCleanReason` em `tests/test_selector.py`.
+
 ---
 
 ## Como verificar na prática

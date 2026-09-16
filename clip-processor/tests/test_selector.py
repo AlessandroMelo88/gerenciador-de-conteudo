@@ -7,7 +7,13 @@ Após implementação: GREEN.
 import json
 import pytest
 from unittest.mock import MagicMock
-from src.selector import select_moments, insert_selected_moments
+from src.selector import (
+    select_moments,
+    insert_selected_moments,
+    _clean_reason,
+    _parse_moments,
+    MAX_REASON_CHARS,
+)
 
 
 SAMPLE_TRANSCRIPT = {
@@ -25,6 +31,49 @@ SAMPLE_MOMENTS = [
     {'start_time': 100.0, 'end_time': 160.0, 'score': 8, 'reason': 'Debate acalorado'},
     {'start_time': 200.0, 'end_time': 245.0, 'score': 7, 'reason': 'Revelação de bastidores'},
 ]
+
+
+class TestCleanReason:
+    """Justificativa do momento não pode carregar o raciocínio do modelo (visto em 15/09/2026)."""
+
+    def test_colapsa_espacos_e_quebras(self):
+        assert _clean_reason('Análise\n  tática   profunda\n') == 'Análise tática profunda'
+
+    def test_ausente_vira_string_vazia(self):
+        """insert_selected_moments lê moment['reason'] direto — não pode faltar a chave."""
+        assert _clean_reason(None) == ''
+
+    def test_corta_raciocinio_longo_do_modelo(self):
+        raciocinio = (
+            'Vou selecionar o trecho de 0s a 454s? Não, o início é fraco. '
+            'Vou selecionar de 120s a 454s? Não atinge 420s. ' * 20
+        )
+        resultado = _clean_reason(raciocinio)
+
+        assert len(resultado) == MAX_REASON_CHARS + 1  # +1 pela reticência
+        assert resultado.endswith('…')
+
+    def test_parse_moments_aplica_limpeza(self):
+        """A limpeza tem que valer para os dois caminhos de IA, que passam por _parse_moments."""
+        bruto = json.dumps({
+            'moments': [{
+                'start_time': 0,
+                'end_time': 60,
+                'score': 9,
+                'reason': 'x' * (MAX_REASON_CHARS + 50),
+            }]
+        })
+
+        momentos = _parse_moments(bruto)
+
+        assert len(momentos[0]['reason']) == MAX_REASON_CHARS + 1
+
+    def test_parse_moments_preenche_reason_ausente(self):
+        bruto = json.dumps({'moments': [{'start_time': 0, 'end_time': 60, 'score': 9}]})
+
+        momentos = _parse_moments(bruto)
+
+        assert momentos[0]['reason'] == ''
 
 
 class TestSelectMoments:
