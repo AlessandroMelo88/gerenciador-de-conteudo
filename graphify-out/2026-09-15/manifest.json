@@ -1590,8 +1590,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1786464614.0522075,
-    "ast_hash": "f4f53765b73b2fc4ca09e1ac47ff16e0",
+    "mtime": 1789506209.9355764,
+    "ast_hash": "52f458d796f3a33b0409a8520377bd82",
     "semantic_hash": ""
   },
   "PROJECT_BRIEF.md": {
@@ -1730,8 +1730,8 @@
     "semantic_hash": ""
   },
   "deploy.sh": {
-    "mtime": 1789504072.5607822,
-    "ast_hash": "1e0fc8ae79c26349bc76f112f3a87860",
+    "mtime": 1789506209.9372985,
+    "ast_hash": "22eb12823efc804ad5b131f3addbf7ce",
     "semantic_hash": ""
   },
   "painel/app/Console/Commands/BackupDatabaseCommand.php": {
@@ -1875,8 +1875,8 @@
     "semantic_hash": ""
   },
   "DEPLOY.md": {
-    "mtime": 1789504072.5157819,
-    "ast_hash": "f26960eb4353dd9d8753a6d20c6d2d9d",
+    "mtime": 1789506209.9365788,
+    "ast_hash": "a47db63ea7502401ae0f45d5eedf3d39",
     "semantic_hash": ""
   },
   "Docs/sistema/BANCO-DE-DADOS.md": {
