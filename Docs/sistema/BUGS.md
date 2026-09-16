@@ -336,3 +336,18 @@ produção. Rodar a suíte dentro do servidor gravava dados de teste ali — os 
 ([`PLANO-POSTGRES.md`](PLANO-POSTGRES.md)), fora da produção. Nunca rodar a suíte contra o banco de
 produção. A senha do operador foi trocada na mesma data.
 
+**Resíduo ainda aberto (apurado em 15/09/2026):** a *fábrica* que produz essas contas continua no
+caminho padrão. `database/seeders/DatabaseSeeder.php` tem, no `run()`, um
+`User::factory()->create(['email' => 'test@example.com'])` — e a factory do Laravel usa a senha
+padrão `password`. Qualquer `php artisan db:seed` sem `--class` recria uma conta de senha conhecida,
+inclusive se rodado contra a produção.
+
+Confirmação de que o problema não é teórico: o Postgres **local** tem hoje duas contas de factory
+vivas (`stroman.talon@example.org`, `rosella.zboncak@example.org`). A produção está limpa — só o
+operador (verificado em 15/09/2026).
+
+Por isso os seeders de dado deste projeto (`BaselineSeeder`, `SourceChannelsSeeder`) são **avulsos**,
+rodados com `--class=`, e nenhum deles cria usuário. Conta de painel se cria só com
+`php artisan painel:create-user`, que exige senha. **Pendente:** esvaziar o `run()` do
+`DatabaseSeeder` ou trocar a criação de usuário por algo que não use senha padrão.
+

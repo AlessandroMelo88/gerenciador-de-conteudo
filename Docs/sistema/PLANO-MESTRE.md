@@ -163,16 +163,35 @@ com eles. A decisão vale para os outros 81.
 
 ### Ações imediatas
 
-- [ ] Concluir o Curso de Direitos Autorais (sem ele a advertência não expira)
+- [x] Concluir o Curso de Direitos Autorais (sem ele a advertência não expira) — feito em 14/09/2026
+- [x] **Confirmado na tela do YouTube Studio (15/09/2026)** que é **advertência**, não reivindicação
+      de Content ID: "1 advertência por direitos autorais", recebida em 14/09/2026, **expira em 89
+      dias**, reclamante Supernova, 2 vídeos. Os dois já estavam excluídos pelo operador — e a própria
+      tela avisa que "excluir o vídeo não removerá a advertência"
+- [x] **Decisão: não fazer nada com a advertência.** Das três opções oferecidas pelo YouTube,
+      "não fazer nada" é a certa — ela expira sozinha porque o curso está concluído. "Solicitar
+      retirada" coloca o canal no radar de quem já denunciou à mão. Contranotificação está descartada
+      (ver abaixo)
 - [ ] **Não** enviar contranotificação nesses dois — entrega nome e endereço ao reclamante e aceita
       foro judicial, e o clip é 100% material deles
 - [ ] Pausar publicação do nicho futebol (3 clips a caminho viram advertência 2)
-- [ ] Tornar privados os 83 clips de futebol publicados — apagar **não** remove advertência, privar
-      corta a exposição a nova denúncia
+- [x] ~~Tornar privados os 83 clips de futebol publicados~~ — **decisão do operador em 15/09/2026:
+      não privar.** Motivo: vídeo de corte perde tração rápido, então a exposição residual dos já
+      publicados é baixa, e privar não remove a advertência de qualquer forma. O cuidado passa a
+      valer **daqui para frente**, via troca de fonte
 - [ ] **Separar as contas Google dos dois canais** — o aviso do YouTube diz "seu canal e todos os
       canais associados". Hoje uma 3ª advertência no futebol leva o de política junto. Ação mais
       barata e de maior impacto da lista
-- [ ] Auditar de quais `source_channels` vieram os 83 e classificar cada fonte
+- [x] Auditar de quais `source_channels` vieram os 83 e classificar cada fonte — ver tabela acima e
+      a seção 2.1
+
+> **Correção de escopo apurada em 15/09/2026:** a produção tem **8** canais-fonte de futebol ativos,
+> não 6. Além dos já listados, **SporTV** (`@canalsportv`) e **ge.globo** (`@globoesporte`) estão
+> ativos — ambos Globo, a detentora mais agressiva em takedown manual. São **6 de 8** em alto risco.
+>
+> A mesma exposição existe no nicho **política** e nunca foi olhada: CNN Brasil, Band Jornalismo,
+> UOL, Jovem Pan News, ICL e O Antagonista são telejornal, mesma classe de detentor. Não é urgente
+> (a advertência veio do futebol), mas o problema não está contido num nicho só.
 
 ---
 
