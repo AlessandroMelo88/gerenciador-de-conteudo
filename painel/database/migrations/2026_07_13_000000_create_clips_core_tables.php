@@ -68,9 +68,10 @@ return new class extends Migration
                 $table->float('end_time')->nullable();
                 $table->string('youtube_video_id', 64)->nullable();
                 $table->string('status', 30)->default('pending');
-                $table->text('rejection_reason')->nullable();
+                // Nome real em produção: 'reason' (a tabela nasceu de SQL cru, antes da migration).
+                $table->text('reason')->nullable();
                 $table->unsignedBigInteger('destination_channel_id')->nullable();
-                $table->timestamp('scheduled_at')->nullable();
+                $table->timestamp('scheduled_for')->nullable();
                 $table->timestamp('published_at')->nullable();
                 $table->timestamps();
             });

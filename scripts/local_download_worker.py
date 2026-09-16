@@ -16,7 +16,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # Garante acesso aos binários do Homebrew (yt-dlp, deno, rsync) em background
@@ -101,6 +101,14 @@ def get_video_duration(file_path: Path) -> float:
         return 0.0
 
 
+FRESHNESS_DAYS = int(os.environ.get('WORKER_FRESHNESS_DAYS', 2))
+
+
+def _corte_frescor() -> str:
+    """Data/hora limite de frescor, formatada — portável entre MySQL e PostgreSQL."""
+    return (datetime.now() - timedelta(days=FRESHNESS_DAYS)).strftime('%Y-%m-%d %H:%M:%S')
+
+
 def _niche_filter(niche: str) -> str:
     """Filtro SQL do nicho; futebol também absorve canal sem nicho (igual ao pipeline_runner)."""
     if niche == 'futebol':
@@ -118,7 +126,7 @@ def niche_windows() -> dict:
     """
     output = run_remote_mysql(
         "SELECT LOWER(TRIM(niche)), COUNT(*) FROM destination_channels "
-        "WHERE active = 1 GROUP BY LOWER(TRIM(niche));"
+        "WHERE active = TRUE GROUP BY LOWER(TRIM(niche));"
     )
     windows = {}
     for line in output.splitlines():
@@ -162,8 +170,13 @@ def count_window_occupancy(niche: str) -> int | None:
 
 def fetch_pending_videos():
     """Busca vídeos 'pending' recentes (máx 2 dias) só até completar a janela de cada nicho."""
-    # Auto-expurgo de vídeos com mais de 2 dias (notícia velha)
-    run_remote_mysql("UPDATE source_videos SET status = 'failed' WHERE status = 'pending' AND published_at < NOW() - INTERVAL 2 DAY;")
+    # Auto-expurgo de vídeos com mais de 2 dias (notícia velha). O corte vai calculado
+    # em Python: `INTERVAL 2 DAY` é sintaxe do MySQL e não roda no PostgreSQL.
+    corte = _corte_frescor()
+    run_remote_mysql(
+        "UPDATE source_videos SET status = 'failed' "
+        f"WHERE status = 'pending' AND published_at < '{corte}';"
+    )
 
     videos = []
     for niche, window in niche_windows().items():
@@ -180,9 +193,9 @@ def fetch_pending_videos():
         FROM source_videos sv
         LEFT JOIN source_channels sc ON sv.channel_id = sc.id
         WHERE sv.status = 'pending'
-          AND sv.paused = 0
+          AND sv.paused = FALSE
           AND (sv.local_path IS NULL OR sv.local_path = '')
-          AND sv.published_at >= NOW() - INTERVAL 2 DAY
+          AND sv.published_at >= '{corte}'
           AND {_niche_filter(niche)}
         ORDER BY
           CASE WHEN sv.title LIKE '%#shorts%' OR sv.title LIKE '%#short%' THEN 1 ELSE 0 END ASC,

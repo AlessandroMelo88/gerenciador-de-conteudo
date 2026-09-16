@@ -14,7 +14,7 @@ Exporta:
 """
 import os
 import shutil
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from src.telegram_notifier import notify
@@ -30,11 +30,20 @@ MIN_FREE_DISK_GB = 5.0
 MAX_DISK_PERCENT = 85.0
 
 
+def _horas_atras(horas: int) -> datetime:
+    """Instante de N horas atrás, sem timezone, para comparar com colunas DATETIME/TIMESTAMP.
+
+    Calculado em Python de propósito: `DATE_SUB(NOW(), INTERVAL n HOUR)` existe só no
+    MySQL, e o mesmo código roda contra PostgreSQL (ver PLANO-POSTGRES.md).
+    """
+    return datetime.now() - timedelta(hours=horas)
+
+
 def _max_window_slots(conn) -> int:
     """Teto total da janela: DOWNLOAD_WINDOW_PER_CHANNEL × canais destino ativos."""
     try:
         with conn.cursor() as cur:
-            cur.execute('SELECT COUNT(*) AS n FROM destination_channels WHERE active = 1')
+            cur.execute('SELECT COUNT(*) AS n FROM destination_channels WHERE active = TRUE')
             row = cur.fetchone() or {}
         return int(row.get('n') or 0) * DOWNLOAD_WINDOW_PER_CHANNEL
     except Exception:
@@ -159,15 +168,16 @@ def check_download_window_health(conn) -> bool:
     if occupied < max_slots:
         return True  # Janela saudável com vagas livres
 
-    # Se a janela está cheia (>= 7), verifica se algum vídeo mudou nos últimos 2h
+    # Janela cheia: verifica se algum vídeo mudou nas últimas WINDOW_STUCK_HOURS horas.
+    # O corte é calculado em Python e vai como parâmetro — DATE_SUB é só do MySQL.
     with conn.cursor() as cur:
         cur.execute(
             'SELECT COUNT(*) AS active_recent '
             'FROM source_videos sv '
             'WHERE (sv.local_path IS NOT NULL '
             "       OR sv.status IN ('downloading', 'downloaded', 'transcribing', 'selecting')) "
-            'AND sv.updated_at >= DATE_SUB(NOW(), INTERVAL %s HOUR)',
-            (WINDOW_STUCK_HOURS,),
+            'AND sv.updated_at >= %s',
+            (_horas_atras(WINDOW_STUCK_HOURS),),
         )
         active_recent = int(cur.fetchone().get('active_recent') or 0)
 
@@ -197,11 +207,11 @@ def check_approval_queue_activity(conn) -> None:
         )
         pending_count = int(cur.fetchone().get('pending_count') or 0)
 
-        # Clipes criados nas últimas 6h
+        # Clipes criados nas últimas APPROVAL_IDLE_HOURS horas
         cur.execute(
             'SELECT COUNT(*) AS created_recent FROM generated_clips '
-            'WHERE created_at >= DATE_SUB(NOW(), INTERVAL %s HOUR)',
-            (APPROVAL_IDLE_HOURS,),
+            'WHERE created_at >= %s',
+            (_horas_atras(APPROVAL_IDLE_HOURS),),
         )
         created_recent = int(cur.fetchone().get('created_recent') or 0)
 
@@ -219,7 +229,7 @@ def check_youtube_tokens(conn, token_dir: str = '/app/youtube') -> list[str]:
     warnings = []
     with conn.cursor() as cur:
         cur.execute(
-            'SELECT id, name, slug, active FROM destination_channels WHERE active = 1'
+            'SELECT id, name, slug, active FROM destination_channels WHERE active = TRUE'
         )
         channels = cur.fetchall() or []
 
