@@ -23,7 +23,7 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 13 | FEITO | Rejeitar no painel não apagava os arquivos do clip |
 | 14 | FEITO | Usuários de teste com senha padrão viviam no banco de produção |
 | 15 | FEITO | Groq recusava toda seleção com 429 — `max_tokens` acima do teto do plano |
-| 16 | ABERTO | **Senha de root do MySQL publicada em repositório público** |
+| 16 | FEITO | Senhas do MySQL publicadas em repositório público — rotacionadas em 16/09/2026 |
 | 17 | ABERTO | Vaga da janela presa por clip aguardando aprovação do operador |
 
 ---
@@ -448,6 +448,35 @@ remota direta — mas é credencial ativa em repositório público.
 4. **Decisão separada:** reescrever o histórico (`git filter-repo`) ou aceitar que o valor antigo
    fica no histórico público. Rotacionar já torna o valor antigo inútil; reescrever histórico exige
    force push e quebra clones.
+
+### Resolvido em 16/09/2026 — as duas senhas foram rotacionadas
+
+Executado com o operador acompanhando. Ordem: backup dos `.env` → `ALTER USER` → atualização dos
+`.env` → restart → verificação.
+
+| Verificação | Resultado |
+|---|---|
+| `root` com a senha nova | conecta |
+| `clips_user` com a senha nova | conecta (consulta real em `source_channels`) |
+| Senha **antiga** | recusada pelo MySQL |
+| `.env` e `painel/.env` | hashes batem com as senhas geradas |
+| Worker local (máquina do operador) | segue funcionando, **sem alteração** |
+| `clip-processor` | zero erros de banco no log após o restart |
+
+O worker continuar funcionando sem tocar em nada é consequência direta da correção anterior: ele
+resolve a senha lendo o `.env` **dentro do servidor**, então a rotação foi transparente para ele.
+
+**Armadilha encontrada na execução:** o `docker compose up -d` reiniciou também o container `mysql`
+(o compose havia mudado), e a verificação rodou antes de o banco aceitar conexões — os dois testes
+deram falso negativo. Não era falha de rotação, era espera curta demais. Em rotação futura, esperar
+o MySQL responder antes de validar, não um `sleep` fixo.
+
+**O que continua verdade:** os valores antigos permanecem no histórico público do Git. Eles estão
+mortos (o MySQL os recusa), então o risco é nulo para acesso — mas quem clonar o repositório ainda
+os verá. Reescrever o histórico segue como decisão em aberto, agora sem urgência.
+
+`.env.bak-<data>` e `painel/.env.bak-<data>` ficaram no servidor como rollback. Apagar depois de
+alguns dias de operação normal.
 
 ---
 

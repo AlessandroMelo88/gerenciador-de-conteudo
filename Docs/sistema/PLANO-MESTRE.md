@@ -156,7 +156,7 @@ falado, e nenhum é canal de cortes:
 | Denílson Show | `@DenilsonShow` | **curto** (163–378s) |
 | Charla Podcast | `@CharlaPodcast` | misto (165–913s) |
 | Mauro Cezar Pereira | `@MauroCezar` | longo (491–983s) |
-| Rica Perrone | `@RicaPerrone` | longo (457–696s) |
+| ~~Rica Perrone~~ | `@RicaPerrone` | **desativado em 16/09/2026 — sem feed RSS** |
 | Tati Mantovani | `@TatiMantovani` | longo (502–866s) |
 | Marcelo Bechler | `@MarceloBechler1` | longo (481–2878s) |
 | Fred Caldeira | `@FredCaldeira` | longo (701–3903s) |
