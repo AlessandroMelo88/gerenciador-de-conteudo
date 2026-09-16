@@ -4,7 +4,7 @@ Status: **FEITO** (corrigido e verificado) · **PARCIAL** (parte corrigida, part
 **ABERTO** (confirmado, não corrigido) · **SUSPEITA** (evidência parcial, falta confirmar).
 
 Numeração é estável — não renumerar ao fechar um item, outros documentos linkam por número.
-Última atualização: **15/09/2026**.
+Última atualização: **16/09/2026**.
 
 | # | Status | Título |
 |---|---|---|
@@ -24,7 +24,7 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 14 | FEITO | Usuários de teste com senha padrão viviam no banco de produção |
 | 15 | FEITO | Groq recusava toda seleção com 429 — `max_tokens` acima do teto do plano |
 | 16 | FEITO | Senhas do MySQL publicadas em repositório público — rotacionadas em 16/09/2026 |
-| 17 | ABERTO | Vaga da janela presa por clip aguardando aprovação do operador |
+| 17 | PARCIAL | Vaga da janela presa por clip aguardando aprovação — caso "todos rejeitados" corrigido |
 
 ---
 
@@ -480,7 +480,7 @@ alguns dias de operação normal.
 
 ---
 
-## 17. ABERTO — Vaga da janela presa por clip aguardando aprovação
+## 17. PARCIAL — Vaga da janela presa por clip aguardando aprovação
 
 **Apurado em 16/09/2026.** A janela de futebol ficou em **10/10 ocupada** com 145 vídeos frescos
 esperando, e nenhum download novo começava.
@@ -513,3 +513,28 @@ e ao menos um publicou, então nada se resolve sozinho.
 - alerta no painel quando a janela estiver cheia só por clip pendente — hoje o operador não tem
   como saber que a fila parou por causa dele.
 
+### Corrigido em 16/09/2026 — vídeo com todos os clips rejeitados/falhos
+
+Mesmo dia, segunda forma da trava: depois que os clips `pending` foram rejeitados (pelo operador ou
+pelo TTL de 48h), os vídeos **continuavam** em `selecting` com o raw em disco. Futebol foi liberado na
+mão com script (10 vídeos, marcados `failed`); política tinha 9 presos com todos os clips `rejected`.
+
+Causa: `_maybe_finalize_source_video` exigia ao menos um clip `published` e só era chamado pelo
+publisher, logo depois de uma publicação. Rejeição e falha nunca disparavam o encerramento, e
+`recover_stuck_selecting` não alcança vídeo com clip.
+
+Correção ([`publisher.py`](../clip-processor/src/publisher.py)):
+
+- `_maybe_finalize_source_video` encerra quando o vídeo tem clip e **nenhum** está em estado
+  não-terminal (`pending_cut`, `cutting`, `pending`, `approved`, `publishing`). Status final
+  `published` se algum clip foi ao ar, senão `failed` — o mesmo que o script manual gravou.
+  Como `pending_cut`/`cutting` são não-terminais, o raw que um corte ainda vai ler nunca é apagado.
+- O raw é apagado antes do banco e conferido: se continuar em disco, o banco não é tocado e a próxima
+  rodada tenta de novo.
+- Nova varredura `finalize_settled_source_videos`, chamada por `run_recovery_once` (boot + a cada
+  30 min): pega `selecting` com clip e sem clip não-terminal. Falha num vídeo não impede os outros.
+
+Testes: `tests/test_finalize_source_video.py`.
+
+**Continua aberto:** clip parado em `pending` esperando o operador ainda segura a vaga até ser
+aprovado, rejeitado ou expirar pelo TTL (48h). Os caminhos listados acima seguem válidos para essa parte.

@@ -1,24 +1,24 @@
-# Graph Report - canaldecortes  (2026-09-15)
+# Graph Report - canaldecortes  (2026-09-16)
 
 ## Corpus Check
-- 399 files · ~767,781 words
+- 399 files · ~767,992 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2852 nodes · 4839 edges · 223 communities (198 shown, 25 thin omitted)
+- 2852 nodes · 4839 edges · 220 communities (196 shown, 24 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 86 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4e79e549`
+- Built from commit: `48b6443f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- Illuminate\Database\Eloquent\Model
+- ClipProcessorClient
 - make_conn_with_clips
 - db.py
-- clip-queue-tabs.tsx
+- SourceChannels.tsx
 - QuotaManager
 - Phase 6 Plan 01: Wave 0 Scaffolding (migration + stubs + RED tests + n8n skeletons)
 - rss_poller.py
@@ -33,7 +33,7 @@
 - cn
 - publisher.py
 - 05-01 Plan: Publishing schema, skeletons and RED tests
-- GeneratedClip
+- Telegram\Bot\Commands\Command
 - TestUploadClip
 - uploader.py
 - generate_metadata
@@ -46,8 +46,8 @@
 - docker-compose.yml (raiz wordpress/)
 - download_video
 - Illuminate\Http\RedirectResponse
-- Illuminate\Database\Eloquent\Factories\Factory
-- Inertia\Response
+- SourceChannel
+- Illuminate\Http\Request
 - compilerOptions
 - video_processor.py
 - Phase 1: Infraestrutura Base
@@ -56,10 +56,10 @@
 - TelegramHttpClientHandler.php
 - Plano — Prompts de IA editáveis pelo painel
 - active-window-table.tsx
-- test_publisher.py
+- TestPublisherMultiCanal
 - _download_pending_videos
 - chart.tsx
-- utils.ts
+- Assistant.tsx
 - ARCHITECTURE.md (as-built, commit dca6e44)
 - process_clip
 - dependencies
@@ -103,7 +103,7 @@
 - local_download_worker.py
 - clip-processor/src/metadata_generator.py
 - destination_channels table
-- test_selector.py
+- _parse_moments
 - clip-processor/src/downloader.py
 - Illuminate\Console\Command
 - pipeline_runner.py
@@ -120,7 +120,7 @@
 - _process_ai_pipeline
 - validate-infra.sh
 - Sistema de Alertas, Monitoramento e Watchdog
-- SourceVideo
+- 05-03 Plan: YouTube uploader
 - Fases
 - @dnd-kit/utilities
 - run_ttl_once
@@ -155,14 +155,14 @@
 - test_video_processor.py
 - Guia de Deploy Rápido (Produção)
 - zod
-- input-group.tsx
+- HandleInertiaRequests.php
 - Pipeline e scheduler
 - _niche_windows
 - Sidecar HTTP e controles de fila
 - Corte e pós-produção de vídeo
 - _process_pending_clips(conn)
 - Phase 8 Context (Painel Laravel/Filament)
-- Illuminate\Http\Request
+- TelegramWebhookController.php
 - TestCase
 - test_uploader_expired.py
 - Estados e transições do pipeline
@@ -176,26 +176,23 @@
 - 📋 Regras de Negócio e Gatilhos Operacionais — Canal de Cortes
 - Plano PostgreSQL — fase A (local) e fase B (produção)
 - TestInsertMomentsDestinationChannel
-- n8n/workflows/canaldecortes-pipeline.json
-- Quota, window and round-robin logic
+- generated_clips.status state machine
+- Phase 8 Plan 09: Checkpoint Final End-to-End Summary
 - TestPollAllChannels
 - Diretório de Documentação (`Docs/`)
 - test_uploader.py
-- toggle-group.tsx
+- keywords
 - resume_claude_daemon.sh
-- TestPublishApprovedClips
+- test_publisher.py
 - deploy.sh script
 - @dnd-kit/core
 - @dnd-kit/sortable
 - ziggy-js
 - check_cron_status.sh
-- generate_sample_thumbnails.py
 - @tanstack/react-table
-- Phase 8 Plan 05: SourceChannelResource Plan
 - post-autoload-dump
 - Phase 8 Research (Painel Laravel/Filament)
 - sonner
-- autoload-dev
 - recharts
 - vaul
 
@@ -252,23 +249,23 @@
 - **Pipeline de processamento de vídeo: burn_subtitles + watermark** — planning_phases_07_schema_multi_canal_python_pipeline_07_research_video_processor, planning_phases_07_schema_multi_canal_python_pipeline_07_research_watermark_overlay, planning_phases_07_schema_multi_canal_python_pipeline_07_research_pitfall_intermediate_files, planning_phases_07_schema_multi_canal_python_pipeline_07_research_pitfall_overlay_input_order [EXTRACTED 0.90]
 - **Publicação por canal: quota + uploader + publisher** — planning_phases_07_schema_multi_canal_python_pipeline_07_research_quota_manager, planning_phases_07_schema_multi_canal_python_pipeline_07_research_uploader, planning_phases_07_schema_multi_canal_python_pipeline_07_research_publisher, planning_phases_07_schema_multi_canal_python_pipeline_07_research_redis_quota_per_channel [EXTRACTED 0.90]
 
-## Communities (223 total, 25 thin omitted)
+## Communities (220 total, 24 thin omitted)
 
-### Community 0 - "Illuminate\Database\Eloquent\Model"
-Cohesion: 0.18
-Nodes (5): Illuminate\Database\Eloquent\Factories\HasFactory, Illuminate\Database\Eloquent\Model, TranscriptionController, TranscriptionJob, Symfony\Component\HttpFoundation\StreamedResponse
+### Community 0 - "ClipProcessorClient"
+Cohesion: 0.12
+Nodes (4): TranscriptionController, TranscriptionJob, ClipProcessorClient, Symfony\Component\HttpFoundation\StreamedResponse
 
 ### Community 1 - "make_conn_with_clips"
-Cohesion: 0.12
-Nodes (19): dt_sp(), make_conn_with_clips(), make_mock_uploader(), Upload bem-sucedido: pending → publishing → published., Upload com erro: status vai para 'failed', quota não é incrementada., Quando quota/janela bloqueada, clip deve continuar como pending., Sem clips pendentes, retorna 0 sem chamar o uploader., Quando quota bloqueia no segundo clip, o terceiro não é tentado. (+11 more)
+Cohesion: 0.13
+Nodes (18): dt_sp(), make_conn_with_clips(), make_mock_uploader(), Upload bem-sucedido: pending → publishing → published., Upload com erro: status vai para 'failed', quota não é incrementada., Quando quota/janela bloqueada, clip deve continuar como pending., Sem clips pendentes, retorna 0 sem chamar o uploader., Quando quota bloqueia no segundo clip, o terceiro não é tentado. (+10 more)
 
 ### Community 2 - "db.py"
-Cohesion: 0.07
-Nodes (29): get_db_driver(), insert_video(), _log(), PostgresCursorWrapper, db.py — Módulo de acesso ao banco de dados (MySQL e PostgreSQL) para o daemon…, Atualiza o status de um vídeo na tabela source_videos. `local_path=None`…, Insere um novo vídeo na tabela source_videos com status 'pending'. Usa INSERT…, Redefine vídeos presos em status 'downloading' de volta para 'pending'.… (+21 more)
+Cohesion: 0.06
+Nodes (31): get_db_driver(), insert_video(), _log(), PostgresConnectionWrapper, PostgresCursorWrapper, db.py — Módulo de acesso ao banco de dados (MySQL e PostgreSQL) para o daemon…, Wrapper para conexão do psycopg2 expondo cursor com dicionário e atributo…, Atualiza o status de um vídeo na tabela source_videos. `local_path=None`… (+23 more)
 
-### Community 3 - "clip-queue-tabs.tsx"
-Cohesion: 0.14
-Nodes (14): ClipPreviewModal(), ClipPreviewModalProps, ClipQueueTabs(), FailuresTable(), PendingTable(), post(), useSelection(), OverviewCards() (+6 more)
+### Community 3 - "SourceChannels.tsx"
+Cohesion: 0.09
+Nodes (25): ClipPreviewModal(), ClipPreviewModalProps, ClipQueueTabs(), FailuresTable(), PendingTable(), post(), useSelection(), ConfirmButton() (+17 more)
 
 ### Community 4 - "QuotaManager"
 Cohesion: 0.06
@@ -299,12 +296,12 @@ Cohesion: 0.20
 Nodes (20): internal_api.resolve_channel(url) — yt-dlp channel resolution, _check_auth(), internal_api.py — Sidecar HTTP interno consumido pelo painel Laravel.…, Roda yt-dlp em modo metadata-only e extrai id/name/handle. Padrão yt-dlp:…, Dispara um ciclo imediato de publicação de clipes aprovados., Chama src.rejeitar.rejeitar(clip_id) diretamente. Preserva exit codes 0/1/2., reject_clip(), resolve_channel() (+12 more)
 
 ### Community 11 - "selector.py"
-Cohesion: 0.15
-Nodes (18): _enforce_longform_duration(), _filter_shortform_duration(), _log(), _normalize_scores(), _parse_moments(), selector.py — Seleção de momentos via IA com fallback automático. Prioridade em…, Converte scores 0–1 (comum no Groq) para escala 0–10 do pipeline., Parse JSON text → lista de dicts de momentos com normalização de timestamps. (+10 more)
+Cohesion: 0.17
+Nodes (14): _enforce_longform_duration(), _filter_shortform_duration(), _log(), _normalize_scores(), selector.py — Seleção de momentos via IA com fallback automático. Prioridade em…, Converte scores 0–1 (comum no Groq) para escala 0–10 do pipeline., Seleciona momentos via Groq (fallback sempre disponível)., Garante duração mínima de MIN_LONGFORM_SECONDS e máxima de MAX_LONGFORM_SECONDS… (+6 more)
 
 ### Community 12 - "DestinationChannels.tsx"
-Cohesion: 0.07
-Nodes (43): ChannelTemplateModal(), COLOR_PRESETS, Props, TemplateConfig, Niche, NicheCombobox(), slugify(), Command() (+35 more)
+Cohesion: 0.08
+Nodes (34): ChannelTemplateModal(), COLOR_PRESETS, Props, TemplateConfig, Niche, NicheCombobox(), slugify(), Command() (+26 more)
 
 ### Community 13 - "processar.py"
 Cohesion: 0.10
@@ -315,8 +312,8 @@ Cohesion: 0.09
 Nodes (23): concurrently, laravel-vite-plugin, devDependencies, concurrently, laravel-vite-plugin, tailwindcss, @tailwindcss/typography, @tailwindcss/vite (+15 more)
 
 ### Community 15 - "cn"
-Cohesion: 0.06
-Nodes (45): Avatar(), AvatarBadge(), AvatarFallback(), AvatarGroup(), AvatarGroupCount(), AvatarImage(), Breadcrumb(), BreadcrumbEllipsis() (+37 more)
+Cohesion: 0.05
+Nodes (56): Avatar(), AvatarBadge(), AvatarFallback(), AvatarGroup(), AvatarGroupCount(), AvatarImage(), Breadcrumb(), BreadcrumbEllipsis() (+48 more)
 
 ### Community 16 - "publisher.py"
 Cohesion: 0.08
@@ -324,11 +321,11 @@ Nodes (30): Blacklist guard (source_channels.blacklisted), COPY-01: watermark qu
 
 ### Community 17 - "05-01 Plan: Publishing schema, skeletons and RED tests"
 Cohesion: 0.11
-Nodes (24): quota_manager.py — Limite diario e janela de horario para uploads YouTube.…, YouTubeUploader.upload_clip(clip), MAX_UPLOADS_PER_DAY clamped to <= 6, default 2, YOUTUBE_TOKEN_FILE (default /app/token.json), mysql/init/04-publishing-migration.sql, Pattern: clock injection para testes deterministas, 05-01 Plan: Publishing schema, skeletons and RED tests, 05-01 Summary: publishing migration + TDD suite (+16 more)
+Nodes (23): quota_manager.py — Limite diario e janela de horario para uploads YouTube.…, MAX_UPLOADS_PER_DAY clamped to <= 6, default 2, Workflow usa Execute Command com retry 3x e espera 15 minutos, mysql/init/04-publishing-migration.sql, n8n/workflows/canaldecortes-pipeline.json, n8n/workflows/README.md, Pattern: clock injection para testes deterministas, 05-01 Plan: Publishing schema, skeletons and RED tests (+15 more)
 
-### Community 18 - "GeneratedClip"
-Cohesion: 0.11
-Nodes (11): POST /internal/resolve-channel (sidecar endpoint), CreateSourceChannel Page, GeneratedClip, AjudaCommand, AprovarCommand, ClipesCommand, ProcessarCommand, RejeitarCommand (+3 more)
+### Community 18 - "Telegram\Bot\Commands\Command"
+Cohesion: 0.10
+Nodes (15): POST /internal/resolve-channel (sidecar endpoint), Filament Resource GET/HEAD-only routing pattern, App\Filament\Resources\SourceChannelResource, CreateSourceChannel Page, AjudaCommand, AprovarCommand, ClipesCommand, ProcessarCommand (+7 more)
 
 ### Community 19 - "TestUploadClip"
 Cohesion: 0.11
@@ -343,8 +340,8 @@ Cohesion: 0.14
 Nodes (18): Anthropic structured outputs via output_config json_schema, _build_prompt(), generate_metadata(), _generate_via_anthropic(), _generate_via_groq(), _log(), _normalize_metadata(), metadata_generator.py — Geração de título, descrição e tags para YouTube.… (+10 more)
 
 ### Community 22 - "cut_clip"
-Cohesion: 0.24
-Nodes (3): cut_clip(), Corta um trecho do vídeo fonte. fmt='curto' (padrão): converte pra vertical…, TestVideoProcessor
+Cohesion: 0.14
+Nodes (11): _apply_youtube_thumbnail_graphics(), cut_clip(), extract_thumbnail(), _log(), Extrai um frame do clip como thumbnail JPG e aplica tipografia de alto CTR…, Aplica tipografia profissional e efeito de nuvem de sombra de alto CTR estilo…, Corta um trecho do vídeo fonte. fmt='curto' (padrão): converte pra vertical…, TestVideoProcessor (+3 more)
 
 ### Community 23 - "test_internal_api.py"
 Cohesion: 0.08
@@ -359,8 +356,8 @@ Cohesion: 0.13
 Nodes (15): _log(), _prepare_audio(), transcriber.py — Transcrição de vídeos via Groq Whisper API. Exporta: -…, Salva JSON de transcrição em disco e atualiza transcript_path no banco. Args:…, Extrai áudio MP3 de um arquivo de vídeo via ffmpeg. Args: video_path: caminho…, Transcreve um vídeo via Groq Whisper API. Args: video_id: youtube_video_id do…, save_transcript(), transcribe_video() (+7 more)
 
 ### Community 26 - "DestinationChannel"
-Cohesion: 0.13
-Nodes (5): DestinationChannelController, NicheController, DestinationChannel, Niche, BaselineSeeder
+Cohesion: 0.16
+Nodes (4): DestinationChannelController, DestinationChannel, Niche, BaselineSeeder
 
 ### Community 27 - "components.json"
 Cohesion: 0.09
@@ -375,24 +372,24 @@ Cohesion: 0.08
 Nodes (26): _cleanup_partial(), cleanup_stale_downloads(), download_video(), _log(), downloader.py — Download de vídeos YouTube via yt-dlp com disk guard e retry.…, Baixa um vídeo do YouTube em formato 720p mp4. Returns: True se download bem-…, Loga mensagem com timestamp para stdout., Deleta artefatos de trabalho do yt-dlp gerados por download incompleto. O glob… (+18 more)
 
 ### Community 30 - "Illuminate\Http\RedirectResponse"
-Cohesion: 0.11
-Nodes (3): Illuminate\Http\RedirectResponse, DashboardController, ClipProcessorClient
+Cohesion: 0.12
+Nodes (5): Illuminate\Http\RedirectResponse, DashboardController, SourceVideoController, GeneratedClip, SourceVideo
 
-### Community 31 - "Illuminate\Database\Eloquent\Factories\Factory"
-Cohesion: 0.15
-Nodes (7): Illuminate\Database\Eloquent\Factories\Factory, DestinationChannelFactory, GeneratedClipFactory, SourceChannelFactory, SourceVideoFactory, static, UserFactory
+### Community 31 - "SourceChannel"
+Cohesion: 0.10
+Nodes (11): Illuminate\Database\Eloquent\Factories\Factory, Illuminate\Database\Eloquent\Factories\HasFactory, Illuminate\Database\Eloquent\Model, Illuminate\Http\JsonResponse, AssistantController, SourceChannelController, SourceChannel, DestinationChannelFactory (+3 more)
 
-### Community 32 - "Inertia\Response"
-Cohesion: 0.14
-Nodes (9): Illuminate\Http\JsonResponse, Inertia\Response, AssistantController, Controller, DocumentationController, ProcessVideoController, SourceChannelController, UsefulLinksController (+1 more)
+### Community 32 - "Illuminate\Http\Request"
+Cohesion: 0.10
+Nodes (10): Illuminate\Http\Request, Inertia\Response, AuthController, Controller, DocumentationController, NicheController, ProcessVideoController, SettingsController (+2 more)
 
 ### Community 33 - "compilerOptions"
 Cohesion: 0.10
 Nodes (19): compilerOptions, allowImportingTsExtensions, isolatedModules, jsx, lib, module, moduleResolution, noEmit (+11 more)
 
 ### Community 34 - "video_processor.py"
-Cohesion: 0.11
-Nodes (24): _apply_youtube_thumbnail_graphics(), _build_clip_context(), extract_thumbnail(), _fetch_clip(), _log(), process_clip(), video_processor.py — Corte, legendas, thumbnail e processamento de clips.…, Extrai um frame do clip como thumbnail JPG e aplica tipografia de alto CTR… (+16 more)
+Cohesion: 0.12
+Nodes (19): _build_clip_context(), _fetch_clip(), process_clip(), video_processor.py — Corte, legendas, thumbnail e processamento de clips.…, Busca a imagem de background 1920x1080 do canal ou nicho., Processa um registro de generated_clips com status pending_cut. Pipeline: cut →…, Gera configuração padrão inteligente de template 9:16 baseada no nicho do canal., resolve_background_path() (+11 more)
 
 ### Community 35 - "Phase 1: Infraestrutura Base"
 Cohesion: 0.26
@@ -400,7 +397,7 @@ Nodes (10): ACQU-01: Monitoramento RSS de canais, ACQU-02: Download automático 
 
 ### Community 36 - "Phase 7 Context: Schema Multi-Canal + Python Pipeline"
 Cohesion: 0.16
-Nodes (16): rss_poller blacklist guard + target_niche SELECT extension, COPY-02 requirement: original channel credits in description, COPY-03 requirement: blacklisted channels never downloaded, Dual-layer blacklist guard pattern (SQL filter + Python loop guard), Graceful degradation pattern: return input unchanged when optional dependency missing, MCAN-01 requirement: OAuth token per destination channel, MCAN-02 requirement: destination_channel_id routing by niche, MCAN-03 requirement: independent Redis quota per channel (+8 more)
+Nodes (16): rss_poller blacklist guard + target_niche SELECT extension, COPY-01 requirement: watermark burned into every clip, COPY-03 requirement: blacklisted channels never downloaded, Dual-layer blacklist guard pattern (SQL filter + Python loop guard), Graceful degradation pattern: return input unchanged when optional dependency missing, MCAN-01 requirement: OAuth token per destination channel, MCAN-02 requirement: destination_channel_id routing by niche, MCAN-03 requirement: independent Redis quota per channel (+8 more)
 
 ### Community 37 - "run_pipeline_once"
 Cohesion: 0.13
@@ -415,12 +412,12 @@ Cohesion: 0.05
 Nodes (36): 10. Riscos e mitigação, 11. Fora de escopo neste plano, 1. Situação atual (verificada em 13/08/2026), 2. Versões confirmadas (regra `docs-first`), 3. Por onde o prompt deve trafegar — decisão, 4.1 `ai_prompts` — o *slot*, 4.2 `ai_prompt_versions` — histórico imutável, 4.3 `generated_clips.ai_prompt_version_id` (+28 more)
 
 ### Community 40 - "active-window-table.tsx"
-Cohesion: 0.12
-Nodes (23): ActiveWindowTable(), postAction(), SortableRow(), STATUS_LABEL, useSelection(), VideoActions(), VideoCells(), VideoTable() (+15 more)
+Cohesion: 0.11
+Nodes (24): ActiveWindowTable(), postAction(), SortableRow(), STATUS_LABEL, useSelection(), VideoActions(), VideoCells(), VideoTable() (+16 more)
 
-### Community 41 - "test_publisher.py"
-Cohesion: 0.13
-Nodes (14): _fetch_destination_channels(), _fetch_pending_clips_for_channel(), Retorna clips prontos para publicar filtrados por canal-destino. Faz fairness…, Reordena clips (já em ordem created_at ASC) intercalando por source_channel_id,…, Retorna canais-destino ativos de destination_channels., _round_robin_by_source_channel(), make_mock_quota(), Testes para publisher.py — publicação de clips pendentes. (+6 more)
+### Community 41 - "TestPublisherMultiCanal"
+Cohesion: 0.18
+Nodes (9): _fetch_pending_clips_for_channel(), Retorna clips prontos para publicar filtrados por canal-destino. Faz fairness…, Reordena clips (já em ordem created_at ASC) intercalando por source_channel_id,…, _round_robin_by_source_channel(), Testes RED para roteamento multi-canal no publisher (MCAN-02, MCAN-04)., MCAN-02: _fetch_pending_clips_for_channel filtra por destination_channel_id.…, MCAN-02: clips de canal 2 não aparecem na busca do canal 1., COPY-02: append_credits é chamado antes do upload quando credit_template e… (+1 more)
 
 ### Community 42 - "_download_pending_videos"
 Cohesion: 0.18
@@ -430,13 +427,13 @@ Nodes (10): _download_pending_videos(), Baixa vídeos com status 'pending', um p
 Cohesion: 0.23
 Nodes (10): ChartConfig, ChartContext, ChartContextProps, ChartLegendContent(), ChartTooltipContent(), getPayloadConfigFromPayload(), INITIAL_DIMENSION, THEMES (+2 more)
 
-### Community 44 - "utils.ts"
-Cohesion: 0.09
-Nodes (31): LoginForm(), Badge(), badgeVariants, Button(), buttonVariants, Card(), CardAction(), CardContent() (+23 more)
+### Community 44 - "Assistant.tsx"
+Cohesion: 0.13
+Nodes (22): LoginForm(), Badge(), badgeVariants, Card(), CardAction(), CardContent(), CardDescription(), CardFooter() (+14 more)
 
 ### Community 45 - "ARCHITECTURE.md (as-built, commit dca6e44)"
-Cohesion: 0.20
-Nodes (11): ARCHITECTURE.md (as-built, commit dca6e44), AI fallback chain (Claude → Groq → deterministic), Dead code: painel/app/Filament/Pages/Dashboard.php orphan, env() outside config() pitfall in DashboardController, Section 10: Known divergences and technical debt, niches table (only Laravel-migration-managed pipeline table), source_videos.status state machine, CLAUDE.md — Canal de Cortes work instructions (+3 more)
+Cohesion: 0.15
+Nodes (15): ARCHITECTURE.md (as-built, commit dca6e44), AI fallback chain (Claude → Groq → deterministic), niches table (only Laravel-migration-managed pipeline table), Quota, window and round-robin logic, source_videos.status state machine, CLAUDE.md — Canal de Cortes work instructions, Rules for destructive operations, metadata_generator.py Groq fallback fix (27/07/2026) (+7 more)
 
 ### Community 46 - "process_clip"
 Cohesion: 0.14
@@ -459,8 +456,8 @@ Cohesion: 0.13
 Nodes (15): scripts, dev, post-create-project-cmd, post-update-cmd, pre-package-uninstall, test, Composer\\Config::disableProcessTimeout, Illuminate\\Foundation\\ComposerScripts::prePackageUninstall (+7 more)
 
 ### Community 51 - "painel/README.md (setup fresh 10 passos)"
-Cohesion: 0.15
-Nodes (13): Filament removal commit dca6e44, painel/ — Laravel 13 + Inertia 3 + React 19 (Filament removed), clip-processor/requirements.txt, nginx bind mount painel fix (404 puro), painel/README.md (setup fresh 10 passos), routes/web.php raiz '/' redirect fix, YouTube OAuth authorization CLI flow (youtube_oauth.py), Phase 8 Plan 09: Checkpoint Final End-to-End Plan (+5 more)
+Cohesion: 0.22
+Nodes (9): Boundary rule: painel reads directly, writes via sidecar, Filament removal commit dca6e44, painel/ — Laravel 13 + Inertia 3 + React 19 (Filament removed), clip-processor/requirements.txt, painel/README.md (setup fresh 10 passos), YouTube OAuth authorization CLI flow (youtube_oauth.py), PROJECT_BRIEF.md — Canal de Cortes as-built brief, clip-processor / painel service boundary (rigid) (+1 more)
 
 ### Community 52 - "clip-processor/src/transcriber.py"
 Cohesion: 0.15
@@ -468,7 +465,7 @@ Nodes (14): clip-processor/src/selector.py, clip-processor/src/transcriber.py, c
 
 ### Community 53 - "composer.json"
 Cohesion: 0.14
-Nodes (13): description, extra, laravel, keywords, dont-discover, license, minimum-stability, name (+5 more)
+Nodes (13): autoload-dev, psr-4, description, extra, laravel, dont-discover, license, minimum-stability (+5 more)
 
 ### Community 54 - "_select_pending_videos"
 Cohesion: 0.24
@@ -483,36 +480,36 @@ Cohesion: 0.33
 Nodes (6): Accordion(), AccordionContent(), AccordionItem(), AccordionTrigger(), CHAIN, PageProps
 
 ### Community 57 - ".planning/research/PITFALLS.md"
-Cohesion: 0.15
-Nodes (12): generated_clips.status state machine, list-pending-clips.sh, mark-published.sh, manual-workflow/README.md — manual clip publishing guide, n8n 06-router.json deactivation, Pitfall: Blacklist Check Happens Too Late in the Pipeline, Pitfall: Filament Delete Button Deletes MySQL Row Without Deleting Files, Pitfall: Filament Auto-Generated Resources Break on ENUM Columns (+4 more)
+Cohesion: 0.17
+Nodes (11): n8n 06-router.json deactivation, Pitfall: CSRF blocking Telegram webhook (419), Redis SET NX dedup pattern (tg:dedup:{update_id}), TelegramWebhookController::handle, Pitfall: Blacklist Check Happens Too Late in the Pipeline, Pitfall: Filament Delete Button Deletes MySQL Row Without Deleting Files, Pitfall: Laravel Writes Conflict with Python Pipeline Mid-Transaction, Pitfall: n8n Still Running Telegram Bot in Parallel After Migration (+3 more)
 
 ### Community 58 - ".planning/research/FEATURES.md"
-Cohesion: 0.20
-Nodes (9): irazasyed/telegram-bot-sdk ^3.16, burn_watermark() function design, Admin Panel (Laravel/Filament) feature spec, Copyright Protection feature spec, Multi-Channel YouTube Publishing feature spec, OAuth testing-mode token expiry warning (7 days), Telegram Bot in Laravel feature spec, Laravel 13 version choice (not 11) (+1 more)
+Cohesion: 0.18
+Nodes (10): irazasyed/telegram-bot-sdk ^3.16, burn_watermark() function design, Admin Panel (Laravel/Filament) feature spec, Copyright Protection feature spec, Multi-Channel YouTube Publishing feature spec, OAuth testing-mode token expiry warning (7 days), Telegram Bot in Laravel feature spec, Filament 5.x version choice (not 3) (+2 more)
 
 ### Community 59 - "sidebar.tsx"
 Cohesion: 0.05
-Nodes (54): react, AppSidebar(), NavItem, navItems, NavUser(), SiteHeader(), ThemeToggle(), ChartContainer() (+46 more)
+Nodes (55): react, AppSidebar(), NavItem, navItems, NavUser(), SiteHeader(), ChartContainer(), DropdownMenu() (+47 more)
 
 ### Community 60 - "internal_api.py sidecar (Flask, port 8090)"
-Cohesion: 0.14
-Nodes (15): APScheduler jobs (ingest_cycle, publish_cycle, clip_pending_ttl), Boundary rule: painel reads directly, writes via sidecar, clip-processor service (as-built), internal_api.py sidecar (Flask, port 8090), CLIP_PROCESSOR_INTERNAL_TOKEN shared setup, Telegram Command classes (Status/Clipes/Aprovar/Rejeitar/Processar/Ajuda), Pitfall: CSRF blocking Telegram webhook (419), Pitfall: Python→Laravel via wrong Host header (404) (+7 more)
+Cohesion: 0.25
+Nodes (9): APScheduler jobs (ingest_cycle, publish_cycle, clip_pending_ttl), clip-processor service (as-built), internal_api.py sidecar (Flask, port 8090), CLIP_PROCESSOR_INTERNAL_TOKEN shared setup, Telegram Command classes (Status/Clipes/Aprovar/Rejeitar/Processar/Ajuda), Pitfall: Python→Laravel via wrong Host header (404), POST /internal/pipeline-event (Laravel endpoint), POST /internal/process-url (Python sidecar) (+1 more)
 
 ### Community 61 - "validate-phase6-n8n.py"
 Cohesion: 0.45
 Nodes (11): AssertionError, assert_contains(), assert_has_node(), load_json(), main(), nodes_by_name(), Path, validate_cron() (+3 more)
 
 ### Community 62 - "SourceVideos.tsx"
-Cohesion: 0.10
-Nodes (20): Checkbox(), Select(), SelectContent(), SelectGroup(), SelectItem(), SelectLabel(), SelectScrollDownButton(), SelectScrollUpButton() (+12 more)
+Cohesion: 0.07
+Nodes (28): Checkbox(), Select(), SelectContent(), SelectGroup(), SelectItem(), SelectLabel(), SelectScrollDownButton(), SelectScrollUpButton() (+20 more)
 
 ### Community 63 - "clip-processor/src/rss_poller.py"
 Cohesion: 0.27
 Nodes (11): _cleanup_partial() chamado fora do loop de retry, clip-processor/src/dedup.py, clip-processor/src/dedup.py, Dedup pattern: Redis NX → fallback MySQL → False, download_video(video_id, output_path), clip-processor/src/downloader.py, is_seen(video_id, redis_client, db_conn), 02-03-PLAN: dedup.py, downloader.py, rss_poller.py (+3 more)
 
 ### Community 64 - "append_credits"
-Cohesion: 0.24
-Nodes (7): append_credits(), Adiciona linha de créditos ao final da descrição. Nunca sobrescreve conteúdo…, COPY-02: template vazio → retorna descrição sem modificação., COPY-02: handle vazio → retorna descrição sem modificação., Testes RED para append_credits (COPY-02)., COPY-02: template com {channel_handle} é substituído pelo handle real., TestAppendCredits
+Cohesion: 0.19
+Nodes (10): append_credits(), Adiciona linha de créditos ao final da descrição. Nunca sobrescreve conteúdo…, COPY-02: template vazio → retorna descrição sem modificação., COPY-02: handle vazio → retorna descrição sem modificação., Testes RED para append_credits (COPY-02)., COPY-02: template com {channel_handle} é substituído pelo handle real., TestAppendCredits, COPY-02 requirement: original channel credits in description (+2 more)
 
 ### Community 65 - "conftest.py"
 Cohesion: 0.24
@@ -531,8 +528,8 @@ Cohesion: 0.22
 Nodes (14): delete_source_video_file(), Apaga o arquivo bruto (.mp4), clips gerados (videos/clips/), thumbnails e…, can_delete_raw(), _cleanup_partial(), _kill_ffmpeg_for_clip(), _kill_ytdlp_for(), _log(), pause_video() (+6 more)
 
 ### Community 69 - "overlay_watermark"
-Cohesion: 0.20
-Nodes (10): overlay_watermark(), Aplica watermark PNG no canto superior direito do clip via FFmpeg. Usa…, Testes RED para overlay_watermark (COPY-01)., COPY-01: wm_path existente → ffmpeg com -filter_complex e overlay=W-w-20:20., COPY-01: wm_path ausente → retorna input_path sem chamar subprocess., TestOverlayWatermark, COPY-01 requirement: watermark burned into every clip, FFmpeg dual-input pattern: -filter_complex overlay (clip first, watermark second) (+2 more)
+Cohesion: 0.25
+Nodes (7): overlay_watermark(), Aplica watermark PNG no canto superior direito do clip via FFmpeg. Usa…, Testes RED para overlay_watermark (COPY-01)., COPY-01: wm_path existente → ffmpeg com -filter_complex e overlay=W-w-20:20., COPY-01: wm_path ausente → retorna input_path sem chamar subprocess., TestOverlayWatermark, FFmpeg dual-input pattern: -filter_complex overlay (clip first, watermark second)
 
 ### Community 70 - "require-dev"
 Cohesion: 0.20
@@ -543,8 +540,8 @@ Cohesion: 0.20
 Nodes (10): 02-04-PLAN.md: Daemon main.py Plan, 02-04-SUMMARY.md: Daemon main.py Summary, 02-CONTEXT.md: Phase 2 Context, 02-RESEARCH.md: Phase 2 Research, 02-VALIDATION.md: Phase 2 Validation Strategy, pytest test infra (Phase 2 Wave 0), ACQU-01: monitorar canais via RSS a cada 6h, ACQU-02: baixar vídeos novos em 720p via yt-dlp (+2 more)
 
 ### Community 72 - ".planning/research/ARCHITECTURE.md (v2.0 research, superseded)"
-Cohesion: 0.32
-Nodes (8): Artisan Schedule daily summary 18h BRT, Phase 9 Research: Bot Telegram no Laravel, channel_blacklist table (research design), destination_channels table (research design), Phase 7: Schema Multi-Canal + Watermark + Copyright (research plan), Phase 8: Laravel/Filament Painel Base (research plan), Phase 9: Bot Telegram no Laravel + Migração do n8n (research plan), .planning/research/ARCHITECTURE.md (v2.0 research, superseded)
+Cohesion: 0.28
+Nodes (9): Dead code: painel/app/Filament/Pages/Dashboard.php orphan, env() outside config() pitfall in DashboardController, Section 10: Known divergences and technical debt, channel_blacklist table (research design), destination_channels table (research design), Phase 7: Schema Multi-Canal + Watermark + Copyright (research plan), Phase 8: Laravel/Filament Painel Base (research plan), Phase 9: Bot Telegram no Laravel + Migração do n8n (research plan) (+1 more)
 
 ### Community 73 - "Sistema — IA de seleção de cortes"
 Cohesion: 0.06
@@ -563,8 +560,8 @@ Cohesion: 0.16
 Nodes (11): insert_selected_moments(), _lookup_destination_channel_id(), Remove momentos sobrepostos, mantendo o de maior score. Retorna no máximo…, Resolve destination_channel_id via JOIN source_videos → source_channels →…, Filtra momentos com score >= 7 e insere em generated_clips. Returns: Número de…, _remove_overlaps(), AI-03: Momento com score=7 é inserido em generated_clips com status pending_cut., AI-03: Momento com score=6 não é inserido — count retorna 0. (+3 more)
 
 ### Community 77 - "get_db_connection"
-Cohesion: 0.11
-Nodes (12): get_db_connection(), PostgresConnectionWrapper, Wrapper para conexão do psycopg2 expondo cursor com dicionário e atributo…, Abre conexão com o banco de dados (MySQL ou PostgreSQL) usando variáveis de…, BlockingScheduler, _FallbackJob, log(), Roda os recoveries de estado preso. Agendado, não só no boot. Enquanto isso… (+4 more)
+Cohesion: 0.14
+Nodes (10): get_db_connection(), Abre conexão com o banco de dados (MySQL ou PostgreSQL) usando variáveis de…, BlockingScheduler, _FallbackJob, log(), Roda os recoveries de estado preso. Agendado, não só no boot. Enquanto isso…, Executa o ciclo de integridade e auto-cura do Watchdog., run_recovery_once() (+2 more)
 
 ### Community 78 - "TestYouTubeUploaderChannelSlug"
 Cohesion: 0.25
@@ -575,8 +572,8 @@ Cohesion: 0.25
 Nodes (8): post-root-package-install, setup, composer install, npm install --ignore-scripts, npm run build, @php artisan key:generate, @php artisan migrate --force, @php -r \"file_exists('.env') || copy('.env.example', '.env');\
 
 ### Community 80 - "Phase 9-04 Plan: Telegram Bot Checkpoint"
-Cohesion: 0.53
-Nodes (6): PipelineEventTest.php, setWebhook registration to https://alessandromelo.com.br/telegramcanal, Phase 9-04 Plan: Telegram Bot Checkpoint, TelegramCommandsTest.php, TelegramWebhookTest.php, Phase 9 Validation Strategy
+Cohesion: 0.39
+Nodes (8): PipelineEventTest.php, setWebhook registration to https://alessandromelo.com.br/telegramcanal, Phase 9-04 Plan: Telegram Bot Checkpoint, TelegramCommandsTest.php, TelegramWebhookTest.php, Artisan Schedule daily summary 18h BRT, Phase 9 Research: Bot Telegram no Laravel, Phase 9 Validation Strategy
 
 ### Community 81 - "Phase 7: Schema Multi-Canal + Python Pipeline"
 Cohesion: 0.25
@@ -606,9 +603,9 @@ Nodes (6): clip-processor/src/metadata_generator.py, clip-processor/tests/test_m
 Cohesion: 0.33
 Nodes (6): destination_channels table, Migration idempotente via INFORMATION_SCHEMA + prepared statement, 06-multi-canal-migration.sql, Phase 7: Schema Multi-Canal + Python Pipeline, Phase 7 — Validation Strategy, pytest test framework (clip-processor)
 
-### Community 88 - "test_selector.py"
+### Community 88 - "_parse_moments"
 Cohesion: 0.19
-Nodes (7): _clean_reason(), Colapsa espaços e corta a justificativa do momento em MAX_REASON_CHARS. Modelo…, test_selector.py — Testes unitários para selector.py (AI-02, AI-03). Estado…, Justificativa do momento não pode carregar o raciocínio do modelo (visto em…, insert_selected_moments lê moment['reason'] direto — não pode faltar a chave., A limpeza tem que valer para os dois caminhos de IA, que passam por…, TestCleanReason
+Nodes (9): _clean_reason(), _parse_moments(), Colapsa espaços e corta a justificativa do momento em MAX_REASON_CHARS. Modelo…, Parse JSON text → lista de dicts de momentos com normalização de timestamps., test_selector.py — Testes unitários para selector.py (AI-02, AI-03). Estado…, Justificativa do momento não pode carregar o raciocínio do modelo (visto em…, insert_selected_moments lê moment['reason'] direto — não pode faltar a chave., A limpeza tem que valer para os dois caminhos de IA, que passam por… (+1 more)
 
 ### Community 89 - "clip-processor/src/downloader.py"
 Cohesion: 0.50
@@ -624,7 +621,7 @@ Nodes (16): _clips_need_raw(), _discard_failed_download(), _log(), pipeline_runn
 
 ### Community 92 - "User.php"
 Cohesion: 0.12
-Nodes (6): Filament\Models\Contracts\FilamentUser interface, Illuminate\Foundation\Auth\User, Illuminate\Notifications\Notifiable, ResetPainelPassword artisan command, AuthController, User
+Nodes (7): Filament\Models\Contracts\FilamentUser interface, Illuminate\Foundation\Auth\User, Illuminate\Notifications\Notifiable, ResetPainelPassword artisan command, User, static, UserFactory
 
 ### Community 93 - "psr-4"
 Cohesion: 0.40
@@ -657,6 +654,10 @@ Nodes (10): _process_ai_pipeline(), Executa transcrição + seleção para um v�
 ### Community 109 - "Sistema de Alertas, Monitoramento e Watchdog"
 Cohesion: 0.10
 Nodes (21): 1. Visão Geral, 2. Camada 1: Better Stack (Uptime, Heartbeat e Incidentes), 3. Camada 2: Sentry (Erros de Código e Runtime), 4.1. Auto-Cura de Clipes Fantasmas (`check_ghost_clips`), 4.2. Monitor de Deadlock da Janela de Download (`check_download_window_health`), 4.3. Monitor de Fila Ociosa (`check_approval_queue_activity`), 4.4. Validador Prévio de OAuth (`check_youtube_tokens`), 4.5. Monitor de Armazenamento SSD (`check_disk_space`) (+13 more)
+
+### Community 110 - "05-03 Plan: YouTube uploader"
+Cohesion: 0.33
+Nodes (6): YouTubeUploader.upload_clip(clip), YOUTUBE_TOKEN_FILE (default /app/token.json), 05-03 Plan: YouTube uploader, 05-03 Summary: YouTubeUploader implemented, 05-04 Plan: Publisher and raw cleanup, 05-04 Summary: Publisher implemented
 
 ### Community 111 - "Fases"
 Cohesion: 0.11
@@ -735,8 +736,8 @@ Cohesion: 0.17
 Nodes (11): 1. Contexto e Diagnóstico, 2.1. Script de Execução e Retentativas (`scripts/resume_claude_session.sh`), 2.2. Camadas de Agendamento Configuradas, 2. O que Foi Feito, 3. Como Saber se o Cron Funcionou, Dados da Sessão Interrompida, Opção A: Executar o verificador automático (Recomendado), Opção B: Verificação manual por arquivos de log (+3 more)
 
 ### Community 162 - "select_moments"
-Cohesion: 0.21
-Nodes (8): Analisa transcrição e retorna momentos selecionados via IA. Args: transcript:…, select_moments(), Momento com menos de 15 s é descartado: em 3-5 s não há assunto. Esticar 3 s…, Momento de 15 s a 30 s é esticado até MIN_SHORTFORM_SECONDS, não descartado.…, Momento maior que MAX_SHORTFORM_SECONDS (180 s, teto do Shorts) é cortado no…, AI-02: select_moments() retorna lista de dicts com start_time, end_time, score,…, AI-02: O texto enviado ao Haiku inclui timestamps no formato [Ns-Ns] por…, TestSelectMoments
+Cohesion: 0.17
+Nodes (10): Usa cliente Anthropic já instanciado (produção ou mock de teste)., Analisa transcrição e retorna momentos selecionados via IA. Args: transcript:…, select_moments(), _select_via_anthropic_client(), Momento com menos de 15 s é descartado: em 3-5 s não há assunto. Esticar 3 s…, Momento de 15 s a 30 s é esticado até MIN_SHORTFORM_SECONDS, não descartado.…, Momento maior que MAX_SHORTFORM_SECONDS (180 s, teto do Shorts) é cortado no…, AI-02: select_moments() retorna lista de dicts com start_time, end_time, score,… (+2 more)
 
 ### Community 163 - "notify"
 Cohesion: 0.13
@@ -754,9 +755,9 @@ Nodes (7): burn_subtitles(), _format_srt_time(), generate_srt(), Gera arquivo SR
 Cohesion: 0.17
 Nodes (11): 1. Deploy Padrão (~20 a 25 segundos), 2. Deploy Ultrarrápido Backend (~8 a 12 segundos), 3. Deploy com Rebuild do Docker (Apenas quando estritamente necessário), A Solução Definitiva, ⚡ Como Fazer Deploy, Guia de Deploy Rápido (Produção), 🌐 Informações do Servidor de Produção, O Problema Antigo (+3 more)
 
-### Community 171 - "input-group.tsx"
-Cohesion: 0.24
-Nodes (9): InputGroup(), InputGroupAddon(), inputGroupAddonVariants, InputGroupButton(), inputGroupButtonVariants, InputGroupInput(), InputGroupText(), InputGroupTextarea() (+1 more)
+### Community 171 - "HandleInertiaRequests.php"
+Cohesion: 0.40
+Nodes (3): Illuminate\Foundation\Configuration\Middleware, Inertia\Middleware, HandleInertiaRequests
 
 ### Community 172 - "Pipeline e scheduler"
 Cohesion: 0.18
@@ -782,9 +783,9 @@ Nodes (10): Checkpoint humano: verificação end-to-end Phase 4, _process_pendin
 Cohesion: 0.29
 Nodes (10): PANEL-01 requirement (CRUD canal-fonte sem SQL), PANEL-02 requirement (CRUD canal-destino + badge OAuth), PANEL-03 requirement (dashboard tempo real), PANEL-04 requirement (aprovar/rejeitar clip), PANEL-05 requirement (autenticação single-user), Phase 8 human checkpoint (7-step verification), Phase 8 Plan 04: Autenticação Summary, Phase 8 Plan 06: uploader RefreshError + DestinationChannelResource Summary (+2 more)
 
-### Community 178 - "Illuminate\Http\Request"
-Cohesion: 0.10
-Nodes (10): Illuminate\Foundation\Configuration\Middleware, Illuminate\Http\Request, Illuminate\Http\Response, Inertia\Middleware, SettingsController, JsonResponse, TelegramWebhookController, HandleInertiaRequests (+2 more)
+### Community 178 - "TelegramWebhookController.php"
+Cohesion: 0.22
+Nodes (4): Illuminate\Http\Response, JsonResponse, TelegramWebhookController, tg:dedup:{update_id} Redis SET NX EX 300 dedup pattern
 
 ### Community 179 - "TestCase"
 Cohesion: 0.25
@@ -838,13 +839,13 @@ Nodes (9): Como retomar depois de reiniciar a sessão, Decisões, Divergência e
 Cohesion: 0.25
 Nodes (5): MCAN-02: insert_selected_moments persiste destination_channel_id em…, MCAN-02: INSERT inclui destination_channel_id quando canal-destino existe para…, MCAN-02: Quando target_niche é NULL, destination_channel_id fica NULL (sem…, MCAN-02: Quando não há canal-destino ativo para o nicho,…, TestInsertMomentsDestinationChannel
 
-### Community 192 - "n8n/workflows/canaldecortes-pipeline.json"
+### Community 192 - "generated_clips.status state machine"
 Cohesion: 0.40
-Nodes (5): Workflow usa Execute Command com retry 3x e espera 15 minutos, n8n/workflows/canaldecortes-pipeline.json, n8n/workflows/README.md, 05-06 Plan: n8n workflow and production checkpoint, 05-06 Summary: n8n workflow importable, retry documented
+Nodes (5): generated_clips.status state machine, list-pending-clips.sh, mark-published.sh, manual-workflow/README.md — manual clip publishing guide, Pitfall: Filament Auto-Generated Resources Break on ENUM Columns
 
-### Community 193 - "Quota, window and round-robin logic"
-Cohesion: 0.29
-Nodes (7): Quota, window and round-robin logic, Queue does NOT live in Redis (queue = MySQL), QuotaManager per-channel Redis key design, Pitfall: Quota Cega — shared GCP project quota, Content type performance ranking (polêmica > gol > declaração...), Peak publishing hours rule (19h-22h BRT), strategy/CONTENT-CALENDAR.md — publishing schedule strategy
+### Community 193 - "Phase 8 Plan 09: Checkpoint Final End-to-End Summary"
+Cohesion: 0.40
+Nodes (5): nginx bind mount painel fix (404 puro), routes/web.php raiz '/' redirect fix, Phase 8 Plan 09: Checkpoint Final End-to-End Plan, Phase 8 Plan 09: Checkpoint Final End-to-End Summary, ./canaldecortes/youtube:/var/www/html/youtube:ro bind mount (php service)
 
 ### Community 194 - "TestPollAllChannels"
 Cohesion: 0.29
@@ -858,21 +859,13 @@ Nodes (4): 1. Documentação do Sistema (`Docs/sistema/`), 2. Estudos e Pesquisa
 Cohesion: 0.50
 Nodes (3): make_uploader(), Testes para YouTubeUploader — upload de clips e thumbnails. Todas as chamadas…, Cria YouTubeUploader com credenciais e YouTube mockados.
 
-### Community 197 - "toggle-group.tsx"
-Cohesion: 0.43
-Nodes (5): ToggleGroup(), ToggleGroupContext, ToggleGroupItem(), Toggle(), toggleVariants
-
-### Community 203 - "TestPublishApprovedClips"
-Cohesion: 0.40
-Nodes (4): Phase 6 — quando MANUAL_APPROVAL_REQUIRED=true, publisher seleciona 'approved'.…, O SELECT que busca clips para publicar deve passar 'approved' como parâmetro., TestPublishApprovedClips, dict
-
-### Community 214 - "generate_sample_thumbnails.py"
+### Community 197 - "keywords"
 Cohesion: 0.67
-Nodes (3): extract_frame(), main(), scripts/generate_sample_thumbnails.py — Gera amostras de thumbnails…
+Nodes (3): keywords, framework, laravel
 
-### Community 216 - "Phase 8 Plan 05: SourceChannelResource Plan"
-Cohesion: 0.40
-Nodes (5): Filament Resource GET/HEAD-only routing pattern, App\Filament\Resources\SourceChannelResource, routes/web.php POST/PATCH source-channels REST routes, Phase 8 Plan 05: SourceChannelResource Plan, Phase 8 Plan 05: SourceChannelResource Summary
+### Community 203 - "test_publisher.py"
+Cohesion: 0.15
+Nodes (10): _fetch_destination_channels(), Retorna canais-destino ativos de destination_channels., make_mock_quota(), Testes para publisher.py — publicação de clips pendentes., Phase 6 — quando MANUAL_APPROVAL_REQUIRED=true, publisher seleciona 'approved'.…, Fora da janela horária (QuotaManager.can_upload=False), publisher pula sem…, Mock de QuotaManager injetável via patch., MCAN-01: _fetch_destination_channels retorna apenas canais ativos. (+2 more)
 
 ### Community 217 - "post-autoload-dump"
 Cohesion: 0.67
@@ -882,10 +875,6 @@ Nodes (3): post-autoload-dump, Illuminate\\Foundation\\ComposerScripts::postAuto
 Cohesion: 0.25
 Nodes (8): docker exec / Docker socket bridge anti-pattern, Pattern 3: ponte HTTP interna clip-processor↔painel, App\Filament\Widgets\QuotaTodayWidget, Phase 8 Plan 07: internal_api.py GREEN Plan, Phase 8 Plan 07: internal_api.py GREEN Summary, Phase 8 Research (Painel Laravel/Filament), Pitfall: Redis connection('pipeline') vs default (DB0 vs DB1), Sidecar HTTP interno em thread daemon (antes do ciclo do pipeline)
 
-### Community 223 - "autoload-dev"
-Cohesion: 0.67
-Nodes (3): autoload-dev, psr-4, Tests\\
-
 ## Ambiguous Edges - Review These
 - `clip-processor/src/ttl_worker.py` → `clip-processor/src/telegram_notifier.py`  [AMBIGUOUS]
   .planning/phases/06-controle-manual-n8n-telegram/06-05-SUMMARY.md · relation: conceptually_related_to
@@ -893,18 +882,18 @@ Nodes (3): autoload-dev, psr-4, Tests\\
 ## Knowledge Gaps
 - **590 isolated node(s):** `deploy.sh script`, `force-download.sh script`, `$schema`, `style`, `rsc` (+585 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **25 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **24 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `clip-processor/src/ttl_worker.py` and `clip-processor/src/telegram_notifier.py`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `run_pipeline_once()` connect `run_pipeline_once` to `n8n/workflows/canaldecortes-pipeline.json`, `publisher.py`, `notify`, `rss_poller.py`, `_download_pending_videos`, `test_pipeline_runner.py`, `get_db_connection`, `pipeline_runner.py`?**
+- **Why does `run_pipeline_once()` connect `run_pipeline_once` to `publisher.py`, `notify`, `rss_poller.py`, `_download_pending_videos`, `test_pipeline_runner.py`, `get_db_connection`, `05-01 Plan: Publishing schema, skeletons and RED tests`, `pipeline_runner.py`?**
   _High betweenness centrality (0.091) - this node is a cross-community bridge._
-- **Why does `05-06 Plan: n8n workflow and production checkpoint` connect `n8n/workflows/canaldecortes-pipeline.json` to `Phase 6 Plan 01: Wave 0 Scaffolding (migration + stubs + RED tests + n8n skeletons)`?**
+- **Why does `05-06 Plan: n8n workflow and production checkpoint` connect `05-01 Plan: Publishing schema, skeletons and RED tests` to `Phase 6 Plan 01: Wave 0 Scaffolding (migration + stubs + RED tests + n8n skeletons)`?**
   _High betweenness centrality (0.084) - this node is a cross-community bridge._
-- **Why does `n8n/workflows/canaldecortes-pipeline.json` connect `n8n/workflows/canaldecortes-pipeline.json` to `05-01 Plan: Publishing schema, skeletons and RED tests`, `run_pipeline_once`?**
+- **Why does `n8n/workflows/canaldecortes-pipeline.json` connect `05-01 Plan: Publishing schema, skeletons and RED tests` to `run_pipeline_once`?**
   _High betweenness centrality (0.083) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `QuotaManager` (e.g. with `TestCanUpload` and `TestLongoReservation`) actually correct?**
   _`QuotaManager` has 4 INFERRED edges - model-reasoned connections that need verification._

@@ -35,8 +35,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/metadata_generator.py": {
-    "mtime": 1789511602.9552023,
-    "ast_hash": "948db440c40be180d726eacd6ae0ebb7",
+    "mtime": 1789530993.5247743,
+    "ast_hash": "2c69b5420c2ee900b739c25e00ec859f",
     "semantic_hash": ""
   },
   "clip-processor/src/pipeline_runner.py": {
@@ -70,8 +70,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/selector.py": {
-    "mtime": 1789525789.8145523,
-    "ast_hash": "80596243f236136cca3281c6f7854b8e",
+    "mtime": 1789530989.05204,
+    "ast_hash": "5357f43addb27ca8888f1014cf677ebc",
     "semantic_hash": ""
   },
   "clip-processor/src/telegram_notifier.py": {
@@ -1885,8 +1885,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/BUGS.md": {
-    "mtime": 1789525800.5064244,
-    "ast_hash": "b2c988c33b38be06610f4dafa1fdea1d",
+    "mtime": 1789531056.3307967,
+    "ast_hash": "319135ec882842bfb034cf253b5fbcdf",
     "semantic_hash": ""
   },
   "Docs/sistema/ESTADOS-E-TRANSICOES.md": {

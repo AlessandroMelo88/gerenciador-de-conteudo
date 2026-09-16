@@ -5,6 +5,7 @@ Exporta:
   - publish_pending_clips(conn, redis_client, uploader=None, quota_manager=None, now=None)
   - _fetch_destination_channels(conn)
   - _fetch_pending_clips_for_channel(conn, destination_channel_id)
+  - finalize_settled_source_videos(conn)
 """
 import os
 from datetime import datetime, timezone
@@ -311,28 +312,51 @@ def _mark_clip_failed(conn, clip_id: int, error: str) -> None:
     conn.commit()
 
 
-def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: str | None) -> None:
+def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: str | None) -> bool:
+    """Encerra o vídeo fonte quando todos os clips dele chegaram a estado terminal.
+
+    Apaga o raw e os arquivos dos clips e libera a vaga da janela de download
+    (`local_path=NULL` e status fora dos estados ativos). Status final:
+    'published' se ao menos um clip foi ao ar, 'failed' se todos terminaram
+    rejeitados/falhos.
+
+    Bug 17: antes exigia um clip publicado. Vídeo com todos os clips rejeitados
+    ficava em 'selecting' segurando a vaga para sempre — travou os dois nichos.
+
+    Clip em 'pending_cut'/'cutting' conta como não-terminal, então o raw que o
+    corte ainda vai ler nunca é apagado aqui. Vídeo sem clip nenhum não é
+    tratado aqui (é caso do `recover_stuck_selecting`).
+
+    Retorna True se encerrou o vídeo.
+    """
     with conn.cursor() as cur:
         cur.execute(
             'SELECT '
-            'SUM(status IN %s) AS non_terminal_count, '
-            "SUM(status = 'published') AS published_count "
+            'COUNT(*) AS total_count, '
+            'SUM(CASE WHEN status IN %s THEN 1 ELSE 0 END) AS non_terminal_count, '
+            "SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS published_count "
             'FROM generated_clips '
             'WHERE source_video_id = %s',
             (NON_TERMINAL_CLIP_STATUSES, source_video_id),
         )
         row = cur.fetchone() or {}
 
+    total_count = int(row.get('total_count') or 0)
     non_terminal_count = int(row.get('non_terminal_count') or 0)
     published_count = int(row.get('published_count') or 0)
-    if non_terminal_count != 0 or published_count == 0:
-        return
+    if total_count == 0 or non_terminal_count != 0:
+        return False
 
+    # Arquivo antes do banco, e conferindo: se o raw não saiu do disco, o banco
+    # fica como está e a próxima varredura tenta de novo (senão local_path=NULL
+    # esconderia um arquivo órfão ocupando disco).
     if source_local_path and os.path.exists(source_local_path):
         try:
             os.remove(source_local_path)
-        except OSError:
-            pass
+        except OSError as exc:
+            _log(f'Vídeo {source_video_id}: falha ao apagar raw {source_local_path}: {exc}')
+        if os.path.exists(source_local_path):
+            return False
 
     # Apagar arquivos dos clips e thumbnails do disco ao finalizar o vídeo fonte
     with conn.cursor() as cur:
@@ -365,7 +389,46 @@ def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: 
             (source_video_id,),
         )
         cur.execute(
-            "UPDATE source_videos SET status='published', local_path=NULL WHERE id=%s",
-            (source_video_id,),
+            'UPDATE source_videos SET status=%s, local_path=NULL WHERE id=%s',
+            ('published' if published_count else 'failed', source_video_id),
         )
     conn.commit()
+    return True
+
+
+def finalize_settled_source_videos(conn) -> int:
+    """Encerra vídeos em 'selecting' cujos clips estão todos em estado terminal.
+
+    `_maybe_finalize_source_video` só roda depois de uma publicação. Quando o
+    último clip de um vídeo sai do fluxo por rejeição (operador ou TTL) ou por
+    falha, ninguém chamava o encerramento e o vídeo segurava a vaga da janela
+    para sempre (bug 17). Agendado junto dos recoveries em `main.py`.
+
+    Retorna quantos vídeos foram encerrados.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            'SELECT sv.id, sv.local_path FROM source_videos sv '
+            "WHERE sv.status = 'selecting' "
+            'AND EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id) '
+            'AND NOT EXISTS ('
+            '  SELECT 1 FROM generated_clips gc '
+            '  WHERE gc.source_video_id = sv.id AND gc.status IN %s'
+            ')',
+            (NON_TERMINAL_CLIP_STATUSES,),
+        )
+        videos = cur.fetchall() or []
+
+    finalized = 0
+    for video in videos:
+        try:
+            if _maybe_finalize_source_video(conn, video['id'], video.get('local_path')):
+                finalized += 1
+        except Exception as exc:
+            _log(f'Vídeo {video["id"]}: falha ao encerrar — {exc}')
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+    _log(f'finalize_settled_source_videos: {finalized} de {len(videos)} vídeo(s) encerrado(s)')
+    return finalized
