@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Niche;
 use App\Models\Offer;
+use App\Services\OfferCopywriter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -75,15 +77,39 @@ class OfferController extends Controller
             'cta_text' => ['nullable', 'string', 'max:255'],
             'copy_short' => ['nullable', 'string'],
             'copy_long' => ['nullable', 'string'],
+            'ai_provider' => ['nullable', 'string', Rule::in(['anthropic', 'groq'])],
         ]);
+
+        // Texto gerado pelo botão "Gerar com IA" guarda o provedor; digitado à mão fica 'manual'.
+        $data['ai_provider'] ??= 'manual';
 
         Offer::create($data + [
             'network' => 'manual',
-            'ai_provider' => 'manual',
             'status' => 'draft',
         ]);
 
         return back()->with('success', "Oferta \"{$data['title']}\" criada");
+    }
+
+    /** Gera CTA + textos a partir da página do produto (ou do link de afiliado). Não grava nada. */
+    public function generateCopy(Request $request, OfferCopywriter $copywriter): JsonResponse
+    {
+        $data = $request->validate([
+            'affiliate_url' => ['nullable', 'required_without:product_url', 'string', 'max:4096', 'url:http,https'],
+            'product_url' => ['nullable', 'string', 'max:4096', 'url:http,https'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'niche' => ['nullable', 'string', 'max:64'],
+        ]);
+
+        try {
+            return response()->json($copywriter->generate(
+                $data['product_url'] ?? $data['affiliate_url'],
+                $data['title'] ?? null,
+                $data['niche'] ?? null,
+            ));
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
 
     public function update(Request $request, Offer $offer): RedirectResponse

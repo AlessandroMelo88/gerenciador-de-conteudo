@@ -43,6 +43,10 @@ return [
         'token_dir' => env('CLIP_PROCESSOR_TOKEN_DIR', '/var/www/html/painel/../youtube'),
     ],
 
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+    ],
+
     'groq' => [
         'key' => env('GROQ_API_KEY'),
         'model' => env('GROQ_MODEL', 'openai/gpt-oss-120b'),

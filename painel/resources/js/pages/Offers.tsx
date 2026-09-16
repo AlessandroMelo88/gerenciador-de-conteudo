@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
+import { CtaHint, GenerateCopyButton, type OfferCopy } from '@/components/offer-copy-tools';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -257,7 +258,12 @@ function CreateOfferDialog({ niches }: { niches: Niche[] }) {
         cta_text: '',
         copy_short: '',
         copy_long: '',
+        ai_provider: null as string | null,
     });
+
+    function applyCopy(copy: OfferCopy, provider: string | null) {
+        setData((prev) => ({ ...prev, ...copy, ai_provider: provider }));
+    }
 
     function submit(e: React.FormEvent) {
         e.preventDefault();
@@ -332,8 +338,23 @@ function CreateOfferDialog({ niches }: { niches: Niche[] }) {
                         {errors.product_url && <p className="text-xs text-destructive">{errors.product_url}</p>}
                     </Field>
 
+                    <div className="flex items-center justify-between gap-3 border-t pt-4">
+                        <div>
+                            <p className="text-sm font-medium">Texto de divulgação</p>
+                            <p className="text-xs text-muted-foreground">Escreva ou gere a partir da página do produto.</p>
+                        </div>
+                        <GenerateCopyButton
+                            source={{ affiliateUrl: data.affiliate_url, productUrl: data.product_url, title: data.title, niche: data.niche }}
+                            current={{ cta_text: data.cta_text, copy_short: data.copy_short, copy_long: data.copy_long }}
+                            onGenerated={applyCopy}
+                        />
+                    </div>
+
                     <Field>
-                        <FieldLabel htmlFor="new-offer-cta">Chamada (CTA, opcional)</FieldLabel>
+                        <div className="flex items-center justify-between">
+                            <FieldLabel htmlFor="new-offer-cta">Chamada (CTA, opcional)</FieldLabel>
+                            <CtaHint />
+                        </div>
                         <Input
                             id="new-offer-cta"
                             value={data.cta_text}
@@ -392,6 +413,10 @@ function OfferEditForm({ offer, niches, onDone }: { offer: Offer; niches: Niche[
         copy_long: offer.copyLong ?? '',
         affiliate_url: offer.affiliateUrl,
     });
+
+    function applyCopy(copy: OfferCopy) {
+        setData((prev) => ({ ...prev, ...copy }));
+    }
 
     const isApproved = offer.status === 'approved';
 
@@ -483,8 +508,20 @@ function OfferEditForm({ offer, niches, onDone }: { offer: Offer; niches: Niche[
                     {errors.niche && <p className="text-xs text-destructive">{errors.niche}</p>}
                 </Field>
 
+                <div className="flex items-center justify-between gap-3 border-t pt-4">
+                    <p className="text-sm font-medium">Texto de divulgação</p>
+                    <GenerateCopyButton
+                        source={{ affiliateUrl: data.affiliate_url, productUrl: offer.productUrl ?? '', title: data.title, niche: data.niche }}
+                        current={{ cta_text: data.cta_text, copy_short: data.copy_short, copy_long: data.copy_long }}
+                        onGenerated={applyCopy}
+                    />
+                </div>
+
                 <Field>
-                    <FieldLabel htmlFor="edit-offer-cta">Chamada (CTA)</FieldLabel>
+                    <div className="flex items-center justify-between">
+                        <FieldLabel htmlFor="edit-offer-cta">Chamada (CTA)</FieldLabel>
+                        <CtaHint />
+                    </div>
                     <Input id="edit-offer-cta" value={data.cta_text} onChange={(e) => setData('cta_text', e.target.value)} />
                     {errors.cta_text && <p className="text-xs text-destructive">{errors.cta_text}</p>}
                 </Field>

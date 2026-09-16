@@ -440,8 +440,8 @@
     "semantic_hash": "f98ce92e7bf51db1fabaf8a30e12fc5a"
   },
   "painel/config/services.php": {
-    "mtime": 1789500057.40116,
-    "ast_hash": "59fe653e5c2e178d4256bd98ff4ff33f",
+    "mtime": 1789584646.4584968,
+    "ast_hash": "a9e33edb0d8f65cb8482be44c93a1b80",
     "semantic_hash": ""
   },
   "painel/config/session.php": {
@@ -525,8 +525,8 @@
     "semantic_hash": ""
   },
   "painel/resources/js/components/app-sidebar.tsx": {
-    "mtime": 1789504341.4471579,
-    "ast_hash": "156c651b3840edeb0617c31914365e43",
+    "mtime": 1789584753.028471,
+    "ast_hash": "553f6e82014ae5d676d81ec898cc071c",
     "semantic_hash": ""
   },
   "painel/resources/js/components/clip-queue-tabs.tsx": {
@@ -815,8 +815,8 @@
     "semantic_hash": ""
   },
   "painel/routes/web.php": {
-    "mtime": 1789504153.157328,
-    "ast_hash": "d3f3ac5d80231d48d250a5614bde1655",
+    "mtime": 1789584646.4602916,
+    "ast_hash": "0820402472e3101e71c95ef9956e4c7e",
     "semantic_hash": ""
   },
   "painel/tests/Feature/AuthGuardTest.php": {
@@ -2220,8 +2220,8 @@
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/OfferController.php": {
-    "mtime": 1789504006.3447597,
-    "ast_hash": "9dba2ceeb77670143b549c40142afb9c",
+    "mtime": 1789584665.2289906,
+    "ast_hash": "55c16052ca9eb325b987385df5b84854",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/OfferPerformanceController.php": {
@@ -2290,8 +2290,8 @@
     "semantic_hash": ""
   },
   "painel/resources/js/pages/Offers.tsx": {
-    "mtime": 1789504221.530886,
-    "ast_hash": "7e6b08cfc841fe8bbbbbd5d3677769ca",
+    "mtime": 1789584797.6194668,
+    "ast_hash": "13c0ee0d85ea41c696b087fd3cfeda89",
     "semantic_hash": ""
   },
   "painel/routes/api.php": {
@@ -2330,8 +2330,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-AFILIADOS.md": {
-    "mtime": 1789515669.6280122,
-    "ast_hash": "a706e268d03702333b12c6469b9e4387",
+    "mtime": 1789585015.7414641,
+    "ast_hash": "fe7d96fd4b536e3c04dfeb88c1e24835",
     "semantic_hash": ""
   },
   "affiliate-worker/README.md": {
@@ -2342,6 +2342,26 @@
   "affiliate-worker/requirements.txt": {
     "mtime": 1789500056.1833522,
     "ast_hash": "6da23cdbf30d59e05d2a5c543d977b81",
+    "semantic_hash": ""
+  },
+  "painel/app/Services/OfferCopywriter.php": {
+    "mtime": 1789584959.6472056,
+    "ast_hash": "01016dd771a8e0f8ece156557d796aeb",
+    "semantic_hash": ""
+  },
+  "painel/resources/js/components/offer-copy-tools.tsx": {
+    "mtime": 1789584786.921583,
+    "ast_hash": "3cffe783a293b5bf2d58f8edc00d4ff2",
+    "semantic_hash": ""
+  },
+  "painel/resources/js/components/workspace-switcher.tsx": {
+    "mtime": 1789584736.1442852,
+    "ast_hash": "df3bf49ee54e0a14a90e797e43b67e70",
+    "semantic_hash": ""
+  },
+  "painel/tests/Feature/OfferCopyGenerationTest.php": {
+    "mtime": 1789584719.4277663,
+    "ast_hash": "fde03699bfe1527b535d697230687d53",
     "semantic_hash": ""
   }
 }

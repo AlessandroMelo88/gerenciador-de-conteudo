@@ -38,6 +38,20 @@ link curto do painel (`/o/abc123`). Quando alguém clica, o painel conta o cliqu
 o Telegram recusar o envio (canal errado, bot sem permissão), a oferta fica na fila e o painel tenta de
 novo na rodada seguinte.
 
+**Onde fica no painel:** clique no nome no topo da barra lateral (**Canal de Cortes · Pipeline de
+clipes**) e troque para **Afiliados · Pipeline de afiliados**. A barra passa a mostrar só o que é de
+afiliados (Ofertas e Performance). Para voltar aos clipes, mesmo caminho.
+
+**Criar oferta à mão com texto pronto:** em Ofertas → **Nova oferta**, preencha o link de afiliado (e,
+se tiver, a página do produto) e clique em **Gerar com IA**. O painel lê a página do produto e escreve a
+chamada (CTA), o texto curto e o texto longo com técnicas de venda, sem inventar preço nem desconto.
+Revise e salve. Se já havia texto escrito, o aviso traz **Desfazer**. O **i** ao lado de "Chamada (CTA)"
+explica o que é uma CTA. O mesmo botão aparece na edição de uma oferta.
+
+| Botão | O que usa | Se falhar |
+|---|---|---|
+| Gerar com IA | Página do produto (ou o link de afiliado) + título + nicho | Claude → Groq. Se as duas falharem, aparece o erro e você escreve à mão |
+
 **O que o sistema nunca faz sozinho:** publicar oferta sem aprovação, inventar link de afiliado,
 inventar preço ou desconto.
 
@@ -50,6 +64,8 @@ inventar preço ou desconto.
 | Worker local | `affiliate-worker/` | Busca candidatos, importa ofertas do operador, gera copy com IA, **empurra** para o servidor |
 | API de ofertas | `painel/routes/api.php` | Recebe ofertas do worker. Autenticação por token |
 | Tela Ofertas | `/painel/ofertas` | Revisão, edição, aprovação, cópia do link rastreável |
+| Gerar copy no painel | `POST /painel/ofertas/gerar-copy` → `App\Services\OfferCopywriter` | Lê a página (bloqueia IP interno em cada redirect), gera CTA/curto/longo. Anthropic → Groq. Não grava; limite 20/min |
+| Área na sidebar | `components/workspace-switcher.tsx` + `app-sidebar.tsx` | Troca entre "Pipeline de clipes" e "Pipeline de afiliados"; `/painel/ofertas*` abre em afiliados |
 | Redirect rastreável | `/o/{slug}` | Conta o clique e redireciona para o link da rede |
 | Divulgação Telegram | `php artisan offers:publish-telegram` (agendado) | Posta oferta aprovada no canal do nicho e marca `telegram_posted_at` |
 | Tela Performance | `/painel/ofertas/performance` | Cliques por oferta, canal e dia a partir de `offer_clicks` |
@@ -240,7 +256,7 @@ Para adicionar uma marca: nova entrada em `branding.brands` + blocos `[data-bran
 |---|---|---|
 | `AFFILIATE_API_TOKEN` | `painel/.env` **e** `affiliate-worker/.env` | mesmo valor nos dois. Gerar com `openssl rand -hex 32` |
 | `AFFILIATE_API_URL` | `affiliate-worker/.env` | ex. `https://toolscut.alessandromelo.com.br` |
-| `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `GROQ_MODEL` | `affiliate-worker/.env` | copy com IA |
+| `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `GROQ_MODEL` | `affiliate-worker/.env` **e** `painel/.env` | copy com IA (worker e botão "Gerar com IA"). Sem as duas chaves no painel o botão responde erro |
 | `MERCADOLIVRE_ACCESS_TOKEN` | `affiliate-worker/.env` | opcional |
 | `AFFILIATE_TELEGRAM_CHANNELS` | `painel/.env` | `nicho=chat` separado por vírgula. Vazio = nada é postado |
 | `AFFILIATE_TELEGRAM_PER_RUN` | `painel/.env` | ofertas por rodada, padrão 3 |

@@ -110,6 +110,8 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/painel/ofertas/performance', [OfferPerformanceController::class, 'index'])->name('offers.performance');
     Route::get('/painel/ofertas', [OfferController::class, 'index'])->name('offers.index');
     Route::post('/painel/ofertas', [OfferController::class, 'store'])->name('offers.store');
+    Route::post('/painel/ofertas/gerar-copy', [OfferController::class, 'generateCopy'])
+        ->middleware('throttle:20,1')->name('offers.generate-copy');
     Route::put('/painel/ofertas/{offer}', [OfferController::class, 'update'])->name('offers.update');
     Route::delete('/painel/ofertas/{offer}', [OfferController::class, 'destroy'])->name('offers.destroy');
 
