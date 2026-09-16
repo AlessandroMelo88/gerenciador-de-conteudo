@@ -499,6 +499,8 @@ export default function DestinationChannels() {
                                 </TableHeader>
                                 <TableBody>
                                     {filtered.map((channel) => {
+                                        const isPol = (channel.niche ?? '').toLowerCase().includes('política') || (channel.niche ?? '').toLowerCase().includes('politica');
+                                        const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
                                         const isAuth = channel.oauthStatus === 'authorized';
                                         return (
                                             <TableRow key={channel.id} className="hover:bg-muted/30">

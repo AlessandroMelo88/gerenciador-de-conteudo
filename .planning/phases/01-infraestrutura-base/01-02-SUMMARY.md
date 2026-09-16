@@ -92,7 +92,7 @@ None.
 None — arquivos são criados localmente. Execução do SQL requer docker exec contra container mysql rodando (passo do Plan 03 quando .env for criado e CLIPS_DB_PASSWORD estiver definido).
 
 ## Next Phase Readiness
-- Schema SQL pronto para execução via `envsubst < mysql/init/01-clips-schema.sql | docker exec -i mysql mysql -uroot -prootpassword`
+- Schema SQL pronto para execução via `envsubst < mysql/init/01-clips-schema.sql | docker exec -i mysql mysql -uroot -pCHANGE_ME_VIA_ENV`
 - validate-infra.sh pronto para rodar ao final de cada plan da Phase 1 para verificar estado acumulado da infraestrutura
 - Plan 03 precisará criar o .env com CLIPS_DB_PASSWORD e executar o schema SQL
 

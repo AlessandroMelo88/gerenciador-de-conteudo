@@ -132,6 +132,25 @@ def _normalize_scores(moments: list[dict]) -> list[dict]:
     return moments
 
 
+MAX_REASON_CHARS = 300
+
+
+def _clean_reason(raw) -> str:
+    """Colapsa espaços e corta a justificativa do momento em MAX_REASON_CHARS.
+
+    Modelo que raciocina em voz alta despeja a cadeia de pensamento inteira no campo `reason`
+    ("Vou selecionar o trecho de 0s a 454s? Não, o início é fraco. Vou..."). Visto em produção
+    com o Groq em 15/09/2026. A coluna é TEXT, então nada estoura — o estrago é metadado
+    ilegível no painel e no log, que é onde a justificativa é lida.
+    """
+    if raw is None:
+        return ''
+    texto = ' '.join(str(raw).split())
+    if len(texto) > MAX_REASON_CHARS:
+        return texto[:MAX_REASON_CHARS].rstrip() + '…'
+    return texto
+
+
 def _parse_moments(raw_text: str) -> list[dict]:
     """Parse JSON text → lista de dicts de momentos com normalização de timestamps."""
     data = json.loads(raw_text)
@@ -146,6 +165,8 @@ def _parse_moments(raw_text: str) -> list[dict]:
             m_clean = dict(m)
             m_clean['start_time'] = start
             m_clean['end_time'] = end
+            # sempre presente: insert_selected_moments lê moment['reason'] direto
+            m_clean['reason'] = _clean_reason(m.get('reason'))
             cleaned.append(m_clean)
     return _normalize_scores(cleaned)
 
@@ -163,6 +184,14 @@ def _select_via_anthropic_client(client, transcript_text: str, system_prompt: st
 
 GROQ_MODEL = os.environ.get('GROQ_MODEL', 'qwen/qwen3.8-27b')
 
+# O free tier do Groq limita a saída por minuto (OTPM) a 1000 tokens, e a recusa é pelo
+# max_tokens PEDIDO, não pelo consumido: pedir 2048 devolve 429 sem nem chamar o modelo.
+# Em produção isso derrubava toda seleção — "Request too large ... Limit 1000, Requested 2048" —
+# e cada vídeo caía em 'Nenhum momento válido' e virava failed. Ver Docs/sistema/BUGS.md.
+# O payload real cabe: são no máximo 3 momentos e a justificativa está limitada a
+# MAX_REASON_CHARS. Ajustável por ambiente para quem estiver em plano pago.
+GROQ_MAX_OUTPUT_TOKENS = int(os.environ.get('GROQ_MAX_OUTPUT_TOKENS', '1000'))
+
 
 def _select_via_groq(transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -> list[dict]:
     """Seleciona momentos via Groq (fallback sempre disponível)."""
@@ -177,7 +206,7 @@ def _select_via_groq(transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -
         ],
         response_format={'type': 'json_object'},
         temperature=0.2,
-        max_tokens=2048,
+        max_tokens=GROQ_MAX_OUTPUT_TOKENS,
     )
     return _parse_moments(response.choices[0].message.content)
 

@@ -11,6 +11,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 COMPOSE_DIR="$(dirname "$PROJECT_DIR")"
 
+# Senha do MySQL: nunca hardcoded. Vem do ambiente ou do .env do compose compartilhado.
+# Ver bug 16 em Docs/sistema/BUGS.md — o literal daqui estava publicado no GitHub.
+DB_PASS="${MYSQL_ROOT_PASSWORD:-$(grep -m1 "^MYSQL_ROOT_PASSWORD=" "$COMPOSE_DIR/.env" 2>/dev/null | cut -d= -f2- | tr -d "\"")}"
+
 check() {
   local label="$1"
   shift
@@ -35,11 +39,11 @@ check "n8n Up" bash -c "cd '$COMPOSE_DIR' && docker compose ps n8n | grep -i 'up
 
 echo ""
 echo "[INFRA-02] MySQL schema"
-check "banco clips_automation existe" bash -c "docker exec mysql mysql -uroot -prootpassword -e 'SHOW DATABASES;' 2>/dev/null | grep clips_automation"
-check "tabela source_channels existe" bash -c "docker exec mysql mysql -uroot -prootpassword clips_automation -e 'DESCRIBE source_channels;' 2>/dev/null | grep youtube_channel_id"
-check "tabela source_videos existe" bash -c "docker exec mysql mysql -uroot -prootpassword clips_automation -e 'DESCRIBE source_videos;' 2>/dev/null | grep youtube_video_id"
-check "tabela generated_clips existe" bash -c "docker exec mysql mysql -uroot -prootpassword clips_automation -e 'DESCRIBE generated_clips;' 2>/dev/null | grep source_video_id"
-check "usuario clips_user existe" bash -c "docker exec mysql mysql -uroot -prootpassword -e 'SELECT User FROM mysql.user WHERE User=\"clips_user\";' 2>/dev/null | grep clips_user"
+check "banco clips_automation existe" bash -c "docker exec mysql mysql -uroot -p"" -e 'SHOW DATABASES;' 2>/dev/null | grep clips_automation"
+check "tabela source_channels existe" bash -c "docker exec mysql mysql -uroot -p"" clips_automation -e 'DESCRIBE source_channels;' 2>/dev/null | grep youtube_channel_id"
+check "tabela source_videos existe" bash -c "docker exec mysql mysql -uroot -p"" clips_automation -e 'DESCRIBE source_videos;' 2>/dev/null | grep youtube_video_id"
+check "tabela generated_clips existe" bash -c "docker exec mysql mysql -uroot -p"" clips_automation -e 'DESCRIBE generated_clips;' 2>/dev/null | grep source_video_id"
+check "usuario clips_user existe" bash -c "docker exec mysql mysql -uroot -p"" -e 'SELECT User FROM mysql.user WHERE User=\"clips_user\";' 2>/dev/null | grep clips_user"
 
 echo ""
 echo "[INFRA-04] Secrets e credenciais"

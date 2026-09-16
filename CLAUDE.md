@@ -103,6 +103,11 @@ O raw de um vídeo ainda é necessário se algum clip dele está em `pending_cut
 recuperação para `selecting`, `cutting` ou `publishing` — o que trava nesses estados fica preso
 para sempre e segura o arquivo em disco. Foi a causa do acúmulo que lotou o SSD.
 
+Atualização 16/09/2026: `selecting` hoje tem recuperação em `run_recovery_once` (boot + 30 min) —
+`recover_stuck_selecting` (sem clip) e `finalize_settled_source_videos` (todos os clips em estado
+terminal: apaga raw, grava `published`/`failed`, libera a vaga; bug 17). `cutting` e `publishing`
+continuam sem recuperação.
+
 ---
 
 ## Reset de fila / limpar Redis — o que cada coisa faz

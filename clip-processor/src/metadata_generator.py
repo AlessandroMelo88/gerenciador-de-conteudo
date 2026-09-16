@@ -125,6 +125,11 @@ def _generate_via_anthropic(clip_context: dict, anthropic_client) -> dict:
 
 GROQ_MODEL = os.environ.get('GROQ_MODEL', 'qwen/qwen3.8-27b')
 
+# Mesmo teto do seletor: o free tier do Groq recusa pelo max_tokens PEDIDO quando ele passa
+# de 1000 (OTPM), devolvendo 429 antes de chamar o modelo. 1024 passava por pouco do limite.
+# Title/description/tags cabem folgado. Ver GROQ_MAX_OUTPUT_TOKENS em selector.py.
+GROQ_MAX_OUTPUT_TOKENS = int(os.environ.get('GROQ_MAX_OUTPUT_TOKENS', '1000'))
+
 
 def _generate_via_groq(clip_context: dict) -> dict:
     """Gera metadata via Groq (fallback sempre disponível)."""

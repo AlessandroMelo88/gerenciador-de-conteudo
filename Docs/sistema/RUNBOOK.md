@@ -290,6 +290,34 @@ docker exec -it php php /var/www/html/painel/artisan painel:reset-password email
 
 Não existe registro público. O reset pela UI exige apenas 8 chars — inconsistência conhecida.
 
+**Nunca rodar `php artisan db:seed` sem `--class`.** O `DatabaseSeeder` ficou vazio de propósito em
+15/09/2026 (bug 14), mas a regra continua: dado de verdade mora em seeder avulso.
+
+```bash
+php artisan db:seed --class=BaselineSeeder        # nichos + canais de destino
+php artisan db:seed --class=SourceChannelsSeeder  # canais-fonte de baixo risco
+```
+
+### Painel local (Postgres) — porta 8098
+
+O `painel/.env` local aponta para `pgsql`, e o container `php` compartilhado **não tem `pdo_pgsql`**
+(a imagem é do `wordpress/Dockerfile`, usada por kelnab, feeb, riodelux e placebeads — não rebuildar).
+O painel local sobe avulso, na imagem própria do projeto:
+
+```bash
+cd ~/develop/server/wordpress/canaldecortes
+docker run -d --name canaldecortes-painel --network wordpress_internal -p 8098:8098 \
+  -v "$PWD/painel:/var/www/html/painel" -w /var/www/html/painel \
+  canaldecortes-php:pg php artisan serve --host 0.0.0.0 --port 8098
+```
+
+Acessar em `http://localhost:8098`. Mesmo vale para `artisan test`, `migrate` e `db:seed` locais —
+todos precisam da imagem `canaldecortes-php:pg`, construída do `Dockerfile.php` do projeto.
+
+O vhost `canaldecortes.develop` no nginx compartilhado **não serve o painel local** (o `php` que ele
+chama não tem o driver). O container `painel-fase2`, na 8099, serve outro diretório
+(`canaldecortes-afiliadas-fase2/painel`) — não confundir.
+
 Com `config:cache` ativo, `env()` fora de `config/` retorna `null` **em silêncio** e o painel passa a
 mostrar cota diferente da que o publisher usa. Se os números divergirem, é o primeiro suspeito.
 
@@ -311,9 +339,19 @@ Gera `/app/youtube/token-<slug>.json`. O `<slug>` tem que ser exatamente o
 ## Testes
 
 ```bash
-docker exec clip-processor python -m pytest tests/ -q         # pipeline
-docker exec php php /var/www/html/painel/artisan test        # painel (Pest)
+# pipeline — na imagem do clip-processor, sem rede e sem tocar no container de produção
+C=$PWD/clip-processor
+docker run --rm --network none -v "$C/src:/app/src" -v "$C/tests:/app/tests" \
+  -w /app --entrypoint python wordpress-clip-processor -m pytest tests/ -q -p no:cacheprovider
+
+# painel (Pest) — precisa de pdo_pgsql, que só existe na imagem do projeto
+docker run --rm --network wordpress_internal -v "$PWD/painel:/var/www/html/painel" \
+  -w /var/www/html/painel canaldecortes-php:pg php artisan test
 ```
 
 Rodar a suíte do pipeline **dentro do container**: o host não tem as dependências do sidecar (`flask`),
 o que faz teste falhar por ambiente e não por código. Ver [`BUGS.md`](BUGS.md).
+
+A suíte do painel **não** roda mais em `docker exec php ... artisan test`: desde a fase A o
+`phpunit.xml` aponta para o Postgres local e aquele container só tem `pdo_mysql`/`pdo_sqlite`.
+Rodar contra o banco de produção nunca — foi o que plantou contas de teste lá (bug 14).

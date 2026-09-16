@@ -40,6 +40,7 @@ except ImportError:
 
 from src.pipeline_runner import run_pipeline_once, run_publish_only, run_ingest_cycle
 from src.db import get_db_connection, recover_stuck_downloads, recover_stuck_selecting
+from src.publisher import finalize_settled_source_videos
 from src import ttl_worker
 from src.ttl_worker import run_ttl_once
 from src.watchdog import run_watchdog_cycle
@@ -78,6 +79,7 @@ def run_recovery_once():
         conn = get_db_connection()
         recover_stuck_downloads(conn)
         recover_stuck_selecting(conn)
+        finalize_settled_source_videos(conn)
     except Exception as e:
         log(f'[ACQU] Aviso: recovery periódico falhou — {e}')
     finally:

@@ -4,13 +4,13 @@ Status: **FEITO** (corrigido e verificado) · **PARCIAL** (parte corrigida, part
 **ABERTO** (confirmado, não corrigido) · **SUSPEITA** (evidência parcial, falta confirmar).
 
 Numeração é estável — não renumerar ao fechar um item, outros documentos linkam por número.
-Última atualização: **15/09/2026**.
+Última atualização: **16/09/2026**.
 
 | # | Status | Título |
 |---|---|---|
 | 1 | FEITO | Órfãos de download nunca eram apagados |
 | 2 | FEITO | `_raw.mp4` nunca era apagado |
-| 3 | SUSPEITA | Thumbnail não aplicada nos vídeos longos no YouTube |
+| 3 | FEITO | Thumbnail não aplicada nos vídeos longos no YouTube — hipótese refutada |
 | 4 | PARCIAL | Estados sem recuperação automática seguram arquivo em disco |
 | 5 | FEITO | `_subtitled.mp4` órfão |
 | 6 | ABERTO | Painel não consegue apagar o backlog de download |
@@ -22,6 +22,9 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 12 | FEITO | Worker local de download ignorava a janela — disco em 100% e painel fora do ar |
 | 13 | FEITO | Rejeitar no painel não apagava os arquivos do clip |
 | 14 | FEITO | Usuários de teste com senha padrão viviam no banco de produção |
+| 15 | FEITO | Groq recusava toda seleção com 429 — `max_tokens` acima do teto do plano |
+| 16 | FEITO | Senhas do MySQL publicadas em repositório público — rotacionadas em 16/09/2026 |
+| 17 | PARCIAL | Vaga da janela presa por clip aguardando aprovação — caso "todos rejeitados" corrigido |
 
 ---
 
@@ -105,6 +108,28 @@ Mais `docker compose logs clip-processor | grep -i thumb`.
 
 **Se confirmado:** envolver o `thumbnails().set` em try/except próprio — o vídeo já subiu, falhar a
 thumbnail não deveria marcar o clip inteiro como `failed`.
+
+### Fechado em 15/09/2026 — a hipótese não se sustenta
+
+Duas verificações independentes derrubam o diagnóstico acima:
+
+1. **Nenhum caso em produção.** A prova proposta era `status='failed'` com `youtube_video_id`
+   preenchido — upload feito, falha depois. A contagem real é **zero**:
+
+   ```sql
+   SELECT COUNT(*) FROM generated_clips
+   WHERE status='failed' AND youtube_video_id IS NOT NULL AND youtube_video_id <> '';
+   ```
+
+2. **A correção proposta já estava no código.** `thumbnails().set` **já roda dentro de try/except
+   próprio** ([`uploader.py:116-129`](../clip-processor/src/uploader.py#L116)); a falha vira um aviso
+   em `stderr` e `upload_video` devolve o `video_id` normalmente. Não há caminho em que a thumbnail
+   marque o clip como `failed`.
+
+O texto acima ficou desatualizado em relação ao código. Se o sintoma reaparecer (vídeo longo no ar
+sem a thumbnail custom), a investigação recomeça **do lado da API**, não do estado do clip: conferir
+o aviso no log (`docker compose logs clip-processor | grep -i thumb`) e se o canal destino está
+verificado no YouTube — thumbnail custom exige verificação.
 
 ---
 
@@ -332,7 +357,184 @@ operador.
 produção. Rodar a suíte dentro do servidor gravava dados de teste ali — os testes usam
 `DatabaseTransactions`, mas qualquer execução interrompida no meio deixa resíduo.
 
+**Nota de 16/09/2026:** ver também o bug 16 — o repositório público carrega a senha de root do
+MySQL de produção. É a mesma classe de problema (credencial conhecida em lugar errado), mas de
+alcance maior.
+
 **Prevenção:** desde 15/09/2026 o `phpunit.xml` aponta para o Postgres local
 ([`PLANO-POSTGRES.md`](PLANO-POSTGRES.md)), fora da produção. Nunca rodar a suíte contra o banco de
 produção. A senha do operador foi trocada na mesma data.
 
+**Resíduo ainda aberto (apurado em 15/09/2026):** a *fábrica* que produz essas contas continua no
+caminho padrão. `database/seeders/DatabaseSeeder.php` tem, no `run()`, um
+`User::factory()->create(['email' => 'test@example.com'])` — e a factory do Laravel usa a senha
+padrão `password`. Qualquer `php artisan db:seed` sem `--class` recria uma conta de senha conhecida,
+inclusive se rodado contra a produção.
+
+Confirmação de que o problema não é teórico: o Postgres **local** tem hoje duas contas de factory
+vivas (`stroman.talon@example.org`, `rosella.zboncak@example.org`). A produção está limpa — só o
+operador (verificado em 15/09/2026).
+
+Por isso os seeders de dado deste projeto (`BaselineSeeder`, `SourceChannelsSeeder`) são **avulsos**,
+rodados com `--class=`, e nenhum deles cria usuário. Conta de painel se cria só com
+`php artisan painel:create-user`, que exige senha.
+
+**Resolvido em 16/09/2026:** o `run()` do `DatabaseSeeder` foi esvaziado, com a explicação no próprio
+arquivo. As duas contas de factory que ainda viviam no Postgres **local**
+(`stroman.talon@example.org`, `rosella.zboncak@example.org`) foram apagadas. A produção já estava
+limpa — só o operador.
+
+---
+
+## 15. FEITO — Groq recusava toda seleção com 429
+
+**Encontrado e corrigido em 16/09/2026.** O log da produção repetia, a cada vídeo:
+
+```
+Error code: 429 - Request too large for model `qwen/qwen3.8-27b` ... on output tokens per minute
+(OTPM): Limit 1000, Requested 2048
+```
+
+A recusa é pelo **`max_tokens` pedido**, não pelo consumido: pedir 2048 devolve 429 sem sequer
+chamar o modelo. Como `ANTHROPIC_API_KEY` está vazia por configuração normal de operação, o Groq é o
+único caminho — então **toda** seleção falhava, cada vídeo caía em "Nenhum momento válido" e virava
+`failed`, liberando a janela sem gerar clip nenhum.
+
+Dois pontos pediam correção, os dois acima do teto de 1000:
+
+| Onde | Antes | Depois |
+|---|---|---|
+| `selector.py` `_select_via_groq` | 2048 | `GROQ_MAX_OUTPUT_TOKENS` (1000) |
+| `metadata_generator.py` `_generate_via_groq` | 1024 | `GROQ_MAX_OUTPUT_TOKENS` (1000) |
+
+O payload real cabe com folga: no máximo 3 momentos, e a justificativa está limitada a
+`MAX_REASON_CHARS` (300). Ambos leem `GROQ_MAX_OUTPUT_TOKENS` do ambiente, para quem migrar de plano.
+
+O caminho Anthropic segue em 2048 — o limite é do free tier do Groq, não da Anthropic.
+
+---
+
+## 16. ABERTO — Senha de root do MySQL publicada em repositório público
+
+**Encontrado em 16/09/2026. Não corrigido — depende de rotação acompanhada pelo operador.**
+
+`scripts/local_download_worker.py` monta o comando do banco com a senha escrita no código:
+
+```python
+f"docker exec mysql mysql -uroot -p<SENHA_LITERAL> clips_automation ..."
+```
+
+Confirmado por comparação de hash: **o literal publicado é a senha ativa da produção**.
+
+Alcance apurado:
+
+| Item | Número |
+|---|---|
+| Arquivos versionados com o literal | 7 (inclui `scripts/validate-infra.sh` e `.planning/**`) |
+| Commits no histórico | 14 |
+| Já em `origin/master` público | sim |
+
+**Atenuante real, apurado no servidor:** o MySQL **não está exposto na internet**. O container não
+publica porta no host (`3306/tcp` sem binding), nada escuta em `0.0.0.0:3306` e o `iptables` tem
+`INPUT policy DROP`. Quem tiver a senha ainda precisa de acesso ao host antes. Não é exploração
+remota direta — mas é credencial ativa em repositório público.
+
+**Correção pendente, nesta ordem:**
+
+1. Rotacionar a senha no MySQL de produção e no `.env` do servidor.
+2. Tirar o literal do código: o worker deve ler a senha do `.env` do servidor via SSH, como já é
+   feito manualmente, em vez de carregar segredo no cliente.
+3. Limpar `scripts/validate-infra.sh` e os `.planning/**`.
+4. **Decisão separada:** reescrever o histórico (`git filter-repo`) ou aceitar que o valor antigo
+   fica no histórico público. Rotacionar já torna o valor antigo inútil; reescrever histórico exige
+   force push e quebra clones.
+
+### Resolvido em 16/09/2026 — as duas senhas foram rotacionadas
+
+Executado com o operador acompanhando. Ordem: backup dos `.env` → `ALTER USER` → atualização dos
+`.env` → restart → verificação.
+
+| Verificação | Resultado |
+|---|---|
+| `root` com a senha nova | conecta |
+| `clips_user` com a senha nova | conecta (consulta real em `source_channels`) |
+| Senha **antiga** | recusada pelo MySQL |
+| `.env` e `painel/.env` | hashes batem com as senhas geradas |
+| Worker local (máquina do operador) | segue funcionando, **sem alteração** |
+| `clip-processor` | zero erros de banco no log após o restart |
+
+O worker continuar funcionando sem tocar em nada é consequência direta da correção anterior: ele
+resolve a senha lendo o `.env` **dentro do servidor**, então a rotação foi transparente para ele.
+
+**Armadilha encontrada na execução:** o `docker compose up -d` reiniciou também o container `mysql`
+(o compose havia mudado), e a verificação rodou antes de o banco aceitar conexões — os dois testes
+deram falso negativo. Não era falha de rotação, era espera curta demais. Em rotação futura, esperar
+o MySQL responder antes de validar, não um `sleep` fixo.
+
+**O que continua verdade:** os valores antigos permanecem no histórico público do Git. Eles estão
+mortos (o MySQL os recusa), então o risco é nulo para acesso — mas quem clonar o repositório ainda
+os verá. Reescrever o histórico segue como decisão em aberto, agora sem urgência.
+
+`.env.bak-<data>` e `painel/.env.bak-<data>` ficaram no servidor como rollback. Apagar depois de
+alguns dias de operação normal.
+
+---
+
+## 17. PARCIAL — Vaga da janela presa por clip aguardando aprovação
+
+**Apurado em 16/09/2026.** A janela de futebol ficou em **10/10 ocupada** com 145 vídeos frescos
+esperando, e nenhum download novo começava.
+
+Causa: os 10 vídeos ocupantes estavam em `selecting` e **já tinham gerado clips**, todos em
+`pending`. A ocupação é calculada em `pipeline_runner.py` por três condições em `OR`:
+
+```
+sv.local_path IS NOT NULL
+OR sv.status IN ('downloading','downloaded','transcribing','selecting','cutting','publishing')
+OR (gc.status IN ('pending_cut','pending','cutting','approved'))
+```
+
+A terceira sozinha segura a vaga. E `recover_stuck_selecting` **não** alcança esses registros, por
+desenho: ele exige `NOT EXISTS (SELECT 1 FROM generated_clips ...)` justamente para não reprocessar
+vídeo que já tem clip e duplicar corte ([`db.py:308`](../clip-processor/src/db.py#L308)).
+
+**Não é bug de código, é bug de fluxo.** O sistema está esperando decisão humana: enquanto o
+operador não aprovar nem rejeitar, a vaga fica retida — e como o teto é por canal destino ativo,
+10 clips parados na aprovação param a ingestão inteira do nicho.
+
+`_maybe_finalize_source_video` só libera o vídeo quando **todos** os clips chegam a estado terminal
+e ao menos um publicou, então nada se resolve sozinho.
+
+**Caminhos possíveis, nenhum aplicado:**
+
+- aprovar ou rejeitar os clips pendentes (resolve o caso, não a classe);
+- não contar `pending` na ocupação, já que clip pendente não consome download;
+- teto separado para "aguardando aprovação", distinto do teto de download;
+- alerta no painel quando a janela estiver cheia só por clip pendente — hoje o operador não tem
+  como saber que a fila parou por causa dele.
+
+### Corrigido em 16/09/2026 — vídeo com todos os clips rejeitados/falhos
+
+Mesmo dia, segunda forma da trava: depois que os clips `pending` foram rejeitados (pelo operador ou
+pelo TTL de 48h), os vídeos **continuavam** em `selecting` com o raw em disco. Futebol foi liberado na
+mão com script (10 vídeos, marcados `failed`); política tinha 9 presos com todos os clips `rejected`.
+
+Causa: `_maybe_finalize_source_video` exigia ao menos um clip `published` e só era chamado pelo
+publisher, logo depois de uma publicação. Rejeição e falha nunca disparavam o encerramento, e
+`recover_stuck_selecting` não alcança vídeo com clip.
+
+Correção ([`publisher.py`](../clip-processor/src/publisher.py)):
+
+- `_maybe_finalize_source_video` encerra quando o vídeo tem clip e **nenhum** está em estado
+  não-terminal (`pending_cut`, `cutting`, `pending`, `approved`, `publishing`). Status final
+  `published` se algum clip foi ao ar, senão `failed` — o mesmo que o script manual gravou.
+  Como `pending_cut`/`cutting` são não-terminais, o raw que um corte ainda vai ler nunca é apagado.
+- O raw é apagado antes do banco e conferido: se continuar em disco, o banco não é tocado e a próxima
+  rodada tenta de novo.
+- Nova varredura `finalize_settled_source_videos`, chamada por `run_recovery_once` (boot + a cada
+  30 min): pega `selecting` com clip e sem clip não-terminal. Falha num vídeo não impede os outros.
+
+Testes: `tests/test_finalize_source_video.py`.
+
+**Continua aberto:** clip parado em `pending` esperando o operador ainda segura a vaga até ser
+aprovado, rejeitado ou expirar pelo TTL (48h). Os caminhos listados acima seguem válidos para essa parte.
