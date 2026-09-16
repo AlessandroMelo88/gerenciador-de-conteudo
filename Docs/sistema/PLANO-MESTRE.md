@@ -214,7 +214,9 @@ com eles. A decisão vale para os outros 81.
       valer **daqui para frente**, via troca de fonte
 - [ ] **Separar as contas Google dos dois canais** — o aviso do YouTube diz "seu canal e todos os
       canais associados". Hoje uma 3ª advertência no futebol leva o de política junto. Ação mais
-      barata e de maior impacto da lista
+      barata e de maior impacto da lista.
+      **Decisão do operador (16/09/2026): adiado, as contas seguem juntas por enquanto.** Risco
+      aceito conscientemente; reavaliar se chegar uma 2ª advertência
 - [x] Auditar de quais `source_channels` vieram os 83 e classificar cada fonte — ver tabela acima e
       a seção 2.1
 
