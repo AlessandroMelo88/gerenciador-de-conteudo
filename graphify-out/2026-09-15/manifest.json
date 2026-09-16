@@ -540,8 +540,8 @@
     "semantic_hash": "d7937c530b7e10504143784c4ad8de29"
   },
   "painel/resources/js/components/login-form.tsx": {
-    "mtime": 1789504389.5435195,
-    "ast_hash": "a585ee95c4725126066e95d5d6bcf546",
+    "mtime": 1789515295.0327947,
+    "ast_hash": "043d52336456185a275630dc992c3caa",
     "semantic_hash": ""
   },
   "painel/resources/js/components/nav-user.tsx": {
@@ -2310,8 +2310,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-AFILIADOS.md": {
-    "mtime": 1789506487.8045852,
-    "ast_hash": "82b1542d25646a8ffe9de8bcd5e55a92",
+    "mtime": 1789515146.0527077,
+    "ast_hash": "36fab7d502559a2ac2d282779d125b6f",
     "semantic_hash": ""
   },
   "affiliate-worker/README.md": {

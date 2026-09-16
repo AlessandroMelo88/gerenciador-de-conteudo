@@ -1483,8 +1483,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "affiliate_worker_affiliate_worker_storage",
-      "community": 92,
-      "community_name": "cli.py",
+      "community": 180,
+      "community_name": "Storage",
       "norm_label": "storage.py"
     },
     {
@@ -1494,8 +1494,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "affiliate_worker_affiliate_worker_storage_now_iso",
-      "community": 92,
-      "community_name": "cli.py",
+      "community": 180,
+      "community_name": "Storage",
       "norm_label": "now_iso()"
     },
     {
@@ -1670,8 +1670,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "affiliate_worker_affiliate_worker_storage_rationale_1",
-      "community": 92,
-      "community_name": "cli.py",
+      "community": 180,
+      "community_name": "Storage",
       "norm_label": "arquivos locais em data/: candidates.json, ready.json, pushed.jsonl."
     },
     {
@@ -2385,8 +2385,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "affiliate_worker_tests_test_models_test_network_invalido",
-      "community": 90,
-      "community_name": "Offer",
+      "community": 154,
+      "community_name": "make_offer",
       "norm_label": "test_network_invalido()"
     },
     {
@@ -2407,8 +2407,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "affiliate_worker_tests_test_models_test_sem_affiliate_url_e_erro",
-      "community": 90,
-      "community_name": "Offer",
+      "community": 154,
+      "community_name": "make_offer",
       "norm_label": "test_sem_affiliate_url_e_erro()"
     },
     {
@@ -2660,8 +2660,8 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "clip_processor_src_db_postgresconnectionwrapper",
-      "community": 221,
-      "community_name": "PostgresConnectionWrapper",
+      "community": 2,
+      "community_name": "db.py",
       "norm_label": "postgresconnectionwrapper"
     },
     {
@@ -2671,8 +2671,8 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "clip_processor_src_db_postgresconnectionwrapper_init",
-      "community": 221,
-      "community_name": "PostgresConnectionWrapper",
+      "community": 2,
+      "community_name": "db.py",
       "norm_label": ".__init__()"
     },
     {
@@ -2693,8 +2693,8 @@
       "source_location": "L118",
       "_origin": "ast",
       "id": "clip_processor_src_db_postgresconnectionwrapper_getattr",
-      "community": 221,
-      "community_name": "PostgresConnectionWrapper",
+      "community": 2,
+      "community_name": "db.py",
       "norm_label": ".__getattr__()"
     },
     {
@@ -2803,8 +2803,8 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "clip_processor_src_db_rationale_108",
-      "community": 221,
-      "community_name": "PostgresConnectionWrapper",
+      "community": 2,
+      "community_name": "db.py",
       "norm_label": "wrapper para conexao do psycopg2 expondo cursor com dicionario e atributo..."
     },
     {
@@ -3122,8 +3122,8 @@
       "source_location": "L175",
       "_origin": "ast",
       "id": "clip_processor_src_internal_api_purge_old_videos",
-      "community": 10,
-      "community_name": "internal_api.py",
+      "community": 23,
+      "community_name": "test_internal_api.py",
       "norm_label": "purge_old_videos()"
     },
     {
@@ -3309,8 +3309,8 @@
       "source_location": "L176",
       "_origin": "ast",
       "id": "clip_processor_src_internal_api_rationale_176",
-      "community": 10,
-      "community_name": "internal_api.py",
+      "community": 23,
+      "community_name": "test_internal_api.py",
       "norm_label": "limpa videos fonte com published_at anterior a `before_date` (formato 'yyyy-mm-..."
     },
     {
@@ -4123,7 +4123,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "clip_processor_src_publisher_fetch_destination_channels",
-      "community": 41,
+      "community": 214,
       "community_name": "test_publisher.py",
       "norm_label": "_fetch_destination_channels()"
     },
@@ -4135,7 +4135,7 @@
       "_origin": "ast",
       "id": "clip_processor_src_publisher_fetch_pending_clips_for_channel",
       "community": 41,
-      "community_name": "test_publisher.py",
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": "_fetch_pending_clips_for_channel()"
     },
     {
@@ -4146,7 +4146,7 @@
       "_origin": "ast",
       "id": "clip_processor_src_publisher_round_robin_by_source_channel",
       "community": 41,
-      "community_name": "test_publisher.py",
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": "_round_robin_by_source_channel()"
     },
     {
@@ -4299,7 +4299,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "clip_processor_src_publisher_rationale_91",
-      "community": 41,
+      "community": 214,
       "community_name": "test_publisher.py",
       "norm_label": "retorna canais-destino ativos de destination_channels."
     },
@@ -4311,7 +4311,7 @@
       "_origin": "ast",
       "id": "clip_processor_src_publisher_rationale_101",
       "community": 41,
-      "community_name": "test_publisher.py",
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": "retorna clips prontos para publicar filtrados por canal-destino. faz fairness..."
     },
     {
@@ -4322,7 +4322,7 @@
       "_origin": "ast",
       "id": "clip_processor_src_publisher_rationale_132",
       "community": 41,
-      "community_name": "test_publisher.py",
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": "reordena clips (ja em ordem created_at asc) intercalando por source_channel_id,..."
     },
     {
@@ -8897,7 +8897,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher",
-      "community": 41,
+      "community": 214,
       "community_name": "test_publisher.py",
       "norm_label": "test_publisher.py"
     },
@@ -8930,7 +8930,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_make_mock_quota",
-      "community": 41,
+      "community": 214,
       "community_name": "test_publisher.py",
       "norm_label": "make_mock_quota()"
     },
@@ -9052,7 +9052,7 @@
       "_origin": "ast",
       "id": "dict",
       "community": 214,
-      "community_name": "TestPublishApprovedClips",
+      "community_name": "test_publisher.py",
       "norm_label": "dict"
     },
     {
@@ -9063,7 +9063,7 @@
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_testpublishapprovedclips",
       "community": 214,
-      "community_name": "TestPublishApprovedClips",
+      "community_name": "test_publisher.py",
       "norm_label": "testpublishapprovedclips"
     },
     {
@@ -9084,8 +9084,8 @@
       "source_location": "L281",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_testpublishapprovedclips_test_quota_blocked_leaves_clip_as_approved",
-      "community": 214,
-      "community_name": "TestPublishApprovedClips",
+      "community": 1,
+      "community_name": "make_conn_with_clips",
       "norm_label": ".test_quota_blocked_leaves_clip_as_approved()"
     },
     {
@@ -9095,8 +9095,8 @@
       "source_location": "L304",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_testpublishapprovedclips_test_fora_da_janela_horaria",
-      "community": 214,
-      "community_name": "TestPublishApprovedClips",
+      "community": 1,
+      "community_name": "make_conn_with_clips",
       "norm_label": ".test_fora_da_janela_horaria()"
     },
     {
@@ -9107,7 +9107,7 @@
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_testpublishermulticanal",
       "community": 41,
-      "community_name": "test_publisher.py",
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": "testpublishermulticanal"
     },
     {
@@ -9118,7 +9118,7 @@
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_testpublishermulticanal_test_fetch_pending_clips_for_channel_returns_correct_dest",
       "community": 41,
-      "community_name": "test_publisher.py",
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": ".test_fetch_pending_clips_for_channel_returns_correct_dest()"
     },
     {
@@ -9129,7 +9129,7 @@
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_testpublishermulticanal_test_fetch_pending_clips_excludes_other_channels",
       "community": 41,
-      "community_name": "test_publisher.py",
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": ".test_fetch_pending_clips_excludes_other_channels()"
     },
     {
@@ -9150,7 +9150,7 @@
       "source_location": "L397",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_testpublishermulticanal_test_fetch_destination_channels_returns_active",
-      "community": 41,
+      "community": 214,
       "community_name": "test_publisher.py",
       "norm_label": ".test_fetch_destination_channels_returns_active()"
     },
@@ -9161,8 +9161,8 @@
       "source_location": "L419",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_testpublishermulticanal_test_publish_multi_canal_loop_publishes_to_both_channels",
-      "community": 1,
-      "community_name": "make_conn_with_clips",
+      "community": 41,
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": ".test_publish_multi_canal_loop_publishes_to_both_channels()"
     },
     {
@@ -9172,8 +9172,8 @@
       "source_location": "L449",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_testpublishermulticanal_test_append_credits_called_when_template_and_handle_available",
-      "community": 1,
-      "community_name": "make_conn_with_clips",
+      "community": 41,
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": ".test_append_credits_called_when_template_and_handle_available()"
     },
     {
@@ -9183,7 +9183,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_1",
-      "community": 41,
+      "community": 214,
       "community_name": "test_publisher.py",
       "norm_label": "testes para publisher.py \u2014 publicacao de clips pendentes."
     },
@@ -9205,7 +9205,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_31",
-      "community": 41,
+      "community": 214,
       "community_name": "test_publisher.py",
       "norm_label": "mock de quotamanager injetavel via patch."
     },
@@ -9316,7 +9316,7 @@
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_252",
       "community": 214,
-      "community_name": "TestPublishApprovedClips",
+      "community_name": "test_publisher.py",
       "norm_label": "phase 6 \u2014 quando manual_approval_required=true, publisher seleciona 'approved'...."
     },
     {
@@ -9337,8 +9337,8 @@
       "source_location": "L282",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_282",
-      "community": 214,
-      "community_name": "TestPublishApprovedClips",
+      "community": 1,
+      "community_name": "make_conn_with_clips",
       "norm_label": "quando quotamanager bloqueia, publisher nao chama youtubeuploader e clip..."
     },
     {
@@ -9348,8 +9348,8 @@
       "source_location": "L305",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_305",
-      "community": 214,
-      "community_name": "TestPublishApprovedClips",
+      "community": 1,
+      "community_name": "make_conn_with_clips",
       "norm_label": "fora da janela horaria (quotamanager.can_upload=false), publisher pula sem..."
     },
     {
@@ -9360,7 +9360,7 @@
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_325",
       "community": 41,
-      "community_name": "test_publisher.py",
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": "testes red para roteamento multi-canal no publisher (mcan-02, mcan-04)."
     },
     {
@@ -9371,7 +9371,7 @@
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_328",
       "community": 41,
-      "community_name": "test_publisher.py",
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": "mcan-02: _fetch_pending_clips_for_channel filtra por destination_channel_id...."
     },
     {
@@ -9382,7 +9382,7 @@
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_352",
       "community": 41,
-      "community_name": "test_publisher.py",
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": "mcan-02: clips de canal 2 nao aparecem na busca do canal 1."
     },
     {
@@ -9403,7 +9403,7 @@
       "source_location": "L398",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_398",
-      "community": 41,
+      "community": 214,
       "community_name": "test_publisher.py",
       "norm_label": "mcan-01: _fetch_destination_channels retorna apenas canais ativos."
     },
@@ -9414,8 +9414,8 @@
       "source_location": "L420",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_420",
-      "community": 1,
-      "community_name": "make_conn_with_clips",
+      "community": 41,
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": "mcan-01/03: publish_pending_clips itera por canais-destino e publica clips de..."
     },
     {
@@ -9425,8 +9425,8 @@
       "source_location": "L450",
       "_origin": "ast",
       "id": "clip_processor_tests_test_publisher_rationale_450",
-      "community": 1,
-      "community_name": "make_conn_with_clips",
+      "community": 41,
+      "community_name": "TestPublisherMultiCanal",
       "norm_label": "copy-02: append_credits e chamado antes do upload quando credit_template e..."
     },
     {
@@ -12902,8 +12902,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_controllers_api_offerapicontroller",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": "offerapicontroller.php"
     },
     {
@@ -12913,8 +12913,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "painel_app_http_controllers_api_offerapicontroller_offerapicontroller",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": "offerapicontroller"
     },
     {
@@ -12924,8 +12924,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "painel_app_http_controllers_api_offerapicontroller_offerapicontroller_store",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": ".store()"
     },
     {
@@ -12935,8 +12935,8 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "painel_app_http_controllers_api_offerapicontroller_offerapicontroller_index",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": ".index()"
     },
     {
@@ -12946,8 +12946,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_controllers_assistantcontroller",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": "assistantcontroller.php"
     },
     {
@@ -12957,8 +12957,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "painel_app_http_controllers_assistantcontroller_assistantcontroller",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": "assistantcontroller"
     },
     {
@@ -12968,8 +12968,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "painel_app_http_controllers_assistantcontroller_assistantcontroller_index",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": ".index()"
     },
     {
@@ -12979,8 +12979,8 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "painel_app_http_controllers_assistantcontroller_assistantcontroller_chat",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": ".chat()"
     },
     {
@@ -12990,7 +12990,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_controllers_authcontroller",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "authcontroller.php"
     },
@@ -13001,7 +13001,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "painel_app_http_controllers_authcontroller_authcontroller",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "authcontroller"
     },
@@ -13013,7 +13013,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_authcontroller_authcontroller_show",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": ".show()"
     },
     {
@@ -13023,7 +13023,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "painel_app_http_controllers_authcontroller_authcontroller_login",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".login()"
     },
@@ -13034,7 +13034,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "painel_app_http_controllers_authcontroller_authcontroller_logout",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".logout()"
     },
@@ -13045,8 +13045,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_controllers_controller",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": "controller.php"
     },
     {
@@ -13056,8 +13056,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "painel_app_http_controllers_controller_controller",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": "controller"
     },
     {
@@ -13068,7 +13068,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_dashboardcontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "dashboardcontroller.php"
     },
     {
@@ -13232,8 +13232,8 @@
       "source_location": "L423",
       "_origin": "ast",
       "id": "painel_app_http_controllers_dashboardcontroller_dashboardcontroller_resumevideo",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".resumevideo()"
     },
     {
@@ -13254,8 +13254,8 @@
       "source_location": "L445",
       "_origin": "ast",
       "id": "painel_app_http_controllers_dashboardcontroller_dashboardcontroller_reordervideos",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".reordervideos()"
     },
     {
@@ -13299,7 +13299,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_destinationchannelcontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "destinationchannelcontroller.php"
     },
     {
@@ -13321,7 +13321,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_destinationchannelcontroller_destinationchannelcontroller_index",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": ".index()"
     },
     {
@@ -13398,7 +13398,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_documentationcontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "documentationcontroller.php"
     },
     {
@@ -13409,7 +13409,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_documentationcontroller_documentationcontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "documentationcontroller"
     },
     {
@@ -13420,7 +13420,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_documentationcontroller_documentationcontroller_show",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": ".show()"
     },
     {
@@ -13431,7 +13431,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_nichecontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "nichecontroller.php"
     },
     {
@@ -13442,7 +13442,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_nichecontroller_nichecontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "nichecontroller"
     },
     {
@@ -13453,7 +13453,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_nichecontroller_nichecontroller_store",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": ".store()"
     },
     {
@@ -13463,8 +13463,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_controllers_offercontroller",
-      "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community": 62,
+      "community_name": "Offer",
       "norm_label": "offercontroller.php"
     },
     {
@@ -13486,7 +13486,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_offercontroller_offercontroller_index",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": ".index()"
     },
     {
@@ -13529,8 +13529,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_controllers_offerperformancecontroller",
-      "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community": 62,
+      "community_name": "Offer",
       "norm_label": "offerperformancecontroller.php"
     },
     {
@@ -13540,8 +13540,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "painel_app_http_controllers_offerperformancecontroller_offerperformancecontroller",
-      "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community": 62,
+      "community_name": "Offer",
       "norm_label": "offerperformancecontroller"
     },
     {
@@ -13551,8 +13551,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "painel_app_http_controllers_offerperformancecontroller_offerperformancecontroller_index",
-      "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community": 62,
+      "community_name": "Offer",
       "norm_label": ".index()"
     },
     {
@@ -13562,8 +13562,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_controllers_offerredirectcontroller",
-      "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community": 62,
+      "community_name": "Offer",
       "norm_label": "offerredirectcontroller.php"
     },
     {
@@ -13606,8 +13606,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_controllers_processvideocontroller",
-      "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": "processvideocontroller.php"
     },
     {
@@ -13617,8 +13617,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "painel_app_http_controllers_processvideocontroller_processvideocontroller",
-      "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": "processvideocontroller"
     },
     {
@@ -13628,8 +13628,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "painel_app_http_controllers_processvideocontroller_processvideocontroller_show",
-      "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".show()"
     },
     {
@@ -13639,8 +13639,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "painel_app_http_controllers_processvideocontroller_processvideocontroller_store",
-      "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".store()"
     },
     {
@@ -13650,7 +13650,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_controllers_settingscontroller",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "settingscontroller.php"
     },
@@ -13662,7 +13662,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_settingscontroller_settingscontroller",
       "community": 177,
-      "community_name": "SettingsController",
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "settingscontroller"
     },
     {
@@ -13673,7 +13673,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_settingscontroller_settingscontroller_show",
       "community": 177,
-      "community_name": "SettingsController",
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".show()"
     },
     {
@@ -13684,7 +13684,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_settingscontroller_settingscontroller_updatecookies",
       "community": 177,
-      "community_name": "SettingsController",
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".updatecookies()"
     },
     {
@@ -13695,7 +13695,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_settingscontroller_settingscontroller_updatesystemsettings",
       "community": 177,
-      "community_name": "SettingsController",
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".updatesystemsettings()"
     },
     {
@@ -13706,7 +13706,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_settingscontroller_settingscontroller_updatepassword",
       "community": 177,
-      "community_name": "SettingsController",
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".updatepassword()"
     },
     {
@@ -13717,7 +13717,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_sourcechannelcontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "sourcechannelcontroller.php"
     },
     {
@@ -13728,7 +13728,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_sourcechannelcontroller_sourcechannelcontroller",
       "community": 88,
-      "community_name": "Controller",
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "sourcechannelcontroller"
     },
     {
@@ -13738,8 +13738,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "painel_app_http_controllers_sourcechannelcontroller_sourcechannelcontroller_index",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 32,
+      "community_name": "Inertia\\Response",
       "norm_label": ".index()"
     },
     {
@@ -13750,7 +13750,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_sourcechannelcontroller_sourcechannelcontroller_store",
       "community": 88,
-      "community_name": "Controller",
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": ".store()"
     },
     {
@@ -13761,7 +13761,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_sourcechannelcontroller_sourcechannelcontroller_update",
       "community": 88,
-      "community_name": "Controller",
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": ".update()"
     },
     {
@@ -13772,7 +13772,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_sourcechannelcontroller_sourcechannelcontroller_destroy",
       "community": 88,
-      "community_name": "Controller",
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": ".destroy()"
     },
     {
@@ -13783,7 +13783,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_sourcevideocontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "sourcevideocontroller.php"
     },
     {
@@ -13914,8 +13914,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_controllers_telegramwebhookcontroller",
-      "community": 215,
-      "community_name": "TelegramWebhookController.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "telegramwebhookcontroller.php"
     },
     {
@@ -13925,8 +13925,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "painel_app_http_controllers_telegramwebhookcontroller_telegramwebhookcontroller",
-      "community": 215,
-      "community_name": "TelegramWebhookController.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "telegramwebhookcontroller"
     },
     {
@@ -13936,8 +13936,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "painel_app_http_controllers_telegramwebhookcontroller_telegramwebhookcontroller_handle",
-      "community": 215,
-      "community_name": "TelegramWebhookController.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".handle()"
     },
     {
@@ -13947,8 +13947,8 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "painel_app_http_controllers_telegramwebhookcontroller_telegramwebhookcontroller_pipelineevent",
-      "community": 215,
-      "community_name": "TelegramWebhookController.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".pipelineevent()"
     },
     {
@@ -13958,8 +13958,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "painel_app_http_controllers_telegramwebhookcontroller_php_jsonresponse",
-      "community": 215,
-      "community_name": "TelegramWebhookController.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "jsonresponse"
     },
     {
@@ -13970,7 +13970,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_transcriptioncontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "transcriptioncontroller.php"
     },
     {
@@ -13980,8 +13980,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "painel_app_http_controllers_transcriptioncontroller_transcriptioncontroller",
-      "community": 216,
-      "community_name": "TranscriptionController",
+      "community": 32,
+      "community_name": "Inertia\\Response",
       "norm_label": "transcriptioncontroller"
     },
     {
@@ -13991,8 +13991,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "painel_app_http_controllers_transcriptioncontroller_transcriptioncontroller_index",
-      "community": 216,
-      "community_name": "TranscriptionController",
+      "community": 32,
+      "community_name": "Inertia\\Response",
       "norm_label": ".index()"
     },
     {
@@ -14002,8 +14002,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "painel_app_http_controllers_transcriptioncontroller_transcriptioncontroller_store",
-      "community": 216,
-      "community_name": "TranscriptionController",
+      "community": 32,
+      "community_name": "Inertia\\Response",
       "norm_label": ".store()"
     },
     {
@@ -14013,8 +14013,8 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "painel_app_http_controllers_transcriptioncontroller_transcriptioncontroller_download",
-      "community": 216,
-      "community_name": "TranscriptionController",
+      "community": 32,
+      "community_name": "Inertia\\Response",
       "norm_label": ".download()"
     },
     {
@@ -14025,7 +14025,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_usefullinkscontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "usefullinkscontroller.php"
     },
     {
@@ -14036,7 +14036,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_usefullinkscontroller_usefullinkscontroller",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "usefullinkscontroller"
     },
     {
@@ -14047,7 +14047,7 @@
       "_origin": "ast",
       "id": "painel_app_http_controllers_usefullinkscontroller_usefullinkscontroller_index",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": ".index()"
     },
     {
@@ -14057,8 +14057,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_middleware_affiliateapitoken",
-      "community": 218,
-      "community_name": "AffiliateApiToken.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "affiliateapitoken.php"
     },
     {
@@ -14068,8 +14068,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "painel_app_http_middleware_affiliateapitoken_affiliateapitoken",
-      "community": 218,
-      "community_name": "AffiliateApiToken.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "affiliateapitoken"
     },
     {
@@ -14079,8 +14079,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "painel_app_http_middleware_affiliateapitoken_affiliateapitoken_handle",
-      "community": 218,
-      "community_name": "AffiliateApiToken.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".handle()"
     },
     {
@@ -14090,8 +14090,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "closure",
-      "community": 218,
-      "community_name": "AffiliateApiToken.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "closure"
     },
     {
@@ -14101,7 +14101,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_http_middleware_handleinertiarequests",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "handleinertiarequests.php"
     },
@@ -14112,7 +14112,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "painel_app_http_middleware_handleinertiarequests_handleinertiarequests",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "handleinertiarequests"
     },
@@ -14123,7 +14123,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "painel_app_http_middleware_handleinertiarequests_handleinertiarequests_version",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".version()"
     },
@@ -14134,7 +14134,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "painel_app_http_middleware_handleinertiarequests_handleinertiarequests_share",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".share()"
     },
@@ -14145,8 +14145,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_models_destinationchannel",
-      "community": 62,
-      "community_name": "Offer",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "destinationchannel.php"
     },
     {
@@ -14211,8 +14211,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_models_generatedclip",
-      "community": 62,
-      "community_name": "Offer",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "generatedclip.php"
     },
     {
@@ -14256,7 +14256,7 @@
       "_origin": "ast",
       "id": "painel_app_models_niche",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "niche.php"
     },
     {
@@ -14267,7 +14267,7 @@
       "_origin": "ast",
       "id": "painel_app_models_niche_niche",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "niche"
     },
     {
@@ -14398,8 +14398,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_models_sourcechannel",
-      "community": 62,
-      "community_name": "Offer",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "sourcechannel.php"
     },
     {
@@ -14410,7 +14410,7 @@
       "_origin": "ast",
       "id": "painel_app_models_sourcechannel_sourcechannel",
       "community": 88,
-      "community_name": "Controller",
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "sourcechannel"
     },
     {
@@ -14420,8 +14420,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_models_sourcevideo",
-      "community": 62,
-      "community_name": "Offer",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "sourcevideo.php"
     },
     {
@@ -14465,7 +14465,7 @@
       "_origin": "ast",
       "id": "painel_app_models_systemsetting",
       "community": 177,
-      "community_name": "SettingsController",
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "systemsetting.php"
     },
     {
@@ -14476,7 +14476,7 @@
       "_origin": "ast",
       "id": "painel_app_models_systemsetting_systemsetting",
       "community": 177,
-      "community_name": "SettingsController",
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "systemsetting"
     },
     {
@@ -14487,7 +14487,7 @@
       "_origin": "ast",
       "id": "painel_app_models_systemsetting_systemsetting_get",
       "community": 177,
-      "community_name": "SettingsController",
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".get()"
     },
     {
@@ -14498,7 +14498,7 @@
       "_origin": "ast",
       "id": "painel_app_models_systemsetting_systemsetting_set",
       "community": 177,
-      "community_name": "SettingsController",
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".set()"
     },
     {
@@ -14508,8 +14508,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_models_transcriptionjob",
-      "community": 216,
-      "community_name": "TranscriptionController",
+      "community": 32,
+      "community_name": "Inertia\\Response",
       "norm_label": "transcriptionjob.php"
     },
     {
@@ -14519,8 +14519,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "painel_app_models_transcriptionjob_transcriptionjob",
-      "community": 216,
-      "community_name": "TranscriptionController",
+      "community": 32,
+      "community_name": "Inertia\\Response",
       "norm_label": "transcriptionjob"
     },
     {
@@ -14618,8 +14618,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": "clipprocessorclient"
     },
     {
@@ -14629,8 +14629,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_construct",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".__construct()"
     },
     {
@@ -14640,8 +14640,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_resolvechannel",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".resolvechannel()"
     },
     {
@@ -14651,8 +14651,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_rejectclip",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".rejectclip()"
     },
     {
@@ -14662,8 +14662,8 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_processurl",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".processurl()"
     },
     {
@@ -14673,8 +14673,8 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_deletesourcevideo",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".deletesourcevideo()"
     },
     {
@@ -14684,8 +14684,8 @@
       "source_location": "L118",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_purgeoldvideos",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".purgeoldvideos()"
     },
     {
@@ -14695,8 +14695,8 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_transcribe",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".transcribe()"
     },
     {
@@ -14706,8 +14706,8 @@
       "source_location": "L156",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_pausevideo",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".pausevideo()"
     },
     {
@@ -14717,8 +14717,8 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_resumevideo",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".resumevideo()"
     },
     {
@@ -14728,8 +14728,8 @@
       "source_location": "L166",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_prioritizevideo",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".prioritizevideo()"
     },
     {
@@ -14739,8 +14739,8 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_reordervideos",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".reordervideos()"
     },
     {
@@ -14750,8 +14750,8 @@
       "source_location": "L190",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_queueaction",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".queueaction()"
     },
     {
@@ -14761,8 +14761,8 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "painel_app_services_clipprocessorclient_clipprocessorclient_publishnow",
-      "community": 30,
-      "community_name": "Illuminate\\Http\\RedirectResponse",
+      "community": 178,
+      "community_name": "ClipProcessorClient",
       "norm_label": ".publishnow()"
     },
     {
@@ -14860,7 +14860,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_app_support_brand",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "brand.php"
     },
@@ -14871,7 +14871,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "painel_app_support_brand_brand",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "brand"
     },
@@ -14882,7 +14882,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "painel_app_support_brand_brand_resolve",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": ".resolve()"
     },
@@ -15949,8 +15949,8 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "painel_composer_scripts_post_root_package_install",
-      "community": 79,
-      "community_name": "setup",
+      "community": 50,
+      "community_name": "scripts",
       "norm_label": "post-root-package-install"
     },
     {
@@ -16180,7 +16180,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_config_auth",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "auth.php"
     },
@@ -16455,8 +16455,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_database_factories_sourcevideofactory",
-      "community": 31,
-      "community_name": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "sourcevideofactory.php"
     },
     {
@@ -16466,8 +16466,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "painel_database_factories_sourcevideofactory_sourcevideofactory",
-      "community": 31,
-      "community_name": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "sourcevideofactory"
     },
     {
@@ -16477,8 +16477,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "painel_database_factories_sourcevideofactory_sourcevideofactory_definition",
-      "community": 31,
-      "community_name": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": ".definition()"
     },
     {
@@ -17412,8 +17412,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "painel_package_dependencies_tanstack_react_table",
-      "community": 226,
-      "community_name": "@tanstack/react-table",
+      "community": 47,
+      "community_name": "dependencies",
       "norm_label": "@tanstack/react-table"
     },
     {
@@ -17423,8 +17423,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "tanstack_react_table",
-      "community": 226,
-      "community_name": "@tanstack/react-table",
+      "community": 47,
+      "community_name": "dependencies",
       "norm_label": "@tanstack/react-table"
     },
     {
@@ -17478,8 +17478,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "painel_package_dependencies_cmdk",
-      "community": 47,
-      "community_name": "dependencies",
+      "community": 217,
+      "community_name": "cmdk",
       "norm_label": "cmdk"
     },
     {
@@ -17489,8 +17489,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "cmdk",
-      "community": 47,
-      "community_name": "dependencies",
+      "community": 217,
+      "community_name": "cmdk",
       "norm_label": "cmdk"
     },
     {
@@ -17545,7 +17545,7 @@
       "_origin": "ast",
       "id": "painel_package_dependencies_react",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "react"
     },
     {
@@ -17556,7 +17556,7 @@
       "_origin": "ast",
       "id": "react",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "react"
     },
     {
@@ -17676,8 +17676,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "painel_package_dependencies_tw_animate_css",
-      "community": 47,
-      "community_name": "dependencies",
+      "community": 218,
+      "community_name": "tw-animate-css",
       "norm_label": "tw-animate-css"
     },
     {
@@ -17687,8 +17687,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "tw_animate_css",
-      "community": 47,
-      "community_name": "dependencies",
+      "community": 218,
+      "community_name": "tw-animate-css",
       "norm_label": "tw-animate-css"
     },
     {
@@ -17698,8 +17698,8 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "painel_package_dependencies_vaul",
-      "community": 178,
-      "community_name": "vaul",
+      "community": 47,
+      "community_name": "dependencies",
       "norm_label": "vaul"
     },
     {
@@ -17709,8 +17709,8 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "vaul",
-      "community": 178,
-      "community_name": "vaul",
+      "community": 47,
+      "community_name": "dependencies",
       "norm_label": "vaul"
     },
     {
@@ -17974,7 +17974,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_brand_logo",
       "community": 196,
-      "community_name": "login-form.tsx",
+      "community_name": "utils.ts",
       "norm_label": "brand-logo.tsx"
     },
     {
@@ -17985,7 +17985,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_brand_logo_brand",
       "community": 196,
-      "community_name": "login-form.tsx",
+      "community_name": "utils.ts",
       "norm_label": "brand"
     },
     {
@@ -17996,7 +17996,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_brand_logo_fallback",
       "community": 196,
-      "community_name": "login-form.tsx",
+      "community_name": "utils.ts",
       "norm_label": "fallback"
     },
     {
@@ -18007,7 +18007,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_brand_logo_icons",
       "community": 196,
-      "community_name": "login-form.tsx",
+      "community_name": "utils.ts",
       "norm_label": "icons"
     },
     {
@@ -18018,7 +18018,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_brand_logo_usebrand",
       "community": 196,
-      "community_name": "login-form.tsx",
+      "community_name": "utils.ts",
       "norm_label": "usebrand()"
     },
     {
@@ -18029,7 +18029,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_brand_logo_brandmark",
       "community": 196,
-      "community_name": "login-form.tsx",
+      "community_name": "utils.ts",
       "norm_label": "brandmark()"
     },
     {
@@ -18282,7 +18282,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_login_form",
       "community": 196,
-      "community_name": "login-form.tsx",
+      "community_name": "utils.ts",
       "norm_label": "login-form.tsx"
     },
     {
@@ -18293,7 +18293,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_login_form_loginform",
       "community": 196,
-      "community_name": "login-form.tsx",
+      "community_name": "utils.ts",
       "norm_label": "loginform()"
     },
     {
@@ -18733,7 +18733,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_badge",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "badge.tsx"
     },
     {
@@ -18744,7 +18744,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_badge_badgevariants",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "badgevariants"
     },
     {
@@ -18755,7 +18755,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_badge_badge",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "badge()"
     },
     {
@@ -18853,8 +18853,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_button",
-      "community": 40,
-      "community_name": "active-window-table.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "button.tsx"
     },
     {
@@ -18864,8 +18864,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_button_buttonvariants",
-      "community": 40,
-      "community_name": "active-window-table.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "buttonvariants"
     },
     {
@@ -18875,8 +18875,8 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_button_button",
-      "community": 40,
-      "community_name": "active-window-table.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "button()"
     },
     {
@@ -18887,7 +18887,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_card",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "card.tsx"
     },
     {
@@ -18898,7 +18898,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_card_card",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "card()"
     },
     {
@@ -18909,7 +18909,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_card_cardheader",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "cardheader()"
     },
     {
@@ -18920,7 +18920,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_card_cardtitle",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "cardtitle()"
     },
     {
@@ -18931,7 +18931,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_card_carddescription",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "carddescription()"
     },
     {
@@ -18942,7 +18942,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_card_cardaction",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "cardaction()"
     },
     {
@@ -18953,7 +18953,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_card_cardcontent",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "cardcontent()"
     },
     {
@@ -18964,7 +18964,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_card_cardfooter",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "cardfooter()"
     },
     {
@@ -18975,7 +18975,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "chart.tsx"
     },
     {
@@ -18986,7 +18986,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_themes",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "themes"
     },
     {
@@ -18997,7 +18997,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_initial_dimension",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "initial_dimension"
     },
     {
@@ -19008,7 +19008,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_tooltipnametype",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "tooltipnametype"
     },
     {
@@ -19019,7 +19019,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_chartconfig",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "chartconfig"
     },
     {
@@ -19030,7 +19030,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_chartcontextprops",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "chartcontextprops"
     },
     {
@@ -19041,7 +19041,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_chartcontext",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "chartcontext"
     },
     {
@@ -19052,7 +19052,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_usechart",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "usechart()"
     },
     {
@@ -19063,7 +19063,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_chartcontainer",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "chartcontainer()"
     },
     {
@@ -19074,7 +19074,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_chartstyle",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "chartstyle()"
     },
     {
@@ -19085,7 +19085,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_charttooltipcontent",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "charttooltipcontent()"
     },
     {
@@ -19096,7 +19096,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_chartlegendcontent",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "chartlegendcontent()"
     },
     {
@@ -19107,7 +19107,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_chart_getpayloadconfigfrompayload",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "getpayloadconfigfrompayload()"
     },
     {
@@ -19117,8 +19117,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_checkbox",
-      "community": 40,
-      "community_name": "active-window-table.tsx",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "checkbox.tsx"
     },
     {
@@ -19128,8 +19128,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_checkbox_checkbox",
-      "community": 40,
-      "community_name": "active-window-table.tsx",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "checkbox()"
     },
     {
@@ -19183,8 +19183,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_command",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "command.tsx"
     },
     {
@@ -19194,8 +19194,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_command_command",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "command()"
     },
     {
@@ -19205,8 +19205,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_command_commanddialog",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "commanddialog()"
     },
     {
@@ -19216,8 +19216,8 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_command_commandinput",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "commandinput()"
     },
     {
@@ -19227,8 +19227,8 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_command_commandlist",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "commandlist()"
     },
     {
@@ -19238,8 +19238,8 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_command_commandempty",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "commandempty()"
     },
     {
@@ -19249,8 +19249,8 @@
       "source_location": "L118",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_command_commandgroup",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "commandgroup()"
     },
     {
@@ -19260,8 +19260,8 @@
       "source_location": "L134",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_command_commandseparator",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "commandseparator()"
     },
     {
@@ -19271,8 +19271,8 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_command_commanditem",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "commanditem()"
     },
     {
@@ -19282,8 +19282,8 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_command_commandshortcut",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "commandshortcut()"
     },
     {
@@ -19315,8 +19315,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_dialog_dialogtrigger",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "dialogtrigger()"
     },
     {
@@ -19755,8 +19755,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_field_fieldvariants",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "fieldvariants"
     },
     {
@@ -19942,8 +19942,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_input",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "input.tsx"
     },
     {
@@ -19953,8 +19953,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_input_input",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "input()"
     },
     {
@@ -19986,8 +19986,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_popover",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "popover.tsx"
     },
     {
@@ -19997,8 +19997,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_popover_popover",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "popover()"
     },
     {
@@ -20008,8 +20008,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_popover_popovertrigger",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "popovertrigger()"
     },
     {
@@ -20019,8 +20019,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_popover_popovercontent",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "popovercontent()"
     },
     {
@@ -20030,8 +20030,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_popover_popoveranchor",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "popoveranchor()"
     },
     {
@@ -20041,8 +20041,8 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_popover_popoverheader",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "popoverheader()"
     },
     {
@@ -20052,8 +20052,8 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_popover_popovertitle",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "popovertitle()"
     },
     {
@@ -20063,8 +20063,8 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_popover_popoverdescription",
-      "community": 12,
-      "community_name": "DestinationChannels.tsx",
+      "community": 15,
+      "community_name": "cn",
       "norm_label": "popoverdescription()"
     },
     {
@@ -20075,7 +20075,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_progress",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "progress.tsx"
     },
     {
@@ -20086,7 +20086,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_progress_progress",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "progress()"
     },
     {
@@ -20162,8 +20162,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select",
-      "community": 15,
-      "community_name": "cn",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "select.tsx"
     },
     {
@@ -20173,7 +20173,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select_select",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "select()"
     },
@@ -20184,8 +20184,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select_selectgroup",
-      "community": 15,
-      "community_name": "cn",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "selectgroup()"
     },
     {
@@ -20195,7 +20195,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select_selectvalue",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "selectvalue()"
     },
@@ -20206,8 +20206,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select_selecttrigger",
-      "community": 15,
-      "community_name": "cn",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "selecttrigger()"
     },
     {
@@ -20217,8 +20217,8 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select_selectcontent",
-      "community": 15,
-      "community_name": "cn",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "selectcontent()"
     },
     {
@@ -20228,8 +20228,8 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select_selectlabel",
-      "community": 15,
-      "community_name": "cn",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "selectlabel()"
     },
     {
@@ -20239,8 +20239,8 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select_selectitem",
-      "community": 15,
-      "community_name": "cn",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "selectitem()"
     },
     {
@@ -20250,8 +20250,8 @@
       "source_location": "L128",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select_selectseparator",
-      "community": 15,
-      "community_name": "cn",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "selectseparator()"
     },
     {
@@ -20261,8 +20261,8 @@
       "source_location": "L141",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select_selectscrollupbutton",
-      "community": 15,
-      "community_name": "cn",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "selectscrollupbutton()"
     },
     {
@@ -20272,8 +20272,8 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_select_selectscrolldownbutton",
-      "community": 15,
-      "community_name": "cn",
+      "community": 3,
+      "community_name": "SourceVideos.tsx",
       "norm_label": "selectscrolldownbutton()"
     },
     {
@@ -20691,7 +20691,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_sidebar_sidebarmenuskeleton",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "sidebarmenuskeleton()"
     },
     {
@@ -20778,8 +20778,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_switch",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "switch.tsx"
     },
     {
@@ -20789,8 +20789,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_switch_switch",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "switch()"
     },
     {
@@ -20800,8 +20800,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_table",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 40,
+      "community_name": "active-window-table.tsx",
       "norm_label": "table.tsx"
     },
     {
@@ -20811,8 +20811,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_table_table",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 40,
+      "community_name": "active-window-table.tsx",
       "norm_label": "table()"
     },
     {
@@ -20822,8 +20822,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_table_tableheader",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "tableheader()"
     },
     {
@@ -20833,8 +20833,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_table_tablebody",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 40,
+      "community_name": "active-window-table.tsx",
       "norm_label": "tablebody()"
     },
     {
@@ -20844,8 +20844,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_table_tablefooter",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 40,
+      "community_name": "active-window-table.tsx",
       "norm_label": "tablefooter()"
     },
     {
@@ -20855,8 +20855,8 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_table_tablerow",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 40,
+      "community_name": "active-window-table.tsx",
       "norm_label": "tablerow()"
     },
     {
@@ -20866,8 +20866,8 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_table_tablehead",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 40,
+      "community_name": "active-window-table.tsx",
       "norm_label": "tablehead()"
     },
     {
@@ -20877,8 +20877,8 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_table_tablecell",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 40,
+      "community_name": "active-window-table.tsx",
       "norm_label": "tablecell()"
     },
     {
@@ -20888,8 +20888,8 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_table_tablecaption",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 40,
+      "community_name": "active-window-table.tsx",
       "norm_label": "tablecaption()"
     },
     {
@@ -20900,7 +20900,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_tabs",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "tabs.tsx"
     },
     {
@@ -20911,7 +20911,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_tabs_tabs",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "tabs()"
     },
     {
@@ -20922,7 +20922,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_tabs_tabslistvariants",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "tabslistvariants"
     },
     {
@@ -20933,7 +20933,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_tabs_tabslist",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "tabslist()"
     },
     {
@@ -20944,7 +20944,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_tabs_tabstrigger",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "tabstrigger()"
     },
     {
@@ -20955,7 +20955,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_tabs_tabscontent",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "tabscontent()"
     },
     {
@@ -20965,8 +20965,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_textarea",
-      "community": 15,
-      "community_name": "cn",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "textarea.tsx"
     },
     {
@@ -20976,8 +20976,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_textarea_textarea",
-      "community": 15,
-      "community_name": "cn",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "textarea()"
     },
     {
@@ -20987,8 +20987,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_toggle_group",
-      "community": 15,
-      "community_name": "cn",
+      "community": 196,
+      "community_name": "utils.ts",
       "norm_label": "toggle-group.tsx"
     },
     {
@@ -20998,8 +20998,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_toggle_group_togglegroupcontext",
-      "community": 15,
-      "community_name": "cn",
+      "community": 196,
+      "community_name": "utils.ts",
       "norm_label": "togglegroupcontext"
     },
     {
@@ -21009,8 +21009,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_toggle_group_togglegroup",
-      "community": 15,
-      "community_name": "cn",
+      "community": 196,
+      "community_name": "utils.ts",
       "norm_label": "togglegroup()"
     },
     {
@@ -21020,8 +21020,8 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_toggle_group_togglegroupitem",
-      "community": 15,
-      "community_name": "cn",
+      "community": 196,
+      "community_name": "utils.ts",
       "norm_label": "togglegroupitem()"
     },
     {
@@ -21031,8 +21031,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_toggle",
-      "community": 15,
-      "community_name": "cn",
+      "community": 196,
+      "community_name": "utils.ts",
       "norm_label": "toggle.tsx"
     },
     {
@@ -21042,8 +21042,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_toggle_togglevariants",
-      "community": 15,
-      "community_name": "cn",
+      "community": 196,
+      "community_name": "utils.ts",
       "norm_label": "togglevariants"
     },
     {
@@ -21053,8 +21053,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "painel_resources_js_components_ui_toggle_toggle",
-      "community": 15,
-      "community_name": "cn",
+      "community": 196,
+      "community_name": "utils.ts",
       "norm_label": "toggle()"
     },
     {
@@ -21120,7 +21120,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_components_video_summary_cards",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "video-summary-cards.tsx"
     },
     {
@@ -21130,7 +21130,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "painel_resources_js_components_video_summary_cards_storagemetrics",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "storagemetrics"
     },
@@ -21141,7 +21141,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "painel_resources_js_components_video_summary_cards_downloadwindowmetrics",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "downloadwindowmetrics"
     },
@@ -21152,7 +21152,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "painel_resources_js_components_video_summary_cards_videosummarycards",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "videosummarycards()"
     },
@@ -21218,8 +21218,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "painel_resources_js_layouts_app_shell_appshell",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 59,
+      "community_name": "sidebar.tsx",
       "norm_label": "appshell()"
     },
     {
@@ -21229,8 +21229,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_lib_utils",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 196,
+      "community_name": "utils.ts",
       "norm_label": "utils.ts"
     },
     {
@@ -21251,8 +21251,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_pages_assistant",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "assistant.tsx"
     },
     {
@@ -21262,8 +21262,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "painel_resources_js_pages_assistant_pageprops",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "pageprops"
     },
     {
@@ -21273,8 +21273,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "painel_resources_js_pages_assistant_message",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "message"
     },
     {
@@ -21284,8 +21284,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "painel_resources_js_pages_assistant_suggestions",
-      "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "suggestions"
     },
     {
@@ -21296,7 +21296,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_assistant_assistant",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "assistant()"
     },
     {
@@ -21450,7 +21450,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_login",
       "community": 196,
-      "community_name": "login-form.tsx",
+      "community_name": "utils.ts",
       "norm_label": "login.tsx"
     },
     {
@@ -21461,7 +21461,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_login_loginpage",
       "community": 196,
-      "community_name": "login-form.tsx",
+      "community_name": "utils.ts",
       "norm_label": "loginpage()"
     },
     {
@@ -21471,8 +21471,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "offerperformance.tsx"
     },
     {
@@ -21482,8 +21482,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_channelclicks",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "channelclicks"
     },
     {
@@ -21493,8 +21493,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_channelrow",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "channelrow"
     },
     {
@@ -21504,8 +21504,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_dayrow",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "dayrow"
     },
     {
@@ -21515,8 +21515,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_offerrow",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "offerrow"
     },
     {
@@ -21526,8 +21526,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_pageprops",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "pageprops"
     },
     {
@@ -21537,8 +21537,8 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_channel_labels",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "channel_labels"
     },
     {
@@ -21548,8 +21548,8 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_channellabel",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "channellabel()"
     },
     {
@@ -21559,8 +21559,8 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_formatnumber",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "formatnumber()"
     },
     {
@@ -21570,8 +21570,8 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_shortdate",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "shortdate()"
     },
     {
@@ -21581,8 +21581,8 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_statcard",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "statcard()"
     },
     {
@@ -21592,8 +21592,8 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_sectioncard",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "sectioncard()"
     },
     {
@@ -21603,8 +21603,8 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "painel_resources_js_pages_offerperformance_offerperformance",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 43,
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "offerperformance()"
     },
     {
@@ -21856,8 +21856,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_pages_processvideo",
-      "community": 40,
-      "community_name": "active-window-table.tsx",
+      "community": 59,
+      "community_name": "sidebar.tsx",
       "norm_label": "processvideo.tsx"
     },
     {
@@ -21867,8 +21867,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "painel_resources_js_pages_processvideo_pageprops",
-      "community": 40,
-      "community_name": "active-window-table.tsx",
+      "community": 59,
+      "community_name": "sidebar.tsx",
       "norm_label": "pageprops"
     },
     {
@@ -21878,8 +21878,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "painel_resources_js_pages_processvideo_processvideo",
-      "community": 40,
-      "community_name": "active-window-table.tsx",
+      "community": 59,
+      "community_name": "sidebar.tsx",
       "norm_label": "processvideo()"
     },
     {
@@ -21890,7 +21890,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_settings",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "settings.tsx"
     },
     {
@@ -21901,7 +21901,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_settings_cookiesinfo",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "cookiesinfo"
     },
     {
@@ -21912,7 +21912,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_settings_pageprops",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "pageprops"
     },
     {
@@ -21923,7 +21923,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_settings_systemtab",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "systemtab()"
     },
     {
@@ -21934,7 +21934,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_settings_passwordtab",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "passwordtab()"
     },
     {
@@ -21945,7 +21945,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_settings_placeholdertab",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "placeholdertab()"
     },
     {
@@ -21956,7 +21956,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_settings_settings",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "settings()"
     },
     {
@@ -21966,8 +21966,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcechannels",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "sourcechannels.tsx"
     },
     {
@@ -21977,8 +21977,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcechannels_sourcechannel",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "sourcechannel"
     },
     {
@@ -21988,8 +21988,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcechannels_pageprops",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "pageprops"
     },
     {
@@ -21999,8 +21999,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcechannels_nichebadge",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "nichebadge()"
     },
     {
@@ -22010,8 +22010,8 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcechannels_createchanneldialog",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "createchanneldialog()"
     },
     {
@@ -22021,8 +22021,8 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcechannels_sourcechannels",
-      "community": 3,
-      "community_name": "SourceChannels.tsx",
+      "community": 12,
+      "community_name": "DestinationChannels.tsx",
       "norm_label": "sourcechannels()"
     },
     {
@@ -22032,7 +22032,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcevideos",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "sourcevideos.tsx"
     },
@@ -22043,7 +22043,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcevideos_sourcevideorow",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "sourcevideorow"
     },
@@ -22054,7 +22054,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcevideos_pageprops",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "pageprops"
     },
@@ -22065,7 +22065,7 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcevideos_status_badge",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "status_badge"
     },
@@ -22076,7 +22076,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcevideos_uso_badge",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "uso_badge"
     },
@@ -22087,7 +22087,7 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcevideos_applyfilters",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "applyfilters()"
     },
@@ -22098,7 +22098,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcevideos_purgeolddialog",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "purgeolddialog()"
     },
@@ -22109,7 +22109,7 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcevideos_paginationcontrols",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "paginationcontrols()"
     },
@@ -22120,7 +22120,7 @@
       "source_location": "L305",
       "_origin": "ast",
       "id": "painel_resources_js_pages_sourcevideos_sourcevideos",
-      "community": 0,
+      "community": 3,
       "community_name": "SourceVideos.tsx",
       "norm_label": "sourcevideos()"
     },
@@ -22132,7 +22132,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_transcricaolocal",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "transcricaolocal.tsx"
     },
     {
@@ -22143,7 +22143,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_transcricaolocal_job",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "job"
     },
     {
@@ -22154,7 +22154,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_transcricaolocal_pageprops",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "pageprops"
     },
     {
@@ -22165,7 +22165,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_transcricaolocal_status_labels",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "status_labels"
     },
     {
@@ -22176,7 +22176,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_transcricaolocal_transcricaolocal",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "transcricaolocal()"
     },
     {
@@ -22187,7 +22187,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_usefullinks",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "usefullinks.tsx"
     },
     {
@@ -22198,7 +22198,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_usefullinks_pageprops",
       "community": 0,
-      "community_name": "SourceVideos.tsx",
+      "community_name": "Settings.tsx",
       "norm_label": "pageprops"
     },
     {
@@ -22209,7 +22209,7 @@
       "_origin": "ast",
       "id": "painel_resources_js_pages_usefullinks_usefullinks",
       "community": 43,
-      "community_name": "chart.tsx",
+      "community_name": "OfferPerformance.tsx",
       "norm_label": "usefullinks()"
     },
     {
@@ -22329,8 +22329,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_routes_api",
-      "community": 218,
-      "community_name": "AffiliateApiToken.php",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": "api.php"
     },
     {
@@ -22352,7 +22352,7 @@
       "_origin": "ast",
       "id": "painel_routes_web",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "web.php"
     },
     {
@@ -22373,7 +22373,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_tests_feature_brandthemetest",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "brandthemetest.php"
     },
@@ -22605,7 +22605,7 @@
       "_origin": "ast",
       "id": "painel_tests_feature_sourcechannelresourcetest",
       "community": 88,
-      "community_name": "Controller",
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "sourcechannelresourcetest.php"
     },
     {
@@ -22615,8 +22615,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "painel_tests_feature_telegramcommandstest",
-      "community": 62,
-      "community_name": "Offer",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "telegramcommandstest.php"
     },
     {
@@ -22626,8 +22626,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "painel_tests_feature_telegramcommandstest_tgcmd",
-      "community": 62,
-      "community_name": "Offer",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "tgcmd()"
     },
     {
@@ -23041,8 +23041,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_generate_sample_thumbnails",
-      "community": 22,
-      "community_name": "cut_clip",
+      "community": 216,
+      "community_name": "generate_sample_thumbnails.py",
       "norm_label": "generate_sample_thumbnails.py"
     },
     {
@@ -23052,8 +23052,8 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "scripts_generate_sample_thumbnails_extract_frame",
-      "community": 22,
-      "community_name": "cut_clip",
+      "community": 216,
+      "community_name": "generate_sample_thumbnails.py",
       "norm_label": "extract_frame()"
     },
     {
@@ -23063,8 +23063,8 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "scripts_generate_sample_thumbnails_main",
-      "community": 22,
-      "community_name": "cut_clip",
+      "community": 216,
+      "community_name": "generate_sample_thumbnails.py",
       "norm_label": "main()"
     },
     {
@@ -23074,8 +23074,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_generate_sample_thumbnails_rationale_1",
-      "community": 22,
-      "community_name": "cut_clip",
+      "community": 216,
+      "community_name": "generate_sample_thumbnails.py",
       "norm_label": "scripts/generate_sample_thumbnails.py \u2014 gera amostras de thumbnails..."
     },
     {
@@ -26834,7 +26834,7 @@
       "label": "Pr\u00f3ximos passos",
       "file_type": "document",
       "source_file": "Docs/sistema/SISTEMA-AFILIADOS.md",
-      "source_location": "L271",
+      "source_location": "L282",
       "_origin": "ast",
       "id": "docs_sistema_sistema_afiliados_pr\u00f3ximos_passos",
       "community": 163,
@@ -28707,8 +28707,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "illuminate_http_jsonresponse",
-      "community": 88,
-      "community_name": "Controller",
+      "community": 26,
+      "community_name": "DestinationChannel",
       "norm_label": "illuminate\\http\\jsonresponse"
     },
     {
@@ -28718,7 +28718,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "illuminate_http_request",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "illuminate\\http\\request"
     },
@@ -28730,7 +28730,7 @@
       "_origin": "ast",
       "id": "inertia_response",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "inertia\\response"
     },
     {
@@ -28752,7 +28752,7 @@
       "_origin": "ast",
       "id": "illuminate_support_facades_storage",
       "community": 32,
-      "community_name": "Illuminate\\Http\\Request",
+      "community_name": "Inertia\\Response",
       "norm_label": "illuminate\\support\\facades\\storage"
     },
     {
@@ -28762,8 +28762,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "illuminate_http_response",
-      "community": 215,
-      "community_name": "TelegramWebhookController.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "illuminate\\http\\response"
     },
     {
@@ -28773,8 +28773,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "symfony_component_httpfoundation_streamedresponse",
-      "community": 216,
-      "community_name": "TranscriptionController",
+      "community": 32,
+      "community_name": "Inertia\\Response",
       "norm_label": "symfony\\component\\httpfoundation\\streamedresponse"
     },
     {
@@ -28784,8 +28784,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "symfony_component_httpfoundation_response",
-      "community": 218,
-      "community_name": "AffiliateApiToken.php",
+      "community": 177,
+      "community_name": "Illuminate\\Http\\Request",
       "norm_label": "symfony\\component\\httpfoundation\\response"
     },
     {
@@ -28795,7 +28795,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "inertia_middleware",
-      "community": 32,
+      "community": 177,
       "community_name": "Illuminate\\Http\\Request",
       "norm_label": "inertia\\middleware"
     },
@@ -28806,8 +28806,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "illuminate_database_eloquent_factories_hasfactory",
-      "community": 62,
-      "community_name": "Offer",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "illuminate\\database\\eloquent\\factories\\hasfactory"
     },
     {
@@ -28817,8 +28817,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "illuminate_database_eloquent_model",
-      "community": 62,
-      "community_name": "Offer",
+      "community": 88,
+      "community_name": "Illuminate\\Database\\Eloquent\\Model",
       "norm_label": "illuminate\\database\\eloquent\\model"
     },
     {
@@ -30439,7 +30439,7 @@
       "rationale": "Se espa\u00e7o dispon\u00edvel < 2GB, n\u00e3o inicia download, loga aviso e mant\u00e9m v\u00eddeo como pending; dele\u00e7\u00e3o p\u00f3s-upload j\u00e1 mant\u00e9m disco limpo, sem necessidade de limpeza for\u00e7ada.",
       "community": 89,
       "norm_label": "guard de espaco em disco antes do download (<2gb)",
-      "community_name": "clip-processor/src/downloader.py",
+      "community_name": "transcribe_video",
       "id": "disk_space_guard_pattern"
     },
     {
@@ -30454,7 +30454,7 @@
       "rationale": "Ap\u00f3s 3 falhas marca failed; erros permanentes (privado/removido/geo-restrito) marcam failed na primeira tentativa via distin\u00e7\u00e3o de exce\u00e7\u00e3o do yt-dlp.",
       "community": 89,
       "norm_label": "retry de download: 3x com 60s entre tentativas",
-      "community_name": "clip-processor/src/downloader.py",
+      "community_name": "transcribe_video",
       "id": "download_retry_policy"
     },
     {
@@ -30482,7 +30482,7 @@
       "contributor": null,
       "community": 89,
       "norm_label": "clip-processor/src/downloader.py",
-      "community_name": "clip-processor/src/downloader.py",
+      "community_name": "transcribe_video",
       "id": "clip_processor_src_downloader_py"
     },
     {
@@ -30706,9 +30706,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 48,
+      "community": 89,
       "norm_label": "transcribe_video()",
-      "community_name": "_process_ai_pipeline",
+      "community_name": "transcribe_video",
       "id": "transcribe_video_function"
     },
     {
@@ -30834,7 +30834,7 @@
       "contributor": null,
       "community": 89,
       "norm_label": "_prepare_audio()",
-      "community_name": "clip-processor/src/downloader.py",
+      "community_name": "transcribe_video",
       "id": "prepare_audio_function"
     },
     {
@@ -30849,7 +30849,7 @@
       "rationale": "Limite de tamanho de arquivo da API Groq exige extrair MP3 16kHz mono 32kbps via ffmpeg -vn antes de enviar.",
       "community": 89,
       "norm_label": "extracao de audio ffmpeg para arquivos >24mb",
-      "community_name": "clip-processor/src/downloader.py",
+      "community_name": "transcribe_video",
       "id": "ffmpeg_audio_extraction_24mb_threshold"
     },
     {
@@ -31912,9 +31912,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 217,
+      "community": 17,
       "norm_label": "05-03 plan: youtube uploader",
-      "community_name": "05-03 Plan: YouTube uploader",
+      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
       "id": "planning_phases_05_publicacao_e_automacao_total_05_03_plan"
     },
     {
@@ -31926,9 +31926,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 217,
+      "community": 17,
       "norm_label": "youtubeuploader.upload_clip(clip)",
-      "community_name": "05-03 Plan: YouTube uploader",
+      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
       "id": "clip_processor_src_uploader_upload_clip"
     },
     {
@@ -31940,9 +31940,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 217,
+      "community": 17,
       "norm_label": "youtube_token_file (default /app/token.json)",
-      "community_name": "05-03 Plan: YouTube uploader",
+      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
       "id": "env_youtube_token_file"
     },
     {
@@ -31968,9 +31968,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 217,
+      "community": 17,
       "norm_label": "05-03 summary: youtubeuploader implemented",
-      "community_name": "05-03 Plan: YouTube uploader",
+      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
       "id": "planning_phases_05_publicacao_e_automacao_total_05_03_summary"
     },
     {
@@ -32010,9 +32010,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 217,
+      "community": 17,
       "norm_label": "05-04 plan: publisher and raw cleanup",
-      "community_name": "05-03 Plan: YouTube uploader",
+      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
       "id": "planning_phases_05_publicacao_e_automacao_total_05_04_plan"
     },
     {
@@ -32038,9 +32038,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 217,
+      "community": 17,
       "norm_label": "05-04 summary: publisher implemented",
-      "community_name": "05-03 Plan: YouTube uploader",
+      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
       "id": "planning_phases_05_publicacao_e_automacao_total_05_04_summary"
     },
     {
@@ -32109,9 +32109,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 17,
+      "community": 215,
       "norm_label": "05-06 plan: n8n workflow and production checkpoint",
-      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
+      "community_name": "n8n/workflows/canaldecortes-pipeline.json",
       "id": "planning_phases_05_publicacao_e_automacao_total_05_06_plan"
     },
     {
@@ -32123,9 +32123,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 17,
+      "community": 215,
       "norm_label": "n8n/workflows/canaldecortes-pipeline.json",
-      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
+      "community_name": "n8n/workflows/canaldecortes-pipeline.json",
       "id": "n8n_workflows_canaldecortes_pipeline_json"
     },
     {
@@ -32137,9 +32137,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 17,
+      "community": 215,
       "norm_label": "n8n/workflows/readme.md",
-      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
+      "community_name": "n8n/workflows/canaldecortes-pipeline.json",
       "id": "n8n_workflows_readme"
     },
     {
@@ -32151,9 +32151,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 17,
+      "community": 215,
       "norm_label": "05-06 summary: n8n workflow importable, retry documented",
-      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
+      "community_name": "n8n/workflows/canaldecortes-pipeline.json",
       "id": "planning_phases_05_publicacao_e_automacao_total_05_06_summary"
     },
     {
@@ -32165,9 +32165,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 17,
+      "community": 215,
       "norm_label": "workflow usa execute command com retry 3x e espera 15 minutos",
-      "community_name": "05-01 Plan: Publishing schema, skeletons and RED tests",
+      "community_name": "n8n/workflows/canaldecortes-pipeline.json",
       "id": "decision_workflow_execute_command_retry_3x"
     },
     {
@@ -33427,9 +33427,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 64,
+      "community": 36,
       "norm_label": "copy-02 requirement: original channel credits in description",
-      "community_name": "append_credits",
+      "community_name": "Phase 7 Context: Schema Multi-Canal + Python Pipeline",
       "id": "copy_02"
     },
     {
@@ -34800,9 +34800,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 215,
+      "community": 177,
       "norm_label": "tg:dedup:{update_id} redis set nx ex 300 dedup pattern",
-      "community_name": "TelegramWebhookController.php",
+      "community_name": "Illuminate\\Http\\Request",
       "id": "tg_dedup_redis_pattern"
     },
     {
@@ -35014,9 +35014,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 58,
+      "community": 60,
       "norm_label": "irazasyed/telegram-bot-sdk ^3.16",
-      "community_name": ".planning/research/FEATURES.md",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_phases_09_bot_telegram_no_laravel_09_research_irazasyed_telegram_bot_sdk"
     },
     {
@@ -35030,7 +35030,7 @@
       "contributor": null,
       "community": 60,
       "norm_label": "telegramwebhookcontroller::handle",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_phases_09_bot_telegram_no_laravel_09_research_telegramwebhookcontroller"
     },
     {
@@ -35045,7 +35045,7 @@
       "rationale": "SET NX is atomic; check-then-set (two ops) is not atomic and creates race conditions where duplicate commands corrupt clip state (e.g. double reject deletes file twice).",
       "community": 60,
       "norm_label": "redis set nx dedup pattern (tg:dedup:{update_id})",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_phases_09_bot_telegram_no_laravel_09_research_redis_dedup_set_nx_pattern"
     },
     {
@@ -35059,7 +35059,7 @@
       "contributor": null,
       "community": 60,
       "norm_label": "telegram command classes (status/clipes/aprovar/rejeitar/processar/ajuda)",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_phases_09_bot_telegram_no_laravel_09_research_command_classes"
     },
     {
@@ -35073,7 +35073,7 @@
       "contributor": null,
       "community": 60,
       "norm_label": "post /internal/pipeline-event (laravel endpoint)",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_phases_09_bot_telegram_no_laravel_09_research_internal_pipeline_event_endpoint"
     },
     {
@@ -35087,7 +35087,7 @@
       "contributor": null,
       "community": 60,
       "norm_label": "telegram_notifier.py (python \u2192 laravel)",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_phases_09_bot_telegram_no_laravel_09_research_telegram_notifier_py"
     },
     {
@@ -35101,7 +35101,7 @@
       "contributor": null,
       "community": 60,
       "norm_label": "post /internal/process-url (python sidecar)",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_phases_09_bot_telegram_no_laravel_09_research_internal_process_url_endpoint"
     },
     {
@@ -35130,7 +35130,7 @@
       "rationale": "Telegram sends no CSRF token or Sec-Fetch-Site header, so Laravel's PreventRequestForgery middleware must explicitly exclude telegramcanal and internal/pipeline-event routes.",
       "community": 60,
       "norm_label": "pitfall: csrf blocking telegram webhook (419)",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_phases_09_bot_telegram_no_laravel_09_research_csrf_exclusion_pitfall"
     },
     {
@@ -35145,7 +35145,7 @@
       "rationale": "POST to http://nginx without explicit Host header routes to default_server vhost instead of canaldecortes.local, causing 404.",
       "community": 60,
       "norm_label": "pitfall: python\u2192laravel via wrong host header (404)",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_phases_09_bot_telegram_no_laravel_09_research_host_header_pitfall"
     },
     {
@@ -35228,9 +35228,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Without channel_id scoping, two channels would share one global quota key, capping total uploads at 3/day instead of 3/day per channel.",
-      "community": 57,
+      "community": 45,
       "norm_label": "quotamanager per-channel redis key design",
-      "community_name": ".planning/research/PITFALLS.md",
+      "community_name": "ARCHITECTURE.md (as-built, commit dca6e44)",
       "id": "planning_research_architecture_quota_manager_channel_scoping"
     },
     {
@@ -35326,9 +35326,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 58,
+      "community": 60,
       "norm_label": "telegram bot in laravel feature spec",
-      "community_name": ".planning/research/FEATURES.md",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_research_features_telegram_bot_laravel"
     },
     {
@@ -35384,9 +35384,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Quota belongs to the GCP project not the OAuth credential/channel; multiple channels in one project share the 10,000 unit/day pool and can silently block all uploads.",
-      "community": 57,
+      "community": 45,
       "norm_label": "pitfall: quota cega \u2014 shared gcp project quota",
-      "community_name": ".planning/research/PITFALLS.md",
+      "community_name": "ARCHITECTURE.md (as-built, commit dca6e44)",
       "id": "planning_research_pitfalls_shared_quota_pool"
     },
     {
@@ -35429,9 +35429,9 @@
       "author": null,
       "contributor": null,
       "rationale": "php artisan make:filament-resource --generate silently skips ENUM columns, generating free-text inputs that let operators write invalid state values, corrupting the pipeline state machine.",
-      "community": 219,
+      "community": 57,
       "norm_label": "pitfall: filament auto-generated resources break on enum columns",
-      "community_name": "generated_clips.status state machine",
+      "community_name": ".planning/research/PITFALLS.md",
       "id": "planning_research_pitfalls_filament_enum_break"
     },
     {
@@ -35461,7 +35461,7 @@
       "rationale": "Telegram webhook delivery is at-least-once; non-2xx or timeout triggers retries, so idempotency via update_id tracking must be built in from day one.",
       "community": 60,
       "norm_label": "pitfall: webhook receives duplicate updates on server errors",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "irazasyed/telegram-bot-sdk ^3.16",
       "id": "planning_research_pitfalls_telegram_duplicate_updates"
     },
     {
@@ -35619,9 +35619,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 60,
+      "community": 51,
       "norm_label": "clip-processor service (as-built)",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "painel/README.md (setup fresh 10 passos)",
       "id": "architecture_asbuilt_clip_processor_service"
     },
     {
@@ -35633,9 +35633,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 60,
+      "community": 51,
       "norm_label": "internal_api.py sidecar (flask, port 8090)",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "painel/README.md (setup fresh 10 passos)",
       "id": "architecture_asbuilt_internal_api_sidecar"
     },
     {
@@ -35648,9 +35648,9 @@
       "author": null,
       "contributor": null,
       "rationale": "For reads, painel goes directly to source (MySQL/Redis/disk); for actions touching disk/process, painel must call the sidecar HTTP API rather than touch the pipeline filesystem directly \u2014 replaces prior docker exec / Docker socket pattern.",
-      "community": 60,
+      "community": 51,
       "norm_label": "boundary rule: painel reads directly, writes via sidecar",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "painel/README.md (setup fresh 10 passos)",
       "id": "architecture_asbuilt_boundary_rule"
     },
     {
@@ -35662,9 +35662,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 60,
+      "community": 51,
       "norm_label": "apscheduler jobs (ingest_cycle, publish_cycle, clip_pending_ttl)",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "painel/README.md (setup fresh 10 passos)",
       "id": "architecture_asbuilt_apscheduler_jobs"
     },
     {
@@ -35690,9 +35690,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 219,
+      "community": 57,
       "norm_label": "generated_clips.status state machine",
-      "community_name": "generated_clips.status state machine",
+      "community_name": ".planning/research/PITFALLS.md",
       "id": "architecture_asbuilt_generated_clips_status_enum"
     },
     {
@@ -35907,9 +35907,9 @@
       "author": null,
       "contributor": null,
       "rationale": "clip-processor owns the pipeline; painel is for observation and correction only, enforced by reading directly from data stores but acting via the sidecar HTTP API.",
-      "community": 60,
+      "community": 51,
       "norm_label": "clip-processor / painel service boundary (rigid)",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "painel/README.md (setup fresh 10 passos)",
       "id": "project_brief_service_boundary"
     },
     {
@@ -35935,9 +35935,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 219,
+      "community": 57,
       "norm_label": "manual-workflow/readme.md \u2014 manual clip publishing guide",
-      "community_name": "generated_clips.status state machine",
+      "community_name": ".planning/research/PITFALLS.md",
       "id": "manual_workflow_readme"
     },
     {
@@ -35949,9 +35949,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 219,
+      "community": 57,
       "norm_label": "list-pending-clips.sh",
-      "community_name": "generated_clips.status state machine",
+      "community_name": ".planning/research/PITFALLS.md",
       "id": "manual_workflow_list_pending_clips_sh"
     },
     {
@@ -35963,9 +35963,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 219,
+      "community": 57,
       "norm_label": "mark-published.sh",
-      "community_name": "generated_clips.status state machine",
+      "community_name": ".planning/research/PITFALLS.md",
       "id": "manual_workflow_mark_published_sh"
     },
     {
@@ -35978,9 +35978,9 @@
       "author": null,
       "contributor": null,
       "rationale": "Same token value must be set in both wordpress/.env (clip-processor) and canaldecortes/painel/.env for the sidecar auth to work.",
-      "community": 60,
+      "community": 51,
       "norm_label": "clip_processor_internal_token shared setup",
-      "community_name": "internal_api.py sidecar (Flask, port 8090)",
+      "community_name": "painel/README.md (setup fresh 10 passos)",
       "id": "painel_clip_processor_internal_token_setup"
     },
     {
@@ -74486,7 +74486,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "painel/resources/js/components/login-form.tsx",
-      "source_location": "L26",
+      "source_location": "L27",
       "weight": 1.0,
       "_origin": "ast",
       "source": "painel_resources_js_components_login_form_loginform",
@@ -90631,7 +90631,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Docs/sistema/SISTEMA-AFILIADOS.md",
-      "source_location": "L271",
+      "source_location": "L282",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_sistema_sistema_afiliados_sistema_de_afiliados",
@@ -99585,5 +99585,5 @@
       "source_file": ".planning/phases/07-schema-multi-canal-python-pipeline/07-RESEARCH.md"
     }
   ],
-  "built_at_commit": "85d9636281c2be4db22602cccab2406df27a1d14"
+  "built_at_commit": "aa06bc3fd46eb1f2a922cd65b4213796bdd34dd3"
 }
