@@ -6,7 +6,7 @@ Documento de progresso. **Se a sessão reiniciar, comece por aqui**: cada etapa 
 Contexto e justificativa: [`PLANO-MESTRE.md`](PLANO-MESTRE.md#3-banco-de-dados--mysql-para-postgresql).
 Fluxo de branch e deploy: [`../../DEPLOY.md`](../../DEPLOY.md).
 
-Última atualização: **15/09/2026** — A1 a A4 concluídas; falta o ciclo real do pipeline (A6).
+Última atualização: **15/09/2026** — fase A fechada e mesclada na `master` (merge `b2bf7d9`), **exceto o ciclo real (A6)**, que fica para o dia da migração da VM.
 
 ---
 
@@ -64,9 +64,16 @@ A validação real é um ciclo completo rodando contra o Postgres (etapa A6).
   - [x] `scripts/local_download_worker.py`: `NOW() - INTERVAL 2 DAY` virou corte calculado em Python
   - [ ] `scripts/local_download_worker.py`: `docker exec mysql mysql` precisa virar `psql` (fase B)
 - [ ] **A6.** Ciclo real do `clip-processor` contra o Postgres local: poll → download → transcrição → seleção → corte
+  - **Adiado de propósito** (decisão de 15/09/2026): roda ffmpeg e Whisper de verdade e é caro; o mesmo
+    teste acontece naturalmente na fase B, no dia da migração da VM. O código já está compatível e
+    mesclado, então nada fica parado esperando por ele.
+  - **Risco assumido:** os testes do `clip-processor` usam mock de banco. Enquanto a A6 não rodar,
+    ainda pode existir query não portável escondida nos caminhos que os testes não exercitam.
 - [x] **A7 (parcial).** Suíte do `clip-processor` verde: **222 testes, 0 falhas** (fechou o bug 7). Falta o teste que trave regressão de SQL não portável
-- [ ] **A8.** Documentação: `BANCO-DE-DADOS.md`, `SISTEMA-CLIP-PROCESSOR.md` e `RUNBOOK.md` (8 comandos `mysql` viram `psql`)
-- [ ] **A9.** Merge na `master` pela skill `finalizar-e-deploy` — **sem deploy de produção nesta fase**
+- [ ] **A8.** Documentação: `BANCO-DE-DADOS.md` e `RUNBOOK.md` (8 comandos `mysql` viram `psql`) — **pendente**, faz mais sentido junto da fase B, quando a produção virar Postgres
+- [x] **A9.** Mesclado na `master` (merge `b2bf7d9`) e em produção. Tudo que entrou é compatível com
+  MySQL, então a produção não mudou de comportamento: booleanos com `TRUE`/`FALSE`, cortes de tempo
+  calculados em Python, nomes de coluna alinhados ao que a produção já tinha.
 
 ### Divergência encontrada na A2 (importante para a fase B)
 
@@ -104,13 +111,25 @@ coluna.**
 
 ---
 
+## Estado em 15/09/2026
+
+| Item | Estado |
+|---|---|
+| Banco local Postgres 17.2 (`clips_automation`) | criado, schema idêntico ao da produção |
+| Painel contra Postgres | 45 testes, 115 asserções passando (81 com a branch de afiliados) |
+| `clip-processor` | conecta e consulta o Postgres; suíte com 222 testes, 0 falhas |
+| Produção | continua em **MySQL**, sem mudança de comportamento |
+| Falta para trocar a produção | fase B inteira + A6 + A8 |
+
 ## Como retomar depois de reiniciar a sessão
 
 ```bash
 cd /Users/alessandrobm1/develop/server/wordpress/canaldecortes
-git switch feature/postgres-fase-a
-git log --oneline master..HEAD      # o que já foi feito
-sed -n '/## Fase A/,/## Fase B/p' Docs/sistema/PLANO-POSTGRES.md   # checklist
+git switch master                   # a fase A já está aqui
+sed -n '/## Fase B/,/^## /p' Docs/sistema/PLANO-POSTGRES.md        # o que falta
+ssh -i ~/.ssh/oracle-ssh-key-2026-08-27.key ubuntu@147.15.124.191 cat /home/ubuntu/canaldecortes/REVISION
 ```
+
+A branch `feature/postgres-fase-a` pode ser apagada; todo o conteúdo está na `master`.
 
 Conexão local: `postgres://clips_user@127.0.0.1:5432/clips_automation` (senha em `painel/.env`, fora do git).
