@@ -56,12 +56,28 @@ def acquire_pid_lock():
         sys.exit(0)
 
 
+# Caminho do .env no servidor — é lá que a senha do banco vive, e só lá.
+REMOTE_ENV = '/home/ubuntu/canaldecortes/.env'
+
+
 def run_remote_mysql(query: str) -> str:
-    """Executa query SQL no MySQL do servidor via SSH."""
+    """Executa query SQL no MySQL do servidor via SSH.
+
+    A senha é resolvida **dentro do servidor**, lendo o `.env` no próprio comando remoto.
+    Até 16/09/2026 ela estava escrita neste arquivo, que é versionado num repositório público
+    (bug 16 em Docs/sistema/BUGS.md). Resolver no destino é melhor do que só tirar daqui: o
+    segredo não trafega, não fica em memória do cliente e não aparece em `ps` na máquina local.
+    """
+    remote = (
+        "P=$(grep -m1 -E '^(DB_PASSWORD|MYSQL_ROOT_PASSWORD)=' " + REMOTE_ENV +
+        " | cut -d= -f2- | tr -d '\"'); "
+        'docker exec mysql mysql -uroot -p"$P" clips_automation '
+        '--default-character-set=utf8mb4 -s -N -e ' + subprocess.list2cmdline([query])
+    )
     cmd = [
         'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-i', SSH_KEY,
         SSH_HOST,
-        f"docker exec mysql mysql -uroot -prootpassword clips_automation --default-character-set=utf8mb4 -s -N -e {subprocess.list2cmdline([query])}"
+        remote,
     ]
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, errors='replace', timeout=30)

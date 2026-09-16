@@ -22,6 +22,9 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 12 | FEITO | Worker local de download ignorava a janela — disco em 100% e painel fora do ar |
 | 13 | FEITO | Rejeitar no painel não apagava os arquivos do clip |
 | 14 | FEITO | Usuários de teste com senha padrão viviam no banco de produção |
+| 15 | FEITO | Groq recusava toda seleção com 429 — `max_tokens` acima do teto do plano |
+| 16 | ABERTO | **Senha de root do MySQL publicada em repositório público** |
+| 17 | ABERTO | Vaga da janela presa por clip aguardando aprovação do operador |
 
 ---
 
@@ -354,6 +357,10 @@ operador.
 produção. Rodar a suíte dentro do servidor gravava dados de teste ali — os testes usam
 `DatabaseTransactions`, mas qualquer execução interrompida no meio deixa resíduo.
 
+**Nota de 16/09/2026:** ver também o bug 16 — o repositório público carrega a senha de root do
+MySQL de produção. É a mesma classe de problema (credencial conhecida em lugar errado), mas de
+alcance maior.
+
 **Prevenção:** desde 15/09/2026 o `phpunit.xml` aponta para o Postgres local
 ([`PLANO-POSTGRES.md`](PLANO-POSTGRES.md)), fora da produção. Nunca rodar a suíte contra o banco de
 produção. A senha do operador foi trocada na mesma data.
@@ -370,6 +377,110 @@ operador (verificado em 15/09/2026).
 
 Por isso os seeders de dado deste projeto (`BaselineSeeder`, `SourceChannelsSeeder`) são **avulsos**,
 rodados com `--class=`, e nenhum deles cria usuário. Conta de painel se cria só com
-`php artisan painel:create-user`, que exige senha. **Pendente:** esvaziar o `run()` do
-`DatabaseSeeder` ou trocar a criação de usuário por algo que não use senha padrão.
+`php artisan painel:create-user`, que exige senha.
+
+**Resolvido em 16/09/2026:** o `run()` do `DatabaseSeeder` foi esvaziado, com a explicação no próprio
+arquivo. As duas contas de factory que ainda viviam no Postgres **local**
+(`stroman.talon@example.org`, `rosella.zboncak@example.org`) foram apagadas. A produção já estava
+limpa — só o operador.
+
+---
+
+## 15. FEITO — Groq recusava toda seleção com 429
+
+**Encontrado e corrigido em 16/09/2026.** O log da produção repetia, a cada vídeo:
+
+```
+Error code: 429 - Request too large for model `qwen/qwen3.8-27b` ... on output tokens per minute
+(OTPM): Limit 1000, Requested 2048
+```
+
+A recusa é pelo **`max_tokens` pedido**, não pelo consumido: pedir 2048 devolve 429 sem sequer
+chamar o modelo. Como `ANTHROPIC_API_KEY` está vazia por configuração normal de operação, o Groq é o
+único caminho — então **toda** seleção falhava, cada vídeo caía em "Nenhum momento válido" e virava
+`failed`, liberando a janela sem gerar clip nenhum.
+
+Dois pontos pediam correção, os dois acima do teto de 1000:
+
+| Onde | Antes | Depois |
+|---|---|---|
+| `selector.py` `_select_via_groq` | 2048 | `GROQ_MAX_OUTPUT_TOKENS` (1000) |
+| `metadata_generator.py` `_generate_via_groq` | 1024 | `GROQ_MAX_OUTPUT_TOKENS` (1000) |
+
+O payload real cabe com folga: no máximo 3 momentos, e a justificativa está limitada a
+`MAX_REASON_CHARS` (300). Ambos leem `GROQ_MAX_OUTPUT_TOKENS` do ambiente, para quem migrar de plano.
+
+O caminho Anthropic segue em 2048 — o limite é do free tier do Groq, não da Anthropic.
+
+---
+
+## 16. ABERTO — Senha de root do MySQL publicada em repositório público
+
+**Encontrado em 16/09/2026. Não corrigido — depende de rotação acompanhada pelo operador.**
+
+`scripts/local_download_worker.py` monta o comando do banco com a senha escrita no código:
+
+```python
+f"docker exec mysql mysql -uroot -p<SENHA_LITERAL> clips_automation ..."
+```
+
+Confirmado por comparação de hash: **o literal publicado é a senha ativa da produção**.
+
+Alcance apurado:
+
+| Item | Número |
+|---|---|
+| Arquivos versionados com o literal | 7 (inclui `scripts/validate-infra.sh` e `.planning/**`) |
+| Commits no histórico | 14 |
+| Já em `origin/master` público | sim |
+
+**Atenuante real, apurado no servidor:** o MySQL **não está exposto na internet**. O container não
+publica porta no host (`3306/tcp` sem binding), nada escuta em `0.0.0.0:3306` e o `iptables` tem
+`INPUT policy DROP`. Quem tiver a senha ainda precisa de acesso ao host antes. Não é exploração
+remota direta — mas é credencial ativa em repositório público.
+
+**Correção pendente, nesta ordem:**
+
+1. Rotacionar a senha no MySQL de produção e no `.env` do servidor.
+2. Tirar o literal do código: o worker deve ler a senha do `.env` do servidor via SSH, como já é
+   feito manualmente, em vez de carregar segredo no cliente.
+3. Limpar `scripts/validate-infra.sh` e os `.planning/**`.
+4. **Decisão separada:** reescrever o histórico (`git filter-repo`) ou aceitar que o valor antigo
+   fica no histórico público. Rotacionar já torna o valor antigo inútil; reescrever histórico exige
+   force push e quebra clones.
+
+---
+
+## 17. ABERTO — Vaga da janela presa por clip aguardando aprovação
+
+**Apurado em 16/09/2026.** A janela de futebol ficou em **10/10 ocupada** com 145 vídeos frescos
+esperando, e nenhum download novo começava.
+
+Causa: os 10 vídeos ocupantes estavam em `selecting` e **já tinham gerado clips**, todos em
+`pending`. A ocupação é calculada em `pipeline_runner.py` por três condições em `OR`:
+
+```
+sv.local_path IS NOT NULL
+OR sv.status IN ('downloading','downloaded','transcribing','selecting','cutting','publishing')
+OR (gc.status IN ('pending_cut','pending','cutting','approved'))
+```
+
+A terceira sozinha segura a vaga. E `recover_stuck_selecting` **não** alcança esses registros, por
+desenho: ele exige `NOT EXISTS (SELECT 1 FROM generated_clips ...)` justamente para não reprocessar
+vídeo que já tem clip e duplicar corte ([`db.py:308`](../clip-processor/src/db.py#L308)).
+
+**Não é bug de código, é bug de fluxo.** O sistema está esperando decisão humana: enquanto o
+operador não aprovar nem rejeitar, a vaga fica retida — e como o teto é por canal destino ativo,
+10 clips parados na aprovação param a ingestão inteira do nicho.
+
+`_maybe_finalize_source_video` só libera o vídeo quando **todos** os clips chegam a estado terminal
+e ao menos um publicou, então nada se resolve sozinho.
+
+**Caminhos possíveis, nenhum aplicado:**
+
+- aprovar ou rejeitar os clips pendentes (resolve o caso, não a classe);
+- não contar `pending` na ocupação, já que clip pendente não consome download;
+- teto separado para "aguardando aprovação", distinto do teto de download;
+- alerta no painel quando a janela estiver cheia só por clip pendente — hoje o operador não tem
+  como saber que a fila parou por causa dele.
 
