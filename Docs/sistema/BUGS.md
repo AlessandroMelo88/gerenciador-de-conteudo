@@ -21,6 +21,7 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 11 | ABERTO | Container não honra SIGTERM — todo `docker stop` vira SIGKILL |
 | 12 | FEITO | Worker local de download ignorava a janela — disco em 100% e painel fora do ar |
 | 13 | FEITO | Rejeitar no painel não apagava os arquivos do clip |
+| 14 | FEITO | Usuários de teste com senha padrão viviam no banco de produção |
 
 ---
 
@@ -309,4 +310,29 @@ vídeos é montado **read-only** no container `php` (`docker-compose.yml`) e os 
 **Correção:** o painel chama `POST /internal/reject-clip`; `rejeitar.py` apaga todos os artefatos pelo id
 (`<id>.mp4`, `<id>_raw.mp4`, `<id>_subtitled.mp4`, `<id>.srt`, `thumbnails/<id>.jpg`) e preserva o vídeo-fonte.
 Sidecar fora do ar → painel mostra erro e o clip continua `pending`. O Redis não participa da rejeição.
+
+---
+
+## 14. FEITO — Usuários de teste com senha padrão no banco de produção
+
+**Encontrado e corrigido em 15/09/2026.** A tabela `users` da produção tinha, além do operador, três
+contas criadas por `User::factory()`:
+
+| id | e-mail | criado em |
+|---|---|---|
+| 599 | bode.will@example.org | 15/07/2026 |
+| 613 | lenore82@example.org | 10/08/2026 |
+| 627 | idell.botsford@example.net | 10/08/2026 |
+
+As três aceitavam a senha padrão da factory do Laravel (`password`) — confirmado com `Hash::check`.
+Qualquer pessoa com a URL do painel entrava com uma delas. As contas foram apagadas; sobrou só o
+operador.
+
+**Causa:** o `phpunit.xml` apontava para `DB_HOST=mysql` / `clips_automation`, o mesmo banco da
+produção. Rodar a suíte dentro do servidor gravava dados de teste ali — os testes usam
+`DatabaseTransactions`, mas qualquer execução interrompida no meio deixa resíduo.
+
+**Prevenção:** desde 15/09/2026 o `phpunit.xml` aponta para o Postgres local
+([`PLANO-POSTGRES.md`](PLANO-POSTGRES.md)), fora da produção. Nunca rodar a suíte contra o banco de
+produção. A senha do operador foi trocada na mesma data.
 
