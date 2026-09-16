@@ -14,13 +14,14 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 4 | PARCIAL | Estados sem recuperação automática seguram arquivo em disco |
 | 5 | FEITO | `_subtitled.mp4` órfão |
 | 6 | ABERTO | Painel não consegue apagar o backlog de download |
-| 7 | ABERTO | 4 testes de `test_pipeline_runner.py` falhando |
+| 7 | FEITO | 4 testes de `test_pipeline_runner.py` falhando |
 | 8 | ABERTO | Docker Desktop travado sob pressão de disco |
 | 9 | FEITO | Download falho vazava disco e entupia a janela |
 | 10 | ABERTO | 287 clips com `clip_path` apontando para arquivo inexistente |
 | 11 | ABERTO | Container não honra SIGTERM — todo `docker stop` vira SIGKILL |
 | 12 | FEITO | Worker local de download ignorava a janela — disco em 100% e painel fora do ar |
 | 13 | FEITO | Rejeitar no painel não apagava os arquivos do clip |
+| 14 | FEITO | Usuários de teste com senha padrão viviam no banco de produção |
 
 ---
 
@@ -172,20 +173,21 @@ trata o sintoma; a causa é o RSS ingerir mais do que a janela consome.
 
 ---
 
-## 7. ABERTO — 4 testes de `test_pipeline_runner.py` falhando
+## 7. FEITO — testes do `clip-processor` verdes
 
-Falhas **pré-existentes**, confirmadas em 11/08/2026 rodando a suíte com as mudanças do bug 1 em stash
-— mesmas 4 falhas antes e depois.
+**Fechado em 15/09/2026.** A suíte inteira passa: **222 testes, 0 falhas**, rodando dentro da imagem
+do `clip-processor` (é assim que o `flask` do sidecar está disponível — no host ele não existe, que era
+a causa de uma das falhas):
 
-- `test_scheduler_compatible_coalesce`: `ModuleNotFoundError: No module named 'flask'` — o host não tem
-  as dependências do sidecar instaladas;
-- os outros 3: `StopIteration` em mock de cursor com `side_effect` esgotado.
+```bash
+C=$PWD/clip-processor
+docker run --rm --network none -v "$C/src:/app/src" -v "$C/tests:/app/tests" \
+  -w /app --entrypoint python wordpress-clip-processor -m pytest tests/ -q
+```
 
-Rodar a suíte **dentro do container** resolve o caso do flask. Os mocks precisam de revisão à parte.
-
-> **Não reverificado em 13/08/2026.** A contagem pode ter mudado com as correções dos bugs 9 e 4.
-
----
+As falhas restantes eram **testes desatualizados**, não defeito de código: `test_rss_poller` esperava
+`select_moments` sem o argumento `niche`, e `test_selector` esperava descarte de um momento de 20 s que
+o código estica até 30 s (ver decisão em [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md)).
 
 ## 8. ABERTO — Docker Desktop travado sob pressão de disco
 
@@ -308,4 +310,29 @@ vídeos é montado **read-only** no container `php` (`docker-compose.yml`) e os 
 **Correção:** o painel chama `POST /internal/reject-clip`; `rejeitar.py` apaga todos os artefatos pelo id
 (`<id>.mp4`, `<id>_raw.mp4`, `<id>_subtitled.mp4`, `<id>.srt`, `thumbnails/<id>.jpg`) e preserva o vídeo-fonte.
 Sidecar fora do ar → painel mostra erro e o clip continua `pending`. O Redis não participa da rejeição.
+
+---
+
+## 14. FEITO — Usuários de teste com senha padrão no banco de produção
+
+**Encontrado e corrigido em 15/09/2026.** A tabela `users` da produção tinha, além do operador, três
+contas criadas por `User::factory()`:
+
+| id | e-mail | criado em |
+|---|---|---|
+| 599 | bode.will@example.org | 15/07/2026 |
+| 613 | lenore82@example.org | 10/08/2026 |
+| 627 | idell.botsford@example.net | 10/08/2026 |
+
+As três aceitavam a senha padrão da factory do Laravel (`password`) — confirmado com `Hash::check`.
+Qualquer pessoa com a URL do painel entrava com uma delas. As contas foram apagadas; sobrou só o
+operador.
+
+**Causa:** o `phpunit.xml` apontava para `DB_HOST=mysql` / `clips_automation`, o mesmo banco da
+produção. Rodar a suíte dentro do servidor gravava dados de teste ali — os testes usam
+`DatabaseTransactions`, mas qualquer execução interrompida no meio deixa resíduo.
+
+**Prevenção:** desde 15/09/2026 o `phpunit.xml` aponta para o Postgres local
+([`PLANO-POSTGRES.md`](PLANO-POSTGRES.md)), fora da produção. Nunca rodar a suíte contra o banco de
+produção. A senha do operador foi trocada na mesma data.
 

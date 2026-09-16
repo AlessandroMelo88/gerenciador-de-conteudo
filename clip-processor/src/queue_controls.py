@@ -57,7 +57,7 @@ def pause_video(source_video_id: int) -> dict:
             raise RuntimeError('source_video não encontrado')
 
         with conn.cursor() as cur:
-            cur.execute('UPDATE source_videos SET paused = 1 WHERE id = %s', (source_video_id,))
+            cur.execute('UPDATE source_videos SET paused = TRUE WHERE id = %s', (source_video_id,))
         conn.commit()
 
         status = row['status']
@@ -115,7 +115,7 @@ def resume_video(source_video_id: int) -> dict:
             raise RuntimeError('source_video não encontrado')
 
         with conn.cursor() as cur:
-            cur.execute('UPDATE source_videos SET paused = 0 WHERE id = %s', (source_video_id,))
+            cur.execute('UPDATE source_videos SET paused = FALSE WHERE id = %s', (source_video_id,))
         conn.commit()
         _log(f'resume video={source_video_id}')
         return {'paused': False, 'status': row['status']}
