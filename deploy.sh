@@ -119,6 +119,7 @@ rsync -rlzOv --delete \
     --exclude '.git' \
     --exclude 'storage' \
     --exclude 'bootstrap/cache' \
+    --exclude 'public/conteudo-cursos' \
     -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
     "$PROJECT_DIR/painel/" "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/painel/"
 
