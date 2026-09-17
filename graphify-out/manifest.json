@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/pipeline_runner.py": {
-    "mtime": 1789518075.0310607,
-    "ast_hash": "a25866cd905041df1bad4f6b0c311352",
+    "mtime": 1789674263.0688882,
+    "ast_hash": "8124fc2e1c4b251634ea6c94e244a49f",
     "semantic_hash": ""
   },
   "clip-processor/src/processar.py": {
@@ -145,8 +145,8 @@
     "semantic_hash": "1a627369981db3d6f7f65ba68e9846c8"
   },
   "clip-processor/tests/test_pipeline_runner.py": {
-    "mtime": 1789511602.9630113,
-    "ast_hash": "13032a4898489793222dea84d848ffda",
+    "mtime": 1789674113.8776155,
+    "ast_hash": "3c46ce8821dcf2d9b894dd83516f2598",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_processar.py": {
@@ -540,8 +540,8 @@
     "semantic_hash": "d7937c530b7e10504143784c4ad8de29"
   },
   "painel/resources/js/components/login-form.tsx": {
-    "mtime": 1789518074.9546733,
-    "ast_hash": "086f5ed93283cf98c94dea1f4d9fc07a",
+    "mtime": 1789667791.0856898,
+    "ast_hash": "feb270f44b171b74e1c9f511522ba01d",
     "semantic_hash": ""
   },
   "painel/resources/js/components/nav-user.tsx": {
@@ -775,8 +775,8 @@
     "semantic_hash": ""
   },
   "painel/resources/js/pages/Settings.tsx": {
-    "mtime": 1789511603.1247735,
-    "ast_hash": "b253e9befb98a25fbd33d2b24d112699",
+    "mtime": 1789667791.0851958,
+    "ast_hash": "34ddfbb0615269fe60bf5a6e5fc8912d",
     "semantic_hash": ""
   },
   "painel/resources/js/pages/SourceChannels.tsx": {
@@ -1590,8 +1590,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1789662845.7628667,
-    "ast_hash": "8bf72580680b513a87f24e3ed9e68703",
+    "mtime": 1789671561.792964,
+    "ast_hash": "f48acc692ad6c1692556dc2c48ba4a8d",
     "semantic_hash": ""
   },
   "PROJECT_BRIEF.md": {
@@ -1710,8 +1710,8 @@
     "semantic_hash": ""
   },
   "Docs/README.md": {
-    "mtime": 1789662845.7645783,
-    "ast_hash": "dd1ce864e342253ac4af0753f16c122b",
+    "mtime": 1789674667.0142138,
+    "ast_hash": "9a4d4c842197adae76100d6f0a547253",
     "semantic_hash": ""
   },
   "Dockerfile.php": {
@@ -1835,8 +1835,8 @@
     "semantic_hash": ""
   },
   "scripts/local_download_worker.py": {
-    "mtime": 1789662565.8909082,
-    "ast_hash": "7616a9b1556bcfd497944c5290b0424d",
+    "mtime": 1789674301.4643428,
+    "ast_hash": "00e7d66e904d1c4f5dc7af7a7f7045b8",
     "semantic_hash": ""
   },
   "scripts/resume_claude_daemon.sh": {
@@ -1860,8 +1860,8 @@
     "semantic_hash": ""
   },
   "scripts/test_local_download_worker.py": {
-    "mtime": 1789662565.891506,
-    "ast_hash": "b6f73cfab4c7ba64f0b1172c2724fb9e",
+    "mtime": 1789674327.2686777,
+    "ast_hash": "510297eac6201bfdf7a3a3a0de0524f0",
     "semantic_hash": ""
   },
   "scripts/test_thumb_generator.py": {
@@ -1945,8 +1945,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-DOWNLOAD.md": {
-    "mtime": 1789511602.934773,
-    "ast_hash": "2312ee881f2f31d47fa4c48807b3a145",
+    "mtime": 1789674634.4309657,
+    "ast_hash": "1409a497775d8bdb1e7d3d4686048b77",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-IA-SELECAO.md": {
@@ -2142,6 +2142,31 @@
   "Docs/sistema/MIGRACAO-A1.md": {
     "mtime": 1789662831.766478,
     "ast_hash": "071d4fb477db6412f9d555a5b6fd6825",
+    "semantic_hash": ""
+  },
+  "clip-processor/src/fair_queue.py": {
+    "mtime": 1789674263.0680587,
+    "ast_hash": "7a04f6563a1fc1fad5a6a88d6eaa7517",
+    "semantic_hash": ""
+  },
+  "clip-processor/tests/test_fair_queue.py": {
+    "mtime": 1789674263.06846,
+    "ast_hash": "46be55b25f9b5cee1646e714d0c0c202",
+    "semantic_hash": ""
+  },
+  "painel/resources/js/components/ui/password-input.tsx": {
+    "mtime": 1789667778.036753,
+    "ast_hash": "1ba28223137b3d709cf34d8904f8839d",
+    "semantic_hash": ""
+  },
+  ".claude/skills/gitflow/SKILL.md": {
+    "mtime": 1789671561.7926686,
+    "ast_hash": "90c883f9f65797c50d814c901cae348c",
+    "semantic_hash": ""
+  },
+  "Docs/sistema/CI-CD.md": {
+    "mtime": 1789674666.9869037,
+    "ast_hash": "d89f4550f0ac8d7ef00e5a4817d4b1ff",
     "semantic_hash": ""
   }
 }

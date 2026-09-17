@@ -25,12 +25,12 @@
     "semantic_hash": ""
   },
   "clip-processor/src/internal_api.py": {
-    "mtime": 1789511602.9541821,
-    "ast_hash": "a290ddbe4e41cb3ed84a999a91f96b1f",
+    "mtime": 1789662565.8883984,
+    "ast_hash": "b0991bc5f5baeb5b823de683353ff3cd",
     "semantic_hash": ""
   },
   "clip-processor/src/main.py": {
-    "mtime": 1789569532.9945986,
+    "mtime": 1789569928.5454516,
     "ast_hash": "79f84eb648c8812d9e8ed4f18c372db9",
     "semantic_hash": ""
   },
@@ -50,7 +50,7 @@
     "semantic_hash": "a5cc7a27969c05b3e8af8cc3aa9abf01"
   },
   "clip-processor/src/publisher.py": {
-    "mtime": 1789569660.2504702,
+    "mtime": 1789569928.5456915,
     "ast_hash": "0ce03d0ccaa6c0fa663c603c99d522e0",
     "semantic_hash": ""
   },
@@ -85,9 +85,9 @@
     "semantic_hash": "1b42023d81c04680a4a33bb3009887e5"
   },
   "clip-processor/src/ttl_worker.py": {
-    "mtime": 1783036727.9980001,
-    "ast_hash": "8eba12a2719f6f090b114282a2d25b66",
-    "semantic_hash": "8eba12a2719f6f090b114282a2d25b66"
+    "mtime": 1789662565.8888278,
+    "ast_hash": "29ede98a79401d8c384494be901bd9a6",
+    "semantic_hash": ""
   },
   "clip-processor/src/uploader.py": {
     "mtime": 1789511602.960158,
@@ -135,8 +135,8 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_internal_api.py": {
-    "mtime": 1789511602.9624536,
-    "ast_hash": "1bb479595e18137a8123bc10f46aa1f2",
+    "mtime": 1789662565.8895638,
+    "ast_hash": "5e944706be064b9e10dbac1b36afa2df",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_metadata_generator.py": {
@@ -190,9 +190,9 @@
     "semantic_hash": "54660c62b30868c36e1ea3573c39cacf"
   },
   "clip-processor/tests/test_ttl_worker.py": {
-    "mtime": 1783037063.6422837,
-    "ast_hash": "69e31e1715159b5439603a6910cd2370",
-    "semantic_hash": "69e31e1715159b5439603a6910cd2370"
+    "mtime": 1789662565.8899465,
+    "ast_hash": "254383a52d64eab4422a060db50351a5",
+    "semantic_hash": ""
   },
   "clip-processor/tests/test_uploader.py": {
     "mtime": 1789511602.9644167,
@@ -1590,8 +1590,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1789569719.8721805,
-    "ast_hash": "5b23860375da7835ee57dcc510a86b7a",
+    "mtime": 1789662845.7628667,
+    "ast_hash": "8bf72580680b513a87f24e3ed9e68703",
     "semantic_hash": ""
   },
   "PROJECT_BRIEF.md": {
@@ -1600,8 +1600,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1789511602.9421868,
-    "ast_hash": "b7f58514281a395381cc360164b7fe5d",
+    "mtime": 1789662845.7621503,
+    "ast_hash": "22ce3952f7765ea442138bc350f390f1",
     "semantic_hash": ""
   },
   "manual-workflow/README.md": {
@@ -1710,8 +1710,8 @@
     "semantic_hash": ""
   },
   "Docs/README.md": {
-    "mtime": 1789511602.9277,
-    "ast_hash": "8f1954ada5b7706606edc4f21914883b",
+    "mtime": 1789662845.7645783,
+    "ast_hash": "dd1ce864e342253ac4af0753f16c122b",
     "semantic_hash": ""
   },
   "Dockerfile.php": {
@@ -1730,8 +1730,8 @@
     "semantic_hash": ""
   },
   "deploy.sh": {
-    "mtime": 1789511602.9656672,
-    "ast_hash": "c48ce19c58a154015c20c31186170868",
+    "mtime": 1789662565.89016,
+    "ast_hash": "17823648e11f7404d6928af36f2ced06",
     "semantic_hash": ""
   },
   "painel/app/Console/Commands/BackupDatabaseCommand.php": {
@@ -1815,8 +1815,8 @@
     "semantic_hash": ""
   },
   "scripts/cron_status.json": {
-    "mtime": 1789542125.4559667,
-    "ast_hash": "595cbb4a1b9e0524154f95d7bd28c119",
+    "mtime": 1789626078.8094695,
+    "ast_hash": "45b709dbe7071ef0139e15cc7722861e",
     "semantic_hash": ""
   },
   "scripts/generate_all_channel_capas.py": {
@@ -1835,8 +1835,8 @@
     "semantic_hash": ""
   },
   "scripts/local_download_worker.py": {
-    "mtime": 1789531415.5229695,
-    "ast_hash": "7edf9caa1fd03b6815765327199e22b7",
+    "mtime": 1789662565.8909082,
+    "ast_hash": "7616a9b1556bcfd497944c5290b0424d",
     "semantic_hash": ""
   },
   "scripts/resume_claude_daemon.sh": {
@@ -1860,8 +1860,8 @@
     "semantic_hash": ""
   },
   "scripts/test_local_download_worker.py": {
-    "mtime": 1789511603.1374266,
-    "ast_hash": "92ea588f9dbd9b1ab1b7b3fdb8603d24",
+    "mtime": 1789662565.891506,
+    "ast_hash": "b6f73cfab4c7ba64f0b1172c2724fb9e",
     "semantic_hash": ""
   },
   "scripts/test_thumb_generator.py": {
@@ -1875,8 +1875,8 @@
     "semantic_hash": ""
   },
   "DEPLOY.md": {
-    "mtime": 1789511602.9268854,
-    "ast_hash": "b93f3cd2f9d696f3f72adf79a791ac23",
+    "mtime": 1789662845.7612164,
+    "ast_hash": "885511a3a61edb473c779e677212bef4",
     "semantic_hash": ""
   },
   "Docs/sistema/BANCO-DE-DADOS.md": {
@@ -1885,7 +1885,7 @@
     "semantic_hash": ""
   },
   "Docs/sistema/BUGS.md": {
-    "mtime": 1789569719.8716793,
+    "mtime": 1789569928.5451832,
     "ast_hash": "0d1e3fd43cf114f6d320cd5dffb46fe2",
     "semantic_hash": ""
   },
@@ -1905,8 +1905,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/PLANO-MESTRE.md": {
-    "mtime": 1789567461.7481883,
-    "ast_hash": "a46c8db18fb1582faf25c6cfd44bc171",
+    "mtime": 1789662845.763803,
+    "ast_hash": "fe44e04639270e4045ef4b4b64269dc8",
     "semantic_hash": ""
   },
   "Docs/sistema/PLANO-ORACLE.md": {
@@ -1985,8 +1985,8 @@
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1789532188.62024,
-    "ast_hash": "31878ad56954d1a55ee7c0d66fa2fa32",
+    "mtime": 1789662565.8904436,
+    "ast_hash": "a6f20fd4ac85adfc684c082267b584c6",
     "semantic_hash": ""
   },
   "painel/public/preview-longo.html": {
@@ -2120,18 +2120,28 @@
     "semantic_hash": ""
   },
   ".claude/skills/finalizar-e-deploy/SKILL.md": {
-    "mtime": 1789511602.9247737,
-    "ast_hash": "b5504812a2bdf11aad7bda82a12a27ba",
+    "mtime": 1789662845.7615716,
+    "ast_hash": "9ef62c133cb64f4a2b06cfbdb620250f",
     "semantic_hash": ""
   },
   "Docs/sistema/PLANO-POSTGRES.md": {
-    "mtime": 1789518150.5380256,
-    "ast_hash": "7b4d90e2af5e5d05b2053f3fca9f8336",
+    "mtime": 1789662845.7651281,
+    "ast_hash": "8c7dd1e3eba6580e44529ff99f7e392d",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_finalize_source_video.py": {
-    "mtime": 1789569507.834499,
+    "mtime": 1789569928.545912,
     "ast_hash": "d395ef286c4a3052d75d9c4eeca090f9",
+    "semantic_hash": ""
+  },
+  "scripts/migrar_mysql_para_postgres.py": {
+    "mtime": 1789662565.891295,
+    "ast_hash": "24e76bc24b7ecf732beea35f1f2b069d",
+    "semantic_hash": ""
+  },
+  "Docs/sistema/MIGRACAO-A1.md": {
+    "mtime": 1789662831.766478,
+    "ast_hash": "071d4fb477db6412f9d555a5b6fd6825",
     "semantic_hash": ""
   }
 }
