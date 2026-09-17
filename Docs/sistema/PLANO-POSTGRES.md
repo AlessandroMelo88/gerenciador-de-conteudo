@@ -102,11 +102,14 @@ coluna.**
 
 ## Fase B — produção (fazer junto da VM A1 de 12 GB)
 
-- [ ] **B1.** Serviço `postgres` no compose de produção, ao lado do MySQL
-- [ ] **B2.** Backup `mysqldump` e migrations no Postgres vazio
-- [ ] **B3.** Carga dos dados (`pgloader`), conferência linha a linha por tabela
-- [ ] **B4.** **Corrigir as sequences** (`setval`) — esquecer isso faz o primeiro insert colidir com id existente
-- [ ] **B5.** Parar o pipeline, carga do delta, trocar variáveis, subir e validar um ciclo
+**Executada em 17/09/2026** — detalhes em [`MIGRACAO-A1.md`](MIGRACAO-A1.md). A carga usou
+`scripts/migrar_mysql_para_postgres.py` em vez de `pgloader`, e o MySQL ficou na Micro (B6).
+
+- [x] **B1.** Serviço `postgres` no compose de produção, ao lado do MySQL
+- [x] **B2.** Backup `mysqldump` e migrations no Postgres vazio
+- [x] **B3.** Carga dos dados (`pgloader`), conferência linha a linha por tabela
+- [x] **B4.** **Corrigir as sequences** (`setval`) — esquecer isso faz o primeiro insert colidir com id existente
+- [x] **B5.** Parar o pipeline, carga do delta, trocar variáveis, subir e validar um ciclo
 - [ ] **B6.** MySQL parado com os dados intactos por alguns dias (rollback = voltar as variáveis)
 
 ---

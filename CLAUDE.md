@@ -4,7 +4,8 @@
 migração para a Oracle e referência de cada serviço. Toda conversa nova abre por ali; status de
 tarefa mora nesses arquivos, não no histórico de conversa.
 
-Arquitetura as-built: `ARCHITECTURE.md`. O painel é Inertia.js + React 19 + shadcn UI desde `dca6e44`.
+Arquitetura as-built: `ARCHITECTURE.md`. **Produção desde 17/09/2026:** VM A1 `129.80.236.185`
+(PostgreSQL 17, vídeos em `/mnt/videos`) — ver `Docs/sistema/MIGRACAO-A1.md`. O painel é Inertia.js + React 19 + shadcn UI desde `dca6e44`.
 
 **Isolamento:** o `docker-compose.yml` da raiz `wordpress/` é compartilhado com outros projetos
 (kelnab, feeb, placebeads, riodelux, gringo). Mexer **apenas** no serviço `clip-processor` e nos
@@ -76,7 +77,8 @@ Preferir alvo específico a `prune` genérico.
 ### 5. Backup antes de DELETE em massa
 
 ```bash
-docker exec mysql mysqldump -uroot -p"$P" clips_automation source_videos generated_clips > backup.sql
+# produção (A1, PostgreSQL) — há dump diário em /mnt/videos/backups
+docker exec postgres pg_dump -U clips_user -d clips_automation -t source_videos -t generated_clips > backup.sql
 ```
 
 As FKs de `generated_clips` **não** têm `ON DELETE CASCADE` — apagar `source_videos` com clips

@@ -5,6 +5,9 @@ autorais**, **infraestrutura**, **banco de dados**, **marca** e **monetização 
 
 Serve para retomar o trabalho do zero: se o contexto de conversa se perder, comece por aqui.
 
+> **17/09/2026:** produção migrada para a VM A1 com PostgreSQL — ver [`MIGRACAO-A1.md`](MIGRACAO-A1.md).
+> A seção 0 abaixo descreve a Micro, que ficou só como proxy e rollback.
+
 Última atualização: **14/09/2026** (curso concluído, origem dos 83 clips apurada, plano A1+PostgreSQL detalhado).
 
 ---
@@ -489,7 +492,7 @@ aberto é enxugar gelo.
 | 2 | Gate de licença: `license_status`, campo `license` do yt-dlp, kill switch | ⬜ | 1 |
 | 3 | Auditar e reclassificar fontes; achar fontes de futebol que aceitam cortes | ⬜ | 2 |
 | 4 | Bugs 11 e 4 | ⬜ | 1 |
-| 5 | VM A1 12 GB + PostgreSQL no mesmo movimento | ⬜ | 4 |
+| 5 | VM A1 12 GB + PostgreSQL no mesmo movimento | ✅ 17/09/2026 ([`MIGRACAO-A1.md`](MIGRACAO-A1.md)); falta DNS na Cloudflare | 4 |
 | 6 | Afiliados: schema, `POST /api/offers`, tela, worker local | ⬜ | 5 |
 | 7 | Tema Umbrella Solutions e domínio | ⬜ | 6 |
 | 8 | Divulgação: Telegram, descrições, blog | ⬜ | 6 |
