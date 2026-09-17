@@ -44,18 +44,18 @@ def windows(monkeypatch):
 
 
 def test_janela_e_dez_por_canal_destino(monkeypatch, windows):
-    monkeypatch.setattr(worker, 'run_remote_mysql', FakeRemote({}, channels={'politica': 1, 'futebol': 1}))
+    monkeypatch.setattr(worker, 'run_remote_sql', FakeRemote({}, channels={'politica': 1, 'futebol': 1}))
     assert worker.niche_windows() == {'futebol': 10, 'politica': 10}
 
 
 def test_canal_destino_novo_soma_dez(monkeypatch, windows):
-    monkeypatch.setattr(worker, 'run_remote_mysql', FakeRemote({}, channels={'futebol': 2, 'politica': 1}))
+    monkeypatch.setattr(worker, 'run_remote_sql', FakeRemote({}, channels={'futebol': 2, 'politica': 1}))
     assert worker.niche_windows() == {'futebol': 20, 'politica': 10}
 
 
 def test_sem_canal_destino_nao_baixa(monkeypatch, windows):
     fake = FakeRemote({'futebol': 0, 'politica': 0}, channels={})
-    monkeypatch.setattr(worker, 'run_remote_mysql', fake)
+    monkeypatch.setattr(worker, 'run_remote_sql', fake)
     assert worker.fetch_pending_videos() == []
     assert not any('COUNT(DISTINCT' in q for q in fake.queries)
 
@@ -68,7 +68,7 @@ def test_window_deficit_nunca_negativo():
 
 def test_janela_cheia_nao_busca_nada(monkeypatch, windows):
     fake = FakeRemote({'futebol': 35, 'politica': 337})
-    monkeypatch.setattr(worker, 'run_remote_mysql', fake)
+    monkeypatch.setattr(worker, 'run_remote_sql', fake)
 
     assert worker.fetch_pending_videos() == []
     assert not any('LIMIT' in q for q in fake.queries)
@@ -76,7 +76,7 @@ def test_janela_cheia_nao_busca_nada(monkeypatch, windows):
 
 def test_busca_so_o_deficit_de_cada_nicho(monkeypatch, windows):
     fake = FakeRemote({'futebol': 8, 'politica': 10}, pending_rows=10)
-    monkeypatch.setattr(worker, 'run_remote_mysql', fake)
+    monkeypatch.setattr(worker, 'run_remote_sql', fake)
 
     videos = worker.fetch_pending_videos()
 
@@ -87,7 +87,7 @@ def test_busca_so_o_deficit_de_cada_nicho(monkeypatch, windows):
 
 def test_falha_na_contagem_nao_baixa_nada(monkeypatch, windows):
     fake = FakeRemote({'futebol': None, 'politica': None})
-    monkeypatch.setattr(worker, 'run_remote_mysql', fake)
+    monkeypatch.setattr(worker, 'run_remote_sql', fake)
 
     assert worker.fetch_pending_videos() == []
 
