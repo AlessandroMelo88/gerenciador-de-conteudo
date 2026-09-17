@@ -82,14 +82,40 @@ até você aprovar ou rejeitar.
 | `DOWNLOAD_WINDOW_PER_CHANNEL` | 10 | `DOWNLOAD_WINDOW_PER_CHANNEL` | [`pipeline_runner.py`](../clip-processor/src/pipeline_runner.py) |
 | `DOWNLOAD_WINDOW_FUTEBOL` / `_POLITICA` | 10 | idem | fallback só se a leitura de `destination_channels` falhar |
 | `FRESHNESS_DAYS` | 3 | `FRESHNESS_DAYS` | [`pipeline_runner.py`](../clip-processor/src/pipeline_runner.py) |
+| `DOWNLOAD_MAX_PER_SOURCE_CHANNEL` | calculado | idem | teto por canal de origem; vazio = janela ÷ canais ativos |
+| `CANDIDATES_PER_SLOT` | 5 | idem | candidatos buscados por vaga livre, para ter o que intercalar |
 
 `_niche_windows` lê `destination_channels WHERE active = 1`, agrupa por nicho e multiplica por
 `DOWNLOAD_WINDOW_PER_CHANNEL`. `_select_pending_videos`, por nicho:
 
 1. conta a **ocupação** — quantos vídeos daquele nicho ocupam a janela agora;
 2. `deficit = max(0, window - occupied)`; se zero, não baixa nada daquele nicho nesta rodada;
-3. busca exatamente `deficit` vídeos `pending`, `paused = 0`, `DATE(published_at) >= hoje - FRESHNESS_DAYS dias`,
-   ordenados por `priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC`.
+3. busca `deficit × CANDIDATES_PER_SLOT` vídeos `pending`, `paused = 0`, `DATE(published_at) >= hoje - FRESHNESS_DAYS dias`,
+   ordenados por `priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC`;
+4. escolhe entre eles com **justiça por canal de origem** (abaixo) e devolve no máximo `deficit`.
+
+### Justiça por canal de origem (17/09/2026)
+
+A janela por nicho sozinha não impede que **um único canal ocupe todas as vagas**. Foi o que
+aconteceu: em 17/09/2026 as 10 vagas de política estavam com CNN, UOL, Jovem Pan e Band, e os 10
+canais do MBL recém-cadastrados não tinham baixado um vídeo sequer.
+
+A regra é pura e mora em [`fair_queue.py`](../clip-processor/src/fair_queue.py), usada **pelos dois
+caminhos** — `pipeline_runner` no servidor e `local_download_worker` no Mac:
+
+| Função | O que decide |
+|---|---|
+| `channel_cap(window, active_channels, override)` | teto por canal = `ceil(janela ÷ canais de origem ativos do nicho)`, nunca menos que 1. `DOWNLOAD_MAX_PER_SOURCE_CHANNEL` vence o cálculo |
+| `fair_pick(candidates, occupancy, deficit, cap)` | intercala os canais preservando a ordem do SQL dentro de cada um; **quem ocupa menos vagas escolhe primeiro** (anti-fome); vaga que sobra volta para quem ainda tem fila, até o teto |
+
+A ocupação passou a ser contada **por canal** (`GROUP BY sv.channel_id`), não só por nicho: o que já
+está na janela conta contra o teto do próprio canal.
+
+Com 10 vagas e 10 canais ativos, cada canal leva 1. Com 2 canais, 5 cada. Canal novo entra e o teto
+de todo mundo se reajusta sozinho na rodada seguinte — não há número fixo para manter.
+
+Testes: `clip-processor/tests/test_fair_queue.py` e as classes `TestSelectPendingVideos` em
+`clip-processor/tests/test_pipeline_runner.py`.
 
 ### Worker local (`scripts/local_download_worker.py`) segue a mesma regra
 
@@ -101,6 +127,7 @@ painel fora do ar. Agora ele:
 - lê os canais destino ativos e calcula o mesmo teto (`niche_windows`);
 - conta a ocupação com o mesmo critério do servidor (`count_window_occupancy`);
 - baixa **um vídeo por ciclo** e reconta antes do próximo;
+- aplica o mesmo teto por canal de origem (`fair_queue`, importado do clip-processor);
 - se qualquer contagem falhar, **não baixa nada** (fail-closed).
 
 Testes: `scripts/test_local_download_worker.py`.
@@ -116,6 +143,12 @@ Vídeo `pending` antigo fica `pending` para sempre sem ser lixo de verdade — c
 classificar `pending` velho como backlog descartável.
 
 A ordenação é `published_at DESC`: a notícia mais recente ganha, não a descoberta mais antiga.
+
+**Carência do canal novo (17/09/2026).** O worker marca `failed` todo `pending` mais velho que
+`WORKER_FRESHNESS_DAYS` (2 dias). Canal recém-cadastrado entra com backlog de dias e perdia a fila
+inteira antes da primeira chance — foi assim que MBL, MBLiveTV e Mamãefalei ficaram com 14-15
+vídeos `failed` e zero downloads. Agora o expurgo só alcança canal que **já baixou alguma coisa**
+(tem vídeo em estado de processamento, `published` ou com `local_path`).
 
 ---
 
