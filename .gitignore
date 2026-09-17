@@ -69,3 +69,7 @@ painel/public/storage
 
 # graphify
 graphify-out/cost.json
+
+# Material de curso (privado, nunca no repositório público nem no servidor)
+painel/public/conteudo-cursos/
+painel/storage/app/private/cursos/
