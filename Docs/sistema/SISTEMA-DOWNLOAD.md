@@ -82,7 +82,7 @@ até você aprovar ou rejeitar.
 | `DOWNLOAD_WINDOW_PER_CHANNEL` | 10 | `DOWNLOAD_WINDOW_PER_CHANNEL` | [`pipeline_runner.py`](../clip-processor/src/pipeline_runner.py) |
 | `DOWNLOAD_WINDOW_FUTEBOL` / `_POLITICA` | 10 | idem | fallback só se a leitura de `destination_channels` falhar |
 | `FRESHNESS_DAYS` | 3 | `FRESHNESS_DAYS` | [`pipeline_runner.py`](../clip-processor/src/pipeline_runner.py) |
-| `DOWNLOAD_MAX_PER_SOURCE_CHANNEL` | calculado | idem | teto por canal de origem; vazio = janela ÷ canais ativos |
+| `DOWNLOAD_MAX_PER_SOURCE_CHANNEL` | **2 em produção** | idem | teto por canal de origem; vazio = janela ÷ canais ativos |
 | `CANDIDATES_PER_SLOT` | 5 | idem | candidatos buscados por vaga livre, para ter o que intercalar |
 
 `_niche_windows` lê `destination_channels WHERE active = 1`, agrupa por nicho e multiplica por
@@ -111,8 +111,13 @@ caminhos** — `pipeline_runner` no servidor e `local_download_worker` no Mac:
 A ocupação passou a ser contada **por canal** (`GROUP BY sv.channel_id`), não só por nicho: o que já
 está na janela conta contra o teto do próprio canal.
 
-Com 10 vagas e 10 canais ativos, cada canal leva 1. Com 2 canais, 5 cada. Canal novo entra e o teto
-de todo mundo se reajusta sozinho na rodada seguinte — não há número fixo para manter.
+Com 10 vagas e 10 canais ativos, o cálculo daria 1 por canal. Com 2 canais, 5 cada. Canal novo entra
+e o teto se reajusta sozinho na rodada seguinte — não há número fixo para manter.
+
+**Em produção o teto está fixo em 2** (`DOWNLOAD_MAX_PER_SOURCE_CHANNEL=2` no `docker-compose.yml`
+do servidor e no plist do worker do Mac), decisão do operador em 17/09/2026: 1 corte por canal é
+pouco para comparar canais entre si; com 2, cada canal entrega um par e dá para escolher o melhor.
+Para voltar ao cálculo automático, basta deixar a variável vazia.
 
 Testes: `clip-processor/tests/test_fair_queue.py` e as classes `TestSelectPendingVideos` em
 `clip-processor/tests/test_pipeline_runner.py`.

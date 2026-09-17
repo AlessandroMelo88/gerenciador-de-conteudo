@@ -88,6 +88,11 @@ services:
       - YOUTUBE_CLIENT_SECRETS=/app/youtube/client_secret.json
       - UPLOAD_WINDOW_BYPASS=true
       - ALLOW_LOCAL_DOWNLOAD=true
+      # Teto de vagas da janela por canal de origem. Fixo em 2 por decisão do
+      # operador (17/09/2026): com 10 canais do MBL ativos, o cálculo automático
+      # daria 1 por canal — pouco para comparar canais entre si. Com 2, cada
+      # canal entrega um par de cortes e dá para escolher o melhor.
+      - DOWNLOAD_MAX_PER_SOURCE_CHANNEL=${DOWNLOAD_MAX_PER_SOURCE_CHANNEL:-2}
       - CLIP_PROCESSOR_INTERNAL_TOKEN=${CLIP_PROCESSOR_INTERNAL_TOKEN}
       - LARAVEL_NOTIFY_URL=http://nginx/internal/pipeline-event
       - LARAVEL_HOST_HEADER=toolscut.alessandromelo.com.br
