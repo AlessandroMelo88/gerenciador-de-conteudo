@@ -209,10 +209,11 @@ def purge_old_videos(before_date: str) -> dict:
 
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE sv FROM source_videos sv "
-                "WHERE sv.published_at < %s "
-                "AND sv.status IN ('pending', 'failed', 'downloaded') "
-                "AND NOT EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id)",
+                # Sem alias no DELETE: `DELETE sv FROM ...` é sintaxe só do MySQL.
+                "DELETE FROM source_videos "
+                "WHERE published_at < %s "
+                "AND status IN ('pending', 'failed', 'downloaded') "
+                "AND NOT EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = source_videos.id)",
                 (before_date,),
             )
             deleted_rows = cur.rowcount

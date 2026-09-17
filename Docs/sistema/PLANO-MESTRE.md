@@ -5,6 +5,9 @@ autorais**, **infraestrutura**, **banco de dados**, **marca** e **monetização 
 
 Serve para retomar o trabalho do zero: se o contexto de conversa se perder, comece por aqui.
 
+> **17/09/2026:** produção migrada para a VM A1 com PostgreSQL — ver [`MIGRACAO-A1.md`](MIGRACAO-A1.md).
+> A seção 0 abaixo descreve a Micro, que ficou só como proxy e rollback.
+
 Última atualização: **14/09/2026** (curso concluído, origem dos 83 clips apurada, plano A1+PostgreSQL detalhado).
 
 ---
@@ -493,8 +496,8 @@ aberto é enxugar gelo.
 | 2 | Gate de licença: `license_status`, campo `license` do yt-dlp, kill switch | ⬜ | 1 |
 | 3 | Auditar e reclassificar fontes; achar fontes de futebol que aceitam cortes | ⬜ | 2 |
 | 4 | Bugs 11 e 4 | ⬜ | 1 |
-| 5 | VM A1 12 GB + PostgreSQL no mesmo movimento | ⬜ | 4 |
-| 6 | Afiliados: schema, `POST /api/offers`, tela, worker local, tela de performance | 🟡 código pronto nas branches `afiliadas` e `afiliadas-fase2` (15/09/2026), sem deploy — ver [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md) | 5 |
+| 5 | VM A1 12 GB + PostgreSQL no mesmo movimento | ✅ 17/09/2026 ([`MIGRACAO-A1.md`](MIGRACAO-A1.md)); falta DNS na Cloudflare | 4 |
+| 6 | Afiliados: schema, `POST /api/offers`, tela, worker local, tela de performance | 🟡 código pronto na branch `afiliadas-fase2` (17/09/2026), sem deploy — ver [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md) | 5 |
 | 7 | Tema Umbrella Solutions e domínio | 🟡 tema pronto na branch `afiliadas-fase2` (seleção por host ou `APP_BRAND`); falta DNS, vhost, certificado e logo | 6 |
 | 8 | Divulgação: Telegram, descrições, blog | 🟡 Telegram automático pronto na branch `afiliadas-fase2`; falta criar canais e pôr o bot como admin. Descrições e blog ⬜ | 6 |
 | 9 | Produto próprio e cursos | ⬜ | 8 |

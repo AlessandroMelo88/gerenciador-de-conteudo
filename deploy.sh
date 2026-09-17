@@ -21,9 +21,9 @@
 
 set -eo pipefail
 
-SERVER_IP="147.15.124.191"
+SERVER_IP="129.80.236.185"   # VM A1 (Ashburn) desde 17/09/2026
 SERVER_USER="ubuntu"
-SSH_KEY="${SSH_KEY:-$HOME/.ssh/oracle-ssh-key-2026-08-27.key}"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/oracle-a1-2026-09-16.key}"
 REMOTE_DIR="/home/ubuntu/canaldecortes"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

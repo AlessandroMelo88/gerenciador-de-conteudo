@@ -3,9 +3,9 @@
 local_download_worker.py — Worker de Download Local com IP Residencial.
 
 Fluxo:
-1. Consulta vídeos pendentes de download no banco MySQL do servidor via SSH.
+1. Consulta vídeos pendentes de download no PostgreSQL do servidor via SSH.
 2. Baixa o vídeo com yt-dlp usando a conexão residencial do Mac (zero bloqueio).
-3. Transfere o arquivo .mp4 para o servidor na pasta /home/ubuntu/canaldecortes/videos/.
+3. Transfere o arquivo .mp4 para o servidor na pasta /mnt/videos/videos/.
 4. Atualiza o banco no servidor para status='downloaded' e local_path='/app/videos/<video_id>.mp4'.
 5. Deleta o arquivo temporário do Mac imediatamente (zero espaço ocupado).
 6. Notifica o servidor para rodar transcrição Whisper + IA + cortes.
@@ -13,6 +13,7 @@ Fluxo:
 
 import json
 import os
+import shlex
 import subprocess
 import sys
 import time
@@ -24,9 +25,11 @@ os.environ['PATH'] = f"/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{os.enviro
 
 import fcntl
 
-SSH_KEY = os.path.expanduser('~/.ssh/oracle-ssh-key-2026-08-27.key')
-SSH_HOST = 'ubuntu@147.15.124.191'
-REMOTE_VIDEOS_DIR = '/home/ubuntu/canaldecortes/videos'
+# VM A1 (Ashburn) desde 17/09/2026 — antes era a E2.1.Micro em São Paulo com MySQL.
+SSH_KEY = os.path.expanduser('~/.ssh/oracle-a1-2026-09-16.key')
+SSH_HOST = 'ubuntu@129.80.236.185'
+# Block volume de 150 GB; o clip-processor enxerga como /app/videos.
+REMOTE_VIDEOS_DIR = '/mnt/videos/videos'
 TEMP_DOWNLOAD_DIR = Path('/tmp/gdc_downloads')
 TEMP_DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 PID_FILE = Path('/tmp/local_download_worker.pid')
@@ -60,8 +63,8 @@ def acquire_pid_lock():
 REMOTE_ENV = '/home/ubuntu/canaldecortes/.env'
 
 
-def run_remote_mysql(query: str) -> str:
-    """Executa query SQL no MySQL do servidor via SSH.
+def run_remote_sql(query: str) -> str:
+    """Executa query SQL no PostgreSQL do servidor via SSH e devolve linhas separadas por tab.
 
     A senha é resolvida **dentro do servidor**, lendo o `.env` no próprio comando remoto.
     Até 16/09/2026 ela estava escrita neste arquivo, que é versionado num repositório público
@@ -69,10 +72,9 @@ def run_remote_mysql(query: str) -> str:
     segredo não trafega, não fica em memória do cliente e não aparece em `ps` na máquina local.
     """
     remote = (
-        "P=$(grep -m1 -E '^(DB_PASSWORD|MYSQL_ROOT_PASSWORD)=' " + REMOTE_ENV +
-        " | cut -d= -f2- | tr -d '\"'); "
-        'docker exec mysql mysql -uroot -p"$P" clips_automation '
-        '--default-character-set=utf8mb4 -s -N -e ' + subprocess.list2cmdline([query])
+        "P=$(grep -m1 '^POSTGRES_PASSWORD=' " + REMOTE_ENV + " | cut -d= -f2- | tr -d '\"'); "
+        'docker exec -e PGPASSWORD="$P" postgres psql -U clips_user -d clips_automation '
+        "-q -At -F $'\\t' -c " + shlex.quote(query)
     )
     cmd = [
         'ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-i', SSH_KEY,
@@ -83,7 +85,7 @@ def run_remote_mysql(query: str) -> str:
         res = subprocess.run(cmd, capture_output=True, text=True, errors='replace', timeout=30)
         return res.stdout.strip()
     except subprocess.TimeoutExpired:
-        _log('Timeout ao executar query MySQL remota')
+        _log('Timeout ao executar query SQL remota')
         return ''
 
 
@@ -140,7 +142,7 @@ def niche_windows() -> dict:
 
     Futebol primeiro. Falha na consulta devolve {} — sem download (fail-closed).
     """
-    output = run_remote_mysql(
+    output = run_remote_sql(
         "SELECT LOWER(TRIM(niche)), COUNT(*) FROM destination_channels "
         "WHERE active = TRUE GROUP BY LOWER(TRIM(niche));"
     )
@@ -176,7 +178,7 @@ def count_window_occupancy(niche: str) -> int | None:
         "  OR (gc.id IS NOT NULL AND gc.status IN ('pending_cut', 'pending', 'cutting', 'approved'))"
         ");"
     )
-    output = run_remote_mysql(query)
+    output = run_remote_sql(query)
     try:
         return int(output.strip().splitlines()[-1])
     except (ValueError, IndexError):
@@ -189,7 +191,7 @@ def fetch_pending_videos():
     # Auto-expurgo de vídeos com mais de 2 dias (notícia velha). O corte vai calculado
     # em Python: `INTERVAL 2 DAY` é sintaxe do MySQL e não roda no PostgreSQL.
     corte = _corte_frescor()
-    run_remote_mysql(
+    run_remote_sql(
         "UPDATE source_videos SET status = 'failed' "
         f"WHERE status = 'pending' AND published_at < '{corte}';"
     )
@@ -214,12 +216,12 @@ def fetch_pending_videos():
           AND sv.published_at >= '{corte}'
           AND {_niche_filter(niche)}
         ORDER BY
-          CASE WHEN sv.title LIKE '%#shorts%' OR sv.title LIKE '%#short%' THEN 1 ELSE 0 END ASC,
+          CASE WHEN LOWER(sv.title) LIKE '%#short%' THEN 1 ELSE 0 END ASC,
           sv.priority DESC,
           sv.id DESC
         LIMIT {deficit};
         """
-        output = run_remote_mysql(query)
+        output = run_remote_sql(query)
         if not output:
             continue
 
@@ -284,7 +286,7 @@ def process_single_video(video: dict):
     _log(f'Iniciando processamento do vídeo #{db_id} ({vid_id}): "{title[:40]}..."')
 
     # 1. Marca como downloading no servidor
-    run_remote_mysql(f"UPDATE source_videos SET status = 'downloading' WHERE id = {db_id};")
+    run_remote_sql(f"UPDATE source_videos SET status = 'downloading' WHERE id = {db_id};")
 
     temp_file = TEMP_DOWNLOAD_DIR / f'{vid_id}.mp4'
 
@@ -294,7 +296,7 @@ def process_single_video(video: dict):
 
     if not success:
         _log(f'Download falhou para {vid_id} — marcando como failed no servidor')
-        run_remote_mysql(f"UPDATE source_videos SET status = 'failed' WHERE id = {db_id};")
+        run_remote_sql(f"UPDATE source_videos SET status = 'failed' WHERE id = {db_id};")
         if temp_file.exists():
             temp_file.unlink()
         return
@@ -314,12 +316,12 @@ def process_single_video(video: dict):
 
     if not upload_ok:
         _log(f'Falha ao enviar {vid_id}.mp4 para o servidor!')
-        run_remote_mysql(f"UPDATE source_videos SET status = 'failed' WHERE id = {db_id};")
+        run_remote_sql(f"UPDATE source_videos SET status = 'failed' WHERE id = {db_id};")
         return
 
-    # 5. Atualiza no MySQL do servidor para 'downloaded' e define local_path e format real
+    # 5. Atualiza no banco do servidor para 'downloaded' e define local_path e format real
     remote_path = f'/app/videos/{vid_id}.mp4'
-    run_remote_mysql(f"UPDATE source_videos SET status = 'downloaded', local_path = '{remote_path}', format = '{fmt}' WHERE id = {db_id};")
+    run_remote_sql(f"UPDATE source_videos SET status = 'downloaded', local_path = '{remote_path}', format = '{fmt}' WHERE id = {db_id};")
     _log(f'Vídeo {vid_id} salvo com sucesso no servidor como {fmt}! O daemon do servidor irá processar na fila.')
 
 

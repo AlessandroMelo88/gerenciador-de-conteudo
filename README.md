@@ -59,7 +59,7 @@ O painel fica disponível via Nginx (ver `docker/nginx_conf`); o `clip-processor
 
 ## Deploy em Produção (Rápido ~20s)
 
-Para publicar alterações no servidor de produção (`147.15.124.191`), use o script automatizado:
+Para publicar alterações no servidor de produção (`129.80.236.185`, VM A1 com PostgreSQL), use o script automatizado:
 
 ```bash
 # Deploy completo (compila frontend Vite + sincroniza código + reinicia serviços)

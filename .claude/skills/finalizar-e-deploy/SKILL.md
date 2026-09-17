@@ -95,7 +95,7 @@ Antes, se o deploy vai reiniciar o `clip-processor`, conferir clip em trânsito
 ### 7. Conferir a versão no ar
 
 ```bash
-ssh -i ~/.ssh/oracle-ssh-key-2026-08-27.key ubuntu@147.15.124.191 cat /home/ubuntu/canaldecortes/REVISION
+ssh -i ~/.ssh/oracle-a1-2026-09-16.key ubuntu@129.80.236.185 cat /home/ubuntu/canaldecortes/REVISION
 git rev-parse HEAD
 curl -s -o /dev/null -w '%{http_code}\n' https://toolscut.alessandromelo.com.br/login
 ```

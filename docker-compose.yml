@@ -3,7 +3,7 @@ services:
     image: nginx:alpine
     container_name: nginx
     restart: always
-    mem_limit: 40m
+    mem_limit: 128m
     ports:
       - '80:80'
       - '443:443'
@@ -21,41 +21,38 @@ services:
       dockerfile: Dockerfile.php
     container_name: php
     restart: always
-    mem_limit: 140m
+    mem_limit: 1g
     command: php-fpm
     volumes:
       - ./painel:/var/www/html/painel
       - ./youtube:/var/www/html/youtube
       - ./branding:/var/www/html/painel/storage/app/branding
-      - ./videos:/var/www/html/painel/storage/app/clips-videos:ro
+      - ${VIDEOS_DIR:-/mnt/videos/videos}:/var/www/html/painel/storage/app/clips-videos:ro
     environment:
-      PHP_MEMORY_LIMIT: 128M
+      PHP_MEMORY_LIMIT: 512M
       MAX_UPLOADS_PER_DAY: '5'
     networks:
       - internal
     depends_on:
       - redis
-      - mysql
+      - postgres
 
-  mysql:
-    image: mysql:8.4
-    container_name: mysql
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres
     restart: always
-    mem_limit: 220m
-    command: >
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-      --innodb-buffer-pool-size=48M
-      --innodb-log-buffer-size=8M
-      --performance-schema=OFF
-      --max-connections=30
+    mem_limit: 1g
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?falta_MYSQL_ROOT_PASSWORD_no_env}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-clips_automation}
-      MYSQL_USER: ${MYSQL_USER:-clips_user}
-      MYSQL_PASSWORD: ${CLIPS_DB_PASSWORD:?falta_CLIPS_DB_PASSWORD_no_env}
+      POSTGRES_DB: ${POSTGRES_DB:-clips_automation}
+      POSTGRES_USER: ${POSTGRES_USER:-clips_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta_POSTGRES_PASSWORD_no_env}
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-clips_user} -d ${POSTGRES_DB:-clips_automation}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - internal
 
@@ -63,7 +60,7 @@ services:
     image: redis:alpine
     container_name: redis
     restart: always
-    mem_limit: 35m
+    mem_limit: 256m
     volumes:
       - redis_data:/data
     networks:
@@ -73,14 +70,15 @@ services:
     build: ./clip-processor
     container_name: clip-processor
     restart: unless-stopped
-    mem_limit: 512m
+    mem_limit: 6g
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GROQ_API_KEY=${GROQ_API_KEY}
-      - MYSQL_HOST=mysql
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-clips_automation}
-      - MYSQL_USER=${MYSQL_USER:-clips_user}
-      - MYSQL_PASSWORD=${CLIPS_DB_PASSWORD:?falta_CLIPS_DB_PASSWORD_no_env}
+      - DB_CONNECTION=pgsql
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=${POSTGRES_DB:-clips_automation}
+      - POSTGRES_USER=${POSTGRES_USER:-clips_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?falta_POSTGRES_PASSWORD_no_env}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - MANUAL_APPROVAL_REQUIRED=true
@@ -95,17 +93,19 @@ services:
       - LARAVEL_HOST_HEADER=toolscut.alessandromelo.com.br
     volumes:
       - ./youtube:/app/youtube
-      - ./videos:/app/videos
+      - ${VIDEOS_DIR:-/mnt/videos/videos}:/app/videos
       - ./branding:/app/branding:ro
       - ./clip-processor/src:/app/src
     networks:
       - internal
     depends_on:
-      - mysql
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
 volumes:
-  mysql_data:
+  postgres_data:
   redis_data:
 
 networks:

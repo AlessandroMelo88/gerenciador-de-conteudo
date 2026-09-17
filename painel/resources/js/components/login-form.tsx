@@ -1,16 +1,14 @@
-import { useState } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Eye, EyeOff } from 'lucide-react';
 
 import { useBrand } from '@/components/brand-logo';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'form'>) {
     const brand = useBrand();
-    const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
         // Nunca pré-preencher credencial: este arquivo vira bundle JS público e o repositório é público.
         email: '',
@@ -45,24 +43,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
                 </Field>
                 <Field>
                     <FieldLabel htmlFor="password">Senha</FieldLabel>
-                    <div className="relative">
-                        <Input
-                            id="password"
-                            type={showPassword ? 'text' : 'password'}
-                            required
-                            className="bg-background pr-10"
-                            value={data.password}
-                            onChange={(e) => setData('password', e.target.value)}
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label={showPassword ? 'Esconder senha' : 'Ver senha'}
-                        >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                    </div>
+                    <PasswordInput
+                        id="password"
+                        required
+                        className="bg-background"
+                        value={data.password}
+                        onChange={(e) => setData('password', e.target.value)}
+                    />
                 </Field>
                 <Field>
                     <Button type="submit" disabled={processing} className="w-full">

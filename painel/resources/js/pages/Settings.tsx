@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppShell } from '@/layouts/app-shell';
@@ -165,9 +166,8 @@ function PasswordTab() {
                 <form onSubmit={submit} className="grid gap-4">
                     <Field>
                         <FieldLabel htmlFor="current_password">Senha atual</FieldLabel>
-                        <Input
+                        <PasswordInput
                             id="current_password"
-                            type="password"
                             value={data.current_password}
                             onChange={(e) => setData('current_password', e.target.value)}
                         />
@@ -177,9 +177,8 @@ function PasswordTab() {
                     </Field>
                     <Field>
                         <FieldLabel htmlFor="password">Nova senha</FieldLabel>
-                        <Input
+                        <PasswordInput
                             id="password"
-                            type="password"
                             value={data.password}
                             onChange={(e) => setData('password', e.target.value)}
                         />
@@ -187,9 +186,8 @@ function PasswordTab() {
                     </Field>
                     <Field>
                         <FieldLabel htmlFor="password_confirmation">Confirmar nova senha</FieldLabel>
-                        <Input
+                        <PasswordInput
                             id="password_confirmation"
-                            type="password"
                             value={data.password_confirmation}
                             onChange={(e) => setData('password_confirmation', e.target.value)}
                         />

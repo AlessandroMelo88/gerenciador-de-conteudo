@@ -4,7 +4,8 @@
 migração para a Oracle e referência de cada serviço. Toda conversa nova abre por ali; status de
 tarefa mora nesses arquivos, não no histórico de conversa.
 
-Arquitetura as-built: `ARCHITECTURE.md`. O painel é Inertia.js + React 19 + shadcn UI desde `dca6e44`.
+Arquitetura as-built: `ARCHITECTURE.md`. **Produção desde 17/09/2026:** VM A1 `129.80.236.185`
+(PostgreSQL 17, vídeos em `/mnt/videos`) — ver `Docs/sistema/MIGRACAO-A1.md`. O painel é Inertia.js + React 19 + shadcn UI desde `dca6e44`.
 
 **Isolamento:** o `docker-compose.yml` da raiz `wordpress/` é compartilhado com outros projetos
 (kelnab, feeb, placebeads, riodelux, gringo). Mexer **apenas** no serviço `clip-processor` e nos
@@ -16,6 +17,11 @@ paths sob `canaldecortes/`.
 
 **Produção roda a `master`, e só o que está no GitHub vai para o servidor.** Fluxo: branch → testes →
 merge na `master` → `git push origin master` → `./deploy.sh`. Use a skill `finalizar-e-deploy`.
+
+**Gitflow é obrigatório em toda tarefa** — inclusive mudança de uma linha: sair da `master`
+atualizada, abrir branch com prefixo (`feature/`, `fix/`, `hotfix/`, `docs/`, `chore/`), commit
+convencional em português, merge com `--no-ff` e apagar a branch depois. Regras completas na skill
+`gitflow` (`.claude/skills/gitflow/SKILL.md`). Nunca commitar direto na `master`.
 A `master` tem tudo que está pronto, menos o que ainda está em desenvolvimento (hoje `afiliadas` e
 `afiliadas-fase2`). `deploy.sh` recusa deploy fora da `master`, com alteração não commitada ou com a
 `master` diferente de `origin/master`, e grava `/home/ubuntu/canaldecortes/REVISION` (commit, branch,
@@ -76,7 +82,8 @@ Preferir alvo específico a `prune` genérico.
 ### 5. Backup antes de DELETE em massa
 
 ```bash
-docker exec mysql mysqldump -uroot -p"$P" clips_automation source_videos generated_clips > backup.sql
+# produção (A1, PostgreSQL) — há dump diário em /mnt/videos/backups
+docker exec postgres pg_dump -U clips_user -d clips_automation -t source_videos -t generated_clips > backup.sql
 ```
 
 As FKs de `generated_clips` **não** têm `ON DELETE CASCADE` — apagar `source_videos` com clips
