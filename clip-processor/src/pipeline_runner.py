@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 import redis as redis_lib
 
 from src.db import get_db_connection, update_status
+from src.fair_queue import channel_cap, fair_pick
 from src.downloader import VIDEOS_DIR, cleanup_stale_downloads, download_video
 from src.queue_controls import _CLIP_STATUSES_NEED_RAW, _cleanup_partial
 from src.publisher import publish_pending_clips
@@ -47,6 +48,16 @@ DOWNLOAD_WINDOW_LONGO = int(os.environ.get('DOWNLOAD_WINDOW_LONGO', 4))
 # gastar disco/banda com conteúdo que não vai mais fazer sentido postar.
 FRESHNESS_DAYS = int(os.environ.get('FRESHNESS_DAYS', 3))
 
+# Teto de vagas da janela por canal de origem. Vazio = calculado a cada rodada
+# (janela do nicho ÷ canais de origem ativos), que é o que se quer no dia a dia:
+# canal novo entra e o teto de todo mundo se ajusta sozinho.
+DOWNLOAD_MAX_PER_SOURCE_CHANNEL = os.environ.get('DOWNLOAD_MAX_PER_SOURCE_CHANNEL') or None
+
+# Quantos candidatos buscar por vaga livre. O round-robin precisa de mais de um
+# canal na mão para intercalar; pedir só o déficit traria os N primeiros do
+# mesmo canal prolífico e não haveria o que alternar.
+CANDIDATES_PER_SLOT = int(os.environ.get('CANDIDATES_PER_SLOT', 5))
+
 
 def _niche_windows(db_conn) -> list:
     """Teto da janela por nicho: DOWNLOAD_WINDOW_PER_CHANNEL × canais destino ativos.
@@ -71,16 +82,34 @@ def _niche_windows(db_conn) -> list:
     return sorted(windows, key=lambda w: (w[0] != 'futebol', w[0]))
 
 
+def _active_source_channels(db_conn, niche: str) -> int:
+    """Quantos canais de origem ativos o nicho tem — base do teto por canal."""
+    with db_conn.cursor() as cur:
+        cur.execute(
+            'SELECT COUNT(*) AS c FROM source_channels sc '
+            'WHERE sc.active = TRUE AND sc.blacklisted = FALSE AND ('
+            "  (LOWER(COALESCE(sc.target_niche, 'futebol')) = %s) "
+            "  OR (%s = 'futebol' AND (sc.target_niche IS NULL OR sc.target_niche = ''))"
+            ')',
+            (niche, niche),
+        )
+        return int(cur.fetchone()['c'])
+
+
 def _select_pending_videos(db_conn) -> list:
     """Seleciona vídeos pendentes pra repor a janela de download ativo por nicho.
 
-    Para cada nicho com canal destino ativo (10 por canal): conta quantos vídeos já ocupam a janela
-    (com arquivo bruto em disco, status em processamento ativo ou clips pendentes/aprovados
-    que ainda estão sendo trabalhados), calcula o déficit até o teto do nicho
-    (_niche_windows) e busca só esse tanto, restrito
-    a published_at de até FRESHNESS_DAYS dias atrás, ordenado por prioridade,
-    posição na fila e published_at DESC. Se um nicho já está na janela cheia, não baixa
-    nada dele nesta rodada.
+    Para cada nicho com canal destino ativo (10 por canal): conta a ocupação atual
+    **por canal de origem** (arquivo bruto em disco, status em processamento ativo ou
+    clips ainda sendo trabalhados), calcula o déficit até o teto do nicho
+    (_niche_windows) e busca candidatos restritos a published_at de até
+    FRESHNESS_DAYS dias atrás, na ordem de prioridade, posição na fila e
+    published_at DESC.
+
+    A escolha final é justa por canal (`fair_queue.fair_pick`): cada canal de
+    origem só pode ocupar `channel_cap` vagas da janela, e quem ocupa menos vagas
+    escolhe primeiro. Sem isso, um canal que publica 50 vídeos por dia toma a
+    janela inteira e os outros nunca baixam. Nicho com a janela cheia não baixa nada.
     """
     cutoff_date = (datetime.now(SAO_PAULO_TZ) - timedelta(days=FRESHNESS_DAYS)).date()
 
@@ -90,28 +119,38 @@ def _select_pending_videos(db_conn) -> list:
     for niche, window in niche_windows:
         with db_conn.cursor() as cur:
             cur.execute(
-                'SELECT COUNT(DISTINCT sv.id) AS c FROM source_videos sv '
+                'SELECT sv.channel_id AS channel_id, COUNT(DISTINCT sv.id) AS c '
+                'FROM source_videos sv '
                 'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
                 'LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id '
                 'WHERE ('
                 '  (LOWER(COALESCE(sc.target_niche, \'futebol\')) = %s) '
-                '  OR (%s = \'futebol\' AND (sc.target_niche IS NULL OR sc.target_niche = \'\'))'
+                "  OR (%s = 'futebol' AND (sc.target_niche IS NULL OR sc.target_niche = ''))"
                 ') AND ('
                 '  sv.local_path IS NOT NULL '
                 "  OR sv.status IN ('downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing') "
                 "  OR (gc.id IS NOT NULL AND gc.status IN ('pending_cut', 'pending', 'cutting', 'approved'))"
-                ')',
+                ') GROUP BY sv.channel_id',
                 (niche, niche),
             )
-            occupied = cur.fetchone()['c']
+            rows = cur.fetchall() or []
+
+        occupancy = {row['channel_id']: int(row['c']) for row in rows}
+        occupied = sum(occupancy.values())
 
         deficit = max(0, window - occupied)
         if deficit == 0:
             continue
 
+        cap = channel_cap(
+            window=window,
+            active_channels=_active_source_channels(db_conn, niche),
+            override=DOWNLOAD_MAX_PER_SOURCE_CHANNEL,
+        )
+
         with db_conn.cursor() as cur:
             cur.execute(
-                "SELECT sv.youtube_video_id FROM source_videos sv "
+                "SELECT sv.youtube_video_id, sv.channel_id FROM source_videos sv "
                 "LEFT JOIN source_channels sc ON sc.id = sv.channel_id "
                 "WHERE sv.status = 'pending' AND sv.paused = FALSE "
                 "AND ("
@@ -122,9 +161,12 @@ def _select_pending_videos(db_conn) -> list:
                 "ORDER BY sv.priority DESC, "
                 "sv.queue_position IS NULL, sv.queue_position ASC, "
                 "sv.published_at DESC LIMIT %s",
-                (niche, niche, cutoff_date, deficit),
+                (niche, niche, cutoff_date, deficit * CANDIDATES_PER_SLOT),
             )
-            result.extend(row['youtube_video_id'] for row in cur.fetchall())
+            candidates = [dict(row) for row in cur.fetchall()]
+
+        escolhidos = fair_pick(candidates, occupancy=occupancy, deficit=deficit, cap=cap)
+        result.extend(v['youtube_video_id'] for v in escolhidos)
 
     return result
 

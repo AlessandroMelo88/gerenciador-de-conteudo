@@ -24,6 +24,18 @@ from pathlib import Path
 os.environ['PATH'] = f"/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:{os.environ.get('PATH', '')}"
 
 import fcntl
+import importlib.util
+
+# Regra de justiça por canal compartilhada com o clip-processor. O diretório tem
+# hífen no nome, então não dá para importar pelo caminho normal de módulo.
+_fair_spec = importlib.util.spec_from_file_location(
+    'fair_queue',
+    Path(__file__).resolve().parent.parent / 'clip-processor' / 'src' / 'fair_queue.py',
+)
+_fair = importlib.util.module_from_spec(_fair_spec)
+_fair_spec.loader.exec_module(_fair)
+channel_cap = _fair.channel_cap
+fair_pick = _fair.fair_pick
 
 # VM A1 (Ashburn) desde 17/09/2026 — antes era a E2.1.Micro em São Paulo com MySQL.
 SSH_KEY = os.path.expanduser('~/.ssh/oracle-a1-2026-09-16.key')
@@ -121,6 +133,18 @@ def get_video_duration(file_path: Path) -> float:
 
 FRESHNESS_DAYS = int(os.environ.get('WORKER_FRESHNESS_DAYS', 2))
 
+# Teto de vagas por canal de origem; vazio = janela do nicho ÷ canais ativos.
+DOWNLOAD_MAX_PER_SOURCE_CHANNEL = os.environ.get('DOWNLOAD_MAX_PER_SOURCE_CHANNEL') or None
+
+# Candidatos buscados por vaga livre — o round-robin precisa de mais de um canal
+# na mão para intercalar.
+CANDIDATES_PER_SLOT = int(os.environ.get('CANDIDATES_PER_SLOT', 5))
+
+# Carência do canal recém-cadastrado: enquanto ele nunca baixou nada, o expurgo de
+# notícia velha não apaga a fila dele. Canal novo entra com backlog de dias e
+# perdia tudo antes de ter a primeira chance (foi o que aconteceu com os canais
+# do MBL em 17/09/2026).
+
 
 def _corte_frescor() -> str:
     """Data/hora limite de frescor, formatada — portável entre MySQL e PostgreSQL."""
@@ -161,53 +185,86 @@ def window_deficit(occupied: int, window: int) -> int:
     return max(0, window - occupied)
 
 
-def count_window_occupancy(niche: str) -> int | None:
-    """Conta vídeos do nicho que já ocupam o servidor.
+def count_window_occupancy(niche: str) -> dict | None:
+    """Ocupação atual do nicho, por canal de origem: {channel_id: vagas}.
 
     Mesmo critério de `_select_pending_videos` no pipeline_runner: arquivo em disco,
     status em processamento ou clip ainda sendo trabalhado. Retorna None se a
     consulta falhar — quem chama não deve baixar nada nesse caso (fail-closed).
     """
     query = (
-        "SELECT COUNT(DISTINCT sv.id) FROM source_videos sv "
+        "SELECT sv.channel_id, COUNT(DISTINCT sv.id) FROM source_videos sv "
         "LEFT JOIN source_channels sc ON sc.id = sv.channel_id "
         "LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id "
         f"WHERE {_niche_filter(niche)} AND ("
         "  (sv.local_path IS NOT NULL AND sv.local_path <> '') "
         "  OR sv.status IN ('downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing') "
         "  OR (gc.id IS NOT NULL AND gc.status IN ('pending_cut', 'pending', 'cutting', 'approved'))"
-        ");"
+        ") GROUP BY sv.channel_id;"
     )
     output = run_remote_sql(query)
+    if output is None:
+        return None
+    ocupacao = {}
+    for line in output.strip().splitlines():
+        if not line.strip():
+            continue
+        parts = line.split('\t')
+        if len(parts) != 2 or not parts[1].strip().isdigit():
+            _log(f'Não consegui contar a janela de {niche} (saída: {output[:80]!r}) — sem download neste ciclo')
+            return None
+        ocupacao[parts[0].strip()] = int(parts[1])
+    return ocupacao
+
+
+def active_source_channels(niche: str) -> int:
+    """Canais de origem ativos do nicho — base do teto por canal."""
+    output = run_remote_sql(
+        "SELECT COUNT(*) FROM source_channels sc "
+        f"WHERE sc.active = TRUE AND sc.blacklisted = FALSE AND {_niche_filter(niche)};"
+    )
     try:
         return int(output.strip().splitlines()[-1])
-    except (ValueError, IndexError):
-        _log(f'Não consegui contar a janela de {niche} (saída: {output[:80]!r}) — sem download neste ciclo')
-        return None
+    except (ValueError, IndexError, AttributeError):
+        return 0
 
 
 def fetch_pending_videos():
-    """Busca vídeos 'pending' recentes (máx 2 dias) só até completar a janela de cada nicho."""
+    """Busca vídeos 'pending' recentes só até completar a janela, com justiça por canal."""
     # Auto-expurgo de vídeos com mais de 2 dias (notícia velha). O corte vai calculado
     # em Python: `INTERVAL 2 DAY` é sintaxe do MySQL e não roda no PostgreSQL.
+    # Canal que ainda não baixou nenhum vídeo fica de fora do expurgo: ele acabou de
+    # ser cadastrado, e apagar a fila dele aqui é apagá-lo antes da primeira chance.
     corte = _corte_frescor()
     run_remote_sql(
         "UPDATE source_videos SET status = 'failed' "
-        f"WHERE status = 'pending' AND published_at < '{corte}';"
+        f"WHERE status = 'pending' AND published_at < '{corte}' "
+        "AND channel_id IN ("
+        "  SELECT channel_id FROM source_videos "
+        "  WHERE status IN ('downloaded', 'transcribing', 'selecting', 'cutting', 'publishing', 'published') "
+        "     OR local_path IS NOT NULL"
+        ");"
     )
 
     videos = []
     for niche, window in niche_windows().items():
-        occupied = count_window_occupancy(niche)
-        if occupied is None:
+        ocupacao = count_window_occupancy(niche)
+        if ocupacao is None:
             continue
+        occupied = sum(ocupacao.values())
         deficit = window_deficit(occupied, window)
         if deficit == 0:
             continue
-        _log(f'Janela {niche}: {occupied}/{window} ocupada — buscando até {deficit} vídeo(s)')
+
+        cap = channel_cap(
+            window=window,
+            active_channels=active_source_channels(niche),
+            override=DOWNLOAD_MAX_PER_SOURCE_CHANNEL,
+        )
+        _log(f'Janela {niche}: {occupied}/{window} ocupada — até {deficit} vídeo(s), teto {cap}/canal')
 
         query = f"""
-        SELECT sv.id, sv.youtube_video_id, sv.title, sv.format
+        SELECT sv.id, sv.youtube_video_id, sv.title, sv.format, sv.channel_id
         FROM source_videos sv
         LEFT JOIN source_channels sc ON sv.channel_id = sc.id
         WHERE sv.status = 'pending'
@@ -219,21 +276,25 @@ def fetch_pending_videos():
           CASE WHEN LOWER(sv.title) LIKE '%#short%' THEN 1 ELSE 0 END ASC,
           sv.priority DESC,
           sv.id DESC
-        LIMIT {deficit};
+        LIMIT {deficit * CANDIDATES_PER_SLOT};
         """
         output = run_remote_sql(query)
         if not output:
             continue
 
+        candidatos = []
         for line in output.split('\n'):
             parts = line.split('\t')
-            if len(parts) >= 4:
-                videos.append({
+            if len(parts) >= 5:
+                candidatos.append({
                     'id': int(parts[0]),
                     'youtube_video_id': parts[1],
                     'title': parts[2],
-                    'format': parts[3]
+                    'format': parts[3],
+                    'channel_id': parts[4].strip(),
                 })
+
+        videos.extend(fair_pick(candidatos, occupancy=ocupacao, deficit=deficit, cap=cap))
     return videos
 
 
