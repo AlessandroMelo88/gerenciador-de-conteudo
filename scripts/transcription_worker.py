@@ -43,6 +43,19 @@ STUCK_MINUTES = 60           # job preso em andamento há mais que isso volta co
 
 PROJECT_ENV = Path(__file__).resolve().parent.parent / '.env'
 
+# Login de plataforma de curso (Hotmart, Asimov, Vimeo...). Arquivo Netscape
+# exportado pela extensão "Get cookies.txt LOCALLY" do Chrome. Fica só no Mac:
+# fora do repositório (público) e fora do servidor. Nunca `--cookies-from-browser`,
+# que abre a caixa do chaveiro do macOS a cada execução e trava o worker.
+COOKIES_FILE = Path(os.environ.get(
+    'TRANSCRICAO_COOKIES', '~/.config/canaldecortes/cookies.txt',
+)).expanduser()
+
+PROGRESS_MARK = '[progresso]'
+
+_LOGIN_HINTS = ('logged-in', 'login', 'sign in', 'log in', 'cookies', 'members only',
+                'registered users', 'http error 401', 'http error 403')
+
 
 # ---------------------------------------------------------------- formatos
 
@@ -124,17 +137,69 @@ def load_groq_key(env_file: Path = PROJECT_ENV) -> str | None:
 
 # ---------------------------------------------------------------- etapas reais
 
-def download_audio(url: str, workdir: Path) -> tuple[Path, dict]:
-    """Baixa só o áudio e os metadados. Levanta RuntimeError com a mensagem do yt-dlp."""
-    template = str(workdir / 'audio.%(ext)s')
-    res = subprocess.run(
-        ['yt-dlp', '--no-playlist', '--no-progress', '-f', 'bestaudio/best',
-         '--write-info-json', '-o', template, url],
-        capture_output=True, text=True, errors='replace', timeout=1800,
-    )
-    if res.returncode != 0:
-        erro = [l for l in res.stderr.splitlines() if 'ERROR' in l] or res.stderr.splitlines()[-1:]
-        raise RuntimeError((erro[-1] if erro else 'yt-dlp falhou sem mensagem')[:500])
+def yt_dlp_args(url: str, template, cookies_file: Path = COOKIES_FILE) -> list[str]:
+    """Linha de comando do yt-dlp para baixar só o áudio.
+
+    `generic:impersonate` se passa por Chrome (via curl_cffi) no extractor genérico,
+    que é por onde entram as plataformas de curso — sem isso a Asimov devolve
+    HTTP 403 do Cloudflare anti-bot antes mesmo de pedir login.
+    """
+    args = ['yt-dlp', '--no-update', '--no-playlist', '--newline',
+            # "download:" é o seletor de tipo do yt-dlp ([TIPO:]MODELO), não sai na
+            # linha; o marcador literal é o PROGRESS_MARK.
+            '--progress', '--progress-template', f'download:{PROGRESS_MARK} %(progress._percent_str)s',
+            '-f', 'bestaudio/best', '--write-info-json',
+            '--extractor-args', 'generic:impersonate', '-o', str(template)]
+    if Path(cookies_file).is_file():
+        args += ['--cookies', str(cookies_file)]
+    return args + [url]
+
+
+def parse_progress(line: str) -> float | None:
+    """'[progresso]  42.3%' -> 42.3. Qualquer outra linha do yt-dlp -> None."""
+    if not line.startswith(PROGRESS_MARK):
+        return None
+    try:
+        return float(line[len(PROGRESS_MARK):].strip().rstrip('%'))
+    except ValueError:
+        return None
+
+
+def explain_error(message: str, cookies_file: Path = COOKIES_FILE) -> str:
+    """Erro de login vira instrução do que fazer; qualquer outro passa intacto."""
+    lower = message.lower()
+    if not any(hint in lower for hint in _LOGIN_HINTS):
+        return message
+    if Path(cookies_file).is_file():
+        return (f'{message}\n\nO site pediu login e o cookies.txt não bastou: provavelmente '
+                f'expirou. Entre de novo no site pelo Chrome e exporte outra vez para {cookies_file}.')
+    return (f'{message}\n\nEste site exige login. Entre nele pelo Chrome, exporte os cookies com a '
+            f'extensão "Get cookies.txt LOCALLY" e salve em {cookies_file}.')
+
+
+def download_audio(url: str, workdir: Path, on_progress=None) -> tuple[Path, dict]:
+    """Baixa só o áudio e os metadados. Levanta RuntimeError com a mensagem do yt-dlp.
+
+    `on_progress(percent)` recebe o avanço do download; se ele levantar (job pausado
+    ou apagado), o yt-dlp é encerrado na hora.
+    """
+    proc = subprocess.Popen(yt_dlp_args(url, workdir / 'audio.%(ext)s'), stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True, errors='replace')
+    try:
+        for line in proc.stdout:
+            percent = parse_progress(line.strip())
+            if percent is not None and on_progress:
+                on_progress(percent)
+        stderr = proc.stderr.read()
+        proc.wait(timeout=1800)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+
+    if proc.returncode != 0:
+        erro = [l for l in stderr.splitlines() if 'ERROR' in l] or stderr.splitlines()[-1:]
+        raise RuntimeError(explain_error((erro[-1] if erro else 'yt-dlp falhou sem mensagem')[:500]))
 
     info_files = list(workdir.glob('audio*.info.json'))
     info = json.loads(info_files[0].read_text()) if info_files else {}
@@ -228,9 +293,16 @@ RELEASE_STUCK_SQL = (
 )
 
 
+class Cancelado(Exception):
+    """O job foi pausado ou apagado no painel enquanto rodava."""
+
+
 def _progress_sql(job_id: int, status: str, percent: int) -> str:
+    """Só avança job que ainda está andando: pausado ou apagado não volta a correr.
+    Sem linha no RETURNING = o operador parou o job."""
     return (f"UPDATE transcription_jobs SET status = '{status}', progress_percent = {int(percent)}, "
-            f"updated_at = NOW() WHERE id = {int(job_id)};")
+            f"updated_at = NOW() WHERE id = {int(job_id)} "
+            f"AND status IN ('downloading', 'transcribing') RETURNING id;")
 
 
 def _done_sql(job_id: int, info: dict, text: str, srt: str) -> str:
@@ -255,7 +327,12 @@ def _failed_sql(job_id: int, message: str) -> str:
 
 def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
                     download=download_audio, split=split_audio, transcribe=groq_transcribe) -> bool:
-    """Processa no máximo um job. Devolve True se pegou algum (concluído ou falho)."""
+    """Processa no máximo um job. Devolve True se pegou algum (concluído, falho ou parado).
+
+    Barra de progresso: 5 → 30 % no download (real, do yt-dlp), 30 → 95 % na
+    transcrição (por pedaço), 100 % ao gravar. Cada aviso também é a checagem de
+    pausa: se o painel pausou ou apagou, o job para ali sem gravar nada.
+    """
     run_sql(RELEASE_STUCK_SQL)
     row = (run_sql(CLAIM_SQL) or '').strip()
     if not row:
@@ -263,19 +340,33 @@ def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
 
     job_id_raw, url = row.splitlines()[0].split('\t', 1)
     job_id = int(job_id_raw)
+    enviado = {'percent': 5}
+
+    def avisa(status: str, percent: int, forcar: bool = False) -> None:
+        percent = max(enviado['percent'], min(int(percent), 99))  # nunca anda para trás
+        # Cada aviso é uma ida ao servidor por ssh: só manda de 5 em 5 pontos.
+        if not forcar and percent - enviado['percent'] < 5:
+            return
+        enviado['percent'] = percent
+        if not (run_sql(_progress_sql(job_id, status, percent)) or '').strip():
+            raise Cancelado()
+
     workdir = Path(tempfile.mkdtemp(prefix=f'transcricao_{job_id}_', dir=workdir_root))
     try:
-        audio, info = download(url, workdir)
-        run_sql(_progress_sql(job_id, 'transcribing', 30))
+        audio, info = download(url, workdir,
+                               on_progress=lambda p: avisa('downloading', 5 + p * 25 / 100))
+        avisa('transcribing', 30, forcar=True)
 
         chunks = split(audio, workdir)
         results = []
         for i, (offset, part) in enumerate(chunks, start=1):
             results.append((offset, transcribe(part)))
-            run_sql(_progress_sql(job_id, 'transcribing', 30 + int(65 * i / len(chunks))))
+            avisa('transcribing', 30 + 65 * i / len(chunks), forcar=True)
 
         segments = merge_chunks(results)
         run_sql_stdin(_done_sql(job_id, info, segments_to_text(segments), segments_to_srt(segments)))
+    except Cancelado:
+        pass  # pausado ou apagado no painel: o estado já é o que o operador escolheu
     except Exception as e:  # qualquer falha vira mensagem legível na tela, nunca job preso
         run_sql_stdin(_failed_sql(job_id, str(e) or e.__class__.__name__))
     finally:
