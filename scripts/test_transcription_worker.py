@@ -354,8 +354,43 @@ class TestArquivoDaAula:
             transcribe=lambda c: [_seg(0, 2, 'Olá turma.')], guardar=guardar,
         )
 
-    def test_baixa_video_ate_720p_em_mp4(self, tmp_path):
+    def test_por_padrao_baixa_so_o_audio(self, tmp_path):
         args = tw.yt_dlp_args('https://x', tmp_path / 'aula.%(ext)s', cookies_file=tmp_path / 'n')
+
+        assert args[args.index('-f') + 1] == tw.AUDIO_FORMAT
+        assert '--merge-output-format' not in args
+
+    def test_guardar_aula_e_opcional_e_desligado_por_padrao(self, monkeypatch, tmp_path):
+        monkeypatch.delenv('TRANSCRICAO_GUARDAR_AULA', raising=False)
+        env = tmp_path / '.env'
+        env.write_text('GROQ_API_KEY=x\n')
+        assert tw.guardar_aula_ligado(env) is False
+
+        env.write_text('TRANSCRICAO_GUARDAR_AULA=1\n')
+        assert tw.guardar_aula_ligado(env) is True
+
+    def test_arquivo_baixado_e_apagado_depois_de_transcrever(self, tmp_path):
+        remote = FakeRemote(claim_row='7\thttps://x')
+        vistos = {}
+
+        def transcreve(chunk):
+            vistos['existia_na_transcricao'] = any(tmp_path.glob('transcricao_7_*/aula.mp4'))
+            return [_seg(0, 2, 'Olá turma.')]
+
+        def baixa(url, workdir, on_progress=None):
+            media = workdir / 'aula.mp4'
+            media.write_bytes(b'video')
+            return media, {}
+
+        tw.process_one_job(run_sql=remote.sql, run_sql_stdin=remote.sql_stdin, workdir_root=tmp_path,
+                           download=baixa, split=lambda a, w: [(0.0, w / 'p.mp3')], transcribe=transcreve)
+
+        assert vistos['existia_na_transcricao'] is True
+        assert "status = 'done'" in remote.stdin_sql[-1]
+        assert list(tmp_path.iterdir()) == []
+
+    def test_com_guardar_baixa_video_ate_720p_em_mp4(self, tmp_path):
+        args = tw.yt_dlp_args('https://x', tmp_path / 'aula.%(ext)s', cookies_file=tmp_path / 'n', video=True)
 
         assert args[args.index('-f') + 1] == tw.MEDIA_FORMAT
         assert 'height<=720' in tw.MEDIA_FORMAT

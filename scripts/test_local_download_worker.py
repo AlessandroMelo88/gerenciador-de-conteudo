@@ -189,3 +189,18 @@ def test_porta_ocupada_nao_derruba_o_worker():
         assert worker.start_extensao_api(port=ocupada.getsockname()[1]) is None
     finally:
         ocupada.close()
+
+
+class TestGuardarAula:
+    def test_por_padrao_nao_guarda_nem_baixa_video(self, monkeypatch):
+        monkeypatch.setattr(worker.transcription_worker, 'guardar_aula_ligado', lambda: False)
+
+        assert worker._guardar_aula_kwargs() == {}
+
+    def test_ligado_baixa_video_e_guarda_no_mac_e_na_a1(self, monkeypatch):
+        monkeypatch.setattr(worker.transcription_worker, 'guardar_aula_ligado', lambda: True)
+
+        kwargs = worker._guardar_aula_kwargs()
+
+        assert kwargs['download'].keywords == {'video': True}
+        assert callable(kwargs['guardar'])

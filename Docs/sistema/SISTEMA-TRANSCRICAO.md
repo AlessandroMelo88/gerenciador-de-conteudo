@@ -74,7 +74,7 @@ guardado, com título, plataforma e duração, para ler e buscar quando quiser, 
 painel ── grava job 'pending' ──> transcription_jobs (Postgres, A1)
                                         │
 worker do Mac (a cada ciclo) ───────────┘ reivindica 1 job (FOR UPDATE SKIP LOCKED)
-   yt-dlp: a aula (vídeo até 720p), pelo IP residencial
+   yt-dlp: só o áudio, pelo IP residencial (vídeo só com TRANSCRICAO_GUARDAR_AULA=1)
    ffmpeg: mono 16 kHz, pedaços de 20 min
    Groq Whisper em cada pedaço, timestamps remontados
    grava título, plataforma, duração, texto e .srt ──> transcription_jobs
@@ -133,10 +133,18 @@ cookies.txt resolve.
 > aulas: `hotmart.com/pt-BR/club/formula-youtube/products/8093188/content/V4VKj9GVe2` e
 > `hub.asimov.academy/curso/atividade/masterclass-claude-code/`.
 
-### Baixar a aula (18/09/2026)
+### O arquivo baixado é apagado depois da transcrição (18/09/2026)
 
-Além do texto, o arquivo da aula fica guardado. Na lista e na tela da transcrição aparece o botão
-**Aula (tamanho)**, ao lado de `.md`, `.txt` e `.srt`, e o arquivo baixa com o título como nome.
+**Padrão: só o texto fica.** O worker baixa só o áudio, transcreve e, **depois** de gravar o texto
+no banco, apaga a pasta temporária inteira (no sucesso, na falha e na pausa). Nada é apagado antes
+de a transcrição terminar. Decisão do operador em 18/09/2026.
+
+### Baixar a aula — opcional, desligado
+
+Com `TRANSCRICAO_GUARDAR_AULA=1` no `.env` do projeto (no Mac), o worker baixa a aula em vídeo e
+a guarda antes de apagar o temporário. Aí aparece no painel o botão **Aula (tamanho)**, ao lado de
+`.md`, `.txt` e `.srt`, e o arquivo baixa com o título como nome. Desligado, o botão não aparece
+(não há `media_path`). O resto desta seção vale para quando está ligado.
 
 | | Onde |
 |---|---|
@@ -183,7 +191,7 @@ apagou, não volta linha, e o worker encerra o `yt-dlp` e para. Por isso um job 
 "ressuscitado" pelo worker.
 
 A barra: **5 → 30 %** durante o download (percentual real do `yt-dlp`), **30 → 95 %** ao longo dos
-pedaços de 20 min da transcrição, fica em 95 % enquanto o arquivo da aula sobe para a A1, e
+pedaços de 20 min da transcrição, fica em 95 % enquanto o arquivo da aula sobe para a A1 (se ligado), e
 **100 %** ao gravar. Os avisos vão de 5 em 5 pontos, porque cada
 um é uma ida ao servidor por ssh. Em vídeo curto a barra salta — o trabalho inteiro leva segundos.
 
