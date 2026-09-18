@@ -46,7 +46,9 @@ pelo painel (apaga o arquivo na A1 junto).
 
 O operador decidiu: a transcrição **só precisa funcionar em produção** — o seletor local/produção
 foi descartado. O botão Transcrever do painel **local** continua sem worker (o job fica na fila).
-No lugar, entrou o download do arquivo da aula: ver "Baixar a aula" em
+No lugar, entrou o download do arquivo da aula — e, na mesma noite, o operador decidiu que o
+arquivo é **apagado depois da transcrição** (só o texto fica); guardar virou opção
+`TRANSCRICAO_GUARDAR_AULA=1`, desligada. Ver
 [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md). Material de curso agora mora em
 `painel/storage/app/private/conteudo-cursos/`, mesma árvore no Mac e na A1
 (`/mnt/videos/conteudo-cursos`).

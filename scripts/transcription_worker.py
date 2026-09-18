@@ -5,14 +5,16 @@ O painel grava um job `pending` em `transcription_jobs`; o `local_download_worke
 chama `process_one_job` a cada ciclo. Aqui:
 
 1. reivindica um job de forma atômica (FOR UPDATE SKIP LOCKED);
-2. baixa a aula (vídeo até 720p) com yt-dlp pelo IP residencial — qualquer site que o yt-dlp
+2. baixa só o áudio com yt-dlp pelo IP residencial (o vídeo, só com
+   TRANSCRICAO_GUARDAR_AULA=1) — qualquer site que o yt-dlp
    aceite (YouTube, TikTok, Instagram, Vimeo...). No servidor o YouTube bloqueia
    IP de datacenter ("Sign in to confirm you're not a bot");
 3. converte para mono 16 kHz e corta em pedaços de 20 min (cabe no limite de
    25 MB da API);
 4. transcreve cada pedaço no Groq Whisper e remonta os timestamps;
-5. guarda o arquivo da aula em `conteudo-cursos/aulas/<id>.<ext>`, no Mac e na
-   A1 (mesma árvore nos dois), para o botão "Baixar aula" do painel;
+5. apaga o que baixou **depois** de transcrever. Com TRANSCRICAO_GUARDAR_AULA=1,
+   guarda antes o arquivo em `conteudo-cursos/aulas/<id>.<ext>`, no Mac e na A1,
+   para o botão "Baixar aula" do painel;
 6. grava título, duração, plataforma, texto corrido e .srt **no banco** — é a
    base de conhecimento, não um arquivo que se perde.
 
@@ -50,6 +52,10 @@ PROJECT_ENV = Path(__file__).resolve().parent.parent / '.env'
 # aponta para as duas. Fora de public/ — é material pago, só sai por rota autenticada.
 LOCAL_CURSOS_DIR = Path(__file__).resolve().parent.parent / 'painel/storage/app/private/conteudo-cursos'
 
+# Decisão do operador em 18/09/2026: o arquivo baixado é apagado assim que a aula
+# é transcrita — só o texto fica. Guardar a aula (e mostrar "Baixar aula" no painel)
+# é opcional: TRANSCRICAO_GUARDAR_AULA=1 no ambiente ou no .env do projeto.
+AUDIO_FORMAT = 'bestaudio/best'
 # Vídeo até 720p basta para rever a aula e segura o tamanho (~1 GB por hora de aula).
 # Fonte só de áudio (podcast) cai no `b` e vem como áudio mesmo.
 MEDIA_FORMAT = 'bv*[height<=720]+ba/b[height<=720]/b'
@@ -131,14 +137,14 @@ def dollar_quote(text: str) -> str:
 
 # ---------------------------------------------------------------- chave
 
-def load_groq_key(env_file: Path = PROJECT_ENV) -> str | None:
-    """GROQ_API_KEY do ambiente ou do .env do projeto (que nunca vai ao git)."""
-    key = os.environ.get('GROQ_API_KEY')
-    if key:
-        return key
+def read_env(name: str, env_file: Path = PROJECT_ENV) -> str | None:
+    """Variável do ambiente ou do .env do projeto (que nunca vai ao git)."""
+    value = os.environ.get(name)
+    if value:
+        return value
     try:
         for line in Path(env_file).read_text().splitlines():
-            if line.startswith('GROQ_API_KEY='):
+            if line.startswith(f'{name}='):
                 value = line.split('=', 1)[1].strip().strip('"').strip("'")
                 return value or None
     except OSError:
@@ -146,10 +152,21 @@ def load_groq_key(env_file: Path = PROJECT_ENV) -> str | None:
     return None
 
 
+def load_groq_key(env_file: Path = PROJECT_ENV) -> str | None:
+    return read_env('GROQ_API_KEY', env_file)
+
+
+def guardar_aula_ligado(env_file: Path = PROJECT_ENV) -> bool:
+    """TRANSCRICAO_GUARDAR_AULA=1 guarda a aula; qualquer outra coisa apaga."""
+    return read_env('TRANSCRICAO_GUARDAR_AULA', env_file) == '1'
+
+
 # ---------------------------------------------------------------- etapas reais
 
-def yt_dlp_args(url: str, template, cookies_file: Path = COOKIES_FILE) -> list[str]:
-    """Linha de comando do yt-dlp para baixar a aula (vídeo até 720p, em mp4).
+def yt_dlp_args(url: str, template, cookies_file: Path = COOKIES_FILE,
+                video: bool = False) -> list[str]:
+    """Linha de comando do yt-dlp: só o áudio, ou a aula em vídeo (até 720p, mp4)
+    quando ela vai ser guardada.
 
     `generic:impersonate` se passa por Chrome (via curl_cffi) no extractor genérico,
     que é por onde entram as plataformas de curso — sem isso a Asimov devolve
@@ -159,8 +176,8 @@ def yt_dlp_args(url: str, template, cookies_file: Path = COOKIES_FILE) -> list[s
             # "download:" é o seletor de tipo do yt-dlp ([TIPO:]MODELO), não sai na
             # linha; o marcador literal é o PROGRESS_MARK.
             '--progress', '--progress-template', f'download:{PROGRESS_MARK} %(progress._percent_str)s',
-            '-f', MEDIA_FORMAT, '--merge-output-format', 'mp4', '--write-info-json',
-            '--extractor-args', 'generic:impersonate', '-o', str(template)]
+            '--write-info-json', '--extractor-args', 'generic:impersonate', '-o', str(template)]
+    args += ['-f', MEDIA_FORMAT, '--merge-output-format', 'mp4'] if video else ['-f', AUDIO_FORMAT]
     if Path(cookies_file).is_file():
         args += ['--cookies', str(cookies_file)]
     return args + [url]
@@ -197,13 +214,13 @@ def _arquivo_baixado(workdir: Path) -> Path | None:
     return None
 
 
-def download_media(url: str, workdir: Path, on_progress=None) -> tuple[Path, dict]:
+def download_media(url: str, workdir: Path, on_progress=None, video: bool = False) -> tuple[Path, dict]:
     """Baixa a aula e os metadados. Levanta RuntimeError com a mensagem do yt-dlp.
 
     `on_progress(percent)` recebe o avanço do download; se ele levantar (job pausado
     ou apagado), o yt-dlp é encerrado na hora.
     """
-    proc = subprocess.Popen(yt_dlp_args(url, workdir / 'aula.%(ext)s'), stdout=subprocess.PIPE,
+    proc = subprocess.Popen(yt_dlp_args(url, workdir / 'aula.%(ext)s', video=video), stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, text=True, errors='replace')
     try:
         for line in proc.stdout:

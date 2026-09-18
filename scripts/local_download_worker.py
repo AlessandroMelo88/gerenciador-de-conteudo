@@ -11,6 +11,7 @@ Fluxo:
 6. Notifica o servidor para rodar transcrição Whisper + IA + cortes.
 """
 
+import functools
 import json
 import os
 import shlex
@@ -170,13 +171,24 @@ def upload_aula(local_file: Path, relativo: str) -> None:
         raise RuntimeError(f'rsync falhou: {res.stderr.strip()[-300:]}')
 
 
+def _guardar_aula_kwargs() -> dict:
+    """Por padrão o arquivo baixado some depois da transcrição (só o texto fica).
+    Com TRANSCRICAO_GUARDAR_AULA=1, baixa em vídeo e guarda no Mac e na A1."""
+    if not transcription_worker.guardar_aula_ligado():
+        return {}
+    return {
+        'download': functools.partial(transcription_worker.download_media, video=True),
+        'guardar': lambda job_id, media: transcription_worker.guardar_aula(
+            job_id, media, upload=upload_aula),
+    }
+
+
 def process_transcription() -> bool:
     """Um job de transcrição, se houver. Nunca derruba o ciclo de download."""
     try:
         return transcription_worker.process_one_job(
             run_sql=run_remote_sql, run_sql_stdin=run_remote_sql_stdin,
-            guardar=lambda job_id, media: transcription_worker.guardar_aula(
-                job_id, media, upload=upload_aula),
+            **_guardar_aula_kwargs(),
         )
     except Exception as e:
         _log(f'Erro na transcrição: {e}')
