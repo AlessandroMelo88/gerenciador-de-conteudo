@@ -67,6 +67,17 @@ return [
             'report' => false,
         ],
 
+        // Material de curso: arquivo da aula baixado pelo worker do Mac (aulas/<id>.<ext>).
+        // Fora de public/ — é conteúdo pago, só sai por rota autenticada. Na A1 é o
+        // bind de /mnt/videos/conteudo-cursos (docker-compose.yml); no Mac, a pasta
+        // local de mesmo nome, que o worker preenche com a mesma árvore.
+        'conteudo-cursos' => [
+            'driver' => 'local',
+            'root' => env('CONTEUDO_CURSOS_DISK_ROOT', storage_path('app/private/conteudo-cursos')),
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

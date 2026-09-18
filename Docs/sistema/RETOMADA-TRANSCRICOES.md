@@ -43,25 +43,14 @@ O próximo `./deploy.sh` leva tudo, incluindo a migration `2026_09_18_000000_tra
 
 ## Próximas tarefas, na ordem pedida pelo operador
 
-### 1. Escolher o destino da transcrição: local, produção ou os dois
+### 1. ~~Destino local/produção~~ → só produção, com botão "Baixar aula" (feito em 18/09/2026)
 
-**Problema:** o botão Transcrever do painel **local** grava no banco local, e o worker só lê produção —
-o job fica em "Na fila do Mac 0%" para sempre (aconteceu em 18/09 com
-`hub.asimov.academy/curso/atividade/como-uma-ia-consegue-analisar-dados/`).
-
-**Desenho proposto (não implementado):**
-
-- No worker, um **destino** é um par `run_sql` / `run_sql_stdin`:
-  - `producao`: o `ssh` + `docker exec postgres psql` de hoje;
-  - `local`: `docker exec -i postgres psql -U clips_user -d clips_automation` direto no Mac.
-- O ciclo do worker chama `process_one_job` para cada destino **ativo** — assim o botão do painel
-  local também passa a funcionar.
-- Na extensão, duas chaves no popup — **Produção** e **Local** —, guardadas em `chrome.storage.local`.
-  O `POST /transcrever` passa `destinos: [...]` e a API insere na fila de cada um.
-- **Decidir antes de codar:** com os dois ligados, transcrever **uma vez** e gravar nos dois bancos
-  (economiza Groq, mas o job passa a ter dois donos) ou deixar cada banco com seu job (simples,
-  gasta o dobro de Groq e de download). Recomendação: uma vez só — a extensão cria o job em um
-  destino "principal" e o worker, ao terminar, copia o resultado para o outro.
+O operador decidiu: a transcrição **só precisa funcionar em produção** — o seletor local/produção
+foi descartado. O botão Transcrever do painel **local** continua sem worker (o job fica na fila).
+No lugar, entrou o download do arquivo da aula: ver "Baixar a aula" em
+[`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md). Material de curso agora mora em
+`painel/storage/app/private/conteudo-cursos/`, mesma árvore no Mac e na A1
+(`/mnt/videos/conteudo-cursos`).
 
 ### 2. Contexto para estudo: título, curso, seção, do que a aula trata
 
@@ -80,10 +69,10 @@ texto. Falta:
   que o projeto já usa, com a mesma regra de fallback do `selector.py`) gera **resumo, tópicos e
   conceitos-chave**, que entram no `.md`. Testes e slides ficam de fora por decisão do operador —
   ele gera depois, colando o `.md` em outra IA.
-- Materiais da aula (datasets, código): o operador guardou um exemplo em
-  `painel/public/conteudo-cursos/` (**fora do git e do deploy** desde 17/09, porque é material pago
-  e ficaria público na raiz web). Destino definitivo: `storage/app/private/cursos/`, servido por
-  rota autenticada. A pasta de exemplo pode ser apagada depois que a Fase 3 estiver de pé.
+- Materiais da aula (datasets, código): o exemplo do operador foi movido em 18/09 de
+  `painel/public/conteudo-cursos/` para `painel/storage/app/private/conteudo-cursos/` (fora do git,
+  fora da raiz web). Os arquivos das aulas ficam em `conteudo-cursos/aulas/`; materiais podem ganhar
+  pasta irmã quando a Fase 3 existir.
 
 ### 3. Hotmart
 

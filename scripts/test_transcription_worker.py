@@ -339,3 +339,75 @@ class TestLoginDosCursos:
 
     def test_erro_que_nao_e_de_login_passa_intacto(self, tmp_path):
         assert tw.explain_error('ERROR: Video unavailable', cookies_file=tmp_path / 'n') == 'ERROR: Video unavailable'
+
+
+class TestArquivoDaAula:
+    def _roda(self, remote, tmp_path, guardar):
+        def baixa(url, workdir, on_progress=None):
+            media = workdir / 'aula.mp4'
+            media.write_bytes(b'video')
+            return media, {'title': 'Aula 1'}
+
+        return tw.process_one_job(
+            run_sql=remote.sql, run_sql_stdin=remote.sql_stdin, workdir_root=tmp_path,
+            download=baixa, split=lambda a, w: [(0.0, w / 'p.mp3')],
+            transcribe=lambda c: [_seg(0, 2, 'Olá turma.')], guardar=guardar,
+        )
+
+    def test_baixa_video_ate_720p_em_mp4(self, tmp_path):
+        args = tw.yt_dlp_args('https://x', tmp_path / 'aula.%(ext)s', cookies_file=tmp_path / 'n')
+
+        assert args[args.index('-f') + 1] == tw.MEDIA_FORMAT
+        assert 'height<=720' in tw.MEDIA_FORMAT
+        assert args[args.index('--merge-output-format') + 1] == 'mp4'
+
+    def test_acha_o_arquivo_final_e_ignora_faixas_e_metadados(self, tmp_path):
+        for nome in ('aula.info.json', 'aula.f137.mp4', 'aula.mp4.part', 'aula.mp4'):
+            (tmp_path / nome).write_text('x')
+
+        assert tw._arquivo_baixado(tmp_path) == tmp_path / 'aula.mp4'
+
+    def test_guarda_no_mac_pela_chave_do_job_e_manda_a_mesma_arvore(self, tmp_path):
+        media = tmp_path / 'aula.MP4'
+        media.write_bytes(b'12345')
+        enviados = []
+
+        rel, tamanho = tw.guardar_aula(7, media, local_root=tmp_path / 'cursos',
+                                       upload=lambda arq, r: enviados.append((arq, r)))
+
+        assert rel == 'aulas/7.mp4'
+        assert tamanho == 5
+        assert (tmp_path / 'cursos/aulas/7.mp4').read_bytes() == b'12345'
+        assert enviados == [(tmp_path / 'cursos/aulas/7.mp4', 'aulas/7.mp4')]
+
+    def test_grava_caminho_e_tamanho_da_aula_no_banco(self, tmp_path):
+        remote = FakeRemote(claim_row='7\thttps://x')
+
+        self._roda(remote, tmp_path, guardar=lambda jid, m: (f'aulas/{jid}.mp4', 5))
+
+        final = remote.stdin_sql[-1]
+        assert "status = 'done'" in final
+        assert 'aulas/7.mp4' in final
+        assert 'media_bytes = 5' in final
+        assert 'error_message = NULL' in final
+
+    def test_envio_que_falha_nao_perde_a_transcricao(self, tmp_path):
+        remote = FakeRemote(claim_row='7\thttps://x')
+
+        def quebra(jid, m):
+            raise RuntimeError('rsync falhou: conexão recusada')
+
+        self._roda(remote, tmp_path, guardar=quebra)
+
+        final = remote.stdin_sql[-1]
+        assert "status = 'done'" in final
+        assert 'Olá turma.' in final
+        assert 'media_path = NULL' in final
+        assert 'conexão recusada' in final
+
+    def test_sem_guardar_nao_grava_arquivo(self, tmp_path):
+        remote = FakeRemote(claim_row='7\thttps://x')
+
+        self._roda(remote, tmp_path, guardar=None)
+
+        assert 'media_path = NULL' in remote.stdin_sql[-1]

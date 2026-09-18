@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { PauseIcon, PlayIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react';
+import { DownloadIcon, PauseIcon, PlayIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -33,6 +33,8 @@ type Job = {
     status: Status;
     progress_percent: number;
     srt_path: string | null;
+    media_path: string | null;
+    media_bytes: number | null;
     error_message: string | null;
     excerpt: string | null;
     created_at: string;
@@ -56,7 +58,7 @@ type PageProps = {
 
 const STATUS_LABELS: Record<Status, string> = {
     pending: 'Na fila do Mac',
-    downloading: 'Baixando áudio',
+    downloading: 'Baixando a aula',
     transcribing: 'Transcrevendo',
     paused: 'Pausada',
     done: 'Concluído',
@@ -122,10 +124,24 @@ function Controles({ job }: { job: Pick<Job, 'id' | 'status' | 'title' | 'source
     );
 }
 
-export function BotoesDownload({ job }: { job: Pick<Job, 'id' | 'status'> }) {
+export function formatarTamanho(bytes: number | null): string | null {
+    if (!bytes) return null;
+    const mb = bytes / 1024 / 1024;
+    return mb >= 1024 ? `${(mb / 1024).toFixed(1).replace('.', ',')} GB` : `${Math.max(1, Math.round(mb))} MB`;
+}
+
+export function BotoesDownload({ job }: { job: Pick<Job, 'id' | 'status' | 'media_path' | 'media_bytes'> }) {
     const pronto = job.status === 'done';
+    const tamanho = formatarTamanho(job.media_bytes);
     return (
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
+            {pronto && job.media_path && (
+                <Button asChild size="sm" variant="secondary" title="Baixar o arquivo da aula">
+                    <a href={`/painel/transcricoes/${job.id}/aula`}>
+                        <DownloadIcon /> Aula{tamanho && ` (${tamanho})`}
+                    </a>
+                </Button>
+            )}
             {(['md', 'txt', 'srt'] as const).map((formato) => (
                 <Button key={formato} asChild={pronto} size="sm" variant={formato === 'md' ? 'default' : 'outline'} disabled={!pronto}>
                     {pronto ? <a href={`/painel/transcricoes/${job.id}/download/${formato}`}>.{formato}</a> : <span>.{formato}</span>}
@@ -262,6 +278,10 @@ export default function TranscricaoLocal() {
                                     <p className="text-xs text-red-600">
                                         {STATUS_LABELS.failed}: {job.error_message ?? 'sem mensagem'}
                                     </p>
+                                )}
+                                {/* Concluída com aviso: o texto foi salvo, o arquivo da aula não. */}
+                                {job.status === 'done' && job.error_message && (
+                                    <p className="text-xs text-amber-700 dark:text-amber-400">{job.error_message}</p>
                                 )}
                             </div>
                         ))}

@@ -30,7 +30,7 @@ class TranscriptionController extends Controller
         $jobs = TranscriptionJob::query()
             // Lista leve: o texto inteiro pode ter centenas de KB por linha.
             ->select(['id', 'source_url', 'title', 'platform', 'duration_seconds', 'status',
-                'progress_percent', 'srt_path', 'error_message', 'created_at'])
+                'progress_percent', 'srt_path', 'media_path', 'media_bytes', 'error_message', 'created_at'])
             ->selectRaw('SUBSTRING(transcript_text, 1, 300) AS excerpt')
             ->when($busca !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->whereLike('title', "%{$busca}%")
@@ -50,7 +50,7 @@ class TranscriptionController extends Controller
     {
         return Inertia::render('TranscricaoDetalhe', [
             'job' => $job->only(['id', 'source_url', 'title', 'platform', 'duration_seconds',
-                'status', 'transcript_text', 'created_at']),
+                'status', 'transcript_text', 'media_path', 'media_bytes', 'created_at']),
         ]);
     }
 
@@ -99,6 +99,9 @@ class TranscriptionController extends Controller
         if ($job->srt_path) {
             Storage::disk('clips-videos')->delete('transcripts/'.basename($job->srt_path));
         }
+        if ($job->media_path) {
+            Storage::disk('conteudo-cursos')->delete($job->media_path);
+        }
 
         $job->delete();
 
@@ -131,6 +134,24 @@ class TranscriptionController extends Controller
         return response()->streamDownload(fn () => print($conteudo), $nome, [
             'Content-Type' => 'text/plain; charset=UTF-8',
         ]);
+    }
+
+    /**
+     * O arquivo da aula (vídeo, ou áudio quando a fonte só tem áudio), com o título
+     * como nome. Só existe para job transcrito depois de 18/09/2026.
+     */
+    public function downloadAula(TranscriptionJob $job): StreamedResponse
+    {
+        $disco = Storage::disk('conteudo-cursos');
+
+        if (! $job->media_path || ! $disco->exists($job->media_path)) {
+            abort(404);
+        }
+
+        $extensao = pathinfo($job->media_path, PATHINFO_EXTENSION);
+        $nome = (Str::slug((string) $job->title) ?: "aula-{$job->id}").".{$extensao}";
+
+        return $disco->download($job->media_path, $nome);
     }
 
     /** Formato pensado para colar em outra IA: metadados em cima, texto embaixo. */

@@ -14,6 +14,8 @@ type Job = {
     duration_seconds: number | null;
     status: 'pending' | 'downloading' | 'transcribing' | 'paused' | 'done' | 'failed';
     transcript_text: string | null;
+    media_path: string | null;
+    media_bytes: number | null;
     created_at: string;
 };
 
