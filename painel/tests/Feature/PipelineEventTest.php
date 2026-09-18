@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Http;
 uses(DatabaseTransactions::class);
 
 beforeEach(function () {
+    config(['services.clip_processor.token' => 'token-de-teste']);
     Http::fake([
         '*api.telegram.org*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]], 200),
     ]);
@@ -16,6 +17,22 @@ it('POST /internal/pipeline-event without token returns 401', function () {
         'event'   => 'upload_published',
         'payload' => [],
     ])->assertStatus(401);
+});
+
+it('POST /internal/pipeline-event recusa tudo quando o token não está configurado', function () {
+    config(['services.clip_processor.token' => null]);
+
+    $this->postJson('/internal/pipeline-event', ['event' => 'daily_summary', 'payload' => []])
+        ->assertStatus(401);
+    $this->postJson('/internal/pipeline-event', ['event' => 'daily_summary', 'payload' => []],
+        ['X-Internal-Token' => ''])
+        ->assertStatus(401);
+});
+
+it('POST /internal/pipeline-event recusa token errado', function () {
+    $this->postJson('/internal/pipeline-event', ['event' => 'daily_summary', 'payload' => []],
+        ['X-Internal-Token' => 'outro'])
+        ->assertStatus(401);
 });
 
 it('POST /internal/pipeline-event upload_published sends Telegram message with title', function () {
