@@ -178,3 +178,14 @@ def test_erro_na_transcricao_nao_derruba_o_ciclo(monkeypatch):
     monkeypatch.setattr(worker.transcription_worker, 'process_one_job', quebra)
 
     assert worker.process_transcription() is False
+
+
+def test_porta_ocupada_nao_derruba_o_worker():
+    import socket
+    ocupada = socket.socket()
+    ocupada.bind(('127.0.0.1', 0))
+    ocupada.listen()
+    try:
+        assert worker.start_extensao_api(port=ocupada.getsockname()[1]) is None
+    finally:
+        ocupada.close()

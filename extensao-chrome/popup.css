@@ -1,0 +1,12 @@
+:root { color-scheme: light dark; --fundo: #fff; --texto: #111; --suave: #666; --ok: #15803d; --erro: #b91c1c; --botao: #dc2626; }
+@media (prefers-color-scheme: dark) { :root { --fundo: #111; --texto: #eee; --suave: #999; --ok: #4ade80; --erro: #f87171; } }
+body { width: 320px; margin: 0; padding: 14px 16px; font: 13px/1.4 system-ui, sans-serif; background: var(--fundo); color: var(--texto); }
+h1 { font-size: 15px; margin: 0 0 8px; }
+.url { color: var(--suave); word-break: break-all; margin: 0 0 8px; font-size: 12px; }
+.estado { margin: 0 0 10px; font-size: 12px; }
+.estado.ok { color: var(--ok); }
+.estado.erro, .resultado.erro { color: var(--erro); }
+.resultado.ok { color: var(--ok); }
+button { width: 100%; padding: 9px; border: 0; border-radius: 6px; background: var(--botao); color: #fff; font-weight: 600; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+a { display: inline-block; margin-top: 8px; color: var(--suave); font-size: 12px; }

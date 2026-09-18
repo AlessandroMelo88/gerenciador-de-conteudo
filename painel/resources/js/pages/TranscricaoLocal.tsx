@@ -1,7 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { PauseIcon, PlayIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { AppShell } from '@/layouts/app-shell';
 
-type Status = 'pending' | 'downloading' | 'transcribing' | 'done' | 'failed';
+type Status = 'pending' | 'downloading' | 'transcribing' | 'paused' | 'done' | 'failed';
 
 type Job = {
     id: number;
@@ -46,17 +58,68 @@ const STATUS_LABELS: Record<Status, string> = {
     pending: 'Na fila do Mac',
     downloading: 'Baixando áudio',
     transcribing: 'Transcrevendo',
+    paused: 'Pausada',
     done: 'Concluído',
     failed: 'Falhou',
 };
 
 const EM_ANDAMENTO: Status[] = ['pending', 'downloading', 'transcribing'];
+const COM_BARRA: Status[] = [...EM_ANDAMENTO, 'paused'];
 
 export function formatarDuracao(segundos: number | null): string | null {
     if (!segundos) return null;
+    if (segundos < 60) return `${segundos}s`;
     const h = Math.floor(segundos / 3600);
     const min = Math.floor((segundos % 3600) / 60);
     return h > 0 ? `${h}h${String(min).padStart(2, '0')}min` : `${min}min`;
+}
+
+function Controles({ job }: { job: Pick<Job, 'id' | 'status' | 'title' | 'source_url'> }) {
+    const acao = (caminho: string) => router.post(`/painel/transcricoes/${job.id}/${caminho}`, {}, { preserveScroll: true });
+
+    return (
+        <div className="flex gap-1">
+            {EM_ANDAMENTO.includes(job.status) && (
+                <Button size="sm" variant="outline" onClick={() => acao('pausar')} title="Pausar">
+                    <PauseIcon /> Pausar
+                </Button>
+            )}
+            {job.status === 'paused' && (
+                <Button size="sm" variant="outline" onClick={() => acao('retomar')} title="Retomar">
+                    <PlayIcon /> Retomar
+                </Button>
+            )}
+            {job.status === 'failed' && (
+                <Button size="sm" variant="outline" onClick={() => acao('retomar')} title="Tentar de novo">
+                    <RotateCcwIcon /> Tentar de novo
+                </Button>
+            )}
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="ghost" title="Apagar" aria-label="Apagar transcrição">
+                        <Trash2Icon />
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Apagar esta transcrição?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {job.title || job.source_url}
+                            <br />
+                            O texto sai da sua base de conhecimento e não dá para desfazer.
+                            {EM_ANDAMENTO.includes(job.status) && ' Se estiver andando, o Mac para no próximo passo.'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => router.delete(`/painel/transcricoes/${job.id}`, { preserveScroll: true })}>
+                            Apagar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+    );
 }
 
 export function BotoesDownload({ job }: { job: Pick<Job, 'id' | 'status'> }) {
@@ -123,7 +186,7 @@ export default function TranscricaoLocal() {
                                     onChange={(e) => setData('url', e.target.value)}
                                 />
                                 <FieldDescription>
-                                    Quem baixa e transcreve é o seu Mac — ele precisa estar ligado. Cursos que pedem login ainda não entram.
+                                    Quem baixa e transcreve é o seu Mac — ele precisa estar ligado. Site que pede login (curso, Vimeo) usa o cookies.txt salvo em ~/.config/canaldecortes/.
                                 </FieldDescription>
                                 {errors.url && <p className="text-xs text-red-600">{errors.url}</p>}
                             </Field>
@@ -175,19 +238,22 @@ export default function TranscricaoLocal() {
                                             <span>{new Date(job.created_at).toLocaleDateString('pt-BR')}</span>
                                         </div>
                                     </div>
-                                    <BotoesDownload job={job} />
+                                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                                        {job.status === 'done' && <BotoesDownload job={job} />}
+                                        <Controles job={job} />
+                                    </div>
                                 </div>
 
                                 {job.status === 'done' && job.excerpt && (
                                     <p className="line-clamp-2 text-sm text-muted-foreground">{job.excerpt}</p>
                                 )}
 
-                                {EM_ANDAMENTO.includes(job.status) && (
+                                {COM_BARRA.includes(job.status) && (
                                     <>
-                                        <Progress value={job.progress_percent} />
+                                        <Progress value={job.progress_percent} className={job.status === 'paused' ? 'opacity-50' : undefined} />
                                         <div className="flex justify-between text-xs text-muted-foreground">
                                             <span>{STATUS_LABELS[job.status]}</span>
-                                            <span>{job.progress_percent}%</span>
+                                            <span className="tabular-nums">{job.progress_percent}%</span>
                                         </div>
                                     </>
                                 )}

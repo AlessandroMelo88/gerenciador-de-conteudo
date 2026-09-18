@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Canal de Cortes — Transcrever aula",
+  "version": "1.0.0",
+  "description": "Manda a aula aberta para a base de conhecimento. Usa o login que você já tem no Chrome; a sessão só vai para o seu Mac.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Transcrever esta aula"
+  },
+  "permissions": ["cookies", "activeTab"],
+  "host_permissions": ["<all_urls>"]
+}

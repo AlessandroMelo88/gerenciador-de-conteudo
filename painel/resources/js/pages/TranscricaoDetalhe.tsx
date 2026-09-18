@@ -12,7 +12,7 @@ type Job = {
     title: string | null;
     platform: string | null;
     duration_seconds: number | null;
-    status: 'pending' | 'downloading' | 'transcribing' | 'done' | 'failed';
+    status: 'pending' | 'downloading' | 'transcribing' | 'paused' | 'done' | 'failed';
     transcript_text: string | null;
     created_at: string;
 };

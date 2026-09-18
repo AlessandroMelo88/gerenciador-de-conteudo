@@ -20,6 +20,9 @@ class TranscriptionController extends Controller
 {
     private const FORMATOS = ['srt', 'txt', 'md'];
 
+    /** Status que o worker do Mac ainda vai tocar — os únicos que dá para pausar. */
+    private const EM_ANDAMENTO = ['pending', 'downloading', 'transcribing'];
+
     public function index(Request $request): Response
     {
         $busca = trim((string) $request->query('q', ''));
@@ -58,6 +61,48 @@ class TranscriptionController extends Controller
         TranscriptionJob::create(['source_url' => $data['url'], 'status' => 'pending']);
 
         return back()->with('success', 'Na fila. O worker do Mac pega em até um minuto.');
+    }
+
+    /**
+     * O worker checa a cada aviso de progresso se o job ainda está andando; ao ver
+     * `paused`, para ali mesmo, sem gravar nada. O percentual fica onde parou.
+     */
+    public function pause(TranscriptionJob $job): RedirectResponse
+    {
+        if (! in_array($job->status, self::EM_ANDAMENTO, true)) {
+            return back()->with('error', 'Só dá para pausar o que ainda está na fila ou andando.');
+        }
+
+        $job->update(['status' => 'paused']);
+
+        return back()->with('success', 'Pausada.');
+    }
+
+    /** Pausado ou falho volta para a fila do zero: o worker não guarda download pela metade. */
+    public function resume(TranscriptionJob $job): RedirectResponse
+    {
+        if (! in_array($job->status, ['paused', 'failed'], true)) {
+            return back()->with('error', 'Só dá para retomar o que está pausado ou falhou.');
+        }
+
+        $job->update(['status' => 'pending', 'progress_percent' => 0, 'error_message' => null]);
+
+        return back()->with('success', 'De volta à fila.');
+    }
+
+    /**
+     * Apagar no meio do processamento é seguro: o próximo aviso de progresso do worker
+     * não acha a linha e ele para. Job antigo pode ter .srt em disco no servidor.
+     */
+    public function destroy(TranscriptionJob $job): RedirectResponse
+    {
+        if ($job->srt_path) {
+            Storage::disk('clips-videos')->delete('transcripts/'.basename($job->srt_path));
+        }
+
+        $job->delete();
+
+        return redirect('/painel/transcricoes')->with('success', 'Transcrição apagada.');
     }
 
     public function download(TranscriptionJob $job, string $formato = 'srt'): StreamedResponse
