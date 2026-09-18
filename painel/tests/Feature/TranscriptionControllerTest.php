@@ -131,3 +131,63 @@ it('exige login', function () {
 
     $this->get("/painel/transcricoes/{$job->id}")->assertRedirect();
 });
+
+it('pausa job que está na fila ou andando', function (string $status) {
+    $job = transcricaoPronta(['status' => $status, 'progress_percent' => 40]);
+
+    $this->actingAs(User::factory()->create())
+        ->post("/painel/transcricoes/{$job->id}/pausar")
+        ->assertRedirect();
+
+    expect($job->fresh()->status)->toBe('paused')
+        ->and($job->fresh()->progress_percent)->toBe(40);
+})->with(['pending', 'downloading', 'transcribing']);
+
+it('não pausa o que já terminou', function () {
+    $job = transcricaoPronta();
+
+    $this->actingAs(User::factory()->create())
+        ->post("/painel/transcricoes/{$job->id}/pausar");
+
+    expect($job->fresh()->status)->toBe('done');
+});
+
+it('retoma pausado ou falho voltando para a fila do zero', function (string $status) {
+    $job = transcricaoPronta(['status' => $status, 'progress_percent' => 60, 'error_message' => 'x']);
+
+    $this->actingAs(User::factory()->create())
+        ->post("/painel/transcricoes/{$job->id}/retomar")
+        ->assertRedirect();
+
+    $job->refresh();
+    expect($job->status)->toBe('pending')
+        ->and($job->progress_percent)->toBe(0)
+        ->and($job->error_message)->toBeNull();
+})->with(['paused', 'failed']);
+
+it('não retoma o que já terminou', function () {
+    $job = transcricaoPronta();
+
+    $this->actingAs(User::factory()->create())
+        ->post("/painel/transcricoes/{$job->id}/retomar");
+
+    expect($job->fresh()->status)->toBe('done');
+});
+
+it('apaga a transcrição', function () {
+    $job = transcricaoPronta();
+
+    $this->actingAs(User::factory()->create())
+        ->delete("/painel/transcricoes/{$job->id}")
+        ->assertRedirect('/painel/transcricoes');
+
+    expect(TranscriptionJob::find($job->id))->toBeNull();
+});
+
+it('apagar exige login', function () {
+    $job = transcricaoPronta();
+
+    $this->delete("/painel/transcricoes/{$job->id}")->assertRedirect();
+
+    expect(TranscriptionJob::find($job->id))->not->toBeNull();
+});

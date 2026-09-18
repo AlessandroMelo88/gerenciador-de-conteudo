@@ -99,6 +99,9 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/painel/transcricoes', [TranscriptionController::class, 'index'])->name('transcriptions.index');
     Route::post('/painel/transcricoes', [TranscriptionController::class, 'store']);
     Route::get('/painel/transcricoes/{job}', [TranscriptionController::class, 'show'])->name('transcriptions.show');
+    Route::post('/painel/transcricoes/{job}/pausar', [TranscriptionController::class, 'pause'])->name('transcriptions.pause');
+    Route::post('/painel/transcricoes/{job}/retomar', [TranscriptionController::class, 'resume'])->name('transcriptions.resume');
+    Route::delete('/painel/transcricoes/{job}', [TranscriptionController::class, 'destroy'])->name('transcriptions.destroy');
     Route::get('/painel/transcricoes/{job}/download/{formato?}', [TranscriptionController::class, 'download'])->name('transcriptions.download');
 
     Route::get('/painel/assistente', [AssistantController::class, 'index'])->name('assistant.index');
