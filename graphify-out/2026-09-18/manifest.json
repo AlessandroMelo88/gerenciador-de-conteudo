@@ -420,8 +420,8 @@
     "semantic_hash": "8ed882e986e2d11e69af1071ff4bc7b7"
   },
   "painel/config/filesystems.php": {
-    "mtime": 1789511603.100256,
-    "ast_hash": "5399d28d5c24284889df96a66233b770",
+    "mtime": 1789701267.0803926,
+    "ast_hash": "ee5f6bbd52000c19d6f99ff5bd629a55",
     "semantic_hash": ""
   },
   "painel/config/logging.php": {
@@ -525,8 +525,8 @@
     "semantic_hash": ""
   },
   "painel/resources/js/components/app-sidebar.tsx": {
-    "mtime": 1789693059.600714,
-    "ast_hash": "a3d1119fe0f4b982aa85c1fcbc6748be",
+    "mtime": 1789698979.108905,
+    "ast_hash": "6b1f112a2e0afc2103b5af56a771158a",
     "semantic_hash": ""
   },
   "painel/resources/js/components/clip-queue-tabs.tsx": {
@@ -815,8 +815,8 @@
     "semantic_hash": ""
   },
   "painel/routes/web.php": {
-    "mtime": 1789694368.132431,
-    "ast_hash": "0ff4484fd272301d2685e355038c4723",
+    "mtime": 1789701267.08901,
+    "ast_hash": "95f6c3d9649bf6cb49f039e009e35e12",
     "semantic_hash": ""
   },
   "painel/tests/Feature/AuthGuardTest.php": {
@@ -1655,8 +1655,8 @@
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/TranscriptionController.php": {
-    "mtime": 1789694368.1330278,
-    "ast_hash": "4f9781ece43cae857c35d38c3c6af21e",
+    "mtime": 1789701267.076242,
+    "ast_hash": "0dd78c4a18616259502677a5558c6230",
     "semantic_hash": ""
   },
   "painel/app/Models/TranscriptionJob.php": {
@@ -1675,8 +1675,8 @@
     "semantic_hash": ""
   },
   "painel/resources/js/pages/TranscricaoLocal.tsx": {
-    "mtime": 1789694427.2460246,
-    "ast_hash": "7503c0d5f1e4e6dcbb32c7b038ee273d",
+    "mtime": 1789701267.088435,
+    "ast_hash": "cd224aafcff176b9efd834cef519e074",
     "semantic_hash": ""
   },
   ".planning/quick/1-adicionar-sess-o-de-transcri-o-local-no-/1-PLAN.md": {
@@ -1710,8 +1710,8 @@
     "semantic_hash": ""
   },
   "Docs/README.md": {
-    "mtime": 1789676336.6509087,
-    "ast_hash": "9a4d4c842197adae76100d6f0a547253",
+    "mtime": 1789699885.5417528,
+    "ast_hash": "015e24939fc93c8b5689768a76e944e4",
     "semantic_hash": ""
   },
   "Dockerfile.php": {
@@ -1835,8 +1835,8 @@
     "semantic_hash": ""
   },
   "scripts/local_download_worker.py": {
-    "mtime": 1789693059.6215641,
-    "ast_hash": "9d849c9b648cd06ef29a1567ef12db0e",
+    "mtime": 1789701267.0931334,
+    "ast_hash": "78e544651df5537d49736baae4b39030",
     "semantic_hash": ""
   },
   "scripts/resume_claude_daemon.sh": {
@@ -1860,8 +1860,8 @@
     "semantic_hash": ""
   },
   "scripts/test_local_download_worker.py": {
-    "mtime": 1789693059.6231213,
-    "ast_hash": "db909a114b4874b66c383bb73b28a4e0",
+    "mtime": 1789698979.0100281,
+    "ast_hash": "9ef825452915113825931a2978a5f020",
     "semantic_hash": ""
   },
   "scripts/test_thumb_generator.py": {
@@ -1975,8 +1975,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-TRANSCRICAO.md": {
-    "mtime": 1789694490.2613375,
-    "ast_hash": "4ed17533c7707d9e9dbbed985b7021b2",
+    "mtime": 1789701267.071749,
+    "ast_hash": "218207473ba51aa5bb3dfd5a7b82a628",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-VIDEO.md": {
@@ -1985,8 +1985,8 @@
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1789677104.24927,
-    "ast_hash": "3187268c109d2ea38d5d461fbfb74e53",
+    "mtime": 1789701267.0727923,
+    "ast_hash": "cb6880c32e8a8441c642ae871fa88034",
     "semantic_hash": ""
   },
   "painel/public/preview-longo.html": {
@@ -2175,28 +2175,68 @@
     "semantic_hash": ""
   },
   "painel/resources/js/pages/TranscricaoDetalhe.tsx": {
-    "mtime": 1789694402.9836109,
-    "ast_hash": "897ee2ff06aeb90f184859921a9f1534",
+    "mtime": 1789701267.0846019,
+    "ast_hash": "76f2ec5bb19d0d9cf6ed9eb810996162",
     "semantic_hash": ""
   },
   "painel/tests/Feature/TranscriptionControllerTest.php": {
-    "mtime": 1789694335.6991596,
-    "ast_hash": "90e161d568baf846ea1b46f162e5d264",
+    "mtime": 1789701267.092532,
+    "ast_hash": "855f293a84513d32d6a65c89d288c490",
     "semantic_hash": ""
   },
   "scripts/test_transcription_worker.py": {
-    "mtime": 1789694320.5782626,
-    "ast_hash": "2afd3ed164713b66d84aa3048646fc2b",
+    "mtime": 1789701267.0980976,
+    "ast_hash": "a536e913e2a8c235b03144ff13ccaf78",
     "semantic_hash": ""
   },
   "scripts/transcription_worker.py": {
-    "mtime": 1789694320.5773242,
-    "ast_hash": "231dbc679dd345261455d27968362432",
+    "mtime": 1789701267.1015809,
+    "ast_hash": "8a5b910647ed9325a39aa6fcf0e9e6ff",
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_09_18_000000_transcricao_status_pausado.php": {
-    "mtime": 1789694352.3487835,
+    "mtime": 1789698979.0064323,
     "ast_hash": "402a777a346d62002ed6c38a42cdd6b4",
+    "semantic_hash": ""
+  },
+  "extensao-chrome/manifest.json": {
+    "mtime": 1789698978.9777763,
+    "ast_hash": "53645d1db1b6dfc6e3a9c05a57e027d9",
+    "semantic_hash": ""
+  },
+  "extensao-chrome/popup.js": {
+    "mtime": 1789698978.9788194,
+    "ast_hash": "dd3c1b82a7fbda29d260b58edbcc3860",
+    "semantic_hash": ""
+  },
+  "painel/database/migrations/2026_09_18_100000_transcricao_arquivo_da_aula.php": {
+    "mtime": 1789700899.4351296,
+    "ast_hash": "5a349df6cf3001c91466f2e255b9dd44",
+    "semantic_hash": ""
+  },
+  "scripts/extensao_api.py": {
+    "mtime": 1789698979.0087066,
+    "ast_hash": "2c3a5c5c484b4f62f3c6efa534db8845",
+    "semantic_hash": ""
+  },
+  "scripts/test_extensao_api.py": {
+    "mtime": 1789698979.0095785,
+    "ast_hash": "06bff13c2148823c51094c5547b7e67a",
+    "semantic_hash": ""
+  },
+  "Docs/sistema/RETOMADA-TRANSCRICOES.md": {
+    "mtime": 1789701267.0683706,
+    "ast_hash": "d91038a44c64eb8742cd9be795d1112c",
+    "semantic_hash": ""
+  },
+  "extensao-chrome/README.md": {
+    "mtime": 1789698978.9774735,
+    "ast_hash": "0a423de5d39c1d19b246ba4c81794a06",
+    "semantic_hash": ""
+  },
+  "extensao-chrome/popup.html": {
+    "mtime": 1789698978.9783423,
+    "ast_hash": "ef331e77e2cf7034b269b05d8558939e",
     "semantic_hash": ""
   }
 }
