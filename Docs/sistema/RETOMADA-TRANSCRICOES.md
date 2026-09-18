@@ -7,13 +7,12 @@ e dá para continuar sem o histórico da conversa.
 
 | | Commit | Observação |
 |---|---|---|
-| **Produção (A1)** | `a50db7e` | transcrição multiplataforma no Mac, texto no banco, busca, `.md/.txt/.srt` |
-| **`master` (GitHub)** | `9830ec3` | produção **+** pausar/retomar/apagar, barra de %, login de curso, extensão do Chrome, contadores dourados |
+| **Produção (A1)** = **`master`** | `8b95729` | deploy 18/09/2026 03:16 UTC: pausar/retomar/apagar, barra de %, login de curso, extensão, contadores dourados, **Baixar aula** |
 | `afiliadas-fase2` | `0a4b94d` | master de 17/09 já trazida; suíte 86/87 nos dois bancos; **merge suspenso** (ver pendência 4) |
 
-**A `master` está à frente de produção de propósito**: o operador pediu para não fazer deploy.
-O próximo `./deploy.sh` leva tudo, incluindo a migration `2026_09_18_000000_transcricao_status_pausado`
-(testada ida e volta em PostgreSQL e MySQL).
+Teste ponta a ponta em produção (18/09): job 6, short de 19 s, `done` com `aulas/6.mp4` (475.990 bytes)
+no Mac e na A1; rota sem login → 302, com login → 200 `me-at-the-zoo.mp4`. O job 6 pode ser apagado
+pelo painel (apaga o arquivo na A1 junto).
 
 ## O que funciona hoje, provado com uso real
 
@@ -83,8 +82,8 @@ Testar `hotmart.com/pt-BR/club/formula-youtube/products/8093188/content/V4VKj9GV
 
 1. **Trocar a senha da conta da Asimov** — passou em texto puro pelo chat em 17/09. A extensão não
    depende dela. A conta está no nome de outra pessoa: conferir consentimento e termos de uso.
-2. **Deploy** da `master` quando quiser: leva pausar/apagar, a extensão e os contadores dourados.
-   Depois do deploy, apagar pelo painel as transcrições 1, 2 e 4 (falhas antigas) e a 3 (teste).
+2. ~~Deploy~~ feito em 18/09/2026. Falta apagar pelo painel as transcrições 1, 2 e 4 (falhas
+   antigas), a 3 e a 6 (testes).
 3. **Cloudflare:** registro A de `toolscut` → `129.80.236.185` (o tráfego ainda passa pela Micro).
 4. **Correção de segurança** `fix/pipeline-event-token-fail-closed`: `/internal/pipeline-event`
    aceita requisição sem token quando `CLIP_PROCESSOR_INTERNAL_TOKEN` está vazio (`null === null`).
