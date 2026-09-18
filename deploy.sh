@@ -12,6 +12,12 @@
 #   ./deploy.sh                # Deploy padrão rápido (~15s)
 #   ./deploy.sh --skip-vite    # Se mexeu só no backend (~8s)
 #   ./deploy.sh --build-docker # Apenas se mudar dependências de sistema (apt/pip)
+#   ./deploy.sh --sair-manutencao  # Tira o painel da manutenção na mão (se o deploy caiu no meio)
+#
+# Do rsync até o restart do php o painel fica em manutenção (`artisan down`):
+# visitante vê "Atualizando o painel" (503, recarrega sozinha) em vez de página
+# quebrada pela metade. Evento do pipeline, webhook do Telegram e /o/* seguem
+# atendidos (bootstrap/app.php). O trap garante a saída mesmo se o deploy falhar.
 #
 # Produção = branch master, e só o que já está no GitHub vai para o servidor.
 # O script recusa deploy fora da master, com alteração não commitada ou com a
@@ -41,6 +47,41 @@ START_TIME=$(date +%s)
 
 BUILD_DOCKER=false
 SKIP_VITE=false
+SO_SAIR_MANUTENCAO=false
+
+remoto() {
+    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$SERVER_USER@$SERVER_IP" "$@"
+}
+
+artisan_remoto() {
+    remoto "cd $REMOTE_DIR && docker compose exec -T php php /var/www/html/painel/artisan $* </dev/null"
+}
+
+# Modo manutenção. Falhar ao entrar não bloqueia o deploy (só avisa); ao sair,
+# falha vira instrução de como tirar na mão — painel preso em 503 é pior que deploy lento.
+EM_MANUTENCAO=false
+
+entrar_manutencao() {
+    echo -e "${CLR_YELLOW}🔧 Painel em manutenção durante o deploy...${CLR_RESET}"
+    if artisan_remoto down --refresh=15 --retry=15; then
+        EM_MANUTENCAO=true
+    else
+        echo -e "${CLR_YELLOW}⚠️  Não consegui pôr o painel em manutenção; o deploy segue sem ela.${CLR_RESET}"
+    fi
+}
+
+sair_manutencao() {
+    [ "$EM_MANUTENCAO" = true ] || return 0
+    if artisan_remoto up; then
+        EM_MANUTENCAO=false
+        echo -e "${CLR_GREEN}✔ Painel fora da manutenção${CLR_RESET}"
+    else
+        echo -e "${CLR_RED}❌ O painel ficou em manutenção. Tire na mão: ./deploy.sh --sair-manutencao${CLR_RESET}"
+        return 1
+    fi
+}
+
+trap 'sair_manutencao' EXIT
 
 for arg in "$@"; do
     case $arg in
@@ -50,15 +91,25 @@ for arg in "$@"; do
         --skip-vite)
             SKIP_VITE=true
             ;;
+        --sair-manutencao)
+            SO_SAIR_MANUTENCAO=true
+            ;;
         --help|-h)
             echo "Uso: ./deploy.sh [opções]"
             echo "Opções:"
             echo "  --skip-vite      Pula o build local do frontend (Vite)"
             echo "  --build-docker   Reconstrói a imagem Docker no servidor (demorado, usar só se mudar apt/pip)"
+            echo "  --sair-manutencao  Só tira o painel da manutenção (se um deploy caiu no meio)"
             exit 0
             ;;
     esac
 done
+
+if [ "$SO_SAIR_MANUTENCAO" = true ]; then
+    EM_MANUTENCAO=true
+    sair_manutencao
+    exit $?
+fi
 
 # 0. Produção só sai da main, sem alteração pendente
 PROD_BRANCH="master"
@@ -110,6 +161,7 @@ fi
 
 # 3. Sincronização Rsync ultrarrápida
 echo -e "\n${CLR_YELLOW}[2/4] Sincronizando arquivos com o servidor de produção...${CLR_RESET}"
+entrar_manutencao
 
 # Painel PHP/Laravel
 rsync -rlzOv --delete \
@@ -177,6 +229,9 @@ else
         docker compose restart php </dev/null
 EOF
 fi
+
+# Código, migrations e opcache novos: painel volta ao ar
+sair_manutencao
 
 # Registra no servidor qual versão está no ar
 printf 'commit=%s\nbranch=%s\ndeployed_at=%s\n' \
