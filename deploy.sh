@@ -172,8 +172,13 @@ rsync -rlzOv --delete \
     --exclude 'storage' \
     --exclude 'bootstrap/cache' \
     --exclude 'public/conteudo-cursos' \
+    --exclude 'public/hot' \
     -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
     "$PROJECT_DIR/painel/" "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/painel/"
+# public/hot é do `composer dev` local e aponta o painel para o Vite do Mac
+# (127.0.0.1:5174): em produção vira página em branco. Incidente 18/09/2026.
+# O --exclude não apaga o que já estiver lá, por isso o rm.
+remoto "rm -f $REMOTE_DIR/painel/public/hot"
 
 # Código Python do clip-processor
 rsync -rlzOv --delete \

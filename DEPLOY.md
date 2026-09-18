@@ -79,6 +79,13 @@ arquivos. São os ~20 s do deploy.
 - Falhar ao **entrar** na manutenção não bloqueia o deploy — só avisa.
 - A página é `painel/resources/views/errors/503.blade.php`; as exceções, `bootstrap/app.php`.
 
+## ⚠️ Página em branco depois do deploy (incidente 18/09/2026)
+
+Com `composer dev` rodando no Mac, o Vite cria `painel/public/hot` apontando para
+`http://127.0.0.1:5174`. Esse arquivo subiu no deploy e o painel de produção passou a carregar o JS
+do Mac — tela branca para todo mundo. O `deploy.sh` agora exclui `public/hot` do rsync e apaga o
+arquivo no servidor a cada deploy. Sintoma para reconhecer: HTML com `127.0.0.1:5174/@vite/client`.
+
 ## 🔍 O que o script `./deploy.sh` faz por você
 
 1. **Compilação Local do Vite (`painel/`)**: Gera os bundles otimizados de produção no seu computador, poupando a CPU da VPS na nuvem.
