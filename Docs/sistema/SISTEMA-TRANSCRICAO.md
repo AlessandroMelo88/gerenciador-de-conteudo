@@ -96,20 +96,71 @@ do link ao texto.
 
 | Fonte | Situação |
 |---|---|
-| YouTube, Shorts, TikTok | funciona |
+| YouTube, Shorts, TikTok | funciona sem nada |
 | Instagram (Reels) | depende do post: parte exige login |
-| Vimeo | **exige login** desde 2026 (`The web client only works when logged-in`) |
-| Hotmart, Asimov e outras plataformas de curso | **não entra ainda**: exige login; a Asimov ainda tem Cloudflare anti-bot (`HTTP 403`) |
+| Vimeo | exige login desde 2026 (`The web client only works when logged-in`) |
+| Hotmart, Asimov e outras plataformas de curso | exigem login — ver abaixo |
 
-O que exige login é a Fase 2: `cookies.txt` exportado pela extensão do Chrome (sem o
-`--cookies-from-browser`, que dispara a caixa do chaveiro do macOS a cada execução) e,
-para a Asimov, `curl_cffi` para a impersonação. Os cookies ficam só no Mac.
+### Sites com login — cookies.txt (Fase 2, 18/09/2026)
+
+O worker passa `--cookies` ao `yt-dlp` quando existe o arquivo
+**`~/.config/canaldecortes/cookies.txt`** (ou o caminho em `TRANSCRICAO_COOKIES`).
+
+Para quem usa, uma vez por site e de novo quando o login expirar:
+
+1. Entre no site do curso pelo Chrome, como sempre.
+2. Com a extensão **Get cookies.txt LOCALLY**, exporte os cookies daquele site.
+3. Salve (ou junte ao que já existe) em `~/.config/canaldecortes/cookies.txt`.
+
+Quando o site pede login e o arquivo não existe, a mensagem de erro na tela diz exatamente isso e
+onde salvar; quando o arquivo existe mas não bastou, diz que o login provavelmente expirou.
+
+Por que arquivo e não `--cookies-from-browser`: este lê o Chrome direto, mas abre a caixa do
+chaveiro do macOS pedindo a senha do Mac **a cada execução** — trava o worker, e em 17/09/2026
+empilhou caixas até travar a máquina.
+
+O arquivo é sessão logada: fica **só no Mac**, fora do repositório público (que é o que o `.env`
+já faz) e nunca vai ao servidor.
+
+**Impersonação.** O `yt-dlp` roda sempre com `--extractor-args generic:impersonate` e a biblioteca
+`curl_cffi` instalada no Python dele (`python3.13 -m pip install --break-system-packages curl_cffi`,
+o mesmo jeito que o `yt-dlp` está instalado). Sem isso a Asimov devolve `HTTP 403` do Cloudflare
+anti-bot antes de chegar no login; com isso, ela passa a redirecionar para `/login/`, que é o que o
+cookies.txt resolve.
+
+> **Não confirmado ainda:** se o player do Hotmart e o da Asimov entregam o áudio depois do login.
+> Alguns players usam DRM, e aí nem com login o `yt-dlp` baixa. O teste de aceitação são as duas
+> aulas: `hotmart.com/pt-BR/club/formula-youtube/products/8093188/content/V4VKj9GVe2` e
+> `hub.asimov.academy/curso/atividade/masterclass-claude-code/`.
+
+### Pausar, retomar, apagar e a barra de progresso
+
+| Botão | Quando aparece | O que faz |
+|---|---|---|
+| Pausar | na fila ou andando | marca `paused`; o worker para no próximo aviso de progresso, sem gravar nada |
+| Retomar | pausada | volta para a fila **do zero** (download pela metade não é guardado) |
+| Tentar de novo | falhou | igual a retomar |
+| Apagar | sempre, com confirmação | apaga do banco; se estiver andando, o worker para no próximo passo |
+
+Pausar e apagar funcionam pelo mesmo mecanismo: todo aviso de progresso do worker é um
+`UPDATE ... WHERE status IN ('downloading','transcribing') RETURNING id`. Se o painel pausou ou
+apagou, não volta linha, e o worker encerra o `yt-dlp` e para. Por isso um job pausado nunca é
+"ressuscitado" pelo worker.
+
+A barra: **5 → 30 %** durante o download (percentual real do `yt-dlp`), **30 → 95 %** ao longo dos
+pedaços de 20 min da transcrição, **100 %** ao gravar. Os avisos vão de 5 em 5 pontos, porque cada
+um é uma ida ao servidor por ssh. Em vídeo curto a barra salta — o trabalho inteiro leva segundos.
+
+Armadilha encontrada: no `--progress-template` do `yt-dlp`, o `download:` do começo **não é texto
+impresso**, é o seletor de tipo (`[TIPO:]MODELO`). O marcador literal da linha é `[progresso]`.
 
 ### Detalhes que importam
 
 - **Mac precisa estar ligado.** Com ele desligado o job fica `pending` na tela.
 - **Job interrompido** (Mac desligou no meio) volta como `failed` depois de 60 min, com mensagem
-  pedindo para enviar de novo — nunca fica andando para sempre.
+  pedindo para enviar de novo — nunca fica andando para sempre. Job `paused` não entra nessa conta.
+- **O worker roda o código da pasta do projeto**, qualquer que seja a branch aberta nela: o
+  launchd aponta para `scripts/local_download_worker.py` no working tree.
 - **Gravação por stdin do ssh**, não por argumento: transcrição de 1 h passa de 100 KB, e argumento
   único no Linux trava em 128 KB. O texto vai em literal `$tag$...$tag$` com tag aleatória
   conferida contra o conteúdo.

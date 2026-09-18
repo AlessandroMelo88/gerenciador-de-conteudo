@@ -335,7 +335,7 @@
     "semantic_hash": ""
   },
   "painel/app/Services/ClipProcessorClient.php": {
-    "mtime": 1789692526.027608,
+    "mtime": 1789693059.5944464,
     "ast_hash": "4ea4096a503b1fc4ba3bed70e2a94bfa",
     "semantic_hash": ""
   },
@@ -525,7 +525,7 @@
     "semantic_hash": ""
   },
   "painel/resources/js/components/app-sidebar.tsx": {
-    "mtime": 1789692739.6707764,
+    "mtime": 1789693059.600714,
     "ast_hash": "a3d1119fe0f4b982aa85c1fcbc6748be",
     "semantic_hash": ""
   },
@@ -760,7 +760,7 @@
     "semantic_hash": ""
   },
   "painel/resources/js/pages/Documentation.tsx": {
-    "mtime": 1789692739.6756077,
+    "mtime": 1789693059.6027572,
     "ast_hash": "8f2b66999be84d7a5437d3a3c1ae5f63",
     "semantic_hash": ""
   },
@@ -815,8 +815,8 @@
     "semantic_hash": ""
   },
   "painel/routes/web.php": {
-    "mtime": 1789692526.024912,
-    "ast_hash": "ba8805a04e0959e5b2cb12a5619d4edc",
+    "mtime": 1789694368.132431,
+    "ast_hash": "0ff4484fd272301d2685e355038c4723",
     "semantic_hash": ""
   },
   "painel/tests/Feature/AuthGuardTest.php": {
@@ -1655,12 +1655,12 @@
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/TranscriptionController.php": {
-    "mtime": 1789692509.6248517,
-    "ast_hash": "9fe5f22f7239ff4ee097ac41c12ead85",
+    "mtime": 1789694368.1330278,
+    "ast_hash": "4f9781ece43cae857c35d38c3c6af21e",
     "semantic_hash": ""
   },
   "painel/app/Models/TranscriptionJob.php": {
-    "mtime": 1789692526.02686,
+    "mtime": 1789693059.5926123,
     "ast_hash": "6fa7b37b4b7e79e36ebc9b8cb768582d",
     "semantic_hash": ""
   },
@@ -1675,8 +1675,8 @@
     "semantic_hash": ""
   },
   "painel/resources/js/pages/TranscricaoLocal.tsx": {
-    "mtime": 1789692707.1478238,
-    "ast_hash": "a1d1659acd40d4c8a9c339ecab5034ea",
+    "mtime": 1789694427.2460246,
+    "ast_hash": "7503c0d5f1e4e6dcbb32c7b038ee273d",
     "semantic_hash": ""
   },
   ".planning/quick/1-adicionar-sess-o-de-transcri-o-local-no-/1-PLAN.md": {
@@ -1835,7 +1835,7 @@
     "semantic_hash": ""
   },
   "scripts/local_download_worker.py": {
-    "mtime": 1789692418.849436,
+    "mtime": 1789693059.6215641,
     "ast_hash": "9d849c9b648cd06ef29a1567ef12db0e",
     "semantic_hash": ""
   },
@@ -1860,7 +1860,7 @@
     "semantic_hash": ""
   },
   "scripts/test_local_download_worker.py": {
-    "mtime": 1789692418.8498797,
+    "mtime": 1789693059.6231213,
     "ast_hash": "db909a114b4874b66c383bb73b28a4e0",
     "semantic_hash": ""
   },
@@ -1975,8 +1975,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-TRANSCRICAO.md": {
-    "mtime": 1789692984.597545,
-    "ast_hash": "2b1f10284d2a39dd587fd49b9ad866ac",
+    "mtime": 1789694490.2613375,
+    "ast_hash": "4ed17533c7707d9e9dbbed985b7021b2",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-VIDEO.md": {
@@ -2170,28 +2170,33 @@
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_09_17_000000_transcricao_multiplataforma.php": {
-    "mtime": 1789692491.5500412,
+    "mtime": 1789693059.596683,
     "ast_hash": "c1b9422e5940780659a000f25918a782",
     "semantic_hash": ""
   },
   "painel/resources/js/pages/TranscricaoDetalhe.tsx": {
-    "mtime": 1789692721.9266813,
-    "ast_hash": "e21099f0df13f82fae56787ed7866d56",
+    "mtime": 1789694402.9836109,
+    "ast_hash": "897ee2ff06aeb90f184859921a9f1534",
     "semantic_hash": ""
   },
   "painel/tests/Feature/TranscriptionControllerTest.php": {
-    "mtime": 1789692482.2660055,
-    "ast_hash": "96836e87e626bc2032436d9545ca9c18",
+    "mtime": 1789694335.6991596,
+    "ast_hash": "90e161d568baf846ea1b46f162e5d264",
     "semantic_hash": ""
   },
   "scripts/test_transcription_worker.py": {
-    "mtime": 1789692881.0997856,
-    "ast_hash": "0f3aae98fa4ee2d8127f962d516a3828",
+    "mtime": 1789694320.5782626,
+    "ast_hash": "2afd3ed164713b66d84aa3048646fc2b",
     "semantic_hash": ""
   },
   "scripts/transcription_worker.py": {
-    "mtime": 1789692881.09722,
-    "ast_hash": "2de09992900c651672ab01b0ce41c1c8",
+    "mtime": 1789694320.5773242,
+    "ast_hash": "231dbc679dd345261455d27968362432",
+    "semantic_hash": ""
+  },
+  "painel/database/migrations/2026_09_18_000000_transcricao_status_pausado.php": {
+    "mtime": 1789694352.3487835,
+    "ast_hash": "402a777a346d62002ed6c38a42cdd6b4",
     "semantic_hash": ""
   }
 }
