@@ -153,6 +153,7 @@ def test_falha_na_contagem_nao_baixa_nada(monkeypatch, windows):
 
 
 def test_ciclo_processa_um_video_por_vez(monkeypatch):
+    monkeypatch.setattr(worker, 'process_transcription', lambda: False)
     monkeypatch.setattr(worker, 'fetch_pending_videos',
                         lambda: [{'id': 1}, {'id': 2}, {'id': 3}])
     processed = []
@@ -160,3 +161,20 @@ def test_ciclo_processa_um_video_por_vez(monkeypatch):
 
     assert worker.run_cycle() == 1
     assert processed == [{'id': 1}]
+
+
+def test_ciclo_transcreve_antes_de_baixar(monkeypatch):
+    ordem = []
+    monkeypatch.setattr(worker, 'process_transcription', lambda: ordem.append('transcricao') or True)
+    monkeypatch.setattr(worker, 'fetch_pending_videos', lambda: ordem.append('download') or [])
+
+    assert worker.run_cycle() == 1, 'ciclo com transcrição conta como trabalho feito'
+    assert ordem == ['transcricao', 'download']
+
+
+def test_erro_na_transcricao_nao_derruba_o_ciclo(monkeypatch):
+    def quebra(**_):
+        raise RuntimeError('ssh caiu')
+    monkeypatch.setattr(worker.transcription_worker, 'process_one_job', quebra)
+
+    assert worker.process_transcription() is False

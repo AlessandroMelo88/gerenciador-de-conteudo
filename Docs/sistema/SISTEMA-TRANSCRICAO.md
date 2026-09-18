@@ -1,17 +1,17 @@
 # Transcrição
 
-Duas transcrições **independentes** convivem no mesmo container e não se falam:
+Duas transcrições **independentes**, que não se falam:
 
-| | Pipeline principal | Transcrição Local |
+| | Pipeline principal | Transcrições (base de conhecimento) |
 |---|---|---|
-| Módulo | [`transcriber.py`](../clip-processor/src/transcriber.py) | [`transcription_job.py`](../clip-processor/src/transcription_job.py) |
-| Motor | Groq Whisper API (`whisper-large-v3-turbo`) | whisper.cpp local, modelo `ggml-small` |
-| Custo | cota da API Groq | zero |
-| Entrada | `.mp4` já baixado pelo pipeline | URL colada pelo operador no painel |
-| Saída | `<id>_transcript.json` + `source_videos.transcript_path` | `.srt` + tabela `transcription_jobs` |
+| Módulo | [`transcriber.py`](../clip-processor/src/transcriber.py) | [`scripts/transcription_worker.py`](../scripts/transcription_worker.py) |
+| Onde roda | container `clip-processor`, na A1 | **worker do Mac** (`local_download_worker`) |
+| Motor | Groq Whisper API (`whisper-large-v3-turbo`) | o mesmo |
+| Entrada | `.mp4` já baixado pelo pipeline | link colado pelo operador no painel, de qualquer site do `yt-dlp` |
+| Saída | `<id>_transcript.json` + `source_videos.transcript_path` | texto, `.srt` e metadados **no banco** (`transcription_jobs`) |
 | Toca `source_videos`/`generated_clips`? | sim | **não** |
 
-Verificado no código em **13/08/2026**.
+Verificado no código em **17/09/2026**.
 
 ---
 
@@ -64,7 +64,74 @@ toca, e ele é pequeno (KB, não MB).
 
 ---
 
-## Transcrição Local — whisper.cpp
+## Transcrições — base de conhecimento (17/09/2026)
+
+Para quem usa: cole no painel (**Transcrições**) o link de um vídeo ou áudio. O texto fica
+guardado, com título, plataforma e duração, para ler e buscar quando quiser, e sai em `.md`
+(com cabeçalho, pronto para colar em outra IA), `.txt` (texto corrido) ou `.srt` (legenda).
+
+```
+painel ── grava job 'pending' ──> transcription_jobs (Postgres, A1)
+                                        │
+worker do Mac (a cada ciclo) ───────────┘ reivindica 1 job (FOR UPDATE SKIP LOCKED)
+   yt-dlp: só o áudio, pelo IP residencial
+   ffmpeg: mono 16 kHz, pedaços de 20 min
+   Groq Whisper em cada pedaço, timestamps remontados
+   grava título, plataforma, duração, texto e .srt ──> transcription_jobs
+```
+
+### Por que no Mac
+
+Até 17/09/2026 a tela rodava no servidor, com whisper.cpp, e quebrava de dois jeitos:
+
+| Erro na tela | Causa | Como ficou |
+|---|---|---|
+| `yt-dlp ... returned non-zero exit status 1` | YouTube barra IP de datacenter: `Sign in to confirm you're not a bot` | download pelo IP residencial do Mac |
+| `whisper-cli ... timed out after 1800 seconds` | whisper.cpp na A1 roda a **1× tempo real** (medido: 60 s de áudio em 55 s) e o teto de 3 pedaços deixava cada pedaço de um vídeo de 112 min com ~37 min | Groq, que leva segundos; pedaço por tamanho (20 min), não por contagem |
+
+Medido no Mac depois da mudança: short do YouTube de 48 s em **4,8 s**, TikTok de 24 s em **3,8 s**,
+do link ao texto.
+
+### O que entra e o que não entra
+
+| Fonte | Situação |
+|---|---|
+| YouTube, Shorts, TikTok | funciona |
+| Instagram (Reels) | depende do post: parte exige login |
+| Vimeo | **exige login** desde 2026 (`The web client only works when logged-in`) |
+| Hotmart, Asimov e outras plataformas de curso | **não entra ainda**: exige login; a Asimov ainda tem Cloudflare anti-bot (`HTTP 403`) |
+
+O que exige login é a Fase 2: `cookies.txt` exportado pela extensão do Chrome (sem o
+`--cookies-from-browser`, que dispara a caixa do chaveiro do macOS a cada execução) e,
+para a Asimov, `curl_cffi` para a impersonação. Os cookies ficam só no Mac.
+
+### Detalhes que importam
+
+- **Mac precisa estar ligado.** Com ele desligado o job fica `pending` na tela.
+- **Job interrompido** (Mac desligou no meio) volta como `failed` depois de 60 min, com mensagem
+  pedindo para enviar de novo — nunca fica andando para sempre.
+- **Gravação por stdin do ssh**, não por argumento: transcrição de 1 h passa de 100 KB, e argumento
+  único no Linux trava em 128 KB. O texto vai em literal `$tag$...$tag$` com tag aleatória
+  conferida contra o conteúdo.
+- **Chave do Groq** vem do ambiente ou do `.env` do projeto; a chamada é `urllib` puro, então a
+  chave nunca aparece em argumento de processo. O `User-Agent` é próprio: o Cloudflare do Groq
+  recusa o padrão do urllib com `HTTP 403 error code: 1010`.
+- **Transcrição tem prioridade** sobre o download do pipeline no ciclo do worker: é pedido do
+  operador, com ele esperando na tela.
+- A lista não carrega o texto inteiro, só os 300 primeiros caracteres; o texto completo abre em
+  `/painel/transcricoes/{id}`. Busca em título, link e texto, sem diferenciar maiúscula.
+
+Testes: `scripts/test_transcription_worker.py`, `scripts/test_local_download_worker.py` e
+`painel/tests/Feature/TranscriptionControllerTest.php`.
+
+---
+
+## Transcrição Local — whisper.cpp (desativada em 17/09/2026)
+
+**Nada mais chama este caminho**: o painel parou de usar `POST /internal/transcribe`. O código e o
+modelo continuam na imagem do `clip-processor`; a descrição abaixo fica como registro.
+Jobs antigos continuam baixando o `.srt` do disco pelo `srt_path`.
+
 
 Feature isolada, adicionada pelo commit `59c21c5` (30/07/2026). O operador cola uma URL no painel
 (`/painel/transcricoes`), o sidecar chama `POST /internal/transcribe`

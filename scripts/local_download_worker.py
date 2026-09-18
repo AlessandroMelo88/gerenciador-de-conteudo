@@ -37,6 +37,13 @@ _fair_spec.loader.exec_module(_fair)
 channel_cap = _fair.channel_cap
 fair_pick = _fair.fair_pick
 
+# Transcrição multiplataforma (painel → transcription_jobs → este worker).
+_tw_spec = importlib.util.spec_from_file_location(
+    'transcription_worker', Path(__file__).resolve().parent / 'transcription_worker.py',
+)
+transcription_worker = importlib.util.module_from_spec(_tw_spec)
+_tw_spec.loader.exec_module(transcription_worker)
+
 # VM A1 (Ashburn) desde 17/09/2026 — antes era a E2.1.Micro em São Paulo com MySQL.
 SSH_KEY = os.path.expanduser('~/.ssh/oracle-a1-2026-09-16.key')
 SSH_HOST = 'ubuntu@129.80.236.185'
@@ -99,6 +106,42 @@ def run_remote_sql(query: str) -> str:
     except subprocess.TimeoutExpired:
         _log('Timeout ao executar query SQL remota')
         return ''
+
+
+def run_remote_sql_stdin(sql: str) -> bool:
+    """Executa SQL mandado pelo stdin do ssh, não como argumento.
+
+    Para gravação de texto grande (transcrição de 1 h passa de 100 KB): argumento
+    único no Linux trava em 128 KB. Mesma resolução de senha no servidor que
+    `run_remote_sql`. ON_ERROR_STOP faz erro de SQL virar código de saída.
+    """
+    remote = (
+        "P=$(grep -m1 '^POSTGRES_PASSWORD=' " + REMOTE_ENV + " | cut -d= -f2- | tr -d '\"'); "
+        'docker exec -i -e PGPASSWORD="$P" postgres psql -U clips_user -d clips_automation '
+        '-q -v ON_ERROR_STOP=1 -f -'
+    )
+    cmd = ['ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-i', SSH_KEY,
+           SSH_HOST, remote]
+    try:
+        res = subprocess.run(cmd, input=sql, capture_output=True, text=True, errors='replace', timeout=120)
+    except subprocess.TimeoutExpired:
+        _log('Timeout ao gravar SQL remoto pelo stdin')
+        return False
+    if res.returncode != 0:
+        _log(f'Falha ao gravar SQL remoto: {res.stderr.strip()[:300]}')
+        return False
+    return True
+
+
+def process_transcription() -> bool:
+    """Um job de transcrição, se houver. Nunca derruba o ciclo de download."""
+    try:
+        return transcription_worker.process_one_job(
+            run_sql=run_remote_sql, run_sql_stdin=run_remote_sql_stdin,
+        )
+    except Exception as e:
+        _log(f'Erro na transcrição: {e}')
+        return False
 
 
 def run_remote_cmd(cmd_str: str) -> bool:
@@ -387,9 +430,13 @@ def process_single_video(video: dict):
 
 
 def run_cycle():
+    # Transcrição primeiro: é pedido seu, com você esperando na tela. O download
+    # do pipeline é de fundo e aguenta um ciclo de atraso.
+    transcreveu = process_transcription()
+
     videos = fetch_pending_videos()
     if not videos:
-        return 0
+        return 1 if transcreveu else 0
 
     _log(f'Encontrados {len(videos)} vídeo(s) pendente(s) de download.')
     # Só o primeiro: a janela é recontada no próximo ciclo, depois que ele entrou.

@@ -1,0 +1,283 @@
+"""
+transcription_worker.py — Transcrição multiplataforma, executada no Mac.
+
+O painel grava um job `pending` em `transcription_jobs`; o `local_download_worker`
+chama `process_one_job` a cada ciclo. Aqui:
+
+1. reivindica um job de forma atômica (FOR UPDATE SKIP LOCKED);
+2. baixa só o áudio com yt-dlp pelo IP residencial — qualquer site que o yt-dlp
+   aceite (YouTube, TikTok, Instagram, Vimeo...). No servidor o YouTube bloqueia
+   IP de datacenter ("Sign in to confirm you're not a bot");
+3. converte para mono 16 kHz e corta em pedaços de 20 min (cabe no limite de
+   25 MB da API);
+4. transcreve cada pedaço no Groq Whisper e remonta os timestamps;
+5. grava título, duração, plataforma, texto corrido e .srt **no banco** — é a
+   base de conhecimento, não um arquivo que se perde.
+
+Até 17/09/2026 isso rodava no servidor com whisper.cpp a 1× tempo real e batia
+no timeout de 1800 s em qualquer vídeo acima de ~90 min.
+
+As dependências externas (download, corte, transcrição) entram por parâmetro em
+`process_one_job`, para os testes não tocarem rede nem ffmpeg.
+"""
+import json
+import os
+import secrets
+import shutil
+import subprocess
+import tempfile
+import urllib.error
+import urllib.request
+import uuid
+from pathlib import Path
+
+GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
+GROQ_MODEL = 'whisper-large-v3-turbo'  # o mesmo do pipeline (clip-processor/src/transcriber.py)
+# O Cloudflare na frente do Groq recusa o User-Agent padrão do urllib
+# ("Python-urllib/3.x") com HTTP 403 "error code: 1010".
+USER_AGENT = 'canaldecortes-transcricao/1.0'
+
+CHUNK_SECONDS = 1200        # 20 min a 32 kbps ≈ 4,8 MB, longe do teto de 25 MB
+PARAGRAPH_GAP_SECONDS = 1.5  # pausa maior que isso abre parágrafo novo no texto
+STUCK_MINUTES = 60           # job preso em andamento há mais que isso volta como falha
+
+PROJECT_ENV = Path(__file__).resolve().parent.parent / '.env'
+
+
+# ---------------------------------------------------------------- formatos
+
+def format_srt_time(seconds: float) -> str:
+    total_ms = int(round(seconds * 1000))
+    h, rest = divmod(total_ms, 3_600_000)
+    m, rest = divmod(rest, 60_000)
+    s, ms = divmod(rest, 1000)
+    return f'{h:02d}:{m:02d}:{s:02d},{ms:03d}'
+
+
+def segments_to_srt(segments: list[dict]) -> str:
+    blocks = []
+    for seg in segments:
+        text = (seg.get('text') or '').strip()
+        if not text:
+            continue
+        n = len(blocks) + 1
+        blocks.append(f"{n}\n{format_srt_time(seg['start'])} --> {format_srt_time(seg['end'])}\n{text}\n")
+    return '\n'.join(blocks)
+
+
+def segments_to_text(segments: list[dict]) -> str:
+    """Texto corrido para leitura: frases juntas, parágrafo novo a cada pausa longa."""
+    paragraphs: list[list[str]] = []
+    last_end = None
+    for seg in segments:
+        text = (seg.get('text') or '').strip()
+        if not text:
+            continue
+        if last_end is None or seg['start'] - last_end > PARAGRAPH_GAP_SECONDS:
+            paragraphs.append([])
+        paragraphs[-1].append(text)
+        last_end = seg['end']
+    return '\n\n'.join(' '.join(p) for p in paragraphs)
+
+
+def merge_chunks(chunks: list[tuple[float, list[dict]]]) -> list[dict]:
+    """Junta os segmentos de cada pedaço deslocando pelo início real do pedaço."""
+    merged = []
+    for offset, segments in chunks:
+        for seg in segments:
+            merged.append({
+                'start': seg['start'] + offset,
+                'end': seg['end'] + offset,
+                'text': seg['text'],
+            })
+    return merged
+
+
+def dollar_quote(text: str) -> str:
+    """Literal SQL do PostgreSQL que dispensa escapar aspas: $tag$...$tag$.
+
+    A tag é aleatória e conferida contra o texto — transcrição é texto livre,
+    vindo de qualquer site, e nunca pode fechar o literal antes da hora.
+    """
+    while True:
+        tag = f'$t{secrets.token_hex(6)}$'
+        if tag not in text:
+            return f'{tag}{text}{tag}'
+
+
+# ---------------------------------------------------------------- chave
+
+def load_groq_key(env_file: Path = PROJECT_ENV) -> str | None:
+    """GROQ_API_KEY do ambiente ou do .env do projeto (que nunca vai ao git)."""
+    key = os.environ.get('GROQ_API_KEY')
+    if key:
+        return key
+    try:
+        for line in Path(env_file).read_text().splitlines():
+            if line.startswith('GROQ_API_KEY='):
+                value = line.split('=', 1)[1].strip().strip('"').strip("'")
+                return value or None
+    except OSError:
+        return None
+    return None
+
+
+# ---------------------------------------------------------------- etapas reais
+
+def download_audio(url: str, workdir: Path) -> tuple[Path, dict]:
+    """Baixa só o áudio e os metadados. Levanta RuntimeError com a mensagem do yt-dlp."""
+    template = str(workdir / 'audio.%(ext)s')
+    res = subprocess.run(
+        ['yt-dlp', '--no-playlist', '--no-progress', '-f', 'bestaudio/best',
+         '--write-info-json', '-o', template, url],
+        capture_output=True, text=True, errors='replace', timeout=1800,
+    )
+    if res.returncode != 0:
+        erro = [l for l in res.stderr.splitlines() if 'ERROR' in l] or res.stderr.splitlines()[-1:]
+        raise RuntimeError((erro[-1] if erro else 'yt-dlp falhou sem mensagem')[:500])
+
+    info_files = list(workdir.glob('audio*.info.json'))
+    info = json.loads(info_files[0].read_text()) if info_files else {}
+    audio = [p for p in workdir.glob('audio.*') if not p.name.endswith('.json')]
+    if not audio:
+        raise RuntimeError('yt-dlp terminou sem gerar arquivo de áudio')
+    return audio[0], info
+
+
+def _probe_duration(path: Path) -> float:
+    res = subprocess.run(
+        ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', str(path)],
+        capture_output=True, text=True, timeout=60,
+    )
+    try:
+        return float(res.stdout.strip())
+    except ValueError:
+        return 0.0
+
+
+def split_audio(audio: Path, workdir: Path) -> list[tuple[float, Path]]:
+    """Mono 16 kHz 32 kbps em pedaços de CHUNK_SECONDS. Devolve (início real, arquivo)."""
+    pattern = workdir / 'parte_%03d.mp3'
+    res = subprocess.run(
+        ['ffmpeg', '-v', 'error', '-y', '-i', str(audio), '-vn', '-ac', '1', '-ar', '16000',
+         '-b:a', '32k', '-f', 'segment', '-segment_time', str(CHUNK_SECONDS), str(pattern)],
+        capture_output=True, text=True, errors='replace', timeout=1800,
+    )
+    if res.returncode != 0:
+        raise RuntimeError(f'ffmpeg falhou: {res.stderr.strip()[-300:]}')
+
+    chunks, offset = [], 0.0
+    for part in sorted(workdir.glob('parte_*.mp3')):
+        chunks.append((offset, part))
+        offset += _probe_duration(part)  # soma a duração real, não CHUNK_SECONDS
+    if not chunks:
+        raise RuntimeError('ffmpeg não gerou nenhum pedaço de áudio')
+    return chunks
+
+
+def groq_transcribe(chunk: Path, api_key: str | None = None) -> list[dict]:
+    """Um pedaço no Groq Whisper. Multipart na mão: a chave fica só em memória,
+    nunca em argumento de processo (que aparece no `ps`)."""
+    api_key = api_key or load_groq_key()
+    if not api_key:
+        raise RuntimeError('GROQ_API_KEY ausente no ambiente e no .env do projeto')
+
+    boundary = uuid.uuid4().hex
+    fields = {'model': GROQ_MODEL, 'response_format': 'verbose_json', 'temperature': '0'}
+    body = b''
+    for name, value in fields.items():
+        body += (f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n'
+                 f'{value}\r\n').encode()
+    body += (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; '
+             f'filename="{chunk.name}"\r\nContent-Type: audio/mpeg\r\n\r\n').encode()
+    body += chunk.read_bytes() + f'\r\n--{boundary}--\r\n'.encode()
+
+    req = urllib.request.Request(GROQ_URL, data=body, method='POST', headers={
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': f'multipart/form-data; boundary={boundary}',
+        'User-Agent': USER_AGENT,
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=600) as resp:
+            payload = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode(errors='replace')[:300]
+        raise RuntimeError(f'Groq HTTP {e.code}: {detail}') from None
+
+    return [{'start': float(s['start']), 'end': float(s['end']), 'text': s['text']}
+            for s in payload.get('segments', [])]
+
+
+# ---------------------------------------------------------------- orquestração
+
+CLAIM_SQL = (
+    "UPDATE transcription_jobs SET status = 'downloading', progress_percent = 5, "
+    "error_message = NULL, updated_at = NOW() "
+    "WHERE id = (SELECT id FROM transcription_jobs WHERE status = 'pending' "
+    "ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED) "
+    "RETURNING id, source_url;"
+)
+
+# Worker que morreu no meio (Mac desligado, reboot) deixaria o job andando para
+# sempre na tela. Devolve como falha visível em vez de reprocessar às cegas.
+RELEASE_STUCK_SQL = (
+    "UPDATE transcription_jobs SET status = 'failed', "
+    "error_message = 'Interrompido: o worker do Mac parou no meio. Envie de novo.', "
+    "updated_at = NOW() WHERE status IN ('downloading', 'transcribing') "
+    f"AND updated_at < NOW() - INTERVAL '{STUCK_MINUTES} minutes';"
+)
+
+
+def _progress_sql(job_id: int, status: str, percent: int) -> str:
+    return (f"UPDATE transcription_jobs SET status = '{status}', progress_percent = {int(percent)}, "
+            f"updated_at = NOW() WHERE id = {int(job_id)};")
+
+
+def _done_sql(job_id: int, info: dict, text: str, srt: str) -> str:
+    title = (info.get('title') or '')[:500]
+    platform = (info.get('extractor_key') or info.get('extractor') or '')[:50]
+    duration = info.get('duration')
+    duration_sql = str(int(duration)) if isinstance(duration, (int, float)) else 'NULL'
+    return (
+        "UPDATE transcription_jobs SET status = 'done', progress_percent = 100, "
+        f"title = {dollar_quote(title)}, platform = {dollar_quote(platform)}, "
+        f"duration_seconds = {duration_sql}, "
+        f"transcript_text = {dollar_quote(text)}, transcript_srt = {dollar_quote(srt)}, "
+        f"error_message = NULL, updated_at = NOW() WHERE id = {int(job_id)};"
+    )
+
+
+def _failed_sql(job_id: int, message: str) -> str:
+    return (f"UPDATE transcription_jobs SET status = 'failed', "
+            f"error_message = {dollar_quote(message[:1000])}, updated_at = NOW() "
+            f"WHERE id = {int(job_id)};")
+
+
+def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
+                    download=download_audio, split=split_audio, transcribe=groq_transcribe) -> bool:
+    """Processa no máximo um job. Devolve True se pegou algum (concluído ou falho)."""
+    run_sql(RELEASE_STUCK_SQL)
+    row = (run_sql(CLAIM_SQL) or '').strip()
+    if not row:
+        return False
+
+    job_id_raw, url = row.splitlines()[0].split('\t', 1)
+    job_id = int(job_id_raw)
+    workdir = Path(tempfile.mkdtemp(prefix=f'transcricao_{job_id}_', dir=workdir_root))
+    try:
+        audio, info = download(url, workdir)
+        run_sql(_progress_sql(job_id, 'transcribing', 30))
+
+        chunks = split(audio, workdir)
+        results = []
+        for i, (offset, part) in enumerate(chunks, start=1):
+            results.append((offset, transcribe(part)))
+            run_sql(_progress_sql(job_id, 'transcribing', 30 + int(65 * i / len(chunks))))
+
+        segments = merge_chunks(results)
+        run_sql_stdin(_done_sql(job_id, info, segments_to_text(segments), segments_to_srt(segments)))
+    except Exception as e:  # qualquer falha vira mensagem legível na tela, nunca job preso
+        run_sql_stdin(_failed_sql(job_id, str(e) or e.__class__.__name__))
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+    return True

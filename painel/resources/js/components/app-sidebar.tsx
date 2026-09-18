@@ -40,7 +40,7 @@ const navItems: (NavItem & { badge?: string | number })[] = [
     { title: 'Canais Fonte', url: '/painel/canais-fonte', icon: RadioTowerIcon, badge: 32 },
     { title: 'Vídeos', url: '/painel/videos', icon: ClapperboardIcon, badge: '2620' },
     { title: 'Processar Vídeo', url: '/painel/processar-video', icon: LinkIcon },
-    { title: 'Transcrição Local', url: '/painel/transcricoes', icon: AudioLinesIcon },
+    { title: 'Transcrições', url: '/painel/transcricoes', icon: AudioLinesIcon },
     { title: 'Links Úteis', url: '/painel/links-uteis', icon: BookmarkIcon },
     { title: 'Documentação', url: '/painel/documentacao', icon: BookOpenIcon },
 ];
