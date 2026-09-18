@@ -44,6 +44,18 @@ _tw_spec = importlib.util.spec_from_file_location(
 transcription_worker = importlib.util.module_from_spec(_tw_spec)
 _tw_spec.loader.exec_module(transcription_worker)
 
+# API local da extensão "Transcrever esta aula" (só 127.0.0.1).
+_api_spec = importlib.util.spec_from_file_location(
+    'extensao_api', Path(__file__).resolve().parent / 'extensao_api.py',
+)
+extensao_api = importlib.util.module_from_spec(_api_spec)
+_api_spec.loader.exec_module(extensao_api)
+
+import threading
+
+# A extensão acorda o laço ao enfileirar: sem isso a aula esperaria até 60 s.
+WAKE = threading.Event()
+
 # VM A1 (Ashburn) desde 17/09/2026 — antes era a E2.1.Micro em São Paulo com MySQL.
 SSH_KEY = os.path.expanduser('~/.ssh/oracle-a1-2026-09-16.key')
 SSH_HOST = 'ubuntu@129.80.236.185'
@@ -444,17 +456,36 @@ def run_cycle():
     return 1
 
 
+def start_extensao_api(port: int = extensao_api.PORT):
+    """Sobe a API da extensão numa thread. Porta ocupada não derruba o worker:
+    o download do pipeline continua, só a extensão fica sem resposta."""
+    try:
+        server = extensao_api.make_server(
+            port=port, run_sql=run_remote_sql,
+            cookies_file=transcription_worker.COOKIES_FILE, wake=WAKE.set,
+        )
+    except OSError as e:
+        _log(f'API da extensão não subiu na porta {port}: {e}')
+        return None
+    threading.Thread(target=server.serve_forever, daemon=True, name='extensao-api').start()
+    _log(f'API da extensão ouvindo em 127.0.0.1:{server.server_address[1]}')
+    return server
+
+
 def main():
     lock_file = acquire_pid_lock()
     _log('=== LOCAL DOWNLOAD WORKER INICIADO ===')
     _log(f'Diretório temporário: {TEMP_DOWNLOAD_DIR}')
     _log(f'Destino remoto: {SSH_HOST}:{REMOTE_VIDEOS_DIR}')
-    
+    start_extensao_api()
+
     while True:
         try:
             count = run_cycle()
-            # Janela cheia ou nada pendente: espera mais antes de recontar.
-            time.sleep(60 if count == 0 else 5)
+            # Janela cheia ou nada pendente: espera mais antes de recontar —
+            # a não ser que a extensão acorde o laço com uma aula nova.
+            WAKE.wait(60 if count == 0 else 5)
+            WAKE.clear()
         except KeyboardInterrupt:
             _log('Worker encerrado pelo usuário.')
             break
