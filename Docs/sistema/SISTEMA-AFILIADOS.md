@@ -13,6 +13,27 @@ de verdade, então Ofertas e Performance abrem **vazias** até entrar a primeira
 responde `503 affiliate_api_not_configured`; sem `AFFILIATE_TELEGRAM_CHANNELS` a divulgação no
 Telegram não posta nada — as duas falham fechado.
 
+### Configuração (18/09/2026)
+
+| Variável | Onde | Estado |
+|---|---|---|
+| `AFFILIATE_API_TOKEN` | `painel/.env` do servidor **e** `affiliate-worker/.env` do Mac, **mesmo valor** | configurado. É uma senha nossa, não vem de fora: `openssl rand -hex 32`. Trocar = gerar outra e gravar nos dois |
+| `AFFILIATE_API_URL` | `affiliate-worker/.env` | `https://toolscut.alessandromelo.com.br` |
+| `AFFILIATE_TELEGRAM_CHANNELS` | `painel/.env` do servidor | **vazio** — falta o operador criar os canais |
+
+Para ligar a divulgação no Telegram:
+
+1. Crie um canal no Telegram por nicho (ex.: um de futebol, um de política).
+2. Em cada canal: Administradores → adicionar **@canalsuperbot** (o bot que o painel já usa) com
+   permissão de postar.
+3. Canal público: use o `@nome` dele. Canal privado: o id numérico (`-100…`) — o jeito simples é
+   encaminhar uma mensagem do canal para o **@userinfobot**, que responde o id.
+4. No `painel/.env` do servidor: `AFFILIATE_TELEGRAM_CHANNELS="futebol=@canal_futebol,politica=-1001234567890"`
+   e `artisan optimize:clear` no container `php`.
+
+O nicho da oferta precisa ser igual à chave (`futebol`, `politica`); nicho fora do mapa fica aprovado
+sem envio.
+
 ---
 
 ## Para o operador — como funciona, sem termos técnicos

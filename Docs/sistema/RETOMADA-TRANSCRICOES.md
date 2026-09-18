@@ -84,8 +84,8 @@ Testar `hotmart.com/pt-BR/club/formula-youtube/products/8093188/content/V4VKj9GV
 
 1. **Trocar a senha da conta da Asimov** — passou em texto puro pelo chat em 17/09. A extensão não
    depende dela. A conta está no nome de outra pessoa: conferir consentimento e termos de uso.
-2. ~~Deploy~~ feito em 18/09/2026. Falta apagar pelo painel as transcrições 1, 2 e 4 (falhas
-   antigas), a 3 e a 6 (testes).
+2. ~~Deploy~~ feito em 18/09/2026. Transcrições 1–4, 6 e 7 (falhas e testes) apagadas; backup em
+   `/mnt/videos/backups/manual/transcription_jobs-20260918.sql`. Fica só a 5 (aula da Asimov).
 3. **Cloudflare:** registro A de `toolscut` → `129.80.236.185` (o tráfego ainda passa pela Micro).
 4. ~~Correção de segurança do `/internal/pipeline-event`~~ feita em 18/09/2026 (falha fechado sem
    token, `hash_equals`); destravou o merge da `afiliadas-fase2`.
