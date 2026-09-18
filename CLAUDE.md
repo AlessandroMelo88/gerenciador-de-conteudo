@@ -22,8 +22,8 @@ merge na `master` → `git push origin master` → `./deploy.sh`. Use a skill `f
 atualizada, abrir branch com prefixo (`feature/`, `fix/`, `hotfix/`, `docs/`, `chore/`), commit
 convencional em português, merge com `--no-ff` e apagar a branch depois. Regras completas na skill
 `gitflow` (`.claude/skills/gitflow/SKILL.md`). Nunca commitar direto na `master`.
-A `master` tem tudo que está pronto, menos o que ainda está em desenvolvimento (hoje `afiliadas` e
-`afiliadas-fase2`). `deploy.sh` recusa deploy fora da `master`, com alteração não commitada ou com a
+A `master` tem tudo que está pronto. Afiliados (fase 2) entrou na `master` em 18/09/2026 e segue
+sendo desenvolvido por branches curtas a partir dela — não há mais branch de longa duração. `deploy.sh` recusa deploy fora da `master`, com alteração não commitada ou com a
 `master` diferente de `origin/master`, e grava `/home/ubuntu/canaldecortes/REVISION` (commit, branch,
 data). Conflito com o GitHub: a máquina local prevalece, com tag de backup antes do force push.
 O repositório é **público** — nunca commitar `.env`, chave, token ou `client_secret`. Detalhes em `DEPLOY.md`.

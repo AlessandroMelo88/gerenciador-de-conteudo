@@ -7,6 +7,12 @@ foi construído.
 Última atualização: **15/09/2026** — fase 2 (branch `afiliadas-fase2`): divulgação no Telegram, tela de
 performance e tema Umbrella Solutions.
 
+**Na master e em produção desde 18/09/2026.** Sem dado de exemplo: as telas leem a tabela `offers`
+de verdade, então Ofertas e Performance abrem **vazias** até entrar a primeira oferta (pelo worker, com
+`AFFILIATE_API_TOKEN` configurado no servidor, ou em **Nova oferta** no painel). Sem esse token a API
+responde `503 affiliate_api_not_configured`; sem `AFFILIATE_TELEGRAM_CHANNELS` a divulgação no
+Telegram não posta nada — as duas falham fechado.
+
 ---
 
 ## Para o operador — como funciona, sem termos técnicos

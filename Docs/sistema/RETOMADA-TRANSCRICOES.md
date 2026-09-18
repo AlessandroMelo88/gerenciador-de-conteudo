@@ -7,8 +7,8 @@ e dá para continuar sem o histórico da conversa.
 
 | | Commit | Observação |
 |---|---|---|
-| **Produção (A1)** = **`master`** | `8b95729` | deploy 18/09/2026 03:16 UTC: pausar/retomar/apagar, barra de %, login de curso, extensão, contadores dourados, **Baixar aula** |
-| `afiliadas-fase2` | `0a4b94d` | master de 17/09 já trazida; suíte 86/87 nos dois bancos; **merge suspenso** (ver pendência 4) |
+| **Produção (A1)** = **`master`** | ver `REVISION` | 18/09/2026: afiliadas fase 2 mesclada, manutenção no deploy, token do pipeline-event fail-closed, arquivo da aula apagado após transcrever |
+| `afiliadas-fase2` | — | **mesclada na master** em 18/09/2026; afiliados segue em branches curtas |
 
 Teste ponta a ponta em produção (18/09): job 6, short de 19 s, `done` com `aulas/6.mp4` (475.990 bytes)
 no Mac e na A1; rota sem login → 302, com login → 200 `me-at-the-zoo.mp4`. O job 6 pode ser apagado
@@ -87,10 +87,8 @@ Testar `hotmart.com/pt-BR/club/formula-youtube/products/8093188/content/V4VKj9GV
 2. ~~Deploy~~ feito em 18/09/2026. Falta apagar pelo painel as transcrições 1, 2 e 4 (falhas
    antigas), a 3 e a 6 (testes).
 3. **Cloudflare:** registro A de `toolscut` → `129.80.236.185` (o tráfego ainda passa pela Micro).
-4. **Correção de segurança** `fix/pipeline-event-token-fail-closed`: `/internal/pipeline-event`
-   aceita requisição sem token quando `CLIP_PROCESSOR_INTERNAL_TOKEN` está vazio (`null === null`).
-   Em produção o token existe. É a falha única da suíte da `afiliadas-fase2` e destrava o merge
-   dela. A sessão de afiliados combinou não abrir a branch sem liberação do operador.
+4. ~~Correção de segurança do `/internal/pipeline-event`~~ feita em 18/09/2026 (falha fechado sem
+   token, `hash_equals`); destravou o merge da `afiliadas-fase2`.
 5. Os contadores da barra lateral (`9`, `3`, `32`, `2620`) são **números fixos no código**
    (`app-sidebar.tsx`), não contagens reais. Decidir se passam a contar de verdade.
 
