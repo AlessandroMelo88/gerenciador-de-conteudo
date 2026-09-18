@@ -34,7 +34,7 @@ mais. O papel de "integração" é da própria `master`, que só recebe trabalho
 `fix/bug17-finaliza-video-rejeitado`, `feature/canais-mbl`, `hotfix/publisher-token-expirado`.
 Se houver bug no backlog, o número entra no nome.
 
-**Branch de longa duração** (hoje `afiliadas-fase2`): traz a `master` para dentro dela com frequência
+**Branch de longa duração** (hoje nenhuma; `afiliadas-fase2` entrou na master em 18/09/2026): traz a `master` para dentro dela com frequência
 (`git merge master`), senão o merge final vira um conflito só. Nunca o contrário.
 
 ## Ciclo de uma tarefa
@@ -96,6 +96,6 @@ Rodapé de autoria conforme as instruções da sessão.
 | Branch | Situação |
 |---|---|
 | `master` | produção, VM A1 com PostgreSQL |
-| `afiliadas-fase2` | sistema de afiliados, à frente da master; traz a master antes de fechar |
+| `afiliadas-fase2` | **mesclada** na master em 18/09/2026; afiliados segue em branches curtas |
 | `afiliadas` | **apagada** em 17/09/2026; backup na tag `backup/afiliadas-20260917` |
 | `feature/fontes-seguras-futebol`, `fix/pendencias-fontes-e-seletor`, `fix/bug17-…` | locais antigas; conferir se já estão na master e apagar |

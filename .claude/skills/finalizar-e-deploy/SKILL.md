@@ -10,7 +10,7 @@ passa pelo GitHub antes de chegar ao servidor. O `deploy.sh` bloqueia deploy for
 alteração não commitada ou com a `master` local diferente de `origin/master`.
 
 Repositório: `/Users/alessandrobm1/develop/server/wordpress/canaldecortes`.
-Branches em desenvolvimento que **não** entram na master até o usuário pedir: `afiliadas`, `afiliadas-fase2`.
+Não há branch de longa duração: `afiliadas-fase2` entrou na master em 18/09/2026.
 
 ## Passo a passo
 
@@ -24,7 +24,6 @@ git status --short --untracked-files=no
 ```
 
 - Se já estiver na `master`, perguntar qual branch finalizar.
-- Se a branch for `afiliadas` ou `afiliadas-fase2`, confirmar com o usuário antes de seguir.
 - Alteração não commitada: mostrar o `git status` e perguntar se commita junto. Nunca descartar.
 
 ### 2. Testes da branch
@@ -105,8 +104,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://toolscut.alessandromelo.com.br/
 ### 8. Relatório
 
 Uma tabela curta: branch finalizada, testes (contagem), commit na master, push, deploy, REVISION e
-status do painel. Lembrar que `afiliadas`/`afiliadas-fase2` precisam receber a master
-(`git merge master`) antes do merge delas.
+status do painel.
 
 ## Não fazer
 
