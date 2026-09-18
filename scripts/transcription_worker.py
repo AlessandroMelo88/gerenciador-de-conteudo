@@ -5,13 +5,15 @@ O painel grava um job `pending` em `transcription_jobs`; o `local_download_worke
 chama `process_one_job` a cada ciclo. Aqui:
 
 1. reivindica um job de forma atômica (FOR UPDATE SKIP LOCKED);
-2. baixa só o áudio com yt-dlp pelo IP residencial — qualquer site que o yt-dlp
+2. baixa a aula (vídeo até 720p) com yt-dlp pelo IP residencial — qualquer site que o yt-dlp
    aceite (YouTube, TikTok, Instagram, Vimeo...). No servidor o YouTube bloqueia
    IP de datacenter ("Sign in to confirm you're not a bot");
 3. converte para mono 16 kHz e corta em pedaços de 20 min (cabe no limite de
    25 MB da API);
 4. transcreve cada pedaço no Groq Whisper e remonta os timestamps;
-5. grava título, duração, plataforma, texto corrido e .srt **no banco** — é a
+5. guarda o arquivo da aula em `conteudo-cursos/aulas/<id>.<ext>`, no Mac e na
+   A1 (mesma árvore nos dois), para o botão "Baixar aula" do painel;
+6. grava título, duração, plataforma, texto corrido e .srt **no banco** — é a
    base de conhecimento, não um arquivo que se perde.
 
 Até 17/09/2026 isso rodava no servidor com whisper.cpp a 1× tempo real e batia
@@ -42,6 +44,15 @@ PARAGRAPH_GAP_SECONDS = 1.5  # pausa maior que isso abre parágrafo novo no text
 STUCK_MINUTES = 60           # job preso em andamento há mais que isso volta como falha
 
 PROJECT_ENV = Path(__file__).resolve().parent.parent / '.env'
+
+# Arquivo da aula. A mesma árvore existe no Mac (aqui) e na A1 (bind de
+# /mnt/videos/conteudo-cursos no container php): o disco `conteudo-cursos` do painel
+# aponta para as duas. Fora de public/ — é material pago, só sai por rota autenticada.
+LOCAL_CURSOS_DIR = Path(__file__).resolve().parent.parent / 'painel/storage/app/private/conteudo-cursos'
+
+# Vídeo até 720p basta para rever a aula e segura o tamanho (~1 GB por hora de aula).
+# Fonte só de áudio (podcast) cai no `b` e vem como áudio mesmo.
+MEDIA_FORMAT = 'bv*[height<=720]+ba/b[height<=720]/b'
 
 # Login de plataforma de curso (Hotmart, Asimov, Vimeo...). Arquivo Netscape
 # exportado pela extensão "Get cookies.txt LOCALLY" do Chrome. Fica só no Mac:
@@ -138,7 +149,7 @@ def load_groq_key(env_file: Path = PROJECT_ENV) -> str | None:
 # ---------------------------------------------------------------- etapas reais
 
 def yt_dlp_args(url: str, template, cookies_file: Path = COOKIES_FILE) -> list[str]:
-    """Linha de comando do yt-dlp para baixar só o áudio.
+    """Linha de comando do yt-dlp para baixar a aula (vídeo até 720p, em mp4).
 
     `generic:impersonate` se passa por Chrome (via curl_cffi) no extractor genérico,
     que é por onde entram as plataformas de curso — sem isso a Asimov devolve
@@ -148,7 +159,7 @@ def yt_dlp_args(url: str, template, cookies_file: Path = COOKIES_FILE) -> list[s
             # "download:" é o seletor de tipo do yt-dlp ([TIPO:]MODELO), não sai na
             # linha; o marcador literal é o PROGRESS_MARK.
             '--progress', '--progress-template', f'download:{PROGRESS_MARK} %(progress._percent_str)s',
-            '-f', 'bestaudio/best', '--write-info-json',
+            '-f', MEDIA_FORMAT, '--merge-output-format', 'mp4', '--write-info-json',
             '--extractor-args', 'generic:impersonate', '-o', str(template)]
     if Path(cookies_file).is_file():
         args += ['--cookies', str(cookies_file)]
@@ -177,13 +188,22 @@ def explain_error(message: str, cookies_file: Path = COOKIES_FILE) -> str:
             f'extensão "Get cookies.txt LOCALLY" e salve em {cookies_file}.')
 
 
-def download_audio(url: str, workdir: Path, on_progress=None) -> tuple[Path, dict]:
-    """Baixa só o áudio e os metadados. Levanta RuntimeError com a mensagem do yt-dlp.
+def _arquivo_baixado(workdir: Path) -> Path | None:
+    """O `aula.<ext>` final: ignora info.json, pedaço .part e as faixas separadas
+    (`aula.f137.mp4`) que o yt-dlp junta e apaga."""
+    for p in sorted(workdir.glob('aula.*')):
+        if p.name.count('.') == 1 and p.suffix not in ('.json', '.part', '.ytdl'):
+            return p
+    return None
+
+
+def download_media(url: str, workdir: Path, on_progress=None) -> tuple[Path, dict]:
+    """Baixa a aula e os metadados. Levanta RuntimeError com a mensagem do yt-dlp.
 
     `on_progress(percent)` recebe o avanço do download; se ele levantar (job pausado
     ou apagado), o yt-dlp é encerrado na hora.
     """
-    proc = subprocess.Popen(yt_dlp_args(url, workdir / 'audio.%(ext)s'), stdout=subprocess.PIPE,
+    proc = subprocess.Popen(yt_dlp_args(url, workdir / 'aula.%(ext)s'), stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, text=True, errors='replace')
     try:
         for line in proc.stdout:
@@ -201,12 +221,29 @@ def download_audio(url: str, workdir: Path, on_progress=None) -> tuple[Path, dic
         erro = [l for l in stderr.splitlines() if 'ERROR' in l] or stderr.splitlines()[-1:]
         raise RuntimeError(explain_error((erro[-1] if erro else 'yt-dlp falhou sem mensagem')[:500]))
 
-    info_files = list(workdir.glob('audio*.info.json'))
+    info_files = list(workdir.glob('aula*.info.json'))
     info = json.loads(info_files[0].read_text()) if info_files else {}
-    audio = [p for p in workdir.glob('audio.*') if not p.name.endswith('.json')]
-    if not audio:
-        raise RuntimeError('yt-dlp terminou sem gerar arquivo de áudio')
-    return audio[0], info
+    media = _arquivo_baixado(workdir)
+    if not media:
+        raise RuntimeError('yt-dlp terminou sem gerar o arquivo da aula')
+    return media, info
+
+
+def guardar_aula(job_id: int, media: Path, local_root: Path = LOCAL_CURSOS_DIR,
+                 upload=None) -> tuple[str, int]:
+    """Move o arquivo baixado para `conteudo-cursos/aulas/<id>.<ext>` no Mac e, com
+    `upload(arquivo, caminho_relativo)`, manda a mesma árvore para a A1.
+
+    Chave é o id do job, não o título: título tem acento, barra e muda; o nome
+    bonito sai na hora do download. Devolve (caminho relativo, bytes).
+    """
+    relativo = f'aulas/{int(job_id)}{media.suffix.lower()}'
+    destino = Path(local_root) / relativo
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(media), destino)
+    if upload:
+        upload(destino, relativo)
+    return relativo, destino.stat().st_size
 
 
 def _probe_duration(path: Path) -> float:
@@ -305,7 +342,9 @@ def _progress_sql(job_id: int, status: str, percent: int) -> str:
             f"AND status IN ('downloading', 'transcribing') RETURNING id;")
 
 
-def _done_sql(job_id: int, info: dict, text: str, srt: str) -> str:
+def _done_sql(job_id: int, info: dict, text: str, srt: str,
+             media_path: str | None = None, media_bytes: int | None = None,
+             aviso: str | None = None) -> str:
     title = (info.get('title') or '')[:500]
     platform = (info.get('extractor_key') or info.get('extractor') or '')[:50]
     duration = info.get('duration')
@@ -315,7 +354,10 @@ def _done_sql(job_id: int, info: dict, text: str, srt: str) -> str:
         f"title = {dollar_quote(title)}, platform = {dollar_quote(platform)}, "
         f"duration_seconds = {duration_sql}, "
         f"transcript_text = {dollar_quote(text)}, transcript_srt = {dollar_quote(srt)}, "
-        f"error_message = NULL, updated_at = NOW() WHERE id = {int(job_id)};"
+        f"media_path = {dollar_quote(media_path) if media_path else 'NULL'}, "
+        f"media_bytes = {int(media_bytes) if media_bytes else 'NULL'}, "
+        f"error_message = {dollar_quote(aviso[:1000]) if aviso else 'NULL'}, "
+        f"updated_at = NOW() WHERE id = {int(job_id)};"
     )
 
 
@@ -326,11 +368,12 @@ def _failed_sql(job_id: int, message: str) -> str:
 
 
 def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
-                    download=download_audio, split=split_audio, transcribe=groq_transcribe) -> bool:
+                    download=download_media, split=split_audio, transcribe=groq_transcribe,
+                    guardar=None) -> bool:
     """Processa no máximo um job. Devolve True se pegou algum (concluído, falho ou parado).
 
     Barra de progresso: 5 → 30 % no download (real, do yt-dlp), 30 → 95 % na
-    transcrição (por pedaço), 100 % ao gravar. Cada aviso também é a checagem de
+    transcrição (por pedaço), 95 % enquanto guarda o arquivo da aula, 100 % ao gravar. Cada aviso também é a checagem de
     pausa: se o painel pausou ou apagou, o job para ali sem gravar nada.
     """
     run_sql(RELEASE_STUCK_SQL)
@@ -353,18 +396,28 @@ def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
 
     workdir = Path(tempfile.mkdtemp(prefix=f'transcricao_{job_id}_', dir=workdir_root))
     try:
-        audio, info = download(url, workdir,
+        media, info = download(url, workdir,
                                on_progress=lambda p: avisa('downloading', 5 + p * 25 / 100))
         avisa('transcribing', 30, forcar=True)
 
-        chunks = split(audio, workdir)
+        chunks = split(media, workdir)
         results = []
         for i, (offset, part) in enumerate(chunks, start=1):
             results.append((offset, transcribe(part)))
             avisa('transcribing', 30 + 65 * i / len(chunks), forcar=True)
-
         segments = merge_chunks(results)
-        run_sql_stdin(_done_sql(job_id, info, segments_to_text(segments), segments_to_srt(segments)))
+
+        # O texto já custou download e Groq: arquivo que não subiu não derruba a
+        # transcrição, só fica sem o botão da aula e com o motivo na tela.
+        media_path = media_bytes = aviso = None
+        if guardar:
+            try:
+                media_path, media_bytes = guardar(job_id, media)
+            except Exception as e:
+                aviso = f'Transcrição salva, mas o arquivo da aula não foi guardado: {e}'
+
+        run_sql_stdin(_done_sql(job_id, info, segments_to_text(segments), segments_to_srt(segments),
+                                media_path, media_bytes, aviso))
     except Cancelado:
         pass  # pausado ou apagado no painel: o estado já é o que o operador escolheu
     except Exception as e:  # qualquer falha vira mensagem legível na tela, nunca job preso

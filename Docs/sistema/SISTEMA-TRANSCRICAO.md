@@ -74,7 +74,7 @@ guardado, com título, plataforma e duração, para ler e buscar quando quiser, 
 painel ── grava job 'pending' ──> transcription_jobs (Postgres, A1)
                                         │
 worker do Mac (a cada ciclo) ───────────┘ reivindica 1 job (FOR UPDATE SKIP LOCKED)
-   yt-dlp: só o áudio, pelo IP residencial
+   yt-dlp: a aula (vídeo até 720p), pelo IP residencial
    ffmpeg: mono 16 kHz, pedaços de 20 min
    Groq Whisper em cada pedaço, timestamps remontados
    grava título, plataforma, duração, texto e .srt ──> transcription_jobs
@@ -133,6 +133,41 @@ cookies.txt resolve.
 > aulas: `hotmart.com/pt-BR/club/formula-youtube/products/8093188/content/V4VKj9GVe2` e
 > `hub.asimov.academy/curso/atividade/masterclass-claude-code/`.
 
+### Baixar a aula (18/09/2026)
+
+Além do texto, o arquivo da aula fica guardado. Na lista e na tela da transcrição aparece o botão
+**Aula (tamanho)**, ao lado de `.md`, `.txt` e `.srt`, e o arquivo baixa com o título como nome.
+
+| | Onde |
+|---|---|
+| Pasta, no Mac e na A1 | `painel/storage/app/private/conteudo-cursos/` — **mesma árvore nos dois** |
+| Na A1, de verdade | `/mnt/videos/conteudo-cursos` (block volume), montado nessa pasta do container `php` |
+| Arquivo | `aulas/<id da transcrição>.mp4` — pela chave, nunca pelo título |
+| No banco | `transcription_jobs.media_path` (relativo) e `media_bytes` |
+| Qualidade | vídeo até **720p** em mp4 (~1 GB por hora); fonte só de áudio vem como áudio |
+
+```
+worker do Mac: yt-dlp baixa aula.mp4 ─> ffmpeg tira o áudio ─> Groq
+                     │
+                     └─> move para conteudo-cursos/aulas/<id>.mp4 (Mac)
+                         rsync para /mnt/videos/conteudo-cursos/aulas/<id>.mp4 (A1)
+painel: GET /painel/transcricoes/{id}/aula ─> disco `conteudo-cursos` ─> download
+```
+
+Por que fora de `public/`: é material pago. Em `public/` qualquer um com o link baixaria sem login;
+em `storage/app/private` só sai pela rota autenticada. A pasta de exemplo que estava em
+`painel/public/conteudo-cursos/` foi movida para cá em 18/09/2026.
+
+- **Apagar a transcrição apaga o arquivo** junto (no servidor). A cópia do Mac fica.
+- **Se o envio para a A1 falhar**, a transcrição é salva mesmo assim — o texto já custou download e
+  Groq — e a tela mostra o motivo; a transcrição só fica sem o botão da aula.
+- A pasta na A1 é `ubuntu:www-data`, modo `2775`: o worker grava como `ubuntu`, o painel apaga como
+  `www-data`, e para apagar basta escrita na pasta.
+- O `rsync` do macOS é o **openrsync**: não tem `--chmod`. O `mkdir -p` da pasta vai pelo
+  `--rsync-path`.
+- Mudança de volume no `docker-compose.yml` só vale com `docker compose up -d php`: o `deploy.sh`
+  roda `up -d --no-recreate`, que **não** recria o container.
+
 ### Pausar, retomar, apagar e a barra de progresso
 
 | Botão | Quando aparece | O que faz |
@@ -148,7 +183,8 @@ apagou, não volta linha, e o worker encerra o `yt-dlp` e para. Por isso um job 
 "ressuscitado" pelo worker.
 
 A barra: **5 → 30 %** durante o download (percentual real do `yt-dlp`), **30 → 95 %** ao longo dos
-pedaços de 20 min da transcrição, **100 %** ao gravar. Os avisos vão de 5 em 5 pontos, porque cada
+pedaços de 20 min da transcrição, fica em 95 % enquanto o arquivo da aula sobe para a A1, e
+**100 %** ao gravar. Os avisos vão de 5 em 5 pontos, porque cada
 um é uma ida ao servidor por ssh. Em vídeo curto a barra salta — o trabalho inteiro leva segundos.
 
 Armadilha encontrada: no `--progress-template` do `yt-dlp`, o `download:` do começo **não é texto

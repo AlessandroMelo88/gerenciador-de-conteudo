@@ -28,6 +28,9 @@ services:
       - ./youtube:/var/www/html/youtube
       - ./branding:/var/www/html/painel/storage/app/branding
       - ${VIDEOS_DIR:-/mnt/videos/videos}:/var/www/html/painel/storage/app/clips-videos:ro
+      # Arquivo da aula das transcrições (worker do Mac grava por rsync). Leitura e
+      # escrita: o painel apaga o arquivo junto com a transcrição.
+      - ${CURSOS_DIR:-/mnt/videos/conteudo-cursos}:/var/www/html/painel/storage/app/private/conteudo-cursos
     environment:
       PHP_MEMORY_LIMIT: 512M
       MAX_UPLOADS_PER_DAY: '5'

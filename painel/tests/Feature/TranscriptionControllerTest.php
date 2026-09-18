@@ -4,6 +4,7 @@ use App\Models\TranscriptionJob;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 uses(DatabaseTransactions::class);
 
@@ -190,4 +191,42 @@ it('apagar exige login', function () {
     $this->delete("/painel/transcricoes/{$job->id}")->assertRedirect();
 
     expect(TranscriptionJob::find($job->id))->not->toBeNull();
+});
+
+it('baixa o arquivo da aula com o título como nome', function () {
+    Storage::fake('conteudo-cursos');
+    Storage::disk('conteudo-cursos')->put('aulas/7.mp4', 'video');
+    $job = transcricaoPronta(['media_path' => 'aulas/7.mp4', 'media_bytes' => 5]);
+
+    $resposta = $this->actingAs(User::factory()->create())
+        ->get("/painel/transcricoes/{$job->id}/aula")
+        ->assertOk();
+
+    expect($resposta->headers->get('content-disposition'))->toContain('aula-de-funil.mp4');
+});
+
+it('aula sem arquivo é 404', function () {
+    Storage::fake('conteudo-cursos');
+    $semArquivo = transcricaoPronta();
+    $arquivoSumiu = transcricaoPronta(['media_path' => 'aulas/99.mp4']);
+
+    $this->actingAs(User::factory()->create());
+    $this->get("/painel/transcricoes/{$semArquivo->id}/aula")->assertNotFound();
+    $this->get("/painel/transcricoes/{$arquivoSumiu->id}/aula")->assertNotFound();
+});
+
+it('baixar a aula exige login', function () {
+    $job = transcricaoPronta(['media_path' => 'aulas/7.mp4']);
+
+    $this->get("/painel/transcricoes/{$job->id}/aula")->assertRedirect();
+});
+
+it('apagar a transcrição apaga o arquivo da aula junto', function () {
+    Storage::fake('conteudo-cursos');
+    Storage::disk('conteudo-cursos')->put('aulas/8.mp4', 'video');
+    $job = transcricaoPronta(['media_path' => 'aulas/8.mp4']);
+
+    $this->actingAs(User::factory()->create())->delete("/painel/transcricoes/{$job->id}");
+
+    Storage::disk('conteudo-cursos')->assertMissing('aulas/8.mp4');
 });

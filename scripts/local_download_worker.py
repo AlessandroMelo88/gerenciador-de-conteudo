@@ -61,6 +61,10 @@ SSH_KEY = os.path.expanduser('~/.ssh/oracle-a1-2026-09-16.key')
 SSH_HOST = 'ubuntu@129.80.236.185'
 # Block volume de 150 GB; o clip-processor enxerga como /app/videos.
 REMOTE_VIDEOS_DIR = '/mnt/videos/videos'
+# Arquivo da aula das transcrições: bind no container php em
+# painel/storage/app/private/conteudo-cursos (docker-compose.yml). Grupo www-data
+# com setgid, para o painel conseguir apagar junto com a transcrição.
+REMOTE_CURSOS_DIR = '/mnt/videos/conteudo-cursos'
 TEMP_DOWNLOAD_DIR = Path('/tmp/gdc_downloads')
 TEMP_DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 PID_FILE = Path('/tmp/local_download_worker.pid')
@@ -145,11 +149,34 @@ def run_remote_sql_stdin(sql: str) -> bool:
     return True
 
 
+def upload_aula(local_file: Path, relativo: str) -> None:
+    """Manda o arquivo da aula para a mesma árvore na A1. Levanta RuntimeError se falhar.
+
+    `mkdir -p` pelo --rsync-path porque `aulas/` pode não existir ainda. A pasta
+    nasce 2775 (grupo www-data herdado por setgid): o painel apaga o arquivo junto
+    com a transcrição, e para apagar basta escrita na pasta. Sem --chmod: o rsync
+    do macOS é o openrsync, que não tem essa opção.
+    """
+    remoto = f'{REMOTE_CURSOS_DIR}/{relativo}'
+    pasta = remoto.rsplit('/', 1)[0]
+    cmd = ['rsync', '-e', f'ssh -o StrictHostKeyChecking=no -i {SSH_KEY}', '-z', '--partial',
+           f'--rsync-path=mkdir -m 2775 -p {pasta} && rsync',
+           str(local_file), f'{SSH_HOST}:{remoto}']
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError('envio para o servidor passou de 1 h') from None
+    if res.returncode != 0:
+        raise RuntimeError(f'rsync falhou: {res.stderr.strip()[-300:]}')
+
+
 def process_transcription() -> bool:
     """Um job de transcrição, se houver. Nunca derruba o ciclo de download."""
     try:
         return transcription_worker.process_one_job(
             run_sql=run_remote_sql, run_sql_stdin=run_remote_sql_stdin,
+            guardar=lambda job_id, media: transcription_worker.guardar_aula(
+                job_id, media, upload=upload_aula),
         )
     except Exception as e:
         _log(f'Erro na transcrição: {e}')
