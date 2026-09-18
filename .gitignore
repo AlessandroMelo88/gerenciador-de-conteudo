@@ -69,3 +69,9 @@ painel/public/storage
 
 # graphify
 graphify-out/cost.json
+
+# Material de curso (privado, nunca no repositório público). Mora em
+# painel/storage/app/private/conteudo-cursos — mesma árvore no Mac e na A1
+# (/mnt/videos/conteudo-cursos), servida só por rota autenticada.
+painel/public/conteudo-cursos/
+painel/storage/app/private/conteudo-cursos/

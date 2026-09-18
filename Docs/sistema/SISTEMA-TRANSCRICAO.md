@@ -1,17 +1,17 @@
 # Transcrição
 
-Duas transcrições **independentes** convivem no mesmo container e não se falam:
+Duas transcrições **independentes**, que não se falam:
 
-| | Pipeline principal | Transcrição Local |
+| | Pipeline principal | Transcrições (base de conhecimento) |
 |---|---|---|
-| Módulo | [`transcriber.py`](../clip-processor/src/transcriber.py) | [`transcription_job.py`](../clip-processor/src/transcription_job.py) |
-| Motor | Groq Whisper API (`whisper-large-v3-turbo`) | whisper.cpp local, modelo `ggml-small` |
-| Custo | cota da API Groq | zero |
-| Entrada | `.mp4` já baixado pelo pipeline | URL colada pelo operador no painel |
-| Saída | `<id>_transcript.json` + `source_videos.transcript_path` | `.srt` + tabela `transcription_jobs` |
+| Módulo | [`transcriber.py`](../clip-processor/src/transcriber.py) | [`scripts/transcription_worker.py`](../scripts/transcription_worker.py) |
+| Onde roda | container `clip-processor`, na A1 | **worker do Mac** (`local_download_worker`) |
+| Motor | Groq Whisper API (`whisper-large-v3-turbo`) | o mesmo |
+| Entrada | `.mp4` já baixado pelo pipeline | link colado pelo operador no painel, de qualquer site do `yt-dlp` |
+| Saída | `<id>_transcript.json` + `source_videos.transcript_path` | texto, `.srt` e metadados **no banco** (`transcription_jobs`) |
 | Toca `source_videos`/`generated_clips`? | sim | **não** |
 
-Verificado no código em **13/08/2026**.
+Verificado no código em **17/09/2026**.
 
 ---
 
@@ -64,7 +64,169 @@ toca, e ele é pequeno (KB, não MB).
 
 ---
 
-## Transcrição Local — whisper.cpp
+## Transcrições — base de conhecimento (17/09/2026)
+
+Para quem usa: cole no painel (**Transcrições**) o link de um vídeo ou áudio. O texto fica
+guardado, com título, plataforma e duração, para ler e buscar quando quiser, e sai em `.md`
+(com cabeçalho, pronto para colar em outra IA), `.txt` (texto corrido) ou `.srt` (legenda).
+
+```
+painel ── grava job 'pending' ──> transcription_jobs (Postgres, A1)
+                                        │
+worker do Mac (a cada ciclo) ───────────┘ reivindica 1 job (FOR UPDATE SKIP LOCKED)
+   yt-dlp: só o áudio, pelo IP residencial (vídeo só com TRANSCRICAO_GUARDAR_AULA=1)
+   ffmpeg: mono 16 kHz, pedaços de 20 min
+   Groq Whisper em cada pedaço, timestamps remontados
+   grava título, plataforma, duração, texto e .srt ──> transcription_jobs
+```
+
+### Por que no Mac
+
+Até 17/09/2026 a tela rodava no servidor, com whisper.cpp, e quebrava de dois jeitos:
+
+| Erro na tela | Causa | Como ficou |
+|---|---|---|
+| `yt-dlp ... returned non-zero exit status 1` | YouTube barra IP de datacenter: `Sign in to confirm you're not a bot` | download pelo IP residencial do Mac |
+| `whisper-cli ... timed out after 1800 seconds` | whisper.cpp na A1 roda a **1× tempo real** (medido: 60 s de áudio em 55 s) e o teto de 3 pedaços deixava cada pedaço de um vídeo de 112 min com ~37 min | Groq, que leva segundos; pedaço por tamanho (20 min), não por contagem |
+
+Medido no Mac depois da mudança: short do YouTube de 48 s em **4,8 s**, TikTok de 24 s em **3,8 s**,
+do link ao texto.
+
+### O que entra e o que não entra
+
+| Fonte | Situação |
+|---|---|
+| YouTube, Shorts, TikTok | funciona sem nada |
+| Instagram (Reels) | depende do post: parte exige login |
+| Vimeo | exige login desde 2026 (`The web client only works when logged-in`) |
+| Hotmart, Asimov e outras plataformas de curso | exigem login — ver abaixo |
+
+### Sites com login — cookies.txt (Fase 2, 18/09/2026)
+
+O worker passa `--cookies` ao `yt-dlp` quando existe o arquivo
+**`~/.config/canaldecortes/cookies.txt`** (ou o caminho em `TRANSCRICAO_COOKIES`).
+
+Para quem usa, uma vez por site e de novo quando o login expirar:
+
+1. Entre no site do curso pelo Chrome, como sempre.
+2. Com a extensão **Get cookies.txt LOCALLY**, exporte os cookies daquele site.
+3. Salve (ou junte ao que já existe) em `~/.config/canaldecortes/cookies.txt`.
+
+Quando o site pede login e o arquivo não existe, a mensagem de erro na tela diz exatamente isso e
+onde salvar; quando o arquivo existe mas não bastou, diz que o login provavelmente expirou.
+
+Por que arquivo e não `--cookies-from-browser`: este lê o Chrome direto, mas abre a caixa do
+chaveiro do macOS pedindo a senha do Mac **a cada execução** — trava o worker, e em 17/09/2026
+empilhou caixas até travar a máquina.
+
+O arquivo é sessão logada: fica **só no Mac**, fora do repositório público (que é o que o `.env`
+já faz) e nunca vai ao servidor.
+
+**Impersonação.** O `yt-dlp` roda sempre com `--extractor-args generic:impersonate` e a biblioteca
+`curl_cffi` instalada no Python dele (`python3.13 -m pip install --break-system-packages curl_cffi`,
+o mesmo jeito que o `yt-dlp` está instalado). Sem isso a Asimov devolve `HTTP 403` do Cloudflare
+anti-bot antes de chegar no login; com isso, ela passa a redirecionar para `/login/`, que é o que o
+cookies.txt resolve.
+
+> **Não confirmado ainda:** se o player do Hotmart e o da Asimov entregam o áudio depois do login.
+> Alguns players usam DRM, e aí nem com login o `yt-dlp` baixa. O teste de aceitação são as duas
+> aulas: `hotmart.com/pt-BR/club/formula-youtube/products/8093188/content/V4VKj9GVe2` e
+> `hub.asimov.academy/curso/atividade/masterclass-claude-code/`.
+
+### O arquivo baixado é apagado depois da transcrição (18/09/2026)
+
+**Padrão: só o texto fica.** O worker baixa só o áudio, transcreve e, **depois** de gravar o texto
+no banco, apaga a pasta temporária inteira (no sucesso, na falha e na pausa). Nada é apagado antes
+de a transcrição terminar. Decisão do operador em 18/09/2026.
+
+### Baixar a aula — opcional, desligado
+
+Com `TRANSCRICAO_GUARDAR_AULA=1` no `.env` do projeto (no Mac), o worker baixa a aula em vídeo e
+a guarda antes de apagar o temporário. Aí aparece no painel o botão **Aula (tamanho)**, ao lado de
+`.md`, `.txt` e `.srt`, e o arquivo baixa com o título como nome. Desligado, o botão não aparece
+(não há `media_path`). O resto desta seção vale para quando está ligado.
+
+| | Onde |
+|---|---|
+| Pasta, no Mac e na A1 | `painel/storage/app/private/conteudo-cursos/` — **mesma árvore nos dois** |
+| Na A1, de verdade | `/mnt/videos/conteudo-cursos` (block volume), montado nessa pasta do container `php` |
+| Arquivo | `aulas/<id da transcrição>.mp4` — pela chave, nunca pelo título |
+| No banco | `transcription_jobs.media_path` (relativo) e `media_bytes` |
+| Qualidade | vídeo até **720p** em mp4 (~1 GB por hora); fonte só de áudio vem como áudio |
+
+```
+worker do Mac: yt-dlp baixa aula.mp4 ─> ffmpeg tira o áudio ─> Groq
+                     │
+                     └─> move para conteudo-cursos/aulas/<id>.mp4 (Mac)
+                         rsync para /mnt/videos/conteudo-cursos/aulas/<id>.mp4 (A1)
+painel: GET /painel/transcricoes/{id}/aula ─> disco `conteudo-cursos` ─> download
+```
+
+Por que fora de `public/`: é material pago. Em `public/` qualquer um com o link baixaria sem login;
+em `storage/app/private` só sai pela rota autenticada. A pasta de exemplo que estava em
+`painel/public/conteudo-cursos/` foi movida para cá em 18/09/2026.
+
+- **Apagar a transcrição apaga o arquivo** junto (no servidor). A cópia do Mac fica.
+- **Se o envio para a A1 falhar**, a transcrição é salva mesmo assim — o texto já custou download e
+  Groq — e a tela mostra o motivo; a transcrição só fica sem o botão da aula.
+- A pasta na A1 é `ubuntu:www-data`, modo `2775`: o worker grava como `ubuntu`, o painel apaga como
+  `www-data`, e para apagar basta escrita na pasta.
+- O `rsync` do macOS é o **openrsync**: não tem `--chmod`. O `mkdir -p` da pasta vai pelo
+  `--rsync-path`.
+- Mudança de volume no `docker-compose.yml` só vale com `docker compose up -d php`: o `deploy.sh`
+  roda `up -d --no-recreate`, que **não** recria o container.
+
+### Pausar, retomar, apagar e a barra de progresso
+
+| Botão | Quando aparece | O que faz |
+|---|---|---|
+| Pausar | na fila ou andando | marca `paused`; o worker para no próximo aviso de progresso, sem gravar nada |
+| Retomar | pausada | volta para a fila **do zero** (download pela metade não é guardado) |
+| Tentar de novo | falhou | igual a retomar |
+| Apagar | sempre, com confirmação | apaga do banco; se estiver andando, o worker para no próximo passo |
+
+Pausar e apagar funcionam pelo mesmo mecanismo: todo aviso de progresso do worker é um
+`UPDATE ... WHERE status IN ('downloading','transcribing') RETURNING id`. Se o painel pausou ou
+apagou, não volta linha, e o worker encerra o `yt-dlp` e para. Por isso um job pausado nunca é
+"ressuscitado" pelo worker.
+
+A barra: **5 → 30 %** durante o download (percentual real do `yt-dlp`), **30 → 95 %** ao longo dos
+pedaços de 20 min da transcrição, fica em 95 % enquanto o arquivo da aula sobe para a A1 (se ligado), e
+**100 %** ao gravar. Os avisos vão de 5 em 5 pontos, porque cada
+um é uma ida ao servidor por ssh. Em vídeo curto a barra salta — o trabalho inteiro leva segundos.
+
+Armadilha encontrada: no `--progress-template` do `yt-dlp`, o `download:` do começo **não é texto
+impresso**, é o seletor de tipo (`[TIPO:]MODELO`). O marcador literal da linha é `[progresso]`.
+
+### Detalhes que importam
+
+- **Mac precisa estar ligado.** Com ele desligado o job fica `pending` na tela.
+- **Job interrompido** (Mac desligou no meio) volta como `failed` depois de 60 min, com mensagem
+  pedindo para enviar de novo — nunca fica andando para sempre. Job `paused` não entra nessa conta.
+- **O worker roda o código da pasta do projeto**, qualquer que seja a branch aberta nela: o
+  launchd aponta para `scripts/local_download_worker.py` no working tree.
+- **Gravação por stdin do ssh**, não por argumento: transcrição de 1 h passa de 100 KB, e argumento
+  único no Linux trava em 128 KB. O texto vai em literal `$tag$...$tag$` com tag aleatória
+  conferida contra o conteúdo.
+- **Chave do Groq** vem do ambiente ou do `.env` do projeto; a chamada é `urllib` puro, então a
+  chave nunca aparece em argumento de processo. O `User-Agent` é próprio: o Cloudflare do Groq
+  recusa o padrão do urllib com `HTTP 403 error code: 1010`.
+- **Transcrição tem prioridade** sobre o download do pipeline no ciclo do worker: é pedido do
+  operador, com ele esperando na tela.
+- A lista não carrega o texto inteiro, só os 300 primeiros caracteres; o texto completo abre em
+  `/painel/transcricoes/{id}`. Busca em título, link e texto, sem diferenciar maiúscula.
+
+Testes: `scripts/test_transcription_worker.py`, `scripts/test_local_download_worker.py` e
+`painel/tests/Feature/TranscriptionControllerTest.php`.
+
+---
+
+## Transcrição Local — whisper.cpp (desativada em 17/09/2026)
+
+**Nada mais chama este caminho**: o painel parou de usar `POST /internal/transcribe`. O código e o
+modelo continuam na imagem do `clip-processor`; a descrição abaixo fica como registro.
+Jobs antigos continuam baixando o `.srt` do disco pelo `srt_path`.
+
 
 Feature isolada, adicionada pelo commit `59c21c5` (30/07/2026). O operador cola uma URL no painel
 (`/painel/transcricoes`), o sidecar chama `POST /internal/transcribe`

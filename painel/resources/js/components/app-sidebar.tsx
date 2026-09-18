@@ -37,6 +37,11 @@ type NavItem = {
     external?: boolean;
 };
 
+// Dourado escuro: #b8860b no tema escuro (4,7:1 sobre o bg-muted) e um tom mais
+// fechado no claro, onde o #b8860b cairia para 3,0:1 e ficaria ilegível.
+const BADGE_CLASSES =
+    'font-mono text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md bg-muted text-[#8a6508] dark:text-[#b8860b]';
+
 type SidebarItem = NavItem & { badge?: string | number };
 
 const clipItems: SidebarItem[] = [
@@ -46,7 +51,7 @@ const clipItems: SidebarItem[] = [
     { title: 'Canais Fonte', url: '/painel/canais-fonte', icon: RadioTowerIcon, badge: 32 },
     { title: 'Vídeos', url: '/painel/videos', icon: ClapperboardIcon, badge: '2620' },
     { title: 'Processar Vídeo', url: '/painel/processar-video', icon: LinkIcon },
-    { title: 'Transcrição Local', url: '/painel/transcricoes', icon: AudioLinesIcon },
+    { title: 'Transcrições', url: '/painel/transcricoes', icon: AudioLinesIcon },
     { title: 'Links Úteis', url: '/painel/links-uteis', icon: BookmarkIcon },
     { title: 'Documentação', url: '/painel/documentacao', icon: BookOpenIcon },
 ];
@@ -131,7 +136,7 @@ export function AppSidebar({
                                         <item.icon className="size-4.5 mr-2" />
                                         <span className="flex-1">{item.title}</span>
                                         {item.badge && (
-                                            <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                            <span className={BADGE_CLASSES}>
                                                 {item.badge}
                                             </span>
                                         )}
@@ -141,7 +146,7 @@ export function AppSidebar({
                                         <item.icon className="size-4.5 mr-2" />
                                         <span className="flex-1">{item.title}</span>
                                         {item.badge && (
-                                            <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                            <span className={BADGE_CLASSES}>
                                                 {item.badge}
                                             </span>
                                         )}

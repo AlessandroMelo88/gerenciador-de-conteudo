@@ -11,6 +11,7 @@ Fluxo:
 6. Notifica o servidor para rodar transcrição Whisper + IA + cortes.
 """
 
+import functools
 import json
 import os
 import shlex
@@ -37,11 +38,34 @@ _fair_spec.loader.exec_module(_fair)
 channel_cap = _fair.channel_cap
 fair_pick = _fair.fair_pick
 
+# Transcrição multiplataforma (painel → transcription_jobs → este worker).
+_tw_spec = importlib.util.spec_from_file_location(
+    'transcription_worker', Path(__file__).resolve().parent / 'transcription_worker.py',
+)
+transcription_worker = importlib.util.module_from_spec(_tw_spec)
+_tw_spec.loader.exec_module(transcription_worker)
+
+# API local da extensão "Transcrever esta aula" (só 127.0.0.1).
+_api_spec = importlib.util.spec_from_file_location(
+    'extensao_api', Path(__file__).resolve().parent / 'extensao_api.py',
+)
+extensao_api = importlib.util.module_from_spec(_api_spec)
+_api_spec.loader.exec_module(extensao_api)
+
+import threading
+
+# A extensão acorda o laço ao enfileirar: sem isso a aula esperaria até 60 s.
+WAKE = threading.Event()
+
 # VM A1 (Ashburn) desde 17/09/2026 — antes era a E2.1.Micro em São Paulo com MySQL.
 SSH_KEY = os.path.expanduser('~/.ssh/oracle-a1-2026-09-16.key')
 SSH_HOST = 'ubuntu@129.80.236.185'
 # Block volume de 150 GB; o clip-processor enxerga como /app/videos.
 REMOTE_VIDEOS_DIR = '/mnt/videos/videos'
+# Arquivo da aula das transcrições: bind no container php em
+# painel/storage/app/private/conteudo-cursos (docker-compose.yml). Grupo www-data
+# com setgid, para o painel conseguir apagar junto com a transcrição.
+REMOTE_CURSOS_DIR = '/mnt/videos/conteudo-cursos'
 TEMP_DOWNLOAD_DIR = Path('/tmp/gdc_downloads')
 TEMP_DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 PID_FILE = Path('/tmp/local_download_worker.pid')
@@ -99,6 +123,76 @@ def run_remote_sql(query: str) -> str:
     except subprocess.TimeoutExpired:
         _log('Timeout ao executar query SQL remota')
         return ''
+
+
+def run_remote_sql_stdin(sql: str) -> bool:
+    """Executa SQL mandado pelo stdin do ssh, não como argumento.
+
+    Para gravação de texto grande (transcrição de 1 h passa de 100 KB): argumento
+    único no Linux trava em 128 KB. Mesma resolução de senha no servidor que
+    `run_remote_sql`. ON_ERROR_STOP faz erro de SQL virar código de saída.
+    """
+    remote = (
+        "P=$(grep -m1 '^POSTGRES_PASSWORD=' " + REMOTE_ENV + " | cut -d= -f2- | tr -d '\"'); "
+        'docker exec -i -e PGPASSWORD="$P" postgres psql -U clips_user -d clips_automation '
+        '-q -v ON_ERROR_STOP=1 -f -'
+    )
+    cmd = ['ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-i', SSH_KEY,
+           SSH_HOST, remote]
+    try:
+        res = subprocess.run(cmd, input=sql, capture_output=True, text=True, errors='replace', timeout=120)
+    except subprocess.TimeoutExpired:
+        _log('Timeout ao gravar SQL remoto pelo stdin')
+        return False
+    if res.returncode != 0:
+        _log(f'Falha ao gravar SQL remoto: {res.stderr.strip()[:300]}')
+        return False
+    return True
+
+
+def upload_aula(local_file: Path, relativo: str) -> None:
+    """Manda o arquivo da aula para a mesma árvore na A1. Levanta RuntimeError se falhar.
+
+    `mkdir -p` pelo --rsync-path porque `aulas/` pode não existir ainda. A pasta
+    nasce 2775 (grupo www-data herdado por setgid): o painel apaga o arquivo junto
+    com a transcrição, e para apagar basta escrita na pasta. Sem --chmod: o rsync
+    do macOS é o openrsync, que não tem essa opção.
+    """
+    remoto = f'{REMOTE_CURSOS_DIR}/{relativo}'
+    pasta = remoto.rsplit('/', 1)[0]
+    cmd = ['rsync', '-e', f'ssh -o StrictHostKeyChecking=no -i {SSH_KEY}', '-z', '--partial',
+           f'--rsync-path=mkdir -m 2775 -p {pasta} && rsync',
+           str(local_file), f'{SSH_HOST}:{remoto}']
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError('envio para o servidor passou de 1 h') from None
+    if res.returncode != 0:
+        raise RuntimeError(f'rsync falhou: {res.stderr.strip()[-300:]}')
+
+
+def _guardar_aula_kwargs() -> dict:
+    """Por padrão o arquivo baixado some depois da transcrição (só o texto fica).
+    Com TRANSCRICAO_GUARDAR_AULA=1, baixa em vídeo e guarda no Mac e na A1."""
+    if not transcription_worker.guardar_aula_ligado():
+        return {}
+    return {
+        'download': functools.partial(transcription_worker.download_media, video=True),
+        'guardar': lambda job_id, media: transcription_worker.guardar_aula(
+            job_id, media, upload=upload_aula),
+    }
+
+
+def process_transcription() -> bool:
+    """Um job de transcrição, se houver. Nunca derruba o ciclo de download."""
+    try:
+        return transcription_worker.process_one_job(
+            run_sql=run_remote_sql, run_sql_stdin=run_remote_sql_stdin,
+            **_guardar_aula_kwargs(),
+        )
+    except Exception as e:
+        _log(f'Erro na transcrição: {e}')
+        return False
 
 
 def run_remote_cmd(cmd_str: str) -> bool:
@@ -387,9 +481,13 @@ def process_single_video(video: dict):
 
 
 def run_cycle():
+    # Transcrição primeiro: é pedido seu, com você esperando na tela. O download
+    # do pipeline é de fundo e aguenta um ciclo de atraso.
+    transcreveu = process_transcription()
+
     videos = fetch_pending_videos()
     if not videos:
-        return 0
+        return 1 if transcreveu else 0
 
     _log(f'Encontrados {len(videos)} vídeo(s) pendente(s) de download.')
     # Só o primeiro: a janela é recontada no próximo ciclo, depois que ele entrou.
@@ -397,17 +495,36 @@ def run_cycle():
     return 1
 
 
+def start_extensao_api(port: int = extensao_api.PORT):
+    """Sobe a API da extensão numa thread. Porta ocupada não derruba o worker:
+    o download do pipeline continua, só a extensão fica sem resposta."""
+    try:
+        server = extensao_api.make_server(
+            port=port, run_sql=run_remote_sql,
+            cookies_file=transcription_worker.COOKIES_FILE, wake=WAKE.set,
+        )
+    except OSError as e:
+        _log(f'API da extensão não subiu na porta {port}: {e}')
+        return None
+    threading.Thread(target=server.serve_forever, daemon=True, name='extensao-api').start()
+    _log(f'API da extensão ouvindo em 127.0.0.1:{server.server_address[1]}')
+    return server
+
+
 def main():
     lock_file = acquire_pid_lock()
     _log('=== LOCAL DOWNLOAD WORKER INICIADO ===')
     _log(f'Diretório temporário: {TEMP_DOWNLOAD_DIR}')
     _log(f'Destino remoto: {SSH_HOST}:{REMOTE_VIDEOS_DIR}')
-    
+    start_extensao_api()
+
     while True:
         try:
             count = run_cycle()
-            # Janela cheia ou nada pendente: espera mais antes de recontar.
-            time.sleep(60 if count == 0 else 5)
+            # Janela cheia ou nada pendente: espera mais antes de recontar —
+            # a não ser que a extensão acorde o laço com uma aula nova.
+            WAKE.wait(60 if count == 0 else 5)
+            WAKE.clear()
         except KeyboardInterrupt:
             _log('Worker encerrado pelo usuário.')
             break

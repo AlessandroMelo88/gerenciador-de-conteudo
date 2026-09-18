@@ -59,9 +59,11 @@ class TelegramWebhookController extends Controller
 
     public function pipelineEvent(Request $request): \Illuminate\Http\JsonResponse
     {
-        // Auth: mesmo X-Internal-Token do ClipProcessorClient (Phase 8)
-        $token = config('services.clip_processor.token');
-        if ($request->header('X-Internal-Token') !== $token) {
+        // Auth: mesmo X-Internal-Token do ClipProcessorClient (Phase 8).
+        // Falha fechado: token não configurado recusa tudo — antes, env vazio e
+        // requisição sem header davam `null === null` e passavam.
+        $token = (string) config('services.clip_processor.token');
+        if ($token === '' || ! hash_equals($token, (string) $request->header('X-Internal-Token'))) {
             return response()->json(['error' => 'unauthorized'], 401);
         }
 

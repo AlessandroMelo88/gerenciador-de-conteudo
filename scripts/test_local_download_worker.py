@@ -153,6 +153,7 @@ def test_falha_na_contagem_nao_baixa_nada(monkeypatch, windows):
 
 
 def test_ciclo_processa_um_video_por_vez(monkeypatch):
+    monkeypatch.setattr(worker, 'process_transcription', lambda: False)
     monkeypatch.setattr(worker, 'fetch_pending_videos',
                         lambda: [{'id': 1}, {'id': 2}, {'id': 3}])
     processed = []
@@ -160,3 +161,46 @@ def test_ciclo_processa_um_video_por_vez(monkeypatch):
 
     assert worker.run_cycle() == 1
     assert processed == [{'id': 1}]
+
+
+def test_ciclo_transcreve_antes_de_baixar(monkeypatch):
+    ordem = []
+    monkeypatch.setattr(worker, 'process_transcription', lambda: ordem.append('transcricao') or True)
+    monkeypatch.setattr(worker, 'fetch_pending_videos', lambda: ordem.append('download') or [])
+
+    assert worker.run_cycle() == 1, 'ciclo com transcrição conta como trabalho feito'
+    assert ordem == ['transcricao', 'download']
+
+
+def test_erro_na_transcricao_nao_derruba_o_ciclo(monkeypatch):
+    def quebra(**_):
+        raise RuntimeError('ssh caiu')
+    monkeypatch.setattr(worker.transcription_worker, 'process_one_job', quebra)
+
+    assert worker.process_transcription() is False
+
+
+def test_porta_ocupada_nao_derruba_o_worker():
+    import socket
+    ocupada = socket.socket()
+    ocupada.bind(('127.0.0.1', 0))
+    ocupada.listen()
+    try:
+        assert worker.start_extensao_api(port=ocupada.getsockname()[1]) is None
+    finally:
+        ocupada.close()
+
+
+class TestGuardarAula:
+    def test_por_padrao_nao_guarda_nem_baixa_video(self, monkeypatch):
+        monkeypatch.setattr(worker.transcription_worker, 'guardar_aula_ligado', lambda: False)
+
+        assert worker._guardar_aula_kwargs() == {}
+
+    def test_ligado_baixa_video_e_guarda_no_mac_e_na_a1(self, monkeypatch):
+        monkeypatch.setattr(worker.transcription_worker, 'guardar_aula_ligado', lambda: True)
+
+        kwargs = worker._guardar_aula_kwargs()
+
+        assert kwargs['download'].keywords == {'video': True}
+        assert callable(kwargs['guardar'])
