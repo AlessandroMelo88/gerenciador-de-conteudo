@@ -61,6 +61,24 @@ Se você adicionou novas dependências no `requirements.txt` do Python ou novos 
 
 ---
 
+## 🔧 Modo manutenção durante o deploy (18/09/2026)
+
+Do rsync até o restart do `php`, o painel fica em `artisan down`: quem abrir vê **"Atualizando o
+painel"** (503, recarrega sozinha a cada 15 s) em vez de uma página quebrada no meio da troca de
+arquivos. São os ~20 s do deploy.
+
+| Continua atendido na manutenção | Por quê |
+|---|---|
+| `/internal/*` (evento do pipeline) | o `clip-processor` não pode perder aviso de clip |
+| `/telegramcanal` (webhook) | o Telegram não reenvia para sempre |
+| `/o/*` (link rastreável de afiliado) | clique perdido é venda perdida |
+
+- As funções `entrar_manutencao` e `sair_manutencao` ficam no `deploy.sh`; um `trap` no `EXIT`
+  tira o painel da manutenção **mesmo se o deploy falhar no meio**.
+- Se o SSH cair e o painel ficar preso em 503: `./deploy.sh --sair-manutencao`.
+- Falhar ao **entrar** na manutenção não bloqueia o deploy — só avisa.
+- A página é `painel/resources/views/errors/503.blade.php`; as exceções, `bootstrap/app.php`.
+
 ## 🔍 O que o script `./deploy.sh` faz por você
 
 1. **Compilação Local do Vite (`painel/`)**: Gera os bundles otimizados de produção no seu computador, poupando a CPU da VPS na nuvem.

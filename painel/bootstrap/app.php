@@ -18,6 +18,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'telegramcanal',
             'internal/pipeline-event',
         ]);
+        // Durante o deploy (`artisan down`) o painel mostra a página de manutenção,
+        // mas evento do pipeline, webhook do Telegram e link rastreável seguem
+        // atendidos — perder um deles custa mais que os segundos de deploy.
+        $middleware->preventRequestsDuringMaintenance(except: [
+            'internal/*',
+            'telegramcanal',
+            'o/*',
+        ]);
         $middleware->web(append: [
             HandleInertiaRequests::class,
         ]);
