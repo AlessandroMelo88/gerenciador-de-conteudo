@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Link, usePage } from '@inertiajs/react';
 
 import { NavUser } from '@/components/nav-user';
+import { WorkspaceSwitcher, type Workspace } from '@/components/workspace-switcher';
 import {
     Sidebar,
     SidebarContent,
@@ -14,6 +15,7 @@ import {
 } from '@/components/ui/sidebar';
 import {
     AudioLinesIcon,
+    BadgeDollarSignIcon,
     ClapperboardIcon,
     LayoutDashboardIcon,
     LinkIcon,
@@ -23,6 +25,8 @@ import {
     SparklesIcon,
     BotIcon,
     BookmarkIcon,
+    ChartColumnIcon,
+    HandCoinsIcon,
 } from 'lucide-react';
 
 type NavItem = {
@@ -38,7 +42,9 @@ type NavItem = {
 const BADGE_CLASSES =
     'font-mono text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md bg-muted text-[#8a6508] dark:text-[#b8860b]';
 
-const navItems: (NavItem & { badge?: string | number })[] = [
+type SidebarItem = NavItem & { badge?: string | number };
+
+const clipItems: SidebarItem[] = [
     { title: 'Dashboard', url: '/painel', icon: LayoutDashboardIcon, badge: 9 },
     { title: 'Assistente IA', url: '/painel/assistente', icon: BotIcon, badge: 'LLaMA' },
     { title: 'Canais Destino', url: '/painel/canais-destino', icon: TvIcon, badge: 3 },
@@ -50,11 +56,56 @@ const navItems: (NavItem & { badge?: string | number })[] = [
     { title: 'Documentação', url: '/painel/documentacao', icon: BookOpenIcon },
 ];
 
+const affiliateItems: SidebarItem[] = [
+    { title: 'Ofertas', url: '/painel/ofertas', icon: BadgeDollarSignIcon },
+    { title: 'Performance', url: '/painel/ofertas/performance', icon: ChartColumnIcon },
+];
+
+const WORKSPACES: (Workspace & { items: SidebarItem[]; matches: (path: string) => boolean })[] = [
+    { key: 'clipes', name: 'Canal de Cortes', tagline: 'Pipeline de clipes', home: '/painel', items: clipItems, matches: () => true },
+    {
+        key: 'afiliados',
+        name: 'Afiliados',
+        tagline: 'Pipeline de afiliados',
+        home: '/painel/ofertas',
+        icon: HandCoinsIcon,
+        gradient: 'linear-gradient(160deg, #34D399, #059669)',
+        items: affiliateItems,
+        matches: (path) => path.startsWith('/painel/ofertas'),
+    },
+];
+
+const WORKSPACE_KEY = 'painel.workspace';
+
+/** Área da página atual; páginas comuns (Configurações) mantêm a última área usada. */
+function resolveWorkspace(path: string) {
+    const clipes = WORKSPACES[0];
+    const specific = WORKSPACES.find((w) => w !== clipes && w.matches(path));
+    const isShared = path.startsWith('/painel/configuracoes');
+
+    if (isShared) {
+        try {
+            return WORKSPACES.find((w) => w.key === window.localStorage.getItem(WORKSPACE_KEY)) ?? clipes;
+        } catch {
+            return clipes;
+        }
+    }
+
+    const active = specific ?? clipes;
+    try {
+        window.localStorage.setItem(WORKSPACE_KEY, active.key);
+    } catch {
+        // storage bloqueado: só perde a lembrança da área nas páginas comuns
+    }
+    return active;
+}
+
 export function AppSidebar({
     user,
     ...props
 }: React.ComponentProps<typeof Sidebar> & { user: { name: string; email: string } | null }) {
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    const workspace = resolveWorkspace(currentPath);
     const { props: pageProps } = usePage<{
         workers?: { downloader: string; transcriber: string; cutter: string };
     }>();
@@ -68,28 +119,11 @@ export function AppSidebar({
     return (
         <Sidebar collapsible="icon" {...props}>
             <SidebarHeader>
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
-                            <Link href="/painel">
-                                <div
-                                    className="flex aspect-square size-9 items-center justify-center rounded-xl text-white shadow-sm"
-                                    style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)' }}
-                                >
-                                    <ClapperboardIcon className="size-4.5" />
-                                </div>
-                                <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-display font-bold text-foreground">Canal de Cortes</span>
-                                    <span className="truncate text-xs text-muted-foreground">Pipeline de clipes</span>
-                                </div>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
+                <WorkspaceSwitcher workspaces={WORKSPACES} active={workspace} />
             </SidebarHeader>
             <SidebarContent>
                 <SidebarMenu className="px-2 gap-1">
-                    {navItems.map((item) => (
+                    {workspace.items.map((item) => (
                         <SidebarMenuItem key={item.url}>
                             <SidebarMenuButton
                                 asChild
@@ -124,7 +158,8 @@ export function AppSidebar({
                 </SidebarMenu>
             </SidebarContent>
             <SidebarFooter className="p-3 flex flex-col gap-2">
-                {/* Workers Status Box (Dinâmico) */}
+                {/* Workers Status Box (Dinâmico) — só na área de clipes */}
+                {workspace.key === 'clipes' && (
                 <div className="rounded-xl border border-border bg-card/60 p-3 flex flex-col gap-2 text-xs">
                     <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                         <span>Workers</span>
@@ -148,6 +183,7 @@ export function AppSidebar({
                         <span className="font-mono text-[10.5px] text-muted-foreground">{workers.cutter}</span>
                     </div>
                 </div>
+                )}
                 <NavUser user={user} />
             </SidebarFooter>
             <SidebarRail />

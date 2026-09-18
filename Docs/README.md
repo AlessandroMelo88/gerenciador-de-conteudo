@@ -38,6 +38,7 @@ Contém as especificações operacionais e de engenharia de todos os componentes
 * [`Docs/sistema/CI-CD.md`](sistema/CI-CD.md) — Deploy automático diário: opções (launchd no Mac, cron na A1, GitHub Actions), recomendação e a trava que impede reiniciar no meio de um corte. **Só desenho, nada implementado.**
 * [`Docs/sistema/MIGRACAO-A1.md`](sistema/MIGRACAO-A1.md) — **Produção atual (17/09/2026):** VM A1 + PostgreSQL, rollback, backup e pendências da migração.
 * [`Docs/sistema/PLANO-MESTRE.md`](sistema/PLANO-MESTRE.md) — **Comece por aqui para retomar trabalho.** Advertência de direitos autorais, gate de licença, migração para A1 12 GB + PostgreSQL, marca Umbrella Solutions, afiliados e ordem de execução.
+* [`Docs/sistema/SISTEMA-AFILIADOS.md`](sistema/SISTEMA-AFILIADOS.md) — Ofertas de afiliado: worker local, API com token, aprovação no painel, link rastreável `/o/{slug}`, divulgação automática no Telegram, tela de performance e tema Umbrella Solutions.
 * [`Docs/sistema/RETOMADA-SESSAO-CRON.md`](sistema/RETOMADA-SESSAO-CRON.md) — Agendamento noturno e retomada da sessão Claude Code pós-limite de uso.
 
 ---

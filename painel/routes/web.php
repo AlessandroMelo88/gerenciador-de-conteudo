@@ -6,6 +6,10 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DestinationChannelController;
 use App\Http\Controllers\DocumentationController;
 use App\Http\Controllers\NicheController;
+use App\Http\Controllers\OfferController;
+use App\Http\Controllers\OfferPerformanceController;
+use App\Http\Controllers\OfferRedirectController;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Controllers\ProcessVideoController;
 use App\Http\Controllers\SourceChannelController;
 use App\Http\Controllers\SettingsController;
@@ -108,6 +112,14 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/painel/assistente', [AssistantController::class, 'index'])->name('assistant.index');
     Route::post('/painel/assistente/chat', [AssistantController::class, 'chat'])->name('assistant.chat');
 
+    Route::get('/painel/ofertas/performance', [OfferPerformanceController::class, 'index'])->name('offers.performance');
+    Route::get('/painel/ofertas', [OfferController::class, 'index'])->name('offers.index');
+    Route::post('/painel/ofertas', [OfferController::class, 'store'])->name('offers.store');
+    Route::post('/painel/ofertas/gerar-copy', [OfferController::class, 'generateCopy'])
+        ->middleware('throttle:20,1')->name('offers.generate-copy');
+    Route::put('/painel/ofertas/{offer}', [OfferController::class, 'update'])->name('offers.update');
+    Route::delete('/painel/ofertas/{offer}', [OfferController::class, 'destroy'])->name('offers.destroy');
+
     Route::get('/painel/links-uteis', [UsefulLinksController::class, 'index'])->name('useful-links.index');
     Route::get('/painel/documentacao', [DocumentationController::class, 'show'])->name('documentation.show');
 
@@ -126,3 +138,18 @@ Route::get('/', fn () => redirect(auth()->check() ? '/painel' : '/login'));
 // CSRF excluído para ambas em bootstrap/app.php (Plan 09-01).
 Route::post('/telegramcanal', [TelegramWebhookController::class, 'handle']);
 Route::post('/internal/pipeline-event', [TelegramWebhookController::class, 'pipelineEvent']);
+
+// Afiliados: link público rastreável (sem login). Sem sessão/cookies/Inertia —
+// é só log de clique + 302, não precisa do peso do grupo web.
+Route::get('/o/{slug}', OfferRedirectController::class)
+    ->where('slug', '[A-Za-z0-9]{1,64}')
+    ->middleware('throttle:120,1')
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        HandleInertiaRequests::class,
+    ])
+    ->name('offers.redirect');
