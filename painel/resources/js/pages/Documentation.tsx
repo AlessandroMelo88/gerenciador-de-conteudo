@@ -302,7 +302,7 @@ export default function Documentation() {
                             {/* 8. PROCESSAR VÍDEO & TRANSCRIÇÃO */}
                             <AccordionItem value="processar-video" className="border border-border/80 rounded-xl px-4 bg-card/40 shadow-2xs">
                                 <AccordionTrigger className="font-semibold text-foreground text-sm hover:text-primary">
-                                    ⚡ Processar Vídeo Manual & Transcrição Local
+                                    ⚡ Processar Vídeo Manual & Transcrições
                                 </AccordionTrigger>
                                 <AccordionContent>
                                     <div className="prose prose-sm prose-invert max-w-none space-y-2 pt-2 text-xs md:text-[13px] leading-relaxed text-muted-foreground">
@@ -314,7 +314,7 @@ export default function Documentation() {
                                                 <strong>Processar Vídeo:</strong> Permite colar qualquer link do YouTube e escolher se o corte deve ser curto (Shorts 9:16) ou longo (16:9), entrando imediatamente no fluxo de download e corte por IA.
                                             </li>
                                             <li>
-                                                <strong>Transcrição Local:</strong> Permite fazer upload de arquivos de áudio/vídeo para transcrição automática com whisper local, com visualização do texto e exportação de legendas (.SRT ou .JSON).
+                                                <strong>Transcrições:</strong> base de conhecimento. Cole o link de um vídeo ou áudio (YouTube, TikTok, Instagram, Vimeo e outros); o worker do Mac baixa e transcreve pelo Groq, e o texto fica guardado para ler, buscar e baixar em .md, .txt ou .srt.
                                             </li>
                                         </ul>
                                     </div>

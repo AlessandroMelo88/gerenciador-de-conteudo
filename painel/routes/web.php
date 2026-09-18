@@ -98,7 +98,8 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/painel/transcricoes', [TranscriptionController::class, 'index'])->name('transcriptions.index');
     Route::post('/painel/transcricoes', [TranscriptionController::class, 'store']);
-    Route::get('/painel/transcricoes/{job}/download', [TranscriptionController::class, 'download'])->name('transcriptions.download');
+    Route::get('/painel/transcricoes/{job}', [TranscriptionController::class, 'show'])->name('transcriptions.show');
+    Route::get('/painel/transcricoes/{job}/download/{formato?}', [TranscriptionController::class, 'download'])->name('transcriptions.download');
 
     Route::get('/painel/assistente', [AssistantController::class, 'index'])->name('assistant.index');
     Route::post('/painel/assistente/chat', [AssistantController::class, 'chat'])->name('assistant.chat');
