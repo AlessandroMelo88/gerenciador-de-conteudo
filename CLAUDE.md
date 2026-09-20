@@ -1,5 +1,8 @@
 # Canal de Cortes — instruções de trabalho
 
+**Antes de qualquer coisa, leia `Docs/ESTADO-DO-PROJETO.md`** — onde estamos, o que está em
+aberto e para onde vamos. Atualize-o ao terminar cada rodada.
+
 **Comece por `Docs/README.md`** — é o índice: estado atual, backlog de bugs com status, plano de
 migração para a Oracle e referência de cada serviço. Toda conversa nova abre por ali; status de
 tarefa mora nesses arquivos, não no histórico de conversa.
