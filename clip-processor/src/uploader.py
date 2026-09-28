@@ -345,9 +345,12 @@ class YouTubeUploader:
             )
             items = response.get('items', [])
             if not items:
-                raise RuntimeError(
-                    f'YouTube não encontrou o vídeo {video_id} durante o processamento'
-                )
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(
+                        f'YouTube não encontrou o vídeo {video_id} durante o processamento'
+                    )
+                time.sleep(min(poll_seconds, max(deadline - time.monotonic(), 0.1)))
+                continue
 
             processing_status = (items[0].get('processingDetails') or {}).get('processingStatus')
             if processing_status == 'succeeded':
@@ -492,5 +495,17 @@ class YouTubeUploader:
         if tags is None:
             return []
         if isinstance(tags, str):
-            return [tag.strip() for tag in tags.split(',') if tag.strip()]
-        return [str(tag).strip() for tag in tags if str(tag).strip()]
+            raw_tags = [tag.strip() for tag in tags.split(',') if tag.strip()]
+        else:
+            raw_tags = [str(tag).strip() for tag in tags if str(tag).strip()]
+        valid_tags = []
+        total_len = 0
+        for tag in raw_tags:
+            cleaned = tag.replace('<', '').replace('>', '').strip()
+            if not cleaned:
+                continue
+            if total_len + len(cleaned) + 1 > 400:
+                break
+            valid_tags.append(cleaned)
+            total_len += len(cleaned) + 1
+        return valid_tags

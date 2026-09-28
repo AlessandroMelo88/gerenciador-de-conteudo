@@ -199,7 +199,7 @@ services:
 
   clip-publisher:
     <<: *clip-runtime
-    command: ["python", "-m", "src.worker", "--stage", "publish"]
+    command: ["python", "-m", "src.worker", "--stage", "publish", "--interval", "30"]
 
   clip-maintenance:
     <<: *clip-runtime

@@ -128,13 +128,17 @@ LONG_SYSTEM_PROMPT = (
 )
 
 HACKER_LIBERTARIO_PROMPT = (
-    'Você é um especialista em identificar momentos virais, insights profundos e explicações técnicas de alto impacto em vídeos sobre '
-    'Inteligência Artificial (IA), Open Source, Linux, Programação, Segurança, Soberania Digital e Filosofia Hacker Libertária (como conteúdos de Fábio Akita, Diolinux, debates tech e cultura hacker). '
+    'Você é um especialista em identificar momentos virais, insights profundos e explicações técnicas de alto impacto para o canal Hacker Libertário: '
+    'Inteligência Artificial (IA), Open Source, Linux, Programação, Segurança, Criptografia, Privacidade, Soberania Digital e Cultura Hacker Libertária. '
     'Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, '
     'com duração EXATA de 30 segundos (end_time - start_time = 30). Se o vídeo tiver menos de 30 segundos, '
     'selecione o vídeo completo e marque-o para descarte na validação técnica. '
     + CONTENT_SELECTION_RULES
-    + 'Priorize: explicações técnicas brilhantes, reflexões sobre liberdade/privacidade digital, analogias marcantes sobre computação/IA, e conselhos diretos de carreira/tecnologia. '
+    + 'DIRETRIZES LIBERTÁRIAS E EDITORIAIS INEGOCIÁVEIS: '
+    '1. O ESTADO NUNCA DEVE SER DEFENDIDO: rejeite qualquer trecho que defenda, elogie, justifique ou legitime o Estado, impostos, regulação estatal, censura ou coerção governamental. Trechos sobre regulação ou vigilância só são válidos se forem de denúncia crítica e apresentarem alternativas de defesa individual por meio de tecnologia e criptografia. '
+    '2. ZERO MENÇÃO A POLÍTICOS E FUNCIONÁRIOS PÚBLICOS: nenhum político (de qualquer partido) ou funcionário público/agente estatal deve ser sequer mencionado pelo nome ou colocado em evidência. Se houver politicagem ou debate partidário, descarte imediatamente. O foco é 100% nas ideias, ferramentas, tecnologia, privacidade e liberdade individual. '
+    '3. GANCHO VIRAL IMEDIATO (0 A 3s): o corte deve começar no auge da afirmação de impacto ou pergunta provocativa; nunca comece com saudações, enrolação ou pausas. '
+    'Priorize: explicações técnicas brilhantes, reflexões sobre soberania e privacidade digital, analogias marcantes sobre computação/IA e quebra de mitos. '
     + FACT_CHECK_INSTRUCTION
     + DUPLICATE_AVOIDANCE_RULE
     + SELECTION_VALIDATION_RULES
@@ -146,13 +150,16 @@ HACKER_LIBERTARIO_PROMPT = (
 
 HACKER_LIBERTARIO_LONG_PROMPT = (
     'Você é um especialista em identificar o melhor segmento de ANÁLISE técnica ou ENTREVISTA '
-    'de um vídeo sobre Tecnologia, Inteligência Artificial, Linux, Open Source ou Filosofia Hacker '
+    'para o canal Hacker Libertário sobre Tecnologia, Inteligência Artificial, Linux, Open Source, Cibersegurança ou Filosofia Hacker '
     'para virar um vídeo único no YouTube (não um short). '
     'Analise a transcrição e identifique O MELHOR segmento CONTÍNUO — não fragmente em vários '
     'pedaços — com duração de PREFERÊNCIA ENTRE 420 e 1200 segundos (7 a 20 minutos). '
     'Priorize um raciocínio completo: uma explicação aprofundada de um conceito de IA/sistemas, '
     'uma reflexão densa sobre soberania tecnológica, ou um debate técnico do início ao fim. '
     + CONTENT_SELECTION_RULES
+    + 'DIRETRIZES LIBERTÁRIAS E EDITORIAIS INEGOCIÁVEIS: '
+    '1. O Estado nunca deve ser defendido nem legitimado em nenhuma regulação ou intervenção. '
+    '2. Nenhum político ou funcionário público deve ser mencionado pelo nome ou colocado em debate. O canal trata de tecnologia, ideias e liberdade individual, nunca de politicagem. '
     + FACT_CHECK_INSTRUCTION
     + DUPLICATE_AVOIDANCE_RULE
     + SELECTION_VALIDATION_RULES
@@ -309,7 +316,7 @@ _INCOMPLETE_TRAILING_WORDS = frozenset(
 )
 
 MIN_LONGFORM_SECONDS = 420
-MAX_LONGFORM_SECONDS = 1200
+MAX_LONGFORM_SECONDS = 800
 
 # O modelo precisa de alguma folga para não começar no meio da introdução do
 # assunto nem terminar na primeira frase da conclusão. A expansão é limitada
@@ -1155,13 +1162,23 @@ def select_moments(
         _log('[SELECTOR] ANTHROPIC_API_KEY ausente — usando Groq GPT-OSS diretamente')
 
     try:
-        return _finalize(
-            _select_via_groq(
-                transcript_text,
-                system_prompt,
-                max_tokens=selector_max_tokens,
-            )
+        moments = _select_via_groq(
+            transcript_text,
+            system_prompt,
+            max_tokens=selector_max_tokens,
         )
+        if not moments and is_longo and transcript_duration >= 420:
+            _log('[SELECTOR] Fallback longo ativado: usando bloco principal contínuo do vídeo')
+            start = 30.0 if transcript_duration > 600 else 10.0
+            end = min(transcript_duration - 10.0, start + 780.0)
+            if end - start >= 420:
+                moments = [{
+                    'start_time': start,
+                    'end_time': end,
+                    'score': 8,
+                    'reason': 'Recorte contínuo do tema principal do vídeo',
+                }]
+        return _finalize(moments)
     except Exception as e:
         _log(f'Erro ao selecionar momentos: {e}')
         return []

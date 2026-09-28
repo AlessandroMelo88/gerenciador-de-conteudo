@@ -41,8 +41,13 @@ cria/atualiza três perfis idempotentes:
 | Slug | Nicho canônico | Foco |
 |---|---|---|
 | `futebol` | `futebol` | futebol brasileiro/internacional e esporte |
-| `conteudo-inteligencia` | `hacker-libertario` | IA, tecnologia, Linux, Open Source, segurança e soberania digital |
+| `conteudo-inteligencia` | `hacker-libertario` | IA, tecnologia, Linux, Open Source, cibersegurança, criptografia e soberania digital libertária (anti-estatista, zero menções a políticos) |
 | `podcast` | `podcast` | entrevistas, histórias, opiniões e debates |
+
+> **Diretrizes Libertárias do Perfil `conteudo-inteligencia`:**
+> 1. **O Estado nunca deve ser defendido:** Rejeita qualquer defesa, elogio ou legitimação de tributação, regulação estatal, censura ou intervenção estatal. Trechos sobre regulação ou vigilância só são aceitos quando a abordagem for crítica e apontar soluções de defesa individual por meio de tecnologia e criptografia.
+> 2. **Zero menções a políticos ou funcionários públicos:** Proibição absoluta de citar nomes de políticos (de qualquer partido) ou burocratas/agentes estatais no título, descrição, tags ou recortes. O foco é 100% nas ideias, ferramentas, tecnologia, privacidade e liberdade individual.
+> 3. **Gancho viral imediato (0 a 3s):** O corte começa no auge da afirmação de impacto, eliminando saudações e pausas.
 
 Cada perfil possui cinco campos de prompt: `selection_short_prompt`, `selection_long_prompt`,
 `metadata_short_prompt`, `metadata_long_prompt` e `thumbnail_prompt`. Para criar outro nicho em

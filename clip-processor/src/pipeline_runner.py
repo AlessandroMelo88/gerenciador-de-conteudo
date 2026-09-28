@@ -37,7 +37,7 @@ PIPELINE_LOCK_TIMEOUT_SECONDS = int(os.environ.get('PIPELINE_LOCK_TIMEOUT_SECOND
 PUBLISH_LOCK_TIMEOUT_SECONDS = int(os.environ.get('PUBLISH_LOCK_TIMEOUT_SECONDS', 7200))
 
 # Janela de frescor (em dias) para considerar vídeos na fila de download automático.
-FRESHNESS_DAYS = int(os.environ.get('FRESHNESS_DAYS', 365))
+FRESHNESS_DAYS = int(os.environ.get('FRESHNESS_DAYS', 1500))
 
 
 def _select_pending_videos(db_conn) -> list:
@@ -75,7 +75,7 @@ def _select_pending_videos(db_conn) -> list:
             cur.execute(
                 'SELECT youtube_video_id FROM source_videos '
                 "WHERE status = 'pending' AND paused = FALSE AND format = %s "
-                'AND DATE(published_at) >= %s '
+                'AND DATE(COALESCE(published_at, created_at)) >= %s '
                 'ORDER BY EXISTS ('
                 '  SELECT 1 FROM generated_clips gc '
                 '  WHERE gc.source_video_id = source_videos.id '
@@ -83,7 +83,7 @@ def _select_pending_videos(db_conn) -> list:
                 ') DESC, '
                 'priority DESC, '
                 'queue_position IS NULL, queue_position ASC, '
-                'published_at DESC LIMIT %s',
+                'COALESCE(published_at, created_at) DESC LIMIT %s',
                 (fmt, cutoff_date, deficit),
             )
             result.extend(row['youtube_video_id'] for row in cur.fetchall())

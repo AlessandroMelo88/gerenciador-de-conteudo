@@ -149,7 +149,7 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
             'AND gc.destination_channel_id = %s '
             'AND gc.clip_path IS NOT NULL '
             'AND gc.title IS NOT NULL '
-            'ORDER BY gc.created_at ASC',
+            "ORDER BY (sv.format = 'longo') DESC, gc.created_at ASC",
             (_publishable_status(), destination_channel_id),
         )
         clips = cur.fetchall() or []
@@ -157,24 +157,28 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
 
 
 def _round_robin_by_source_channel(clips: list[dict]) -> list[dict]:
-    """Reordena clips (já em ordem created_at ASC) intercalando por source_channel_id,
-    preservando a ordem relativa dentro de cada canal."""
-    queues: dict = {}
-    order: list = []
-    for clip in clips:
-        key = clip.get('source_channel_id')
-        if key not in queues:
-            queues[key] = []
-            order.append(key)
-        queues[key].append(clip)
+    """Reordena clips intercalando por source_channel_id, priorizando longos."""
+    longo_clips = [c for c in clips if (c.get('format') or 'curto') == 'longo']
+    curto_clips = [c for c in clips if (c.get('format') or 'curto') != 'longo']
 
-    result = []
-    while order:
-        for key in list(order):
-            result.append(queues[key].pop(0))
-            if not queues[key]:
-                order.remove(key)
-    return result
+    def _rr(subset: list[dict]) -> list[dict]:
+        queues: dict = {}
+        order: list = []
+        for clip in subset:
+            key = clip.get('source_channel_id')
+            if key not in queues:
+                queues[key] = []
+                order.append(key)
+            queues[key].append(clip)
+        result = []
+        while order:
+            for key in list(order):
+                result.append(queues[key].pop(0))
+                if not queues[key]:
+                    order.remove(key)
+        return result
+
+    return _rr(longo_clips) + _rr(curto_clips)
 
 
 def _has_longo_waiting(clips: list[dict]) -> bool:
@@ -363,7 +367,7 @@ def _fetch_pending_clips(conn) -> list[dict]:
             'WHERE gc.status = %s '
             'AND gc.clip_path IS NOT NULL '
             'AND gc.title IS NOT NULL '
-            'ORDER BY gc.created_at ASC',
+            "ORDER BY (sv.format = 'longo') DESC, gc.created_at ASC",
             (_publishable_status(),),
         )
         return cur.fetchall()

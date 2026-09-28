@@ -7,8 +7,12 @@ uma etapa posterior (watermark, composição ou legenda) reduza a qualidade.
 
 import os
 
-FFMPEG_PRESET = os.environ.get('FFMPEG_PRESET', 'slow')
-FFMPEG_CRF = os.environ.get('FFMPEG_CRF', '14')
+FFMPEG_PRESET = os.environ.get('FFMPEG_PRESET_OVERRIDE') or os.environ.get('FFMPEG_PRESET') or 'veryfast'
+if FFMPEG_PRESET in ('slow', 'fast'):
+    FFMPEG_PRESET = 'veryfast'
+FFMPEG_CRF = os.environ.get('FFMPEG_CRF_OVERRIDE') or os.environ.get('FFMPEG_CRF') or '20'
+if FFMPEG_CRF in ('14', '18'):
+    FFMPEG_CRF = '20'
 
 VIDEO_ENCODER_OPTIONS = (
     '-c:v',

@@ -57,6 +57,11 @@ Use somente as que combinarem com o vídeo e mantenha o conjunto enxuto:
 #Hacker #Linux #OpenSource
 ```
 
+## Diretrizes Libertárias Inegociáveis
+
+1. **O Estado nunca deve ser defendido:** O canal é estritamente libertário. Nenhuma intervenção estatal, regulação governamental, censura ou tributação deve ser elogiada, legitimada ou defendida. Trechos sobre regulação ou vigilância só entram se forem denúncia crítica e trouxerem soluções de defesa individual (criptografia, redes descentralizadas, software livre).
+2. **Zero menções a políticos e funcionários públicos:** Nenhum político (de qualquer partido ou espectro) e nenhum funcionário público ou burocrata estatal deve ser mencionado pelo nome ou colocado em debate. O canal trata de ideias, tecnologia, privacidade e liberdade, e nunca de politicagem partidária ou personalismo estatal.
+
 ## Regras de SEO para cada vídeo
 
 1. **Título:** comece pela ferramenta, conceito, pessoa ou problema técnico que aparece no

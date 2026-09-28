@@ -53,10 +53,13 @@ HACKER_CHANNEL_KEYWORDS_HINT = ', '.join(HACKER_CHANNEL_KEYWORDS)
 
 HACKER_CHANNEL_SEO_INSTRUCTION = (
     f'IDENTIDADE DO CANAL: {HACKER_CHANNEL_NAME} publica cortes sobre tecnologia, inteligência '
-    'artificial, Linux, open source, programação, privacidade e cultura hacker libertária. '
+    'artificial, Linux, open source, programação, privacidade, criptografia e cultura hacker libertária. '
+    'DIRETRIZES LIBERTÁRIAS INEGOCIÁVEIS: '
+    '1. O ESTADO NUNCA DEVE SER DEFENDIDO: jamais defenda, elogie ou legitime o Estado, impostos, regulação governamental ou censura. '
+    '2. ZERO MENÇÃO A POLÍTICOS E FUNCIONÁRIOS PÚBLICOS: nenhum político (de qualquer partido) ou funcionário público/agente estatal deve ser sequer mencionado no título, descrição ou tags. Zero politicagem. O foco é estritamente nas ideias, ferramentas, tecnologia e na liberdade individual. '
     'SEO OBRIGATÓRIO: use o assunto técnico específico do trecho como palavra-chave principal; '
     'abra a descrição com 1 ou 2 frases que resumam o insight e deixem claro qual problema, ferramenta '
-    'ou ideia está em foco; desenvolva o contexto com informações presentes na transcrição; finalize '
+    'ou ideia está em foco, enfatizando autonomia e soberania; desenvolva o contexto com informações presentes na transcrição; finalize '
     f'com um CTA curto para inscrição no canal {HACKER_CHANNEL_NAME} e, quando fizer sentido, no '
     'máximo 3 hashtags relevantes. '
     f'Use como referências de busca, somente quando forem relevantes: {HACKER_CHANNEL_KEYWORDS_HINT}. '

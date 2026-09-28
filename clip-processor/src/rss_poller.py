@@ -376,7 +376,8 @@ def _process_pending_clips(conn) -> None:
             'SELECT gc.id, gc.source_video_id FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             "WHERE gc.status = 'pending_cut' AND sv.paused = FALSE "
-            'AND sv.local_path IS NOT NULL AND sv.transcript_path IS NOT NULL'
+            'AND sv.local_path IS NOT NULL AND sv.transcript_path IS NOT NULL '
+            "ORDER BY (sv.format = 'longo') DESC, gc.id ASC"
         )
         rows = cur.fetchall()
 

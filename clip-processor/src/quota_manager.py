@@ -87,9 +87,14 @@ class QuotaManager:
 
         current_count = int(self.redis_client.get(self._key(now)) or 0)
         longo_count = int(self.redis_client.get(self._format_key(now, 'longo')) or 0)
+        curto_count = max(0, current_count - longo_count)
 
         if format == 'longo':
             return not longo_count >= self.max_longo_per_day
+
+        max_curto = int(os.environ.get('MAX_CURTO_UPLOADS_PER_DAY', str(self.max_uploads_per_day)))
+        if curto_count >= max_curto:
+            return False
 
         # Curto: se há longo publishable, não come os slots reservados pra ele.
         if longo_waiting and self.max_longo_per_day > 0:
