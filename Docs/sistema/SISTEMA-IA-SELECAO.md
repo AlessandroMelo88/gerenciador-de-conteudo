@@ -55,6 +55,22 @@ uma instalação existente, crie uma migration/seed de dados idempotente com os 
 aliases, inclua o nicho na tabela `niches` e associe os canais ao novo `prompt_profile_id`. Não edite
 uma migration já aplicada esperando que ela seja executada novamente.
 
+## Prompts editáveis em camadas (YAML)
+
+Os textos editoriais passam a ter fonte versionada em YAML, sem mudar o contrato de leitura do runtime. Para montar uma instrução, o compilador concatena, nesta ordem, a camada geral da etapa, a camada do canal de destino e a camada do alvo/plataforma. A camada do alvo detalha o formato e não pode relaxar regras obrigatórias do canal. O worker ainda acrescenta em runtime as regras técnicas compartilhadas, os schemas JSON e as validações do pipeline.
+
+| Camada | Aplicação |
+|---|---|
+| geral | Regras comuns de fidelidade, clareza e não invenção; aplicada a todos os canais |
+| canal | Identidade editorial e regras próprias, como as do Hacker Libertário |
+| alvo | Regras de formato, por exemplo YouTube -> Shorts e YouTube -> Vídeo longo |
+
+Os YAMLs ficam em prompts/layers/, prompts/channels/ e prompts/targets/. O comando ruby scripts/compile_prompt_profiles.rb gera um JSON por canal em prompts/compiled/, no formato compatível com as colunas de prompt_profiles. A geração não grava no banco: depois de revisão, o JSON pode ser incorporado a uma migration/seeder idempotente.
+
+O perfil conteudo-inteligencia representa o destino Hacker Libertário e pode ser associado às fontes que alimentam esse destino. Cada outro canal de destino pode ter arquivo de canal e JSON próprios. A tabela possui apenas um thumbnail_prompt; o compilador inclui as regras de thumbnails dos dois alvos nesse campo e o runtime recebe o formato como contexto.
+
+Consulte [Expansão do Hacker Libertário](EXPANSAO-HACKER-LIBERTARIO.md) para os canais adicionados, a estratégia de Shorts e vídeos longos, os limites atuais do pipeline e os links das regras oficiais do YouTube.
+
 ## Providers atuais
 
 | Etapa | Anthropic | Groq | Comportamento |

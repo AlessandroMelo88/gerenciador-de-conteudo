@@ -25,6 +25,7 @@ Contém as especificações operacionais e de engenharia de todos os componentes
 * [`Docs/sistema/SISTEMA-CLIP-PROCESSOR.md`](sistema/SISTEMA-CLIP-PROCESSOR.md) — Daemon em Python (21 módulos), ciclo de vida, poller RSS, variáveis de ambiente.
 * [`Docs/sistema/SISTEMA-VIDEO.md`](sistema/SISTEMA-VIDEO.md) — Pipeline de vídeo com FFmpeg, enquadramento vertical com fundo desfocado, legendas e thumbnails.
 * [`Docs/sistema/SISTEMA-IA-SELECAO.md`](sistema/SISTEMA-IA-SELECAO.md) — Seleção inteligente de cortes por IA (Claude Haiku / Groq LLaMA 3.3).
+* [`Docs/EXPANSAO-HACKER-LIBERTARIO.md`](EXPANSAO-HACKER-LIBERTARIO.md) — Estratégia editorial e prompts versionados em camadas YAML: geral, canal e alvo (por exemplo, YouTube → Shorts e YouTube → vídeo longo), com JSON compilado para revisão e carga posterior no banco.
 * [`Docs/sistema/SISTEMA-DOWNLOAD.md`](sistema/SISTEMA-DOWNLOAD.md) — Download via yt-dlp, controle de disco e limpeza automática.
 * [`Docs/sistema/SISTEMA-PUBLICACAO.md`](sistema/SISTEMA-PUBLICACAO.md) — Publicação no YouTube, controle de cotas, canais destino e round-robin.
 * [`Docs/sistema/SISTEMA-TRANSCRICAO.md`](sistema/SISTEMA-TRANSCRICAO.md) — Transcrição via Groq Whisper API e Transcrição Local com whisper.cpp.

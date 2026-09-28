@@ -1,0 +1,17 @@
+version: 1
+target:
+  id: youtube-long
+  label: "YouTube -> Vídeo longo"
+  platform: youtube
+  format: longo
+stages:
+  selection:
+    instructions: |-
+      Formato de saída: vídeo horizontal com um único segmento contínuo, que preserve a explicação, entrevista ou debate do começo ao fechamento natural. Prefira pelo menos oito minutos, dentro do intervalo técnico do pipeline, quando houver conteúdo completo suficiente. Oito minutos é o limiar para habilitar mid-rolls em vídeos monetizados, mas não estique nem preencha um trecho para atingir esse tempo; se não houver segmento íntegro, descarte ou use o melhor corte editorial permitido pelo pipeline.
+      Vídeos longos e Shorts são formatos complementares. Se houver vários momentos curtos fortes no mesmo material, isso deve ser tratado por uma etapa de Shorts independente; não fragmente o vídeo longo para simular cortes.
+  metadata:
+    instructions: |-
+      Apresente a tese, o assunto e o contexto do vídeo completo. Não use #Shorts nem descreva uma seleção de cortes como se fosse o vídeo inteiro. O vídeo só pode ter mid-roll se estiver monetizado e tiver pelo menos oito minutos; a presença ou posição de espaços de anúncio não garante que um anúncio será exibido.
+  thumbnail:
+    instructions: |-
+      Quando o formato informado for longo, prefira uma chamada literal curta que represente a tese ou revelação central do segmento completo e continue legível em uma composição horizontal.

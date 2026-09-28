@@ -1,0 +1,26 @@
+version: 1
+channel_id: hacker-libertario
+description: "Camada editorial do canal de destino Hacker Libertário."
+profile:
+  slug: conteudo-inteligencia
+  name: Conteúdo de Inteligência
+  niche: hacker-libertario
+  niche_aliases: []
+  active: true
+targets:
+  - youtube-shorts
+  - youtube-long
+stages:
+  selection:
+    instructions: |-
+      Identidade editorial: tecnologia, inteligência artificial, Linux, software livre, programação, cibersegurança, criptografia, privacidade, soberania digital e cultura hacker libertária. Priorize conhecimento técnico, autonomia individual, ferramentas locais e explicações que ajudem o público a entender ou fazer algo.
+      Regra de conteúdo: nunca selecione um trecho que defenda ou legitime coerção estatal, censura, tributação ou intervenção estatal. Uma crítica a políticas públicas só é admissível quando for estritamente ligada à tecnologia e apresentar contexto factual e alternativas individuais.
+      Regra exclusiva deste canal: descarte qualquer candidato que mencione ou dê destaque a político, partido, funcionário público ou agente estatal. Não tente remover a menção recortando o áudio: descarte o candidato inteiro. O foco permanece em tecnologia, ideias e liberdade individual, sem politicagem.
+      Não force uma pauta libertária em conteúdo que não a sustenta. Se o trecho não tiver aderência clara à identidade do canal, descarte-o.
+  metadata:
+    instructions: |-
+      Escreva para o público do Hacker Libertário. Priorize o insight técnico, a ferramenta ou a consequência prática para privacidade, segurança ou autonomia digital. Não faça defesa do Estado nem mencione políticos, partidos, funcionários públicos ou agentes estatais, mesmo que apareçam no título original. Se não for possível descrever o trecho sem violar essa regra, não publique metadados para ele.
+      Para Shorts, prefira títulos de 45–55 caracteres; todo título deve respeitar o limite de 100 caracteres do YouTube. Use no máximo um emoji e apenas quando ajudar a compreensão. Hashtags são opcionais: não acrescente #Shorts automaticamente; use uma hashtag de assunto somente quando for precisa e relevante. Tags devem ser termos técnicos relacionados ao trecho, sem o caractere #.
+  thumbnail:
+    instructions: |-
+      Preserve a identidade visual e editorial do Hacker Libertário. A chamada deve realçar uma descoberta, contradição, risco técnico ou consequência prática. Não mencione políticos, partidos, funcionários públicos ou agentes estatais. Não faça defesa do Estado, não amplifique uma hipótese como fato e não invente promessa, ameaça ou ataque.

@@ -1,0 +1,13 @@
+version: 1
+id: general
+description: "Instruções editoriais compartilhadas por todos os canais e alvos."
+stages:
+  selection:
+    instructions: |-
+      Use a transcrição e os tempos fornecidos como evidência principal. Escolha ideias compreensíveis, úteis e completas; preserve contexto e a intenção de quem fala. Não invente fatos, citações, contexto ou conclusões. Estas instruções complementam as regras de segurança, fact-check, duração, JSON e validação já aplicadas pelo pipeline. As regras obrigatórias da camada do canal não podem ser relaxadas pela camada do alvo.
+  metadata:
+    instructions: |-
+      Escreva em português do Brasil, com clareza e precisão. Título, descrição, tags e hashtags devem representar somente o conteúdo verificável do trecho. Não prometa resultados, não atribua declarações que não foram feitas e não transforme hipótese em fato. Estas instruções complementam o schema e a validação existentes no pipeline. As regras obrigatórias da camada do canal não podem ser relaxadas pela camada do alvo.
+  thumbnail:
+    instructions: |-
+      Escolha uma frase curta, literal e contínua da transcrição, que continue fiel ao sentido original quando lida isoladamente. Não crie frases, não misture partes distantes e não use informação externa para completar a fala. Siga apenas a seção de alvo que corresponda ao formato informado pelo pipeline. As regras obrigatórias da camada do canal continuam valendo.

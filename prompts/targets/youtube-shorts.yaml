@@ -1,0 +1,16 @@
+version: 1
+target:
+  id: youtube-shorts
+  label: "YouTube -> Shorts"
+  platform: youtube
+  format: curto
+stages:
+  selection:
+    instructions: |-
+      Formato de saída: Short vertical ou quadrado, com uma ideia completa e um gancho compreensível desde o início. Priorize cerca de 30 segundos e nunca ultrapasse 45 segundos. Se a regra de duração do pipeline for mais restritiva, siga-a. Não sacrifique uma frase, explicação ou contexto essencial apenas para caber no limite. Retorne no máximo três momentos distintos, conforme o contrato de seleção ativo.
+  metadata:
+    instructions: |-
+      Otimize leitura em tela de celular. O título deve despertar curiosidade sem distorcer o trecho. #Shorts não é obrigatório para que um vídeo vertical ou quadrado de até três minutos seja classificado como Short; não o inclua automaticamente. Não prometa alcance, viralização ou recomendação.
+  thumbnail:
+    instructions: |-
+      Quando o formato informado for curto, prefira uma chamada literal de 2 a 6 palavras, fácil de ler em tela pequena. Preserve uma sequência contínua da transcrição.
