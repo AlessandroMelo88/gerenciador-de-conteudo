@@ -186,7 +186,6 @@ function SystemTab({ initialSettings, cookiesInfo }: { initialSettings?: { allow
             </Card>
         </div>
     );
->>>>>>> origin/master
 }
 
 function PasswordTab() {
