@@ -16,9 +16,17 @@ Comportamento:
   - Após IA: processa clips com status 'pending_cut' via pipeline de vídeo
 """
 
+from __future__ import annotations
+
 import os
+import json
 import re
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 import feedparser
 import redis
@@ -61,6 +69,7 @@ from src.prompt_profiles import PROMPT_PROFILE_SQL_COLUMNS, profile_from_row, pr
 from src.selector import MIN_LONGFORM_SECONDS, insert_selected_moments, select_moments
 from src.transcriber import save_transcript, transcribe_video
 from src.video_processor import process_clip
+from src.queue_controls import _cleanup_partial
 
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
@@ -99,7 +108,19 @@ def _release_failed_source_files(conn, video_id: str) -> None:
     if not source or source.get('status') != 'failed' or source.get('has_active_clip'):
         return
 
-    paths = [source.get('local_path'), source.get('transcript_path')]
+    transcript_path = source.get('transcript_path')
+    transcript_archived = not transcript_path or not os.path.isfile(transcript_path)
+    if transcript_path and os.path.isfile(transcript_path):
+        try:
+            with open(transcript_path, encoding='utf-8') as f:
+                save_transcript(conn, video_id, json.load(f))
+            transcript_archived = True
+        except (OSError, ValueError) as exc:
+            _log(f'[AI] Transcrição de {video_id} não pôde ser arquivada; arquivo mantido: {exc}')
+
+    paths = [source.get('local_path')]
+    if transcript_archived:
+        paths.append(transcript_path)
     for raw_path in paths:
         if not raw_path:
             continue
@@ -116,9 +137,10 @@ def _release_failed_source_files(conn, video_id: str) -> None:
 
     with conn.cursor() as cur:
         cur.execute(
-            'UPDATE source_videos SET local_path=NULL, transcript_path=NULL '
+            'UPDATE source_videos SET local_path=NULL, '
+            'transcript_path=CASE WHEN %s THEN NULL ELSE transcript_path END '
             "WHERE id=%s AND status='failed'",
-            (source['id'],),
+            (transcript_archived, source['id']),
         )
     conn.commit()
     _log(f'[AI] Arquivos de {video_id} liberados após falha terminal')
@@ -148,7 +170,22 @@ def _detect_format(video_id: str) -> str:
         return requested_format
 
     try:
-        with yt_dlp.YoutubeDL({'quiet': True, 'no_color': True, 'skip_download': True}) as ydl:
+        ydl_opts = {
+            'quiet': True,
+            'no_color': True,
+            'skip_download': True,
+            'remote_components': ['ejs:github'],
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['mweb', 'tv', 'ios', 'android']
+                }
+            },
+        }
+        cookie_file = '/app/youtube/cookies.txt'
+        if os.path.exists(cookie_file):
+            ydl_opts['cookiefile'] = cookie_file
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
         duration = info.get('duration') if info else None
         if duration and duration >= MIN_LONGFORM_SECONDS:
@@ -272,6 +309,7 @@ def _process_ai_pipeline(
             _log(f'[AI] Transcrição falhou para {video_id} — marcando como failed')
             update_status(conn, video_id, 'failed')
             _release_failed_source_files(conn, video_id)
+            _cleanup_partial(video_id)
             return
 
         if is_paused(conn, youtube_video_id=video_id):
@@ -318,6 +356,8 @@ def _process_ai_pipeline(
             select_kwargs['used_moments'] = used_moments
         if niche:
             select_kwargs['niche'] = niche
+        elif not prompt_profile:
+            select_kwargs['niche'] = 'futebol'
         if prompt_profile:
             select_kwargs['prompt_profile'] = prompt_profile
 
@@ -331,12 +371,14 @@ def _process_ai_pipeline(
             _log(f'[AI] Nenhum momento válido para {video_id} — marcando failed e liberando janela')
             update_status(conn, video_id, 'failed')
             _release_failed_source_files(conn, video_id)
+            _cleanup_partial(video_id)
 
     except Exception as exc:
         _log(f'[AI] ERRO no pipeline de IA para {video_id}: {exc}')
         try:
             update_status(conn, video_id, 'failed')
             _release_failed_source_files(conn, video_id)
+            _cleanup_partial(video_id)
         except Exception:
             pass
 
@@ -371,6 +413,10 @@ def _process_downloaded_videos(conn) -> None:
 
 def _process_pending_clips(conn) -> None:
     """Processa clips com status pending_cut sem abortar o poll por falha isolada."""
+    try:
+        conn.commit()
+    except Exception:
+        pass
     with conn.cursor() as cur:
         cur.execute(
             'SELECT gc.id, gc.source_video_id FROM generated_clips gc '
@@ -427,8 +473,19 @@ def poll_all_channels(
         redis_client = redis.Redis(
             host=REDIS_HOST,
             port=REDIS_PORT,
-            decode_responses=True,
         )
+    lock_acquired = False
+    lock_key = 'lock:poll_all_channels'
+    if redis_client:
+        try:
+            lock_acquired = bool(redis_client.set(lock_key, '1', ex=600, nx=True))
+            if not lock_acquired:
+                _log('AVISO: Outro ciclo de poll_all_channels já está em execução — pulando para evitar sobrecarga.')
+                if _own_db:
+                    db_conn.close()
+                return
+        except Exception as lock_err:
+            _log(f'Aviso: falha ao checar lock Redis: {lock_err}')
 
     try:
         # Buscar canais ativos (canais blacklistados filtrados no SELECT — COPY-03)
@@ -509,6 +566,11 @@ def poll_all_channels(
                 _log(f'[VID] ERRO ao buscar clips pending_cut para processamento: {exc}')
 
     finally:
+        if lock_acquired and redis_client:
+            try:
+                redis_client.delete(lock_key)
+            except Exception:
+                pass
         if _own_db:
             db_conn.close()
 

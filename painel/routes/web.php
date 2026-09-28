@@ -1,17 +1,23 @@
 <?php
 
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DestinationChannelController;
 use App\Http\Controllers\DocumentationController;
 use App\Http\Controllers\MediaAssetController;
 use App\Http\Controllers\NicheController;
+use App\Http\Controllers\OfferController;
+use App\Http\Controllers\OfferPerformanceController;
+use App\Http\Controllers\OfferRedirectController;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Controllers\ProcessVideoController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SourceChannelController;
 use App\Http\Controllers\SourceVideoController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\TranscriptionController;
+use App\Http\Controllers\UsefulLinksController;
 use App\Models\GeneratedClip;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -32,6 +38,8 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/painel/clips/{clip}/reprocess', [DashboardController::class, 'reprocess'])->name('dashboard.clips.reprocess');
     Route::post('/painel/clips/bulk-approve', [DashboardController::class, 'bulkApprove'])->name('dashboard.clips.bulk-approve');
     Route::post('/painel/clips/bulk-reject', [DashboardController::class, 'bulkReject'])->name('dashboard.clips.bulk-reject');
+    Route::post('/painel/clips/purge-failed', [DashboardController::class, 'purgeFailedClips'])->name('dashboard.clips.purge-failed');
+    Route::post('/painel/clips/{clip}/delete', [DashboardController::class, 'deleteClip'])->name('dashboard.clips.delete');
     Route::post('/painel/videos/reorder', [DashboardController::class, 'reorderVideos'])->name('dashboard.videos.reorder');
     Route::post('/painel/videos/bulk-delete', [DashboardController::class, 'bulkDeleteVideos'])->name('dashboard.videos.bulk-delete');
     Route::post('/painel/videos/{video}/delete', [DashboardController::class, 'deleteVideo'])->name('dashboard.videos.delete');
@@ -52,12 +60,29 @@ Route::middleware(['web', 'auth'])->group(function () {
         return response()->file(Storage::disk('clips-videos')->path($relativePath));
     })->name('clips.preview');
 
+    Route::get('/painel/clips/{clip}/thumbnail', function (GeneratedClip $clip) {
+        $relativePath = "thumbnails/{$clip->id}.jpg";
+
+        if (! Storage::disk('clips-videos')->exists($relativePath)) {
+            abort(404);
+        }
+
+        $path = Storage::disk('clips-videos')->path($relativePath);
+        return response()->file($path, [
+            'Cache-Control' => 'no-cache, no-store, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    })->name('clips.thumbnail');
+
     Route::post('/painel/niches', [NicheController::class, 'store'])->name('niches.store');
 
     Route::get('/painel/canais-destino', [DestinationChannelController::class, 'index'])->name('destination-channels.index');
     Route::post('/painel/canais-destino', [DestinationChannelController::class, 'store'])->name('destination-channels.store');
     Route::put('/painel/canais-destino/{destinationChannel}', [DestinationChannelController::class, 'update']);
+    Route::get('/painel/canais-destino/{destinationChannel}/watermark', [DestinationChannelController::class, 'watermark'])->name('destination-channels.watermark');
     Route::post('/painel/canais-destino/{destinationChannel}/watermark', [DestinationChannelController::class, 'uploadWatermark']);
+    Route::get('/painel/canais-destino/{destinationChannel}/background', [DestinationChannelController::class, 'background'])->name('destination-channels.background');
     Route::delete('/painel/canais-destino/{destinationChannel}', [DestinationChannelController::class, 'destroy']);
 
     Route::get('/painel/canais-fonte', [SourceChannelController::class, 'index'])->name('source-channels.index');
@@ -67,7 +92,10 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/painel/videos', [SourceVideoController::class, 'index'])->name('source-videos.index');
     Route::post('/painel/videos/{video}/delete-file', [SourceVideoController::class, 'deleteFile']);
+    Route::post('/painel/videos/{video}/destroy-record', [SourceVideoController::class, 'destroyRecord']);
     Route::post('/painel/videos/bulk-delete-files', [SourceVideoController::class, 'bulkDeleteFiles']);
+    Route::post('/painel/videos/bulk-destroy-records', [SourceVideoController::class, 'bulkDestroyRecords']);
+    Route::post('/painel/videos/purge-failed', [SourceVideoController::class, 'purgeFailed'])->name('source-videos.purge-failed');
     Route::post('/painel/videos/purge-old', [SourceVideoController::class, 'purgeOld']);
 
     Route::get('/painel/processar-video', [ProcessVideoController::class, 'show'])->name('process-video.show');
@@ -75,11 +103,30 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/painel/transcricoes', [TranscriptionController::class, 'index'])->name('transcriptions.index');
     Route::post('/painel/transcricoes', [TranscriptionController::class, 'store']);
-    Route::get('/painel/transcricoes/{job}/download', [TranscriptionController::class, 'download'])->name('transcriptions.download');
+    Route::get('/painel/transcricoes/{job}', [TranscriptionController::class, 'show'])->name('transcriptions.show');
+    Route::post('/painel/transcricoes/{job}/pausar', [TranscriptionController::class, 'pause'])->name('transcriptions.pause');
+    Route::post('/painel/transcricoes/{job}/retomar', [TranscriptionController::class, 'resume'])->name('transcriptions.resume');
+    Route::delete('/painel/transcricoes/{job}', [TranscriptionController::class, 'destroy'])->name('transcriptions.destroy');
+    Route::get('/painel/transcricoes/{job}/aula', [TranscriptionController::class, 'downloadAula'])->name('transcriptions.aula');
+    Route::get('/painel/transcricoes/{job}/download/{formato?}', [TranscriptionController::class, 'download'])->name('transcriptions.download');
 
+    Route::get('/painel/assistente', [AssistantController::class, 'index'])->name('assistant.index');
+    Route::post('/painel/assistente/chat', [AssistantController::class, 'chat'])->name('assistant.chat');
+
+    Route::get('/painel/ofertas/performance', [OfferPerformanceController::class, 'index'])->name('offers.performance');
+    Route::get('/painel/ofertas', [OfferController::class, 'index'])->name('offers.index');
+    Route::post('/painel/ofertas', [OfferController::class, 'store'])->name('offers.store');
+    Route::post('/painel/ofertas/gerar-copy', [OfferController::class, 'generateCopy'])
+        ->middleware('throttle:20,1')->name('offers.generate-copy');
+    Route::put('/painel/ofertas/{offer}', [OfferController::class, 'update'])->name('offers.update');
+    Route::delete('/painel/ofertas/{offer}', [OfferController::class, 'destroy'])->name('offers.destroy');
+
+    Route::get('/painel/links-uteis', [UsefulLinksController::class, 'index'])->name('useful-links.index');
     Route::get('/painel/documentacao', [DocumentationController::class, 'show'])->name('documentation.show');
 
     Route::get('/painel/configuracoes', [SettingsController::class, 'show'])->name('settings.show');
+    Route::put('/painel/configuracoes/sistema', [SettingsController::class, 'updateSystemSettings'])->name('settings.system');
+    Route::post('/painel/configuracoes/cookies', [SettingsController::class, 'updateCookies'])->name('settings.cookies');
     Route::put('/painel/configuracoes/senha', [SettingsController::class, 'updatePassword'])->name('settings.password');
     Route::post('/painel/configuracoes/midia', [MediaAssetController::class, 'store'])->name('settings.media.store');
     Route::patch('/painel/configuracoes/midia/{mediaAsset}', [MediaAssetController::class, 'update'])->name('settings.media.update');
@@ -95,3 +142,18 @@ Route::get('/', fn () => redirect(auth()->check() ? '/painel' : '/login'));
 // CSRF excluído para ambas em bootstrap/app.php (Plan 09-01).
 Route::post('/telegramcanal', [TelegramWebhookController::class, 'handle']);
 Route::post('/internal/pipeline-event', [TelegramWebhookController::class, 'pipelineEvent']);
+
+// Afiliados: link público rastreável (sem login). Sem sessão/cookies/Inertia —
+// é só log de clique + 302, não precisa do peso do grupo web.
+Route::get('/o/{slug}', OfferRedirectController::class)
+    ->where('slug', '[A-Za-z0-9]{1,64}')
+    ->middleware('throttle:120,1')
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        HandleInertiaRequests::class,
+    ])
+    ->name('offers.redirect');

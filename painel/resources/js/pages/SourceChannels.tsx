@@ -1,17 +1,24 @@
 import { useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Search, Plus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
 import { PromptProfileSelect, type PromptProfile } from '@/components/prompt-profile-select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { AppShell } from '@/layouts/app-shell';
 
 type SourceChannel = {
@@ -23,18 +30,101 @@ type SourceChannel = {
     promptProfileName: string | null;
     active: boolean;
     blacklisted: boolean;
+    freshnessDays: 3 | 1500;
+    inputPriority: number;
     createdAt: string | null;
 };
 
 type PageProps = {
     channels: SourceChannel[];
     niches: Niche[];
-    promptProfiles: PromptProfile[];
-    activeTab: string;
+    promptProfiles?: PromptProfile[];
+    activeTab?: string;
     auth: { user: { name: string; email: string } | null };
 };
 
-function CreateChannelDialog({ niches, promptProfiles }: { niches: Niche[]; promptProfiles: PromptProfile[] }) {
+function NicheBadge({ niche }: { niche: string }) {
+    const n = (niche ?? '').toLowerCase();
+    if (n.includes('política') || n.includes('politica')) {
+        return (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                🏛️ Política
+            </span>
+        );
+    }
+    if (n.includes('podcast')) {
+        return (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                🎙️ Podcast
+            </span>
+        );
+    }
+    if (n === 'futebol') {
+        return (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                ⚽ Futebol
+            </span>
+        );
+    }
+    return (
+        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+            {niche.replace(/[-_]/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) || 'Sem nicho'}
+        </span>
+    );
+}
+
+function InputPriorityControl({ channel }: { channel: SourceChannel }) {
+    const [processing, setProcessing] = useState(false);
+    const priority = channel.inputPriority ?? 0;
+
+    function updatePriority(value: number) {
+        router.put(
+            `/painel/canais-fonte/${channel.id}`,
+            { input_priority: value },
+            {
+                preserveScroll: true,
+                onStart: () => setProcessing(true),
+                onFinish: () => setProcessing(false),
+                onSuccess: () => toast.success('Prioridade do input atualizada'),
+                onError: () => toast.error('Não foi possível atualizar a prioridade'),
+            },
+        );
+    }
+
+    return (
+        <div className="space-y-1" role="group" aria-label={`Prioridade de input de ${channel.channelName}`}>
+            <div className="text-[11px] font-medium text-muted-foreground">Prioridade de input</div>
+            <div className="flex items-center gap-1.5">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-xs"
+                    aria-label={`Diminuir prioridade de ${channel.channelName}`}
+                    disabled={processing || priority <= -10}
+                    onClick={() => updatePriority(Math.max(-10, priority - 1))}
+                >
+                    −
+                </Button>
+                <span className="min-w-7 text-center font-mono text-xs font-semibold" aria-live="polite">
+                    {priority > 0 ? `+${priority}` : priority}
+                </span>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-xs"
+                    aria-label={`Aumentar prioridade de ${channel.channelName}`}
+                    disabled={processing || priority >= 10}
+                    onClick={() => updatePriority(Math.min(10, priority + 1))}
+                >
+                    +
+                </Button>
+                <span className="text-[10px] text-muted-foreground">−10 a +10 · 0 padrão</span>
+            </div>
+        </div>
+    );
+}
+
+function CreateChannelDialog({ niches, promptProfiles = [] }: { niches: Niche[]; promptProfiles?: PromptProfile[] }) {
     const [open, setOpen] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         url: '',
@@ -48,59 +138,76 @@ function CreateChannelDialog({ niches, promptProfiles }: { niches: Niche[]; prom
             onSuccess: () => {
                 setOpen(false);
                 reset();
+                toast.success('Canal fonte cadastrado com sucesso');
             },
+            onError: () => toast.error('Erro ao cadastrar canal fonte'),
         });
     }
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>Novo Canal Fonte</Button>
+                <Button
+                    style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)', color: '#fff' }}
+                    className="shadow-sm hover:brightness-105"
+                >
+                    <Plus className="w-4 h-4 mr-1.5" /> Novo Canal Fonte
+                </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Adicionar canal-fonte</DialogTitle>
+                    <DialogTitle className="font-display font-bold">Adicionar Canal Fonte</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={submit} className="grid gap-4">
+                <form onSubmit={submit} className="space-y-4">
                     <Field>
-                        <FieldLabel htmlFor="url">URL do canal YouTube</FieldLabel>
+                        <FieldLabel>URL ou Handle do Canal YouTube</FieldLabel>
                         <Input
-                            id="url"
-                            placeholder="https://youtube.com/@..."
                             value={data.url}
                             onChange={(e) => setData('url', e.target.value)}
+                            placeholder="https://www.youtube.com/@Canal ou @Canal"
+                            required
                         />
-                        <p className="text-xs text-muted-foreground">
-                            Ex: https://youtube.com/@sportv ou https://youtube.com/channel/UC...
-                        </p>
-                        {errors.url && <p className="text-sm text-destructive">{errors.url}</p>}
+                        {errors.url && <p className="text-xs text-destructive">{errors.url}</p>}
                     </Field>
+
                     <Field>
-                        <FieldLabel>Nicho de destino</FieldLabel>
+                        <FieldLabel>Nicho Alvo</FieldLabel>
                         <NicheCombobox
                             niches={niches}
                             value={data.target_niche}
-                            onChange={(v) => setData('target_niche', v)}
+                            onChange={(val) => setData('target_niche', val)}
                         />
+                        {errors.target_niche && <p className="text-xs text-destructive">{errors.target_niche}</p>}
                     </Field>
-                    <Field>
-                        <FieldLabel>Perfil de prompt</FieldLabel>
-                        <PromptProfileSelect
-                            profiles={promptProfiles}
-                            value={data.prompt_profile_id}
-                            niche={data.target_niche}
-                            onChange={(v) => setData('prompt_profile_id', v)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Controla seleção, metadata e thumbnail. No automático, o perfil é resolvido pelo nicho.
-                        </p>
-                        {errors.prompt_profile_id && (
-                            <p className="text-sm text-destructive">{errors.prompt_profile_id}</p>
-                        )}
-                    </Field>
+
+                    {promptProfiles.length > 0 && (
+                        <Field>
+                            <FieldLabel>Perfil de prompt</FieldLabel>
+                            <PromptProfileSelect
+                                profiles={promptProfiles}
+                                value={data.prompt_profile_id}
+                                niche={data.target_niche}
+                                onChange={(v) => setData('prompt_profile_id', v)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Controla seleção, metadata e thumbnail. No automático, o perfil é resolvido pelo nicho.
+                            </p>
+                            {errors.prompt_profile_id && (
+                                <p className="text-sm text-destructive">{errors.prompt_profile_id}</p>
+                            )}
+                        </Field>
+                    )}
+
                     <DialogFooter>
-                        <Button type="submit" disabled={processing}>
-                            Adicionar
+                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={processing}
+                            style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)', color: '#fff' }}
+                        >
+                            Salvar Canal
                         </Button>
                     </DialogFooter>
                 </form>
@@ -111,7 +218,63 @@ function CreateChannelDialog({ niches, promptProfiles }: { niches: Niche[]; prom
 
 export default function SourceChannels() {
     const { props } = usePage<PageProps>();
-    const { channels, niches, promptProfiles, activeTab, auth } = props;
+    const { channels, niches, promptProfiles = [], auth } = props;
+
+    const [activeTab, setActiveTab] = useState<string>('todos');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+    const [search, setSearch] = useState('');
+
+    const toggle = (id: number, field: 'active' | 'blacklisted', current: boolean) => {
+        router.put(
+            `/painel/canais-fonte/${id}`,
+            { [field]: !current },
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Status atualizado com sucesso'),
+            }
+        );
+    };
+
+    const setFreshness = (id: number, value: string) => {
+        router.put(
+            `/painel/canais-fonte/${id}`,
+            { freshness_days: Number(value) },
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Janela de busca atualizada'),
+                onError: () => toast.error('Não foi possível atualizar a janela de busca'),
+            }
+        );
+    };
+
+    const destroy = (id: number) => {
+        router.delete(`/painel/canais-fonte/${id}`, {
+            preserveScroll: true,
+            onSuccess: () => toast.success('Canal fonte removido'),
+        });
+    };
+
+    const counts = {
+        todos: channels.length,
+        futebol: channels.filter((c) => (c.targetNiche ?? '').toLowerCase() === 'futebol').length,
+        politica: channels.filter((c) => (c.targetNiche ?? '').toLowerCase().includes('politica')).length,
+        podcast: channels.filter((c) => (c.targetNiche ?? '').toLowerCase() === 'podcast').length,
+    };
+
+    const filtered = channels.filter((c) => {
+        const matchesTab =
+            activeTab === 'todos' ||
+            (activeTab === 'futebol' && (c.targetNiche ?? '').toLowerCase() === 'futebol') ||
+            (activeTab === 'politica' && (c.targetNiche ?? '').toLowerCase().includes('politica')) ||
+            (activeTab === 'podcast' && (c.targetNiche ?? '').toLowerCase() === 'podcast');
+
+        const matchesSearch =
+            search === '' ||
+            c.channelName.toLowerCase().includes(search.toLowerCase()) ||
+            (c.channelHandle ?? '').toLowerCase().includes(search.toLowerCase());
+
+        return matchesTab && matchesSearch;
+    });
 
     return (
         <>
@@ -119,98 +282,341 @@ export default function SourceChannels() {
             <AppShell
                 title="Canais Fonte"
                 user={auth.user}
-                description="Canais do YouTube que o robô monitora pra encontrar conteúdo bruto. Formato curto/longo é decidido automaticamente pela duração do vídeo, não por canal."
+                description="Canais do YouTube monitorados pelo robô para encontrar matéria-prima bruta. O robô balanceia downloads entre os nichos."
                 actions={<CreateChannelDialog niches={niches} promptProfiles={promptProfiles} />}
             >
-                <Tabs
-                    value={activeTab}
-                    onValueChange={(tab) => router.get('/painel/canais-fonte', { tab }, { preserveState: true })}
-                >
-                    <TabsList>
-                        <TabsTrigger value="todos">Todos</TabsTrigger>
-                        {niches.map((n) => (
-                            <TabsTrigger key={n.slug} value={n.slug}>
-                                {n.label}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                </Tabs>
+                <div className="flex flex-col gap-4">
+                    {/* Subtabs de nicho + Toggle Cards/Lista + Busca */}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl border border-border bg-card w-fit">
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('todos')}
+                                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    activeTab === 'todos'
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                                }`}
+                            >
+                                <span>Todos</span>
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono">
+                                    {counts.todos}
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('futebol')}
+                                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    activeTab === 'futebol'
+                                        ? 'bg-emerald-600 text-white shadow-sm'
+                                        : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                                }`}
+                            >
+                                <span>⚽ Futebol</span>
+                                <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                    {counts.futebol}
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('politica')}
+                                className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    activeTab === 'politica'
+                                        ? 'bg-purple-600 text-white shadow-sm'
+                                        : 'text-purple-600 dark:text-purple-400 hover:bg-purple-500/10'
+                                }`}
+                            >
+                                <span>🏛️ Política</span>
+                                <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                    {counts.politica}
+                                </span>
+                            </button>
+                            {counts.podcast > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('podcast')}
+                                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                        activeTab === 'podcast'
+                                            ? 'bg-amber-600 text-white shadow-sm'
+                                            : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                                    }`}
+                                >
+                                    <span>🎙️ Podcast</span>
+                                    <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                        {counts.podcast}
+                                    </span>
+                                </button>
+                            )}
+                        </div>
 
-                <div className="overflow-x-auto rounded-lg border">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nome</TableHead>
-                                <TableHead>Handle</TableHead>
-                                <TableHead>Nicho</TableHead>
-                                <TableHead>Perfil de prompt</TableHead>
-                                <TableHead>Ativo</TableHead>
-                                <TableHead>Blacklisted</TableHead>
-                                <TableHead>Criado</TableHead>
-                                <TableHead>Ações</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {channels.map((c) => (
-                                <TableRow key={c.id}>
-                                    <TableCell>{c.channelName}</TableCell>
-                                    <TableCell className="text-muted-foreground">{c.channelHandle ?? '—'}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="secondary">{c.targetNiche}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <PromptProfileSelect
-                                            profiles={promptProfiles}
-                                            value={c.promptProfileId ? String(c.promptProfileId) : ''}
-                                            niche={c.targetNiche}
-                                            onChange={(value) =>
-                                                router.put(
-                                                    `/painel/canais-fonte/${c.id}`,
-                                                    { prompt_profile_id: value || null },
-                                                    { preserveScroll: true },
-                                                )
-                                            }
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Switch
-                                            checked={c.active}
-                                            onCheckedChange={(v) =>
-                                                router.put(
-                                                    `/painel/canais-fonte/${c.id}`,
-                                                    { active: v },
-                                                    { preserveScroll: true },
-                                                )
-                                            }
-                                        />
-                                    </TableCell>
-                                    <TableCell title="Afeta apenas novos vídeos. Para purgar a fila use SQL manual.">
-                                        <Switch
-                                            checked={c.blacklisted}
-                                            onCheckedChange={(v) =>
-                                                router.put(
-                                                    `/painel/canais-fonte/${c.id}`,
-                                                    { blacklisted: v },
-                                                    { preserveScroll: true },
-                                                )
-                                            }
-                                        />
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">{c.createdAt ?? '—'}</TableCell>
-                                    <TableCell>
-                                        <ConfirmButton
-                                            variant="destructive"
-                                            size="sm"
-                                            description={`Apagar o canal-fonte "${c.channelName}"? Essa ação não pode ser desfeita.`}
-                                            onConfirm={() => router.delete(`/painel/canais-fonte/${c.id}`)}
-                                        >
-                                            Apagar
-                                        </ConfirmButton>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                        <div className="flex items-center gap-3">
+                            <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('grid')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        viewMode === 'grid'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    title="Modo Quadro"
+                                >
+                                    ⊞ Quadro
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('list')}
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                        viewMode === 'list'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                    title="Modo Tabela"
+                                >
+                                    ☰ Tabela
+                                </button>
+                            </div>
+
+                            <div className="relative">
+                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder="Buscar canal ou handle…"
+                                    className="h-10 w-[220px] pl-9 pr-3 rounded-xl text-xs bg-card"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {viewMode === 'grid' ? (
+                        <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                            {filtered.map((channel) => {
+                                const isPol = (channel.targetNiche ?? '').toLowerCase().includes('politica');
+                                const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                                const initials = channel.channelName
+                                    .split(' ')
+                                    .map((w) => w[0])
+                                    .slice(0, 2)
+                                    .join('');
+
+                                return (
+                                    <div
+                                        key={channel.id}
+                                        className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 shadow-xs hover:border-primary/30 transition-all"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <span
+                                                className="w-11 h-11 rounded-xl grid place-items-center text-xs font-bold text-white shrink-0 shadow-sm"
+                                                style={{ background: bgGrad }}
+                                            >
+                                                {initials}
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-bold text-sm tracking-tight truncate text-foreground">
+                                                    {channel.channelName}
+                                                </div>
+                                                <div className="font-mono text-[11px] text-muted-foreground truncate">
+                                                    {channel.channelHandle ?? '—'}
+                                                </div>
+                                            </div>
+                                            <NicheBadge niche={channel.targetNiche} />
+                                        </div>
+
+                                        <div className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-muted/40 border border-border">
+                                            <span className="text-muted-foreground">Status no Robô:</span>
+                                            <span className="font-semibold text-foreground">
+                                                {channel.active ? '🟢 Monitorando' : '⏸️ Pausado'}
+                                            </span>
+                                        </div>
+
+                                        <label className="flex items-center justify-between gap-3 text-xs">
+                                            <span className="text-muted-foreground">Buscar vídeos dos últimos:</span>
+                                            <select
+                                                aria-label={`Janela de busca de ${channel.channelName}`}
+                                                value={channel.freshnessDays ?? 1500}
+                                                onChange={(event) => setFreshness(channel.id, event.target.value)}
+                                                className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-foreground"
+                                            >
+                                                <option value={3}>3 dias</option>
+                                                <option value={1500}>1500 dias</option>
+                                            </select>
+                                        </label>
+
+                                        <div className="rounded-xl border border-border/70 px-3 py-2">
+                                            <InputPriorityControl channel={channel} />
+                                        </div>
+
+                                        <div className="flex items-center gap-3 pt-2 border-t border-border/60">
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    checked={channel.active}
+                                                    onCheckedChange={() => toggle(channel.id, 'active', channel.active)}
+                                                />
+                                                <span className="text-xs text-foreground">Ativo</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    checked={channel.blacklisted}
+                                                    onCheckedChange={() => toggle(channel.id, 'blacklisted', channel.blacklisted)}
+                                                    className="data-[state=checked]:bg-destructive"
+                                                />
+                                                <span className="text-xs text-destructive">Bloquear</span>
+                                            </div>
+                                            <div className="flex-1" />
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 px-2.5 text-xs text-primary border-primary/30 hover:bg-primary/10 gap-1.5"
+                                                onClick={() => {
+                                                    const prompt = `Faça uma análise estratégica completa da estrutura de conteúdo do canal "${channel.channelName}" (${channel.channelHandle || 'YouTube'}) no nicho de ${channel.targetNiche}. Quais são as fórmulas de títulos, ganchos nos primeiros 3 segundos, formatos de corte e temas de maior engajamento para modelarmos no nosso canal?`;
+                                                    router.visit(`/painel/assistente?prompt=${encodeURIComponent(prompt)}`);
+                                                }}
+                                                title="Analisar Estrutura com IA"
+                                            >
+                                                <span>🧠 Analisar IA</span>
+                                            </Button>
+                                            <ConfirmButton
+                                                variant="destructive"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 rounded-lg"
+                                                description={`Remover o canal fonte "${channel.channelName}"?`}
+                                                onConfirm={() => destroy(channel.id)}
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </ConfirmButton>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+                            <div className="overflow-x-auto">
+                                <Table className="w-full text-xs">
+                                    <TableHeader className="bg-muted/40">
+                                        <TableRow>
+                                            <TableHead className="px-5 py-3 font-semibold">Canal</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold">Nicho</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold">Busca</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold">Prioridade</TableHead>
+                                            {promptProfiles.length > 0 && <TableHead className="px-5 py-3 font-semibold">Perfil de prompt</TableHead>}
+                                            <TableHead className="px-5 py-3 font-semibold">Ativo</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold">Blacklist</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold text-right">Ações</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filtered.map((channel) => {
+                                            const isPol = (channel.targetNiche ?? '').toLowerCase().includes('politica');
+                                            const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                                            const initials = channel.channelName
+                                                .split(' ')
+                                                .map((w) => w[0])
+                                                .slice(0, 2)
+                                                .join('');
+
+                                            return (
+                                                <TableRow key={channel.id} className="hover:bg-muted/30">
+                                                    <TableCell className="px-5 py-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <span
+                                                                className="w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold text-white shrink-0 shadow-sm"
+                                                                style={{ background: bgGrad }}
+                                                            >
+                                                                {initials}
+                                                            </span>
+                                                            <div className="min-w-0">
+                                                                <div className="font-semibold text-foreground truncate">
+                                                                    {channel.channelName}
+                                                                </div>
+                                                                <div className="font-mono text-[11px] text-muted-foreground truncate">
+                                                                    {channel.channelHandle ?? '—'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3">
+                                                        <NicheBadge niche={channel.targetNiche} />
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3">
+                                                        <select
+                                                            aria-label={`Janela de busca de ${channel.channelName}`}
+                                                            value={channel.freshnessDays ?? 1500}
+                                                            onChange={(event) => setFreshness(channel.id, event.target.value)}
+                                                            className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-foreground"
+                                                        >
+                                                            <option value={3}>3 dias</option>
+                                                            <option value={1500}>1500 dias</option>
+                                                        </select>
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3">
+                                                        <InputPriorityControl channel={channel} />
+                                                    </TableCell>
+                                                    {promptProfiles.length > 0 && (
+                                                        <TableCell className="px-5 py-3">
+                                                            <PromptProfileSelect
+                                                                profiles={promptProfiles}
+                                                                value={channel.promptProfileId ? String(channel.promptProfileId) : ''}
+                                                                niche={channel.targetNiche}
+                                                                onChange={(value) =>
+                                                                    router.put(
+                                                                        `/painel/canais-fonte/${channel.id}`,
+                                                                        { prompt_profile_id: value || null },
+                                                                        { preserveScroll: true },
+                                                                    )
+                                                                }
+                                                            />
+                                                        </TableCell>
+                                                    )}
+                                                    <TableCell className="px-5 py-3">
+                                                        <Switch
+                                                            checked={channel.active}
+                                                            onCheckedChange={() => toggle(channel.id, 'active', channel.active)}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3">
+                                                        <Switch
+                                                            checked={channel.blacklisted}
+                                                            onCheckedChange={() =>
+                                                                toggle(channel.id, 'blacklisted', channel.blacklisted)
+                                                            }
+                                                            className="data-[state=checked]:bg-destructive"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 px-2.5 text-xs text-primary border-primary/30 hover:bg-primary/10 gap-1"
+                                                                onClick={() => {
+                                                                    const prompt = `Faça uma análise estratégica completa da estrutura de conteúdo do canal "${channel.channelName}" (${channel.channelHandle || 'YouTube'}) no nicho de ${channel.targetNiche}. Quais são as fórmulas de títulos, ganchos nos primeiros 3 segundos, formatos de corte e temas de maior engajamento para modelarmos no nosso canal?`;
+                                                                    router.visit(`/painel/assistente?prompt=${encodeURIComponent(prompt)}`);
+                                                                }}
+                                                                title="Analisar Estrutura com IA"
+                                                            >
+                                                                <span>🧠 Analisar IA</span>
+                                                            </Button>
+                                                            <ConfirmButton
+                                                                variant="destructive"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 rounded-lg"
+                                                                description={`Remover o canal fonte "${channel.channelName}"?`}
+                                                                onConfirm={() => destroy(channel.id)}
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </ConfirmButton>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </AppShell>
         </>

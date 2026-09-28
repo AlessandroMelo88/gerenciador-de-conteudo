@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Layout de Cortes Longos (16:9 em 9:16)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@800;900&family=Inter:wght@400;500;600;700;800;900&family=Montserrat:ital,wght@0,800;0,900;1,900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0a0c10;
+            --panel-bg: rgba(18, 22, 31, 0.85);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-color: #e50914;
+            --accent-glow: rgba(229, 9, 20, 0.4);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --gold-highlight: #ffdd00;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(30, 58, 138, 0.15), transparent 45%),
+                radial-gradient(circle at 85% 30%, rgba(220, 38, 38, 0.12), transparent 40%),
+                linear-gradient(to bottom, #07090e, #0d1117);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Header */
+        .app-header {
+            padding: 18px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--panel-border);
+            background: rgba(10, 12, 16, 0.8);
+            backdrop-filter: blur(12px);
+            z-index: 100;
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .app-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #e50914, #b20710);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            font-weight: 900;
+            font-size: 20px;
+            color: #fff;
+        }
+
+        .brand-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        .brand-title span {
+            color: #ef4444;
+        }
+
+        .brand-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn-header {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid var(--panel-border);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-header:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Workspace Layout */
+        .workspace {
+            flex: 1;
+            display: flex;
+            padding: 24px 32px;
+            gap: 32px;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+            align-items: flex-start;
+        }
+
+        /* Left Controls Panel */
+        .controls-panel {
+            flex: 0 0 380px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .controls-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        .controls-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-input, .control-select, .control-textarea {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 14px;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .control-textarea {
+            resize: vertical;
+            min-height: 60px;
+            font-family: inherit;
+        }
+
+        .control-input:focus, .control-select:focus, .control-textarea:focus {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        .color-presets {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .color-pill {
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .color-pill:hover {
+            transform: scale(1.08);
+        }
+
+        .color-pill.active {
+            border-color: #fff;
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+        }
+
+        .toggle-switch-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .toggle-switch-row span {
+            font-size: 0.88rem;
+            font-weight: 500;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #334155;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #ef4444;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .upload-box {
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .upload-box:hover {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .upload-box svg {
+            width: 24px;
+            height: 24px;
+            fill: #9ca3af;
+            margin-bottom: 4px;
+        }
+
+        .upload-box p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Center Stage / Phone Preview */
+        .preview-stage {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 120px);
+            position: relative;
+        }
+
+        /* Phone Frame */
+        .phone-wrapper {
+            position: relative;
+            padding: 14px;
+            background: #1e2430;
+            border-radius: 52px;
+            box-shadow: 
+                0 0 0 2px rgba(255, 255, 255, 0.1),
+                0 25px 60px -15px rgba(0, 0, 0, 0.8),
+                0 0 40px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease;
+        }
+
+        .phone-notch {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 20px;
+            background: #000;
+            border-radius: 20px;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .notch-camera {
+            width: 8px;
+            height: 8px;
+            background: #0f172a;
+            border-radius: 50%;
+            border: 1px solid #1e293b;
+        }
+
+        .notch-speaker {
+            width: 32px;
+            height: 4px;
+            background: #1e293b;
+            border-radius: 4px;
+        }
+
+        /* The 9:16 Canvas (405px x 720px standard 9:16 ratio) */
+        .shorts-canvas {
+            width: 390px;
+            height: 693px;
+            border-radius: 42px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: #000;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+
+        /* Canvas Ambient Background */
+        .ambient-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+
+        .bg-layer-gradient {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #030712 100%);
+            transition: all 0.5s ease;
+        }
+
+        .bg-layer-blur {
+            position: absolute;
+            inset: -20px;
+            background-size: cover;
+            background-position: center;
+            filter: blur(35px) brightness(0.6) saturate(1.4);
+            opacity: 0.65;
+            transition: all 0.5s ease;
+            transform: scale(1.1);
+        }
+
+        .bg-layer-grid {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: 0.8;
+        }
+
+        .bg-lighting-effects {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(circle at 50% 50%, rgba(220, 38, 38, 0.15), transparent 70%);
+        }
+
+        /* Foreground Content Container */
+        .content-layer {
+            position: relative;
+            z-index: 10;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 44px 20px 24px 20px;
+        }
+
+        /* TOP SECTION */
+        .shorts-top {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            text-align: center;
+        }
+
+        /* Channel Brand Header */
+        .channel-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 14px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(12px);
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .channel-logo-badge {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ef4444, #991b1b);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+        }
+
+        .channel-name {
+            font-size: 0.78rem;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #f8fafc;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: #ef4444;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.7);
+        }
+
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            animation: pulse-live 1.2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-live {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.7); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Headline / Title */
+        .shorts-headline {
+            font-family: 'Montserrat', 'Cabinet Grotesk', sans-serif;
+            font-size: 1.18rem;
+            line-height: 1.25;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #ffffff;
+            text-shadow: 
+                0 2px 4px rgba(0, 0, 0, 0.9),
+                0 0 20px rgba(0, 0, 0, 0.8);
+            letter-spacing: -0.01em;
+            padding: 0 8px;
+            transition: all 0.2s;
+        }
+
+        .shorts-headline mark {
+            background: linear-gradient(135deg, #ffd700, #ffae00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: #ffd700;
+            font-weight: 900;
+        }
+
+        /* CENTER SECTION: 16:9 VIDEO FRAME */
+        .shorts-center {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: auto 0;
+            position: relative;
+        }
+
+        .video-box-container {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #090d16;
+            border-radius: 18px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 16px 35px -8px rgba(0, 0, 0, 0.9),
+                0 0 0 1px rgba(255, 255, 255, 0.15),
+                0 0 25px rgba(239, 68, 68, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        /* Simulated Video Content */
+        .video-viewport {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: linear-gradient(135deg, #111827 0%, #1f2937 50%, #0f172a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .simulated-stage {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 10px;
+        }
+
+        /* Podcaster / Debate Avatars in 16:9 */
+        .stage-podcaster {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 2;
+        }
+
+        .podcaster-avatar {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: 2px solid #60a5fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            position: relative;
+        }
+
+        .podcaster-avatar.guest {
+            background: linear-gradient(135deg, #ec4899, #be185d);
+            border-color: #f472b6;
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
+        }
+
+        .mic-icon {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            background: #111827;
+            border: 1px solid #374151;
+            padding: 3px;
+            border-radius: 50%;
+            font-size: 10px;
+        }
+
+        .podcaster-name {
+            font-size: 0.65rem;
+            font-weight: 700;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .audio-wave {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            height: 16px;
+        }
+
+        .wave-bar {
+            width: 3px;
+            background: #ef4444;
+            border-radius: 2px;
+            animation: audio-bounce 0.8s infinite ease-in-out alternate;
+        }
+
+        .wave-bar:nth-child(2) { animation-delay: 0.2s; height: 14px; }
+        .wave-bar:nth-child(3) { animation-delay: 0.4s; height: 8px; }
+        .wave-bar:nth-child(4) { animation-delay: 0.1s; height: 16px; }
+        .wave-bar:nth-child(5) { animation-delay: 0.3s; height: 10px; }
+
+        @keyframes audio-bounce {
+            0% { height: 4px; }
+            100% { height: 16px; }
+        }
+
+        /* Real Video or Image if user uploads */
+        #uploaded-media-element {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            inset: 0;
+            display: none;
+            z-index: 5;
+        }
+
+        /* Custom HTML5 Video Player Overlay Bar */
+        .video-player-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.85), transparent);
+            padding: 10px 12px 6px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 10;
+        }
+
+        .video-progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .video-progress-fill {
+            width: 45%;
+            height: 100%;
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+            transition: width 0.1s linear;
+        }
+
+        .video-control-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .left-player-tools {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .play-btn-mini {
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .play-btn-mini svg {
+            width: 14px;
+            height: 14px;
+            fill: #fff;
+        }
+
+        .resolution-badge {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 0.55rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+        }
+
+        /* 16:9 Indicator Watermark */
+        .ratio-tag {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            font-size: 0.6rem;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 6;
+        }
+
+        /* BOTTOM SECTION: SUBTITLES & CTA */
+        .shorts-bottom {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* Dynamic High-Contrast Subtitles */
+        .subtitles-box {
+            min-height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 6px 12px;
+        }
+
+        .subtitle-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 900;
+            line-height: 1.25;
+            text-transform: uppercase;
+            color: #ffffff;
+            /* High contrast thick stroke & shadow for maximum viral shorts readability */
+            text-shadow: 
+                -2px -2px 0 #000,  
+                 2px -2px 0 #000,
+                -2px  2px 0 #000,
+                 2px  2px 0 #000,
+                 0px  4px 8px rgba(0,0,0,0.9);
+            letter-spacing: -0.01em;
+            display: inline-block;
+        }
+
+        .subtitle-highlight {
+            color: #ffe600;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 0 4px;
+            border-radius: 4px;
+            text-shadow: 
+                -2px -2px 0 #000,  
+                 2px -2px 0 #000,
+                -2px  2px 0 #000,
+                 2px  2px 0 #000,
+                 0 0 12px rgba(255, 230, 0, 0.5);
+            display: inline-block;
+            transform: scale(1.05);
+            transition: all 0.15s ease;
+        }
+
+        /* Subscribe Banner / Button */
+        .subscribe-cta-bar {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 50px;
+            padding: 8px 10px 8px 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+        }
+
+        .cta-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cta-bell {
+            width: 22px;
+            height: 22px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            animation: bell-ring 3s infinite ease-in-out;
+        }
+
+        @keyframes bell-ring {
+            0%, 80%, 100% { transform: rotate(0); }
+            85% { transform: rotate(15deg); }
+            90% { transform: rotate(-15deg); }
+            95% { transform: rotate(10deg); }
+        }
+
+        .cta-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cta-title {
+            font-size: 0.74rem;
+            font-weight: 800;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .cta-sub {
+            font-size: 0.58rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .btn-subscribe {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 8px 16px;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.5);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-subscribe:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.7);
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .workspace {
+                flex-direction: column-reverse;
+                align-items: center;
+                padding: 16px;
+            }
+            .controls-panel {
+                width: 100%;
+                max-width: 440px;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="brand-section">
+            <div class="app-icon">▶</div>
+            <div>
+                <h1 class="brand-title">Cortes<span>Studio</span> Pro</h1>
+                <p class="brand-subtitle">Simulador de Enquadramento 16:9 em Formato Vertical (9:16 - 1080x1920)</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-header" onclick="resetDefaults()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Restaurar Padrão
+            </button>
+            <button class="btn-header" onclick="triggerAutoPlayDemo()" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4);">
+                <span id="demo-play-icon">▶</span> <span id="demo-play-text">Simular Legenda</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+
+        <!-- Controls Sidebar -->
+        <aside class="controls-panel">
+            <div class="panel-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Personalização do Layout
+            </div>
+
+            <!-- Logo & Brand Preset -->
+            <div class="control-group">
+                <label class="control-label">Nome do Canal / Logo</label>
+                <input type="text" id="input-channel-name" class="control-input" value="POLÍTICA EM CORTES" oninput="updateChannelName(this.value)">
+            </div>
+
+            <!-- Badge Type -->
+            <div class="control-group">
+                <label class="control-label">Badge Superior</label>
+                <select id="select-badge" class="control-select" onchange="updateBadge(this.value)">
+                    <option value="AO VIVO / DEBATE" selected>🔴 AO VIVO / DEBATE</option>
+                    <option value="URGENTE">⚡ URGENTE</option>
+                    <option value="EXCLUSIVO">🔥 EXCLUSIVO</option>
+                    <option value="CORTE HISTÓRICO">🏆 CORTE HISTÓRICO</option>
+                    <option value="BASTIDORES">🎙️ BASTIDORES</option>
+                </select>
+            </div>
+
+            <!-- Headline / Title -->
+            <div class="control-group">
+                <label class="control-label">Título da Notícia / Corte</label>
+                <textarea id="input-headline" class="control-textarea" rows="2" oninput="updateHeadline(this.value)">DEBATE ESQUENTA: VEJA O *MOMENTO EXATO* DA DISCUSSÃO!</textarea>
+                <small style="color: #64748b; font-size: 0.72rem;">Dica: Palavras entre *asteriscos* ficam em destaque dourado.</small>
+            </div>
+
+            <!-- Background Theme -->
+            <div class="control-group">
+                <label class="control-label">Tema do Background</label>
+                <div class="color-presets">
+                    <div class="color-pill active" style="background: linear-gradient(135deg, #1e1b4b, #030712);" title="Deep Indigo" onclick="setBgTheme(this, 'indigo')"></div>
+                    <div class="color-pill" style="background: linear-gradient(135deg, #450a0a, #030712);" title="Dark Crimson" onclick="setBgTheme(this, 'crimson')"></div>
+                    <div class="color-pill" style="background: linear-gradient(135deg, #064e3b, #030712);" title="Emerald Forest" onclick="setBgTheme(this, 'emerald')"></div>
+                    <div class="color-pill" style="background: linear-gradient(135deg, #431407, #030712);" title="Amber Gold" onclick="setBgTheme(this, 'amber')"></div>
+                    <div class="color-pill" style="background: linear-gradient(135deg, #18181b, #09090b);" title="Pure Stealth" onclick="setBgTheme(this, 'stealth')"></div>
+                </div>
+            </div>
+
+            <!-- Blur and Ambient Toggle -->
+            <div class="toggle-switch-row">
+                <span>Efeito Blur de Fundo</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-blur" checked onchange="toggleBlurEffect(this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <!-- Frame Glow Toggle -->
+            <div class="toggle-switch-row">
+                <span>Glow / Borda Neon 16:9</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-glow" checked onchange="toggleFrameGlow(this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <!-- Legenda Style -->
+            <div class="control-group">
+                <label class="control-label">Estilo das Legendas</label>
+                <select id="select-subtitle-style" class="control-select" onchange="changeSubtitleStyle(this.value)">
+                    <option value="yellow" selected>Amarelo Viral (Shorts/TikTok)</option>
+                    <option value="cyan">Ciano & Branco Neon</option>
+                    <option value="green">Verde Fluorescente</option>
+                    <option value="red">Vermelho Alerta</option>
+                </select>
+            </div>
+
+            <!-- Upload Custom Media for Real Testing -->
+            <div class="control-group">
+                <label class="control-label">Testar com seu Próprio Vídeo / Foto</label>
+                <div class="upload-box" onclick="document.getElementById('file-upload').click()">
+                    <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                    <p><strong>Clique para carregar mídia</strong></p>
+                    <p>Suba um vídeo .mp4 ou foto 16:9 para testar</p>
+                </div>
+                <input type="file" id="file-upload" accept="video/*,image/*" style="display:none" onchange="handleMediaUpload(event)">
+            </div>
+        </aside>
+
+        <!-- Smartphone / Shorts Simulator Stage -->
+        <section class="preview-stage">
+            <div class="phone-wrapper" id="phone-frame">
+                
+                <!-- Notch -->
+                <div class="phone-notch">
+                    <div class="notch-speaker"></div>
+                    <div class="notch-camera"></div>
+                </div>
+
+                <!-- 9:16 Canvas -->
+                <div class="shorts-canvas" id="canvas-container">
+                    
+                    <!-- Background Layers -->
+                    <div class="ambient-bg">
+                        <div class="bg-layer-gradient" id="bg-gradient"></div>
+                        <div class="bg-layer-blur" id="bg-blur" style="background-image: radial-gradient(circle, #3b82f6 0%, #1e1b4b 50%, #000 100%);"></div>
+                        <div class="bg-layer-grid"></div>
+                        <div class="bg-lighting-effects" id="bg-lighting"></div>
+                    </div>
+
+                    <!-- Visual Content Container -->
+                    <div class="content-layer">
+                        
+                        <!-- 1. TOPO: LOGO & BADGE & TÍTULO -->
+                        <div class="shorts-top">
+                            <div class="channel-header">
+                                <div class="channel-logo-badge" id="display-logo-icon">P</div>
+                                <span class="channel-name" id="display-channel-name">POLÍTICA EM CORTES</span>
+                            </div>
+
+                            <div class="status-badge" id="display-badge">
+                                <span class="pulse-dot"></span>
+                                <span id="display-badge-text">AO VIVO / DEBATE</span>
+                            </div>
+
+                            <h2 class="shorts-headline" id="display-headline">
+                                DEBATE ESQUENTA: VEJA O <mark>MOMENTO EXATO</mark> DA DISCUSSÃO!
+                            </h2>
+                        </div>
+
+                        <!-- 2. CENTRO: QUADRO 16:9 REPRODUZINDO VÍDEO -->
+                        <div class="shorts-center">
+                            <div class="video-box-container" id="video-frame">
+                                <span class="ratio-tag">16:9 HD</span>
+
+                                <!-- Dynamic uploaded media element -->
+                                <video id="uploaded-video" style="display:none; width:100%; height:100%; object-fit:cover;" loop autoplay muted playsinline></video>
+                                <img id="uploaded-img" style="display:none; width:100%; height:100%; object-fit:cover;" alt="Preview">
+
+                                <!-- Simulated HTML5 Video Scene -->
+                                <div class="video-viewport" id="simulated-scene">
+                                    <div class="simulated-stage">
+                                        <!-- Presenter 1 -->
+                                        <div class="stage-podcaster">
+                                            <div class="podcaster-avatar">
+                                                👨‍💼
+                                                <div class="mic-icon">🎙️</div>
+                                            </div>
+                                            <span class="podcaster-name">Apresentador</span>
+                                            <div class="audio-wave">
+                                                <div class="wave-bar"></div>
+                                                <div class="wave-bar"></div>
+                                                <div class="wave-bar"></div>
+                                                <div class="wave-bar"></div>
+                                                <div class="wave-bar"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Center VS / Studio badge -->
+                                        <div style="font-weight:900; font-size:14px; color:#ef4444; text-shadow:0 0 10px rgba(239,68,68,0.8); font-style:italic;">
+                                            VS
+                                        </div>
+
+                                        <!-- Guest 2 -->
+                                        <div class="stage-podcaster">
+                                            <div class="podcaster-avatar guest">
+                                                🗣️
+                                                <div class="mic-icon">🎙️</div>
+                                            </div>
+                                            <span class="podcaster-name">Convidado</span>
+                                            <div class="audio-wave">
+                                                <div class="wave-bar" style="background:#ec4899; animation-delay:0.3s;"></div>
+                                                <div class="wave-bar" style="background:#ec4899; animation-delay:0.1s;"></div>
+                                                <div class="wave-bar" style="background:#ec4899; animation-delay:0.4s;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- HTML5 Simulated Player Controls -->
+                                <div class="video-player-controls">
+                                    <div class="video-progress-bar" onclick="seekVideo(event)">
+                                        <div class="video-progress-fill" id="progress-fill"></div>
+                                    </div>
+                                    <div class="video-control-buttons">
+                                        <div class="left-player-tools">
+                                            <button class="play-btn-mini" onclick="togglePlayPause()">
+                                                <svg id="ctrl-play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                            </button>
+                                            <span id="player-time-display">00:42 / 03:15</span>
+                                        </div>
+                                        <div style="display:flex; align-items:center; gap:6px;">
+                                            <span class="resolution-badge">1080p60</span>
+                                            <span style="cursor:pointer; font-size:10px;">🔊</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- 3. RODAPÉ: LEGENDAS DINÂMICAS & CTA INSCREVA-SE -->
+                        <div class="shorts-bottom">
+                            <!-- Dynamic Subtitles -->
+                            <div class="subtitles-box">
+                                <p class="subtitle-text" id="display-subtitle">
+                                    "ELES NÃO QUEREM QUE VOCÊ <span class="subtitle-highlight" id="highlight-word">SAIBA A VERDADE</span> DISSO!"
+                                </p>
+                            </div>
+
+                            <!-- Subscription Bar -->
+                            <div class="subscribe-cta-bar">
+                                <div class="cta-info">
+                                    <div class="cta-bell">🔔</div>
+                                    <div class="cta-text">
+                                        <span class="cta-title">Gostou do Corte?</span>
+                                        <span class="cta-sub">Vídeos novos todos os dias</span>
+                                    </div>
+                                </div>
+                                <button class="btn-subscribe" onclick="triggerSubscribeAnimation(this)">
+                                    <span>INSCREVER-SE</span>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- JavaScript Interactive Logic -->
+    <script>
+        // State variables
+        let isPlaying = true;
+        let progressPercent = 45;
+        let progressInterval = null;
+        let subtitleDemoInterval = null;
+        let isSimulatingSubtitles = false;
+
+        const subtitlePhrases = [
+            { text: "ELES NÃO QUEREM QUE VOCÊ ", highlight: "SAIBA A VERDADE" },
+            { text: "O QUE ACONTECEU NO CONGRESSO ", highlight: "FOI SURPREENDENTE!" },
+            { text: "VEJA BEM O QUE ESSE DEPUTADO ", highlight: "ACABOU DE AFIRMAR" },
+            { text: "NINGUÉM ESPERAVA ESSA RESPOSTA ", highlight: "AO VIVO!" },
+            { text: "ISSO MUDA COMPLETAMENTE ", highlight: "O CENÁRIO POLÍTICO" }
+        ];
+        let currentPhraseIdx = 0;
+
+        // Background Color Presets
+        const bgThemes = {
+            indigo: {
+                gradient: "radial-gradient(circle at 50% 20%, #1e1b4b 0%, #030712 100%)",
+                glow: "rgba(59, 130, 246, 0.25)",
+                lighting: "radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15), transparent 70%)"
+            },
+            crimson: {
+                gradient: "radial-gradient(circle at 50% 20%, #450a0a 0%, #030712 100%)",
+                glow: "rgba(239, 68, 68, 0.3)",
+                lighting: "radial-gradient(circle at 50% 50%, rgba(220, 38, 38, 0.2), transparent 70%)"
+            },
+            emerald: {
+                gradient: "radial-gradient(circle at 50% 20%, #064e3b 0%, #030712 100%)",
+                glow: "rgba(16, 185, 129, 0.25)",
+                lighting: "radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.15), transparent 70%)"
+            },
+            amber: {
+                gradient: "radial-gradient(circle at 50% 20%, #431407 0%, #030712 100%)",
+                glow: "rgba(245, 158, 11, 0.25)",
+                lighting: "radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.15), transparent 70%)"
+            },
+            stealth: {
+                gradient: "radial-gradient(circle at 50% 20%, #18181b 0%, #09090b 100%)",
+                glow: "rgba(255, 255, 255, 0.1)",
+                lighting: "radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05), transparent 70%)"
+            }
+        };
+
+        // Initialize progress simulation
+        function startProgress() {
+            if (progressInterval) clearInterval(progressInterval);
+            progressInterval = setInterval(() => {
+                if (isPlaying) {
+                    progressPercent += 0.4;
+                    if (progressPercent > 100) progressPercent = 0;
+                    document.getElementById('progress-fill').style.width = progressPercent + '%';
+                }
+            }, 100);
+        }
+        startProgress();
+
+        // Update Channel Name & Icon
+        function updateChannelName(name) {
+            const trimmed = name.trim() || "CORTES";
+            document.getElementById('display-channel-name').textContent = trimmed;
+            document.getElementById('display-logo-icon').textContent = trimmed.charAt(0).toUpperCase();
+        }
+
+        // Update Badge
+        function updateBadge(badgeValue) {
+            const badgeEl = document.getElementById('display-badge');
+            const badgeTextEl = document.getElementById('display-badge-text');
+            badgeTextEl.textContent = badgeValue;
+
+            if (badgeValue.includes("URGENTE") || badgeValue.includes("AO VIVO")) {
+                badgeEl.style.background = "#ef4444";
+                badgeEl.style.boxShadow = "0 0 15px rgba(239, 68, 68, 0.7)";
+            } else if (badgeValue.includes("EXCLUSIVO")) {
+                badgeEl.style.background = "#f59e0b";
+                badgeEl.style.boxShadow = "0 0 15px rgba(245, 158, 11, 0.7)";
+            } else if (badgeValue.includes("HISTÓRICO")) {
+                badgeEl.style.background = "#8b5cf6";
+                badgeEl.style.boxShadow = "0 0 15px rgba(139, 92, 246, 0.7)";
+            } else {
+                badgeEl.style.background = "#3b82f6";
+                badgeEl.style.boxShadow = "0 0 15px rgba(59, 130, 246, 0.7)";
+            }
+        }
+
+        // Update Headline with Markdown-like bold formatting
+        function updateHeadline(text) {
+            const headlineEl = document.getElementById('display-headline');
+            // Format *words* with <mark>
+            let formatted = text.replace(/\*(.*?)\*/g, '<mark>$1</mark>');
+            headlineEl.innerHTML = formatted;
+        }
+
+        // Set Background Theme
+        function setBgTheme(element, themeKey) {
+            document.querySelectorAll('.color-pill').forEach(p => p.classList.remove('active'));
+            element.classList.add('active');
+
+            const theme = bgThemes[themeKey];
+            if (theme) {
+                document.getElementById('bg-gradient').style.background = theme.gradient;
+                document.getElementById('bg-lighting').style.background = theme.lighting;
+                document.getElementById('video-frame').style.boxShadow = 
+                    `0 16px 35px -8px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.15), 0 0 25px ${theme.glow}`;
+            }
+        }
+
+        // Toggle Blur Effect
+        function toggleBlurEffect(checked) {
+            const blurLayer = document.getElementById('bg-blur');
+            blurLayer.style.display = checked ? 'block' : 'none';
+        }
+
+        // Toggle Glow
+        function toggleFrameGlow(checked) {
+            const frame = document.getElementById('video-frame');
+            if (checked) {
+                frame.style.boxShadow = '0 16px 35px -8px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.15), 0 0 25px rgba(239, 68, 68, 0.3)';
+            } else {
+                frame.style.boxShadow = '0 16px 35px -8px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1)';
+            }
+        }
+
+        // Subtitle Style Preset
+        function changeSubtitleStyle(style) {
+            const subHighlight = document.getElementById('highlight-word');
+            if (style === 'yellow') {
+                subHighlight.style.color = '#ffe600';
+                subHighlight.style.textShadow = '-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 0 12px rgba(255, 230, 0, 0.5)';
+            } else if (style === 'cyan') {
+                subHighlight.style.color = '#00f2fe';
+                subHighlight.style.textShadow = '-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 0 12px rgba(0, 242, 254, 0.6)';
+            } else if (style === 'green') {
+                subHighlight.style.color = '#22c55e';
+                subHighlight.style.textShadow = '-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 0 12px rgba(34, 197, 94, 0.6)';
+            } else if (style === 'red') {
+                subHighlight.style.color = '#ef4444';
+                subHighlight.style.textShadow = '-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 0 12px rgba(239, 68, 68, 0.6)';
+            }
+        }
+
+        // Play/Pause Video Controls
+        function togglePlayPause() {
+            isPlaying = !isPlaying;
+            const playIcon = document.getElementById('ctrl-play-icon');
+            const userVideo = document.getElementById('uploaded-video');
+
+            if (isPlaying) {
+                playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                if (userVideo.style.display === 'block') userVideo.play();
+            } else {
+                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                if (userVideo.style.display === 'block') userVideo.pause();
+            }
+        }
+
+        function seekVideo(e) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clickPos = (e.clientX - rect.left) / rect.width;
+            progressPercent = clickPos * 100;
+            document.getElementById('progress-fill').style.width = progressPercent + '%';
+        }
+
+        // Live Subtitle Demo Simulation
+        function triggerAutoPlayDemo() {
+            const btnIcon = document.getElementById('demo-play-icon');
+            const btnText = document.getElementById('demo-play-text');
+
+            if (isSimulatingSubtitles) {
+                clearInterval(subtitleDemoInterval);
+                isSimulatingSubtitles = false;
+                btnIcon.textContent = '▶';
+                btnText.textContent = 'Simular Legenda';
+                return;
+            }
+
+            isSimulatingSubtitles = true;
+            btnIcon.textContent = '⏸';
+            btnText.textContent = 'Pausar Legenda';
+
+            subtitleDemoInterval = setInterval(() => {
+                currentPhraseIdx = (currentPhraseIdx + 1) % subtitlePhrases.length;
+                const phrase = subtitlePhrases[currentPhraseIdx];
+                const subtitleBox = document.getElementById('display-subtitle');
+                
+                subtitleBox.style.opacity = 0;
+                subtitleBox.style.transform = 'translateY(4px)';
+                
+                setTimeout(() => {
+                    subtitleBox.innerHTML = `"${phrase.text}<span class="subtitle-highlight" id="highlight-word">${phrase.highlight}</span>"`;
+                    changeSubtitleStyle(document.getElementById('select-subtitle-style').value);
+                    subtitleBox.style.transition = 'all 0.25s ease';
+                    subtitleBox.style.opacity = 1;
+                    subtitleBox.style.transform = 'translateY(0)';
+                }, 150);
+
+            }, 2400);
+        }
+
+        // Subscribe Animation
+        function triggerSubscribeAnimation(btn) {
+            btn.innerHTML = '<span>✓ INSCRITO!</span>';
+            btn.style.background = '#22c55e';
+            btn.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.6)';
+            setTimeout(() => {
+                btn.innerHTML = '<span>INSCREVER-SE</span>';
+                btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                btn.style.boxShadow = '0 4px 15px rgba(239, 68, 68, 0.5)';
+            }, 2500);
+        }
+
+        // Handle Custom Video/Image Upload
+        function handleMediaUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const fileUrl = URL.createObjectURL(file);
+            const videoEl = document.getElementById('uploaded-video');
+            const imgEl = document.getElementById('uploaded-img');
+            const sceneEl = document.getElementById('simulated-scene');
+            const blurLayer = document.getElementById('bg-blur');
+
+            if (file.type.startsWith('video/')) {
+                videoEl.src = fileUrl;
+                videoEl.style.display = 'block';
+                imgEl.style.display = 'none';
+                sceneEl.style.display = 'none';
+                videoEl.play();
+                isPlaying = true;
+            } else if (file.type.startsWith('image/')) {
+                imgEl.src = fileUrl;
+                imgEl.style.display = 'block';
+                videoEl.style.display = 'none';
+                sceneEl.style.display = 'none';
+                blurLayer.style.backgroundImage = `url(${fileUrl})`;
+            }
+        }
+
+        // Reset to Defaults
+        function resetDefaults() {
+            document.getElementById('input-channel-name').value = "POLÍTICA EM CORTES";
+            updateChannelName("POLÍTICA EM CORTES");
+            document.getElementById('select-badge').value = "AO VIVO / DEBATE";
+            updateBadge("AO VIVO / DEBATE");
+            document.getElementById('input-headline').value = "DEBATE ESQUENTA: VEJA O MOMENTO EXATO DA DISCUSSÃO!";
+            updateHeadline("DEBATE ESQUENTA: VEJA O <mark>MOMENTO EXATO</mark> DA DISCUSSÃO!");
+            document.getElementById('toggle-blur').checked = true;
+            toggleBlurEffect(true);
+            document.getElementById('toggle-glow').checked = true;
+            toggleFrameGlow(true);
+            document.getElementById('select-subtitle-style').value = "yellow";
+            changeSubtitleStyle("yellow");
+            document.getElementById('uploaded-video').style.display = 'none';
+            document.getElementById('uploaded-img').style.display = 'none';
+            document.getElementById('simulated-scene').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>

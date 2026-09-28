@@ -22,7 +22,7 @@ AUDIO_ROOT = (ASSETS_ROOT / 'audio').resolve()
 MEDIA_ROOT = Path(os.environ.get('BRANDING_DIR', '/app/branding')).resolve()
 
 DEFAULT_STILL_DURATION_SECONDS = 3
-DEFAULT_MUSIC_VOLUME = 0.12
+DEFAULT_MUSIC_VOLUME = 0.24
 MUSIC_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.ogg', '.flac', '.aac'}
 VISUAL_ASSET_NAMES = {
     'intro': ('intro.mp4', 'intro.jpg', 'intro.jpeg', 'intro.png', 'intro.webp'),
@@ -152,7 +152,19 @@ def _resolve_channel_asset(channel_slug: object, kind: str) -> Path | None:
     return None
 
 
-def _resolve_audio_asset(clip_id: int) -> Path | None:
+def _resolve_audio_asset(clip_id: int, channel_slug: object = None) -> Path | None:
+    channel_dir = _channel_directory(channel_slug)
+    if channel_dir is not None:
+        channel_audio = channel_dir / 'audio'
+        if channel_audio.is_dir():
+            channel_candidates = sorted(
+                path
+                for path in channel_audio.iterdir()
+                if path.is_file() and path.suffix.lower() in MUSIC_EXTENSIONS
+            )
+            if channel_candidates:
+                return channel_candidates[abs(int(clip_id)) % len(channel_candidates)]
+
     if not AUDIO_ROOT.is_dir():
         return None
 
@@ -193,7 +205,7 @@ def resolve_filesystem_media_assets(
             'source': 'filesystem',
         }
 
-    music_path = _resolve_audio_asset(clip_id)
+    music_path = _resolve_audio_asset(clip_id, channel_slug)
     if music_path is not None:
         resolved['music'] = {
             'kind': 'music',

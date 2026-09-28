@@ -14,6 +14,7 @@ Comportamento:
   - Limpa artefatos de download incompleto após cada falha e varre os órfãos de
     crash (processo morto sem passar pelo except) a cada ciclo do pipeline
 """
+from __future__ import annotations
 
 import glob
 import os
@@ -183,8 +184,19 @@ def download_video(video_id: str, output_path: str | None = None) -> bool:
         'retries': 0,
         'fragment_retries': 0,
         'progress_hooks': [_abort_if_paused],
-        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+        'remote_components': ['ejs:github'],
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['mweb', 'tv', 'ios', 'android']
+            }
+        },
     }
+
+    cookie_file = '/app/youtube/cookies.txt'
+    if os.path.exists(cookie_file):
+        ydl_opts['cookiefile'] = cookie_file
+        if 'extractor_args' in ydl_opts:
+            del ydl_opts['extractor_args']
 
     for attempt in range(1, 4):
         try:

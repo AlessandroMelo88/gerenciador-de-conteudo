@@ -167,6 +167,9 @@ def test_purge_old_videos_deletes_rows_and_frees_files(client, mocker):
     assert result == {'deleted_rows': 5, 'freed_bytes': 1024 * 1024}
     mock_remove.assert_called_once_with('/app/videos/abc.mp4')
     mock_redis.delete.assert_called_once_with('video:abc123xyz01')
+    # `DELETE sv FROM ...` é sintaxe só do MySQL e quebra no PostgreSQL.
+    delete_sql = next(c[0][0] for c in mock_cursor.execute.call_args_list if c[0][0].startswith('DELETE'))
+    assert delete_sql.startswith('DELETE FROM source_videos ')
 
 
 def test_purge_old_videos_route_returns_result(client, mocker):
@@ -181,3 +184,20 @@ def test_purge_old_videos_route_returns_result(client, mocker):
     )
     assert resp.status_code == 200
     assert resp.get_json() == {'deleted_rows': 3, 'freed_bytes': 2048}
+
+
+def test_publish_now_requires_auth(client):
+    resp = client.post('/internal/publish-now')
+    assert resp.status_code == 401
+
+
+def test_publish_now_spawns_thread_and_returns_ok(client, mocker):
+    mock_thread = mocker.patch('src.internal_api.threading.Thread')
+    resp = client.post(
+        '/internal/publish-now',
+        headers={'X-Internal-Token': 'test-token-123'},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()['ok'] is True
+    mock_thread.assert_called_once()
+

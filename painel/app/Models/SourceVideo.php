@@ -22,6 +22,8 @@ class SourceVideo extends Model
         'published_at',
         'local_path',
         'transcript_path',
+        'transcript_data',
+        'transcript_text',
         'format',
         'priority',
         'paused',
@@ -33,6 +35,7 @@ class SourceVideo extends Model
         'paused' => 'boolean',
         'priority' => 'integer',
         'queue_position' => 'integer',
+        'transcript_data' => 'array',
     ];
 
     /** @return BelongsTo<SourceChannel, $this> */

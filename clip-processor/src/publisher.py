@@ -5,10 +5,17 @@ Exporta:
   - publish_pending_clips(conn, redis_client, uploader=None, quota_manager=None, now=None)
   - _fetch_destination_channels(conn)
   - _fetch_pending_clips_for_channel(conn, destination_channel_id)
+  - finalize_settled_source_videos(conn)
 """
+from __future__ import annotations
 
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+try:
+    from datetime import UTC  # type: ignore
+except ImportError:
+    UTC = timezone.utc
 
 from src.metadata_generator import append_credits, resolve_credit_handle
 from src.quota_manager import QuotaManager
@@ -41,6 +48,7 @@ def publish_pending_clips(
     uploader: YouTubeUploader | None = None,
     quota_manager: QuotaManager | None = None,
     now: datetime | None = None,
+    bypass_window: bool = False,
 ) -> int:
     """Publica clips prontos e retorna quantidade publicada.
 
@@ -59,7 +67,7 @@ def publish_pending_clips(
         _log('[PUBLISHER] Nenhum canal-destino ativo — usando fluxo legado')
         ch_uploader = uploader or YouTubeUploader()
         ch_quota = quota_manager or QuotaManager(redis_client)
-        return _publish_clips_for(conn, _fetch_pending_clips(conn), ch_uploader, ch_quota, now)
+        return _publish_clips_for(conn, _fetch_pending_clips(conn), ch_uploader, ch_quota, now, bypass_window=bypass_window)
 
     total = 0
     for dest in dest_channels:
@@ -90,11 +98,12 @@ def publish_pending_clips(
                 ch_quota,
                 now,
                 longo_waiting=longo_waiting,
+                bypass_window=bypass_window,
             )
             remaining.pop(0)
             total += published
             # Sem capacidade total, o resto do canal espera o próximo ciclo.
-            if published == 0 and not ch_quota.has_capacity(now=now):
+            if published == 0 and not ch_quota.has_capacity(now=now, bypass_window=bypass_window):
                 break
 
     return total
@@ -145,12 +154,12 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'JOIN source_channels sc ON sc.id = sv.channel_id '
-            'WHERE gc.status = %s '
+            'WHERE gc.status IN (\'approved\', \'pending\') '
             'AND gc.destination_channel_id = %s '
             'AND gc.clip_path IS NOT NULL '
             'AND gc.title IS NOT NULL '
-            "ORDER BY (sv.format = 'longo') DESC, gc.created_at ASC",
-            (_publishable_status(), destination_channel_id),
+            "ORDER BY (sv.format = 'longo') DESC, CASE WHEN gc.status = 'approved' THEN 0 ELSE 1 END, gc.created_at ASC",
+            (destination_channel_id,),
         )
         clips = cur.fetchall() or []
     return _round_robin_by_source_channel(clips)
@@ -221,10 +230,9 @@ def _mark_clip_transient_failure(conn, clip_id: int, status: str, error_msg: str
     conn.commit()
 
 
-def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
-    """Publica uma sequência de clips com um uploader/quota_manager dado."""
-    current_status = _publishable_status()
+def _publish_clips_for(conn, clips: list[dict], uploader, quota_manager, now, bypass_window: bool = False) -> int:
     published_count = 0
+    current_status = _publishable_status()
     remaining = list(clips)
 
     while remaining:
@@ -233,14 +241,14 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
         clip_format = clip.get('format') or 'curto'
         longo_waiting = _has_longo_waiting(remaining)
 
-        if not quota_manager.has_capacity(now=now):
+        if not quota_manager.has_capacity(now=now, bypass_window=bypass_window):
             _log(f'Clip {clip_id} mantido {current_status} por quota/janela')
             break
 
-        if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting):
+        if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting, bypass_window=bypass_window):
             _log(
                 f'Clip {clip_id} ({clip_format}) mantido {current_status} '
-                'por quota/cadência'
+                'por cota de formato'
             )
             remaining.pop(0)
             continue
@@ -289,14 +297,14 @@ def _publish_clips_for(conn, clips, uploader, quota_manager, now) -> int:
     return published_count
 
 
-def _publish_one(conn, clip, uploader, quota_manager, now, *, longo_waiting: bool = False) -> int:
+def _publish_one(conn, clip, uploader, quota_manager, now, *, longo_waiting: bool = False, bypass_window: bool = False) -> int:
     """Publica um único clip. Retorna 1 se publicado, 0 caso contrário."""
     current_status = _publishable_status()
     clip_id = clip['id']
     clip_format = clip.get('format') or 'curto'
 
-    if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting):
-        _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por quota/cadência')
+    if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting, bypass_window=bypass_window):
+        _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por quota/janela')
         return 0
 
     _log(f'Próximo clip {current_status}: id={clip_id}')
@@ -466,28 +474,51 @@ def _mark_clip_failed(conn, clip_id: int, error: str) -> None:
     conn.commit()
 
 
-def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: str | None) -> None:
+def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: str | None) -> bool:
+    """Encerra o vídeo fonte quando todos os clips dele chegaram a estado terminal.
+
+    Apaga o raw e os arquivos dos clips e libera a vaga da janela de download
+    (`local_path=NULL` e status fora dos estados ativos). Status final:
+    'published' se ao menos um clip foi ao ar, 'failed' se todos terminaram
+    rejeitados/falhos.
+
+    Bug 17: antes exigia um clip publicado. Vídeo com todos os clips rejeitados
+    ficava em 'selecting' segurando a vaga para sempre — travou os dois nichos.
+
+    Clip em 'pending_cut'/'cutting' conta como não-terminal, então o raw que o
+    corte ainda vai ler nunca é apagado aqui. Vídeo sem clip nenhum não é
+    tratado aqui (é caso do `recover_stuck_selecting`).
+
+    Retorna True se encerrou o vídeo.
+    """
     with conn.cursor() as cur:
         cur.execute(
             'SELECT '
-            'COUNT(*) FILTER (WHERE status IN %s) AS non_terminal_count, '
-            "COUNT(*) FILTER (WHERE status = 'published') AS published_count "
+            'COUNT(*) AS total_count, '
+            'SUM(CASE WHEN status IN %s THEN 1 ELSE 0 END) AS non_terminal_count, '
+            "SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS published_count "
             'FROM generated_clips '
             'WHERE source_video_id = %s',
             (NON_TERMINAL_CLIP_STATUSES, source_video_id),
         )
         row = cur.fetchone() or {}
 
+    total_count = int(row.get('total_count') or 0)
     non_terminal_count = int(row.get('non_terminal_count') or 0)
     published_count = int(row.get('published_count') or 0)
-    if non_terminal_count != 0 or published_count == 0:
-        return
+    if total_count == 0 or non_terminal_count != 0:
+        return False
 
+    # Arquivo antes do banco, e conferindo: se o raw não saiu do disco, o banco
+    # fica como está e a próxima varredura tenta de novo (senão local_path=NULL
+    # esconderia um arquivo órfão ocupando disco).
     if source_local_path and os.path.exists(source_local_path):
         try:
             os.remove(source_local_path)
-        except OSError:
-            pass
+        except OSError as exc:
+            _log(f'Vídeo {source_video_id}: falha ao apagar raw {source_local_path}: {exc}')
+        if os.path.exists(source_local_path):
+            return False
 
     # Apagar arquivos dos clips e thumbnails do disco ao finalizar o vídeo fonte
     with conn.cursor() as cur:
@@ -525,7 +556,46 @@ def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: 
             (source_video_id,),
         )
         cur.execute(
-            "UPDATE source_videos SET status='published', local_path=NULL WHERE id=%s",
-            (source_video_id,),
+            'UPDATE source_videos SET status=%s, local_path=NULL WHERE id=%s',
+            ('published' if published_count else 'failed', source_video_id),
         )
     conn.commit()
+    return True
+
+
+def finalize_settled_source_videos(conn) -> int:
+    """Encerra vídeos em 'selecting' cujos clips estão todos em estado terminal.
+
+    `_maybe_finalize_source_video` só roda depois de uma publicação. Quando o
+    último clip de um vídeo sai do fluxo por rejeição (operador ou TTL) ou por
+    falha, ninguém chamava o encerramento e o vídeo segurava a vaga da janela
+    para sempre (bug 17). Agendado junto dos recoveries em `main.py`.
+
+    Retorna quantos vídeos foram encerrados.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            'SELECT sv.id, sv.local_path FROM source_videos sv '
+            "WHERE sv.status = 'selecting' "
+            'AND EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id) '
+            'AND NOT EXISTS ('
+            '  SELECT 1 FROM generated_clips gc '
+            '  WHERE gc.source_video_id = sv.id AND gc.status IN %s'
+            ')',
+            (NON_TERMINAL_CLIP_STATUSES,),
+        )
+        videos = cur.fetchall() or []
+
+    finalized = 0
+    for video in videos:
+        try:
+            if _maybe_finalize_source_video(conn, video['id'], video.get('local_path')):
+                finalized += 1
+        except Exception as exc:
+            _log(f'Vídeo {video["id"]}: falha ao encerrar — {exc}')
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+    _log(f'finalize_settled_source_videos: {finalized} de {len(videos)} vídeo(s) encerrado(s)')
+    return finalized

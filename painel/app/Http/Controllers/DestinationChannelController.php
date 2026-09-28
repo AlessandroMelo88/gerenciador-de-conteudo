@@ -29,9 +29,13 @@ class DestinationChannelController extends Controller
                     'promptProfileName' => $c->promptProfile?->name,
                     'youtubeChannelId' => $c->youtube_channel_id,
                     'creditTemplate' => $c->credit_template,
+                    'templateConfig' => $c->effective_template_config,
                     'active' => $c->active,
                     'oauthStatus' => $c->oauth_status,
                     'hasWatermark' => Storage::disk('branding')->exists("watermark-{$c->slug}.png"),
+                    'watermarkUrl' => Storage::disk('branding')->exists("watermark-{$c->slug}.png")
+                        ? route('destination-channels.watermark', $c->id)
+                        : null,
                 ]),
             'niches' => Niche::query()->orderBy('label')->get(['slug', 'label']),
             'promptProfiles' => PromptProfile::query()
@@ -58,6 +62,7 @@ class DestinationChannelController extends Controller
             'prompt_profile_id' => ['nullable', 'integer', 'exists:prompt_profiles,id'],
             'youtube_channel_id' => ['required', 'string', 'unique:destination_channels,youtube_channel_id'],
             'credit_template' => ['sometimes', 'nullable', 'string'],
+            'template_config' => ['sometimes', 'nullable'],
             'active' => ['sometimes', 'boolean'],
         ]);
 
@@ -90,6 +95,7 @@ class DestinationChannelController extends Controller
             'prompt_profile_id' => ['sometimes', 'nullable', 'integer', 'exists:prompt_profiles,id'],
             'youtube_channel_id' => ['sometimes', 'string', 'unique:destination_channels,youtube_channel_id,'.$destinationChannel->id],
             'credit_template' => ['sometimes', 'nullable', 'string'],
+            'template_config' => ['sometimes', 'nullable'],
             'active' => ['sometimes', 'boolean'],
         ]);
 
@@ -111,6 +117,44 @@ class DestinationChannelController extends Controller
         $destinationChannel->update($data);
 
         return back()->with('success', "Canal #{$destinationChannel->id} atualizado");
+    }
+
+    public function watermark(DestinationChannel $destinationChannel)
+    {
+        $relativePath = "watermark-{$destinationChannel->slug}.png";
+        if (! Storage::disk('branding')->exists($relativePath)) {
+            // fallback template
+            $templateFallback = base_path("../template/{$destinationChannel->slug}/imagens/politica-avatar-800x800.png");
+            if (file_exists($templateFallback)) {
+                return response()->file($templateFallback);
+            }
+            abort(404);
+        }
+
+        return response()->file(Storage::disk('branding')->path($relativePath));
+    }
+
+    public function background(DestinationChannel $destinationChannel)
+    {
+        $relativePath = "background-{$destinationChannel->slug}.png";
+        if (! Storage::disk('branding')->exists($relativePath)) {
+            $niche = strtolower($destinationChannel->niche ?? '');
+            if (str_contains($niche, 'fut')) {
+                $relativePath = 'background-futebol-em-cortes.png';
+            } elseif (str_contains($niche, 'pol')) {
+                $relativePath = Storage::disk('branding')->exists('background-fatos-e-debates.png')
+                    ? 'background-fatos-e-debates.png'
+                    : 'background-cortes-da-politica.png';
+            } elseif (str_contains($niche, 'pod')) {
+                $relativePath = 'background-podcast-cortes.png';
+            }
+        }
+
+        if (! Storage::disk('branding')->exists($relativePath)) {
+            abort(404);
+        }
+
+        return response()->file(Storage::disk('branding')->path($relativePath));
     }
 
     public function uploadWatermark(Request $request, DestinationChannel $destinationChannel): RedirectResponse

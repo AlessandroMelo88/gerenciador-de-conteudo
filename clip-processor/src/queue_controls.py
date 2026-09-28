@@ -2,6 +2,8 @@
 queue_controls.py — Pause / resume / reorder / prioritize da fila de source_videos.
 """
 
+from __future__ import annotations
+
 import os
 import subprocess
 from datetime import datetime
@@ -17,6 +19,18 @@ def _log(msg: str) -> None:
 
 class PauseAborted(Exception):
     """Download/processo abortado porque o vídeo foi pausado."""
+
+
+def is_local_download_allowed(conn) -> bool:
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT value FROM system_settings WHERE `key` = 'allow_local_download'")
+            row = cur.fetchone()
+            if row and row.get('value'):
+                return row['value'] == 'true'
+    except Exception:
+        pass
+    return False
 
 
 def is_paused(
@@ -157,7 +171,7 @@ def can_delete_raw(conn, source_video_id: int) -> tuple[bool, str]:
         row = cur.fetchone()
     if not row:
         return False, 'source_video não encontrado'
-    if row['status'] in ('downloading', 'cutting'):
+    if row['status'] in ('downloading', 'transcribing', 'selecting', 'cutting', 'publishing'):
         return False, f'vídeo em uso agora (status={row["status"]})'
     with conn.cursor() as cur:
         placeholders = ', '.join(['%s'] * len(_CLIP_STATUSES_NEED_RAW))
@@ -177,6 +191,9 @@ def _cleanup_partial(youtube_video_id: str, videos_dir: str = '/app/videos') -> 
 
     pattern = f'{videos_dir}/{youtube_video_id}*'
     for path in glob.glob(pattern):
+        # A transcrição é fonte pesquisável e não é um temporário de download.
+        if path.endswith('_transcript.json'):
+            continue
         if os.path.exists(path):
             try:
                 os.remove(path)

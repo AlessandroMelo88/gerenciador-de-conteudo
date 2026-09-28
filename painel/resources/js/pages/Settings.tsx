@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -32,17 +33,28 @@ type MediaAsset = {
 
 type DestinationChannel = { id: number; name: string };
 
+type CookiesInfo = {
+    exists: boolean;
+    size: number;
+    updated_at: string;
+    lines: number;
+} | null;
+
 type PageProps = {
     auth: { user: { name: string; email: string } | null };
     flash: { success: string | null; error: string | null };
-    mediaAssets: MediaAsset[];
-    destinationChannels: DestinationChannel[];
-    mediaConfiguration: {
+    mediaAssets?: MediaAsset[];
+    destinationChannels?: DestinationChannel[];
+    mediaConfiguration?: {
         introCount: number;
         outroCount: number;
         musicCount: number;
         ready: boolean;
     };
+    settings?: {
+        allow_local_download: boolean;
+    };
+    cookiesInfo?: CookiesInfo;
 };
 
 const KIND_LABEL: Record<MediaKind, string> = {
@@ -53,6 +65,128 @@ const KIND_LABEL: Record<MediaKind, string> = {
 
 function FormError({ message }: { message?: string }) {
     return message ? <p className="text-sm text-destructive">{message}</p> : null;
+}
+
+function SystemTab({ initialSettings, cookiesInfo }: { initialSettings?: { allow_local_download: boolean }; cookiesInfo?: CookiesInfo }) {
+    const { data, setData, put, processing } = useForm({
+        allow_local_download: initialSettings?.allow_local_download ?? false,
+    });
+
+    const cookiesForm = useForm<{
+        cookies_content: string;
+        cookies_file: File | null;
+    }>({
+        cookies_content: '',
+        cookies_file: null,
+    });
+
+    function submit(e: React.FormEvent) {
+        e.preventDefault();
+        put('/painel/configuracoes/sistema');
+    }
+
+    function submitCookies(e: React.FormEvent) {
+        e.preventDefault();
+        cookiesForm.post('/painel/configuracoes/cookies', {
+            onSuccess: () => {
+                cookiesForm.reset();
+            },
+        });
+    }
+
+    return (
+        <div className="grid max-w-2xl gap-6">
+            <Card>
+                <CardContent className="pt-6">
+                    <form onSubmit={submit} className="grid gap-6">
+                        <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                            <div className="space-y-1">
+                                <FieldLabel className="text-base font-semibold">
+                                    Permitir Processamento e Download Local
+                                </FieldLabel>
+                                <p className="text-sm text-muted-foreground">
+                                    Quando ativado, permite que scripts executados localmente na sua máquina realizem testes de download e corte de vídeos.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={data.allow_local_download}
+                                onCheckedChange={(checked) => setData('allow_local_download', checked)}
+                            />
+                        </div>
+                        <div>
+                            <Button type="submit" disabled={processing}>
+                                Salvar Configurações
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardContent className="pt-6">
+                    <form onSubmit={submitCookies} className="grid gap-4">
+                        <div className="space-y-1">
+                            <h3 className="text-base font-semibold">Cookies do YouTube (yt-dlp)</h3>
+                            <p className="text-sm text-muted-foreground">
+                                O YouTube exige cookies de autenticação atualizados para permitir downloads no servidor em nuvem.
+                            </p>
+                        </div>
+
+                        <div className="rounded-md bg-muted p-3 text-sm">
+                            {cookiesInfo?.exists ? (
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2 font-medium text-emerald-600 dark:text-emerald-400">
+                                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                        Arquivo de cookies presente no servidor
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Última atualização: {cookiesInfo.updated_at} ({Math.round(cookiesInfo.size / 1024)} KB, {cookiesInfo.lines} linhas)
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                                    Nenhum arquivo cookies.txt encontrado no servidor
+                                </div>
+                            )}
+                        </div>
+
+                        <Field>
+                            <FieldLabel htmlFor="cookies_file">Carregar arquivo cookies.txt</FieldLabel>
+                            <Input
+                                id="cookies_file"
+                                type="file"
+                                accept=".txt"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0] || null;
+                                    cookiesForm.setData('cookies_file', file);
+                                }}
+                            />
+                        </Field>
+
+                        <Field>
+                            <FieldLabel htmlFor="cookies_content">Ou cole o texto dos cookies aqui</FieldLabel>
+                            <textarea
+                                id="cookies_content"
+                                rows={4}
+                                className="w-full rounded-md border bg-background p-2 text-xs font-mono"
+                                placeholder="# Netscape HTTP Cookie File..."
+                                value={cookiesForm.data.cookies_content}
+                                onChange={(e) => cookiesForm.setData('cookies_content', e.target.value)}
+                            />
+                        </Field>
+
+                        <div>
+                            <Button type="submit" disabled={cookiesForm.processing}>
+                                Atualizar Cookies
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
+        </div>
+    );
+>>>>>>> origin/master
 }
 
 function PasswordTab() {
@@ -73,9 +207,8 @@ function PasswordTab() {
                 <form onSubmit={submit} className="grid gap-4">
                     <Field>
                         <FieldLabel htmlFor="current_password">Senha atual</FieldLabel>
-                        <Input
+                        <PasswordInput
                             id="current_password"
-                            type="password"
                             value={data.current_password}
                             onChange={(e) => setData('current_password', e.target.value)}
                         />
@@ -83,9 +216,8 @@ function PasswordTab() {
                     </Field>
                     <Field>
                         <FieldLabel htmlFor="password">Nova senha</FieldLabel>
-                        <Input
+                        <PasswordInput
                             id="password"
-                            type="password"
                             value={data.password}
                             onChange={(e) => setData('password', e.target.value)}
                         />
@@ -93,9 +225,8 @@ function PasswordTab() {
                     </Field>
                     <Field>
                         <FieldLabel htmlFor="password_confirmation">Confirmar nova senha</FieldLabel>
-                        <Input
+                        <PasswordInput
                             id="password_confirmation"
-                            type="password"
                             value={data.password_confirmation}
                             onChange={(e) => setData('password_confirmation', e.target.value)}
                         />
@@ -451,7 +582,7 @@ function PlaceholderTab({ label }: { label: string }) {
 
 export default function Settings() {
     const { props } = usePage<PageProps>();
-    const { auth, flash, mediaAssets, destinationChannels, mediaConfiguration } = props;
+    const { auth, flash, mediaAssets = [], destinationChannels = [], mediaConfiguration, settings, cookiesInfo } = props;
 
     useEffect(() => {
         if (flash?.success) toast.success(flash.success);
@@ -463,21 +594,25 @@ export default function Settings() {
             <Head title="Configurações" />
             <AppShell
                 title="Configurações"
-                user={auth.user}
-                description="Identidade visual, mídia automática e segurança do operador."
+                user={auth?.user ?? null}
+                description="Identidade visual, mídia automática, cookies e configurações do sistema."
             >
-                <Tabs defaultValue="midia">
+                <Tabs defaultValue="sistema">
                     <TabsList>
+                        <TabsTrigger value="sistema">Sistema</TabsTrigger>
                         <TabsTrigger value="midia">Mídia do canal</TabsTrigger>
                         <TabsTrigger value="senha">Resetar senha</TabsTrigger>
                         <TabsTrigger value="perfil">Perfil</TabsTrigger>
                         <TabsTrigger value="redes">Redes</TabsTrigger>
                     </TabsList>
+                    <TabsContent value="sistema" className="mt-4">
+                        <SystemTab initialSettings={settings} cookiesInfo={cookiesInfo} />
+                    </TabsContent>
                     <TabsContent value="midia" className="mt-4">
                         <MediaTab
                             assets={mediaAssets}
                             destinationChannels={destinationChannels}
-                            configuration={mediaConfiguration}
+                            configuration={mediaConfiguration ?? { introCount: 0, outroCount: 0, musicCount: 0, ready: false }}
                         />
                     </TabsContent>
                     <TabsContent value="senha" className="mt-4">

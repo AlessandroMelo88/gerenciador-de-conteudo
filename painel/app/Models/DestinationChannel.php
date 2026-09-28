@@ -22,6 +22,7 @@ class DestinationChannel extends Model
         'prompt_profile_id',
         'youtube_channel_id',
         'credit_template',
+        'template_config',
         'active',
         'oauth_expired_flag',
     ];
@@ -29,6 +30,7 @@ class DestinationChannel extends Model
     protected $casts = [
         'active' => 'bool',
         'oauth_expired_flag' => 'bool',
+        'template_config' => 'array',
     ];
 
     /** @return BelongsTo<PromptProfile, $this> */
@@ -47,6 +49,39 @@ class DestinationChannel extends Model
     public function mediaAssets(): HasMany
     {
         return $this->hasMany(MediaAsset::class, 'destination_channel_id');
+    }
+
+    public static function defaultTemplateConfig(string $name, ?string $niche): array
+    {
+        $n = strtolower($niche ?? '');
+        $isPolitica = str_contains($n, 'pol');
+        $isFutebol = str_contains($n, 'fut');
+
+        return [
+            'headerTitle' => mb_strtoupper($name, 'UTF-8'),
+            'headerBadge' => $isPolitica ? '🔴 DEBATE AO VIVO' : ($isFutebol ? '⚽ LANCE DECISIVO' : '🎙️ CORTES EXCLUSIVOS'),
+            'accentColor' => $isPolitica ? '#E50914' : ($isFutebol ? '#10B981' : '#8B5CF6'),
+            'bgStyle' => 'blur_dark',
+            'subtitleColor' => '#facc15',
+            'ctaText' => 'INSCREVA-SE NO CANAL',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (DestinationChannel $channel) {
+            if (empty($channel->template_config)) {
+                $channel->template_config = static::defaultTemplateConfig($channel->name ?? '', $channel->niche ?? '');
+            }
+        });
+    }
+
+    public function getEffectiveTemplateConfigAttribute(): array
+    {
+        return array_merge(
+            static::defaultTemplateConfig($this->name ?? '', $this->niche ?? ''),
+            $this->template_config ?? []
+        );
     }
 
     /**

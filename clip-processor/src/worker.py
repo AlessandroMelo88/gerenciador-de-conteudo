@@ -10,6 +10,8 @@ descoberta, download ou publicação. O argumento ``--stage`` também deixa o
 mesmo binário pronto para uma futura escala horizontal controlada.
 """
 
+from __future__ import annotations
+
 import argparse
 import os
 import signal

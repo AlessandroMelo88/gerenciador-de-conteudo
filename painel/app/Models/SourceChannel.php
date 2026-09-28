@@ -26,11 +26,15 @@ class SourceChannel extends Model
         'prompt_profile_id',
         'channel_handle',
         'blacklisted',
+        'freshness_days',
+        'input_priority',
     ];
 
     protected $casts = [
         'active' => 'bool',
         'blacklisted' => 'bool',
+        'freshness_days' => 'integer',
+        'input_priority' => 'integer',
         'created_at' => 'datetime',
     ];
 

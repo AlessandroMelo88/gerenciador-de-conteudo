@@ -14,6 +14,7 @@ Ver Docs/SISTEMA-IA-SELECAO.md.
 
 Em testes: anthropic_client injetado é usado diretamente (sem fallback).
 """
+from __future__ import annotations
 
 import json
 import os
@@ -99,6 +100,7 @@ SYSTEM_PROMPT = (
     + SELECTION_VALIDATION_RULES
     + 'Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente '
     '(10 = viral garantido, 1 = sem valor). '
+    'IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. '
     'Responda APENAS com JSON válido, sem texto adicional:\n'
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>", "fake_news": "<positivo|negativo|inconclusivo>"}]}'
 )
@@ -123,6 +125,7 @@ LONG_SYSTEM_PROMPT = (
     + SELECTION_VALIDATION_RULES
     + 'Retorne exatamente 1 momento, com score de 1 a 10 '
     '(10 = análise excelente pra virar vídeo, 1 = sem valor). '
+    'IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. '
     'Responda APENAS com JSON válido, sem texto adicional:\n'
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>", "fake_news": "<positivo|negativo|inconclusivo>"}]}'
 )
@@ -144,6 +147,7 @@ HACKER_LIBERTARIO_PROMPT = (
     + SELECTION_VALIDATION_RULES
     + 'Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente '
     '(10 = viral garantido, 1 = sem valor). '
+    'IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. '
     'Responda APENAS com JSON válido, sem texto adicional:\n'
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>", "fake_news": "<positivo|negativo|inconclusivo>"}]}'
 )
@@ -165,10 +169,10 @@ HACKER_LIBERTARIO_LONG_PROMPT = (
     + SELECTION_VALIDATION_RULES
     + 'Retorne exatamente 1 momento, com score de 1 a 10 '
     '(10 = análise excelente pra virar vídeo, 1 = sem valor). '
+    'IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. '
     'Responda APENAS com JSON válido, sem texto adicional:\n'
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>", "fake_news": "<positivo|negativo|inconclusivo>"}]}'
 )
-
 
 def _build_profile_selection_prompt(instruction: str, is_longo: bool) -> str:
     output_instruction = (
@@ -186,9 +190,32 @@ def _build_profile_selection_prompt(instruction: str, is_longo: bool) -> str:
         + DUPLICATE_AVOIDANCE_RULE
         + SELECTION_VALIDATION_RULES
         + output_instruction
+        + 'IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. '
         + 'Responda APENAS com JSON válido, sem texto adicional:\n'
         '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>", "fake_news": "<positivo|negativo|inconclusivo>"}]}'
     )
+
+
+POLITICA_SELECTION_INSTRUCTION = (
+    'Você é um especialista de elite em identificar os momentos de maior impacto, confrontos, quebras de narrativa e debates em vídeos e podcasts de POLÍTICA '
+    '(focado na fórmula de cortes virais de alta retenção de canais de política e debates eleitorais/sabatinas). '
+    'CRITÉRIOS DE CORTE VIRAL DE POLÍTICA: '
+    '1. GANCHO FORTE (0 a 5 segundos): O segmento deve começar exatamente no início de uma pergunta provocativa, uma declaração polêmica ou o início de uma refutação contundente. '
+    '2. CONFLITO & REFUTAÇÃO ("Jantada"): Priorize momentos onde uma narrativa é desconstruída com fatos/lógica, contradições são expostas ou há embate direto com alta carga emocional. '
+    '3. RACIOCÍNIO FECHADO: Começo, meio e desfecho claro do argumento. Termine logo após a conclusão impactante ou momento de choque, sem sobras.'
+)
+
+POLITICA_SYSTEM_PROMPT = _build_profile_selection_prompt(POLITICA_SELECTION_INSTRUCTION, False)
+
+POLITICA_LONG_SELECTION_INSTRUCTION = (
+    'Você é um especialista em identificar o melhor bloco completo de sabatina, debate ou análise política '
+    'para virar um vídeo longo monetizável no YouTube (7 a 20 minutos). '
+    'Analise a transcrição e identifique O MELHOR segmento CONTÍNUO com duração de PREFERÊNCIA ENTRE 420 e 1200 segundos (7 a 20 minutos). '
+    'Priorize um bloco temático fechado e aprofundado: uma discussão completa sobre um tema polêmico, '
+    'uma entrevista reveladora ou um confronto de ideias do início ao desfecho do argumento.'
+)
+
+POLITICA_LONG_SYSTEM_PROMPT = _build_profile_selection_prompt(POLITICA_LONG_SELECTION_INSTRUCTION, True)
 
 
 GENERIC_SELECTION_INSTRUCTION = (
@@ -214,18 +241,16 @@ def get_system_prompt(
 
     if niche in ('hacker-libertario', 'tecnologia', 'tech', 'linux', 'ia', 'opensource'):
         return HACKER_LIBERTARIO_LONG_PROMPT if is_longo else HACKER_LIBERTARIO_PROMPT
+    if niche in ('politica', 'cortes-da-politica', 'debates', 'eleicoes'):
+        return POLITICA_LONG_SYSTEM_PROMPT if is_longo else POLITICA_SYSTEM_PROMPT
     if not niche or niche not in ('futebol', 'esportes', 'podcast'):
         generic_prompt = GENERIC_LONG_SYSTEM_PROMPT if is_longo else GENERIC_SYSTEM_PROMPT
         return f'{generic_prompt}\nNicho configurado: {niche}.' if niche else generic_prompt
     return LONG_SYSTEM_PROMPT if is_longo else SYSTEM_PROMPT
 
 
-# O candidato editorial pode ser maior para que a validação tenha contexto, mas
-# o arquivo publicado como Short é sempre normalizado para uma janela de 30s.
 MIN_SHORTFORM_SECONDS = int(SHORTS_DURATION_SECONDS)
-# Margem tolerada quando o ajuste de limites da fala deixa um candidato quase
-# completo. Trechos realmente curtos continuam sendo descartados por qualidade.
-MIN_SHORTFORM_CANDIDATE_SECONDS = SHORTS_DURATION_SECONDS - 2.0
+MIN_SHORTFORM_CANDIDATE_SECONDS = 15.0
 MAX_SHORTFORM_SECONDS = 180
 
 # Pequena tolerância para a borda de dois intervalos vizinhos. O filtro do
@@ -411,6 +436,28 @@ def _remove_repeated_moments(moments: list[dict], used_moments: list[dict] | Non
             continue
         filtered.append(moment)
     return filtered
+
+
+def _to_seconds(val) -> float:
+    """Converte valores numéricos ou strings de tempo (ex: '21:21', '01:15:30', 120) para float em segundos."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        val = val.strip().replace('s', '').replace('S', '')
+        if ':' in val:
+            try:
+                parts = [float(p) for p in val.split(':')]
+                if len(parts) == 2:
+                    return parts[0] * 60 + parts[1]
+                elif len(parts) == 3:
+                    return parts[0] * 3600 + parts[1] * 60 + parts[2]
+            except Exception:
+                return 0.0
+        try:
+            return float(val)
+        except ValueError:
+            return 0.0
+    return 0.0
 
 
 def _normalize_scores(moments: list[dict]) -> list[dict]:
@@ -761,8 +808,27 @@ def expand_longform_context(
     return expanded
 
 
+MAX_REASON_CHARS = 300
+
+
+def _clean_reason(raw) -> str:
+    """Colapsa espaços e corta a justificativa do momento em MAX_REASON_CHARS.
+
+    Modelo que raciocina em voz alta despeja a cadeia de pensamento inteira no campo `reason`
+    ("Vou selecionar o trecho de 0s a 454s? Não, o início é fraco. Vou..."). Visto em produção
+    com o Groq em 15/09/2026. A coluna é TEXT, então nada estoura — o estrago é metadado
+    ilegível no painel e no log, que é onde a justificativa é lida.
+    """
+    if raw is None:
+        return ''
+    texto = ' '.join(str(raw).split())
+    if len(texto) > MAX_REASON_CHARS:
+        return texto[:MAX_REASON_CHARS].rstrip() + '…'
+    return texto
+
+
 def _parse_moments(raw_text: str) -> list[dict]:
-    """Parse JSON text → lista de dicts de momentos com resiliência a markdown e formatação."""
+    """Parse JSON text → lista de dicts de momentos com resiliência a markdown, formatação e timestamps."""
     text = (raw_text or '').strip()
     if not text:
         return []
@@ -795,20 +861,24 @@ def _parse_moments(raw_text: str) -> list[dict]:
     if not isinstance(raw_moments, list):
         return []
 
-    valid_moments = []
+    cleaned = []
     for m in raw_moments:
         if not isinstance(m, dict):
             continue
         try:
-            st = float(m.get('start_time', 0))
-            et = float(m.get('end_time', 0))
-            if et <= st or st < 0:
+            start = _to_seconds(m.get('start_time', 0))
+            end = _to_seconds(m.get('end_time', 0))
+            if end <= start or start < 0:
                 continue
-            valid_moments.append(m)
+            m_clean = dict(m)
+            m_clean['start_time'] = start
+            m_clean['end_time'] = end
+            m_clean['reason'] = _clean_reason(m.get('reason'))
+            cleaned.append(m_clean)
         except (TypeError, ValueError):
             continue
 
-    moments = _normalize_scores(valid_moments)
+    moments = _normalize_scores(cleaned)
     return _normalize_fake_news_labels(moments)
 
 
@@ -825,41 +895,42 @@ def _select_via_anthropic_client(
     return _parse_moments(response.content[0].text)
 
 
+GROQ_MODEL = os.environ.get('GROQ_MODEL') or os.environ.get('GROQ_CHAT_MODEL', 'qwen/qwen3.8-27b')
+GROQ_MAX_OUTPUT_TOKENS = int(os.environ.get('GROQ_MAX_OUTPUT_TOKENS', '1000'))
+
+
 def _select_via_groq(
     transcript_text: str,
     system_prompt: str = SYSTEM_PROMPT,
     *,
-    max_tokens: int = SELECTOR_MAX_OUTPUT_TOKENS,
+    max_tokens: int | None = None,
 ) -> list[dict]:
     """Seleciona momentos via Groq (fallback sempre disponível)."""
     from groq import Groq
     from groq.types.chat import ChatCompletionMessageParam
     from groq.types.chat.completion_create_params import ResponseFormatResponseFormatJsonObject
 
+    effective_max_tokens = min(max_tokens or GROQ_MAX_OUTPUT_TOKENS, GROQ_MAX_OUTPUT_TOKENS)
+
     client = Groq()
-    _log('[SELECTOR] Usando Groq LLM')
+    _log(f'[SELECTOR] Usando Groq LLM ({GROQ_MODEL})')
     messages: list[ChatCompletionMessageParam] = [
         {'role': 'system', 'content': system_prompt},
         {'role': 'user', 'content': transcript_text},
     ]
     response_format: ResponseFormatResponseFormatJsonObject = {'type': 'json_object'}
     kwargs = {
-        'model': GROQ_CHAT_MODEL,
+        'model': GROQ_MODEL,
         'messages': messages,
         'response_format': response_format,
-        'temperature': 0.3,
-        'max_tokens': max_tokens,
+        'temperature': 0.2,
+        'max_tokens': effective_max_tokens,
     }
-    if 'gpt-oss' in GROQ_CHAT_MODEL or 'o1' in GROQ_CHAT_MODEL:
+    if 'gpt-oss' in GROQ_MODEL or 'o1' in GROQ_MODEL:
         kwargs['reasoning_effort'] = GROQ_REASONING_EFFORT
     try:
         response = client.chat.completions.create(**kwargs)
     except Exception as error:
-        # O endpoint da Groq pode rejeitar a saída estruturada quando o modelo
-        # termina o raciocínio sem conseguir materializar o objeto JSON
-        # (`json_validate_failed`). Uma segunda tentativa sem o parâmetro de
-        # schema ainda mantém a instrução de JSON no prompt, e _parse_moments
-        # já aceita resposta JSON cercada por markdown/texto.
         error_text = str(error).casefold()
         if 'json_validate_failed' not in error_text and 'failed to validate json' not in error_text:
             raise
@@ -897,17 +968,27 @@ def _remove_overlaps(moments: list[dict], max_count: int = 3) -> list[dict]:
 
 
 def _enforce_longform_duration(moments: list[dict], transcript_duration: float) -> list[dict]:
-    """Garante duração mínima de MIN_LONGFORM_SECONDS para o modo 'longo'.
+    """Garante duração mínima de MIN_LONGFORM_SECONDS e máxima de MAX_LONGFORM_SECONDS para o modo 'longo'.
 
-    O modelo (mesmo instruído) às vezes devolve segmentos curtos — em vez de
-    descartar, estica o segmento simetricamente até o mínimo, respeitando os
-    limites da transcrição e o teto de MAX_LONGFORM_SECONDS.
+    O modelo (mesmo instruído) às vezes devolve segmentos curtos ou excessivamente longos.
+    Ajustamos para garantir conformidade estrita com MIN_LONGFORM_SECONDS e MAX_LONGFORM_SECONDS.
     """
     adjusted: list[dict] = []
     for m in moments:
-        duration = m['end_time'] - m['start_time']
+        m_copy = dict(m)
+        start = float(m_copy.get('start_time', 0))
+        end = float(m_copy.get('end_time', 0))
+        duration = end - start
+
+        # Limitar teto máximo primeiro
+        if duration > MAX_LONGFORM_SECONDS:
+            _log(f'[SELECTOR] Momento longo ({duration:.1f}s) limitado para o máximo ({MAX_LONGFORM_SECONDS}s)')
+            end = start + MAX_LONGFORM_SECONDS
+            duration = MAX_LONGFORM_SECONDS
+            m_copy['end_time'] = end
+
         if duration >= MIN_LONGFORM_SECONDS:
-            adjusted.append(m)
+            adjusted.append(m_copy)
             continue
 
         target = (
@@ -916,23 +997,22 @@ def _enforce_longform_duration(moments: list[dict], transcript_duration: float) 
             else MIN_LONGFORM_SECONDS
         )
         missing = target - duration
-        new_start = max(0, m['start_time'] - missing / 2)
+        new_start = max(0, start - missing / 2)
         new_end = new_start + target
         if transcript_duration and new_end > transcript_duration:
             new_end = transcript_duration
             new_start = max(0, new_end - target)
 
-        m = dict(m)
-        m['start_time'] = new_start
-        m['end_time'] = min(new_end, new_start + MAX_LONGFORM_SECONDS)
-        adjusted.append(m)
+        m_copy['start_time'] = new_start
+        m_copy['end_time'] = min(new_end, new_start + MAX_LONGFORM_SECONDS)
+        adjusted.append(m_copy)
     return adjusted
 
 
 def _filter_shortform_duration(
     moments: list[dict], transcript_duration: float | None = None
 ) -> list[dict]:
-    """Valida candidatos e os normaliza para janelas exatas de 30 segundos."""
+    """Valida candidatos e os normaliza para janelas de 30 segundos."""
     valid: list[dict] = []
     target_duration = SHORTS_DURATION_SECONDS
 
@@ -951,7 +1031,7 @@ def _filter_shortform_duration(
             if duration < MIN_SHORTFORM_CANDIDATE_SECONDS:
                 _log(
                     f'[SELECTOR] Momento descartado: duração {duration:.1f}s menor que os '
-                    f'{target_duration:.0f}s exigidos'
+                    f'{MIN_SHORTFORM_CANDIDATE_SECONDS:.0f}s mínimos'
                 )
                 continue
 
@@ -965,7 +1045,7 @@ def _filter_shortform_duration(
             if transcript_duration and normalized_end > transcript_duration:
                 normalized_end = transcript_duration
                 normalized_start = max(0.0, normalized_end - target_duration)
-            if normalized_end - normalized_start < target_duration:
+            if round(normalized_end - normalized_start, 2) < target_duration:
                 _log(
                     f'[SELECTOR] Momento descartado: não há margem para completar '
                     f'{target_duration:.0f}s dentro da transcrição'
@@ -973,21 +1053,21 @@ def _filter_shortform_duration(
                 continue
 
             normalized = dict(m)
-            normalized['start_time'] = normalized_start
-            normalized['end_time'] = normalized_end
+            normalized['start_time'] = round(normalized_start, 2)
+            normalized['end_time'] = round(normalized_end, 2)
             valid.append(normalized)
             continue
         if duration > MAX_SHORTFORM_SECONDS:
             _log(
-                f'[SELECTOR] Momento descartado: duração {duration:.1f}s maior que o máximo ({MAX_SHORTFORM_SECONDS}s)'
+                f'[SELECTOR] Momento ajustado: duração {duration:.1f}s limitada para {MAX_SHORTFORM_SECONDS}s'
             )
-            continue
+            duration = MAX_SHORTFORM_SECONDS
         normalized_start = max(0.0, start_time)
         if transcript_duration:
             normalized_start = min(normalized_start, transcript_duration - target_duration)
         normalized = dict(m)
-        normalized['start_time'] = normalized_start
-        normalized['end_time'] = normalized_start + target_duration
+        normalized['start_time'] = round(normalized_start, 2)
+        normalized['end_time'] = round(normalized_start + target_duration, 2)
         valid.append(normalized)
     return valid
 
@@ -1031,28 +1111,62 @@ def _clamp_moment_bounds(moments: list[dict], transcript_duration: float) -> lis
     return clamped
 
 
+def _snap_to_sentence_boundaries(moments: list[dict], segments: list[dict], buffer_end: float = 1.0) -> list[dict]:
+    """Ajusta os timestamps dos momentos para respeitar os finais reais de frases do Whisper.
+
+    Evita cortes no meio de uma oração ou pensamento incompleto.
+    """
+    if not segments or not moments:
+        return moments
+
+    snapped = []
+    for m in moments:
+        start_req = float(m['start_time'])
+        end_req = float(m['end_time'])
+
+        # Encontra o melhor início (apenas se houver fronteira próxima dentro de 3s)
+        best_start = start_req
+        for seg in segments:
+            s_start = float(seg.get('start', 0))
+            s_end = float(seg.get('end', 0))
+            if s_start <= start_req <= s_end:
+                if abs(start_req - s_start) <= 3.0:
+                    best_start = s_start
+                break
+
+        # Encontra o melhor fim (apenas se houver fronteira próxima dentro de 3s)
+        best_end = end_req
+        for seg in segments:
+            s_start = float(seg.get('start', 0))
+            s_end = float(seg.get('end', 0))
+            if s_start <= end_req <= s_end:
+                if abs(s_end - end_req) <= 3.0:
+                    best_end = s_end + buffer_end
+                break
+
+        snapped_m = dict(m)
+        snapped_m['start_time'] = round(best_start, 2)
+        snapped_m['end_time'] = round(best_end, 2)
+        snapped.append(snapped_m)
+
+    return snapped
+
+
 def select_moments(
     transcript: dict,
     anthropic_client=None,
     fmt: str = 'curto',
-    niche: str | None = None,
+    niche: str | None = 'futebol',
     used_moments: list[dict] | None = None,
     prompt_profile: Mapping[str, object] | None = None,
 ) -> list[dict]:
     """Analisa transcrição e retorna momentos selecionados via IA.
 
-    Fluxo de seleção de provider:
-      - Se anthropic_client injetado (testes): usa diretamente, sem fallback.
-      - Senão, tenta em ordem:
-          1. Anthropic Claude Haiku  (ANTHROPIC_API_KEY configurada e com crédito)
-          2. Groq                    (GROQ_API_KEY — sempre disponível como fallback)
-
     Args:
         transcript: dict com {'video_id', 'text', 'segments'} — output de transcribe_video()
         anthropic_client: cliente Anthropic injetado para testes (None = modo produção)
-        fmt: 'curto' (vários momentos de 30s-3min, padrão) ou 'longo' (1 segmento
-             contínuo de 7-20min — usado pelo Processar Vídeo manual)
-        niche: slug do nicho (ex: 'hacker-libertario', 'futebol', 'podcast') para calibrar o prompt
+        fmt: 'curto' (vários momentos de 30s-3min, padrão) ou 'longo' (1 segmento contínuo)
+        niche: slug do nicho (ex: 'futebol', 'politica', 'hacker-libertario', 'podcast') para calibrar o prompt
         used_moments: intervalos já registrados para este vídeo. São enviados à IA como
             bloqueados e filtrados novamente antes do retorno.
         prompt_profile: perfil ativo do canal-fonte. Quando presente, suas instruções
@@ -1065,10 +1179,11 @@ def select_moments(
     system_prompt = get_system_prompt(fmt=fmt, niche=niche, prompt_profile=prompt_profile)
     max_moments = 1 if is_longo else 3
     used_moments = used_moments or []
+    segments = transcript.get('segments', [])
 
     lines = []
     transcript_duration = 0.0
-    for seg in transcript.get('segments', []):
+    for seg in segments:
         start = float(seg['start'])
         end = float(seg['end'])
         if end > transcript_duration:
@@ -1076,22 +1191,12 @@ def select_moments(
         lines.append(f'[{int(start)}s-{int(end)}s] {seg["text"]}')
     transcript_text = '\n'.join(lines)
 
-    # Groq free tier: limite efetivo de 8k tokens por minuto contando entrada e
-    # saída. O prompt editorial também conta no TPM, então uma janela de 14k
-    # caracteres ficava no limite e podia pedir 8.024 tokens para um teto de
-    # 8.000. A margem de 10k, combinada com uma saída máxima de 1k, mantém
-    # contexto suficiente para achar um assunto completo sem transformar uma
-    # limitação transitória da Groq em falha terminal da fonte.
     MAX_CHARS = 10000 if is_longo else 8000
     selector_max_tokens = (
         LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS if is_longo else SELECTOR_MAX_OUTPUT_TOKENS
     )
+
     if len(transcript_text) > MAX_CHARS:
-        # No modo longo a IA precisa enxergar um intervalo contínuo de pelo
-        # menos 7 minutos. Um recorte cabeça+cauda com marcador cria uma lacuna
-        # impossível de atravessar e fazia o modelo responder moments=[].
-        # Mantemos somente linhas completas e contíguas para que os timestamps
-        # apresentados sejam realmente selecionáveis.
         if is_longo:
             visible_lines: list[str] = []
             visible_chars = 0
@@ -1114,22 +1219,20 @@ def select_moments(
 
     def _finalize(moments: list[dict]) -> list[dict]:
         moments = _clamp_moment_bounds(moments, transcript_duration)
-        moments = complete_moment_boundaries(moments, transcript.get('segments', []))
+        moments = complete_moment_boundaries(moments, segments)
+        moments = _snap_to_sentence_boundaries(moments, segments)
         if is_longo:
-            moments = expand_longform_context(moments, transcript.get('segments', []))
+            moments = expand_longform_context(moments, segments)
         moments = _remove_repeated_moments(moments, used_moments)
         result = _remove_overlaps(moments, max_count=max_moments)
         if is_longo:
             result = _enforce_longform_duration(result, transcript_duration)
             result = _clamp_moment_bounds(result, transcript_duration)
-            result = complete_moment_boundaries(result, transcript.get('segments', []))
-            result = expand_longform_context(result, transcript.get('segments', []))
-            # A resposta do modelo pode apontar além do fim real da transcrição.
-            # A expansão então encurta o momento; revalidar a duração aqui evita
-            # que um vídeo longo escape com menos de 420s.
+            result = complete_moment_boundaries(result, segments)
+            result = expand_longform_context(result, segments)
             result = _clamp_moment_bounds(result, transcript_duration)
             result = _enforce_longform_duration(result, transcript_duration)
-            result = complete_moment_boundaries(result, transcript.get('segments', []))
+            result = complete_moment_boundaries(result, segments)
             result = _remove_repeated_moments(result, used_moments)
         else:
             result = _filter_shortform_duration(result, transcript_duration)

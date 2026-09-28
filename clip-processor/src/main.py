@@ -1,5 +1,7 @@
 # Canal de Cortes — clip-processor daemon
 # Phase 5: Pipeline completo com publicação YouTube
+from __future__ import annotations
+
 import os
 import signal
 import threading
@@ -22,7 +24,9 @@ from src.pipeline_runner import (
     run_pipeline_once,
     run_publish_only,
 )
+from src.publisher import finalize_settled_source_videos
 from src.ttl_worker import run_ttl_once
+from src.watchdog import run_watchdog_cycle
 
 
 class _FallbackJob:
@@ -59,10 +63,14 @@ except ModuleNotFoundError:
 
         def start(self):
             return None
-
     BlockingScheduler = _FallbackScheduler
 else:
     BlockingScheduler = _BlockingScheduler
+
+try:
+    import sentry_sdk
+except ImportError:
+    sentry_sdk = None
 
 
 def pipeline_enabled() -> bool:
@@ -73,6 +81,14 @@ def pipeline_enabled() -> bool:
         'yes',
         'on',
     }
+
+SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
+if sentry_sdk and SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=1.0,
+        environment=os.environ.get('APP_ENV', 'production'),
+    )
 
 
 def log(msg: str):
@@ -105,6 +121,7 @@ def run_recovery_once(*, recover_cutting=False):
         recover_stuck_transcribing(conn)
         recover_stuck_selecting(conn)
         recover_stuck_publishing(conn)
+        finalize_settled_source_videos(conn)
         if recover_cutting:
             recover_cutting_on_boot(conn)
     except Exception as e:
@@ -129,6 +146,22 @@ def run_publish_if_enabled():
         log('[ACQU] Publicação pausada por PIPELINE_ENABLED=false')
         return
     run_publish_only()
+
+
+def run_watchdog_once():
+    """Executa o ciclo de integridade e auto-cura do Watchdog."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        run_watchdog_cycle(conn)
+    except Exception as e:
+        log(f'[WATCHDOG] Falha no ciclo periódico: {e}')
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 scheduler = BlockingScheduler(timezone='America/Sao_Paulo')
@@ -192,6 +225,17 @@ scheduler.add_job(
     misfire_grace_time=900,
 )
 
+# Watchdog de integridade e auto-cura: roda a cada 30min
+scheduler.add_job(
+    run_watchdog_once,
+    'interval',
+    minutes=30,
+    id='watchdog_health',
+    coalesce=True,
+    max_instances=1,
+    misfire_grace_time=900,
+)
+
 signal.signal(signal.SIGTERM, shutdown)
 signal.signal(signal.SIGINT, shutdown)
 
@@ -210,6 +254,7 @@ if __name__ == '__main__':
     log(
         f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)'
     )
+    log('[BOOT] Watchdog agendado: a cada 30min (auto-cura de fantasmas e monitor de janela)')
 
     # Recovery: vídeos presos em 'downloading' voltam para 'pending', os
     # presos em 'selecting' voltam para 'downloaded' (senão seguram slot da
@@ -219,6 +264,9 @@ if __name__ == '__main__':
     # próximo tick agendado cobre, sem depender de restart.
     clear_stale_pipeline_locks()
     run_recovery_once(recover_cutting=True)
+
+    # Watchdog inicial: auto-cura clipes fantasmas e valida saúde do disco/OAuth
+    run_watchdog_once()
 
     # Sidecar HTTP interno consumido pelo painel Laravel (Phase 8).
     # Thread daemon → morre com o processo principal. Iniciado ANTES do ciclo

@@ -5,6 +5,8 @@ Exporta:
   - QuotaManager: guarda contagem diaria no Redis e valida janela 19h-22h.
 """
 
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -14,6 +16,10 @@ DEFAULT_MAX_UPLOADS_PER_DAY = 2
 ABSOLUTE_MAX_UPLOADS_PER_DAY = int(os.environ.get('ABSOLUTE_MAX_UPLOADS_PER_DAY', '100'))
 DEFAULT_MAX_LONGO_UPLOADS_PER_DAY = 2
 DEFAULT_MIN_UPLOAD_INTERVAL_MINUTES = 0
+UPLOAD_WINDOWS = [
+    (12, 14),  # Janela 1: Almoço / Meio-dia (12h às 14h BRT)
+    (19, 22),  # Janela 2: Noite / Horário Nobre (19h às 22h BRT)
+]
 UPLOAD_WINDOW_START_HOUR = 19
 UPLOAD_WINDOW_END_HOUR = 22
 UPLOAD_WINDOW_START = UPLOAD_WINDOW_START_HOUR
@@ -52,7 +58,7 @@ class QuotaManager:
         self.min_upload_interval_minutes = max(0, int(min_upload_interval_minutes))
         self.channel_id = channel_id
 
-    def has_capacity(self, now: datetime | None = None) -> bool:
+    def has_capacity(self, now: datetime | None = None, bypass_window: bool = False) -> bool:
         """Janela + cota total, ignorando reserva por formato.
 
         Usado para decidir se o ciclo de publicação inteiro deve parar
@@ -60,7 +66,7 @@ class QuotaManager:
         de formato (outro clip de formato diferente ainda pode publicar).
         """
         now = self._local_now(now)
-        if not self._is_upload_window(now):
+        if not self._is_upload_window(now, bypass_window=bypass_window):
             return False
 
         current_count = int(self.redis_client.get(self._key(now)) or 0)
@@ -72,10 +78,11 @@ class QuotaManager:
         format: str = 'curto',
         *,
         longo_waiting: bool = False,
+        bypass_window: bool = False,
     ) -> bool:
         """Retorna True se horario e quota (total + formato/reserva) permitirem upload."""
         now = self._local_now(now)
-        if not self.has_capacity(now=now):
+        if not self.has_capacity(now=now, bypass_window=bypass_window):
             return False
 
         if self.min_upload_interval_minutes > 0:
@@ -149,10 +156,10 @@ class QuotaManager:
             return now.replace(tzinfo=SAO_PAULO_TZ)
         return now.astimezone(SAO_PAULO_TZ)
 
-    def _is_upload_window(self, now: datetime) -> bool:
-        if os.environ.get('UPLOAD_WINDOW_BYPASS', 'false').lower() == 'true':
+    def _is_upload_window(self, now: datetime, bypass_window: bool = False) -> bool:
+        if bypass_window or os.environ.get('UPLOAD_WINDOW_BYPASS', 'false').lower() == 'true':
             return True
-        return UPLOAD_WINDOW_START_HOUR <= now.hour < UPLOAD_WINDOW_END_HOUR
+        return any(start <= now.hour < end for start, end in UPLOAD_WINDOWS)
 
     def _key(self, now: datetime) -> str:
         date_str = now.strftime('%Y-%m-%d')

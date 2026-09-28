@@ -4,6 +4,7 @@ uploader.py — Upload de clips para YouTube Data API v3.
 Exporta:
   - YouTubeUploader.upload_clip(clip) -> youtube_video_id
 """
+from __future__ import annotations
 
 import os
 import sys
@@ -15,7 +16,7 @@ from typing import Any
 from src.db import get_db_connection as db_connect
 from src.media_contract import validate_short_media
 
-DEFAULT_TOKEN_FILE = '/app/token.json'
+DEFAULT_TOKEN_FILE = '/app/youtube/token-futebol-em-cortes.json'
 YOUTUBE_UPLOAD_SCOPES = [
     'https://www.googleapis.com/auth/youtube.upload',
     'https://www.googleapis.com/auth/youtube.force-ssl',
@@ -383,12 +384,16 @@ class YouTubeUploader:
         if not token_path.exists():
             raise FileNotFoundError(f'Token OAuth não encontrado: {self.token_file}')
 
-        creds = Credentials.from_authorized_user_file(str(token_path), YOUTUBE_UPLOAD_SCOPES)
+        creds = Credentials.from_authorized_user_file(str(token_path))
         if getattr(creds, 'expired', False) and getattr(creds, 'refresh_token', None):
             from google.auth.transport.requests import Request
 
             try:
                 creds.refresh(Request())
+                try:
+                    token_path.write_text(creds.to_json())
+                except Exception as save_err:
+                    print(f'[UPLOADER] Aviso: não foi possível persistir token atualizado: {save_err}', file=sys.stderr)
             except RefreshError:
                 self._flag_expired()  # persiste no PostgreSQL antes de re-raise
                 raise

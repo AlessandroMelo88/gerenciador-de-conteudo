@@ -145,7 +145,7 @@ Só então habilite o pipeline:
 
 ~~~bash
 sed -i '' 's/^PIPELINE_ENABLED=.*/PIPELINE_ENABLED=true/' .env
-docker compose up -d --force-recreate clip-processor clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance
+docker compose up -d --force-recreate clip-processor
 ~~~
 
 ## Comandos úteis
@@ -153,7 +153,6 @@ docker compose up -d --force-recreate clip-processor clip-poller clip-downloader
 ~~~bash
 docker compose ps
 docker compose logs -f clip-processor
-docker compose logs -f clip-poller clip-downloader clip-ai clip-renderer clip-publisher clip-maintenance
 docker compose exec php php artisan migrate:status
 make setup
 make lint
@@ -161,13 +160,25 @@ make test-python
 make test-php
 ~~~
 
-Para operação, diagnóstico, backup e restauração, consulte [`Docs/RUNBOOK.md`](Docs/RUNBOOK.md).
+Para operação, diagnóstico, backup e restauração, consulte [`Docs/sistema/RUNBOOK.md`](Docs/sistema/RUNBOOK.md).
+
+## Deploy em Produção (Rápido ~20s)
+
+Para publicar alterações no servidor de produção (`129.80.236.185`, VM Oracle A1 com PostgreSQL), use o script automatizado:
+
+```bash
+# Deploy completo (compila frontend Vite + sincroniza código + reinicia serviços)
+./deploy.sh
+
+# Deploy apenas de backend (Python / PHP / Branding) em ~10s
+./deploy.sh --skip-vite
+```
+
+Para detalhes sobre a arquitetura de deploy, volumes mapeados e solução de lentidão do Docker, consulte [`DEPLOY.md`](DEPLOY.md).
 
 ## Fonte de verdade da documentação
 
 1. Código executado e migrations em `painel/database/migrations/`.
 2. `.env.example`, `docker-compose.yml` e arquivos de configuração.
-3. Documentos “as-built” listados em [`Docs/README.md`](Docs/README.md).
-4. ADRs, changelog, bugs, TODOs e planos — histórico ou planejamento, não descrição do runtime.
-
-Leia [`Docs/README.md`](Docs/README.md) para o índice completo.
+3. Documentos “as-built” listados em [`Docs/README.md`](Docs/README.md) e [`Docs/sistema/`](Docs/sistema/).
+4. [`Docs/ESTADO-DO-PROJETO.md`](Docs/ESTADO-DO-PROJETO.md) — ponto de partida da sessão.

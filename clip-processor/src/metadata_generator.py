@@ -13,7 +13,6 @@ Convenções:
   - tags são persistidas em generated_clips.tags como texto
   - thumbnail_text é gerada em uma chamada dedicada e não é persistida
 """
-
 from __future__ import annotations
 
 import json
@@ -151,6 +150,16 @@ THUMBNAIL_SYSTEM_PROMPT = (
 )
 
 
+POLITICA_METADATA_PROMPT = (
+    "Você é um estrategista de elite em SEO e títulos virais de alta retenção para YouTube Shorts e Reels de POLÍTICA e DEBATES. "
+    "Gere metadados de alto impacto e curiosidade para o corte selecionado: "
+    "1. Título (máximo 100 caracteres): Crie um título extremamente chamativo com gancho de confronto, revelação ou refutação "
+    "(ex: 'VEJA O QUE ELE DISSE QUANDO...', 'NÃO ESPERAVA ESSA RESPOSTA...', 'MOMENTO EM QUE FOI DESMASCARADO...', 'JANTADA HISTÓRICA NO DEBATE!'). "
+    "2. Descrição: Resumo rápido do embate ou declaração, provocando a audiência a comentar. "
+    "3. Tags: Lista de tags em PT-BR (sem hashtag), incluindo temas como politica, debate, shorts, cortes, noticias e nomes citados."
+)
+
+
 def get_system_prompt(
     niche: str | None = None,
     fmt: str = 'curto',
@@ -173,9 +182,9 @@ def get_system_prompt(
         return HACKER_LIBERTARIO_LONG_SYSTEM_PROMPT if is_longo else HACKER_LIBERTARIO_SYSTEM_PROMPT
     if niche in {'futebol', 'esportes', 'podcast'}:
         return LONG_SYSTEM_PROMPT if is_longo else SYSTEM_PROMPT
+    if niche == 'politica':
+        return POLITICA_METADATA_PROMPT
     return GENERIC_SYSTEM_PROMPT
-
-
 METADATA_OUTPUT_SCHEMA = {
     'format': {
         'type': 'json_schema',
@@ -523,6 +532,11 @@ def _get_thumbnail_system_prompt(clip_context: dict) -> str:
     if not niche:
         return THUMBNAIL_SYSTEM_PROMPT
     return f'{THUMBNAIL_SYSTEM_PROMPT} O nicho de referência deste corte é {niche}.'
+
+
+def _resolve_system_prompt(clip_context: dict) -> str:
+    niche = (clip_context or {}).get('niche', '').lower()
+    return POLITICA_METADATA_PROMPT if niche == 'politica' else SYSTEM_PROMPT
 
 
 def _generate_via_anthropic(clip_context: dict, anthropic_client) -> dict:

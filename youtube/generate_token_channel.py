@@ -13,6 +13,8 @@ import json
 import os
 import sys
 
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
 try:
     from google_auth_oauthlib.flow import InstalledAppFlow
 except ImportError:

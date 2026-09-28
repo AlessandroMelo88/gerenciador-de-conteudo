@@ -11,11 +11,22 @@ painel/.env.*
 *.p12
 auth.json
 
-# YouTube OAuth (tokens e client secrets)
+# YouTube OAuth (tokens, cookies e client secrets)
 youtube/token*.json
 youtube/client_secret*.json
 youtube/*client_secret*.json
 youtube/old_client_secret.json
+youtube/cookies.txt
+cookies.txt
+
+# Database Dumps / Backups
+*.sql
+*.sql.gz
+
+# Chaves SSH / Certificados
+*.key
+*.pem
+
 
 # ============================================================
 # Dados de runtime — gerados pelo pipeline (volume Docker)
@@ -98,9 +109,19 @@ yarn-error.log*
 Thumbs.db
 .idea/
 .vscode/
-.claude/
 .cursor/
 .codex/
+# Config local do Claude fica de fora, menos as skills do projeto — todo agente
+# e toda sessão precisa enxergar o fluxo de deploy.
+.claude/*
+!.claude/skills/
+
+# Laravel / Frontend
+painel/vendor/
+painel/node_modules/
+painel/storage/*.key
+painel/public/hot
+painel/public/storage
 
 # ============================================================
 # Ferramentas
@@ -111,3 +132,9 @@ graphify-out/cache/
 # Docker Compose local
 docker-compose.override.yml
 compose.override.yml
+
+# Material de curso (privado, nunca no repositório público). Mora em
+# painel/storage/app/private/conteudo-cursos — mesma árvore no Mac e na A1
+# (/mnt/videos/conteudo-cursos), servida só por rota autenticada.
+painel/public/conteudo-cursos/
+painel/storage/app/private/conteudo-cursos/

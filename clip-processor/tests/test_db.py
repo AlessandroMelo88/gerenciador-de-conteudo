@@ -154,6 +154,22 @@ class TestRecoverStuckSelecting:
                 assert 'local_path IS NULL' in sql
                 assert 'local_path IS NOT NULL' not in sql
 
+    def test_stuck_selecting_com_arquivo_exige_not_exists_clips(self, mock_db_conn):
+        """Vídeos com clips já gerados não podem voltar para downloaded (evita duplicação)."""
+        recover_stuck_selecting(mock_db_conn)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        executed = [call[0][0] for call in mock_cursor.execute.call_args_list]
+
+        stuck_sql = [
+            sql for sql in executed
+            if "status='downloaded'" in sql.replace(' ', '') or "status='downloaded'" in sql
+        ]
+        assert len(stuck_sql) == 1, 'deve haver 1 query de recuperação para downloaded'
+        assert 'NOT EXISTS' in stuck_sql[0]
+        assert 'generated_clips' in stuck_sql[0]
+        assert 'local_path IS NOT NULL' in stuck_sql[0]
+
 
 class TestInsertVideo:
     def test_insert_video(self, mock_db_conn):
@@ -194,3 +210,41 @@ class TestFetchUsedMoments:
         assert 'FROM generated_clips' in sql_call
         assert 'start_time IS NOT NULL' in sql_call
         assert mock_cursor.execute.call_args[0][1] == (42,)
+
+
+class TestPostgresSupport:
+
+    def test_driver_detection(self, monkeypatch):
+        from src.db import get_db_driver
+
+        monkeypatch.setenv('DB_CONNECTION', 'pgsql')
+        assert get_db_driver() == 'pgsql'
+
+        monkeypatch.setenv('DB_CONNECTION', 'mysql')
+        assert get_db_driver() == 'mysql'
+
+        monkeypatch.delenv('DB_CONNECTION', raising=False)
+        monkeypatch.setenv('POSTGRES_HOST', 'postgres.local')
+        monkeypatch.delenv('MYSQL_HOST', raising=False)
+        assert get_db_driver() == 'pgsql'
+
+    def test_insert_video_postgres_uses_on_conflict(self, mock_db_conn):
+        mock_db_conn._driver = 'pgsql'
+        video_id = 'dQw4w9WgXcQ'
+        insert_video(mock_db_conn, video_id, 1, 'Gol', '2026-06-18T10:00:00')
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        sql_call = mock_cursor.execute.call_args[0][0]
+        assert 'ON CONFLICT' in sql_call.upper()
+        assert 'DO NOTHING' in sql_call.upper()
+        assert 'INSERT IGNORE' not in sql_call.upper()
+
+    def test_recover_stuck_selecting_postgres(self, mock_db_conn):
+        mock_db_conn._driver = 'pgsql'
+        recover_stuck_selecting(mock_db_conn)
+
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        executed = [call[0][0] for call in mock_cursor.execute.call_args_list]
+        stuck_sql = [sql for sql in executed if "status='downloaded'" in sql][0]
+        assert 'INTERVAL' in stuck_sql.upper()
+        assert 'DATE_SUB' not in stuck_sql.upper()

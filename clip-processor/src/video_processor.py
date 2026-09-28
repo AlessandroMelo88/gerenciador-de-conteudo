@@ -17,6 +17,8 @@ Convenções:
   - conn: quem chama é responsável por fechar
 """
 
+from __future__ import annotations
+
 import json
 import os
 import subprocess
@@ -434,10 +436,11 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             return False
 
         transcript_path = clip.get('transcript_path')
+        transcript_data = clip.get('transcript_data')
         local_path = clip.get('local_path')
 
-        if not transcript_path:
-            err = f'Clip {clip_id} sem transcript_path cadastrado'
+        if not transcript_path and not transcript_data:
+            err = f'Clip {clip_id} sem transcrição arquivada'
             _log(err)
             _update_clip_failure(conn, clip_id, err)
             return False
@@ -460,8 +463,13 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             _update_clip_failure(conn, clip_id, err)
             return False
 
-        with open(transcript_path, encoding='utf-8') as f:
-            transcript = json.load(f)
+        if transcript_path and os.path.isfile(transcript_path):
+            with open(transcript_path, encoding='utf-8') as f:
+                transcript = json.load(f)
+        else:
+            transcript = json.loads(transcript_data) if isinstance(transcript_data, str) else transcript_data
+        if not isinstance(transcript, dict) or not isinstance(transcript.get('segments'), list):
+            raise ValueError(f'Clip {clip_id} tem transcrição inválida ou vazia')
 
         # Proteção adicional para clips inseridos antes do ajuste do selector
         # ou criados manualmente: nunca entregar ao FFmpeg um fim no meio da fala.
@@ -654,7 +662,7 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
             'SELECT '
             'gc.id, gc.source_video_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
             'sv.youtube_video_id AS source_youtube_video_id, sv.title AS source_title, '
-            'sv.local_path, sv.transcript_path, sv.format, '
+            'sv.local_path, sv.transcript_path, sv.transcript_data, sv.format, '
             'sc.target_niche AS source_niche, ' + PROMPT_PROFILE_SQL_COLUMNS + ', '
             'dc.id AS destination_channel_id, dc.slug AS destination_channel_slug, '
             'dc.niche AS destination_niche, '

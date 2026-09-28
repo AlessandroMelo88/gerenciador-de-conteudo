@@ -13,6 +13,8 @@ Convenções:
   - Logging via _log() com tag [AI]
 """
 
+from __future__ import annotations
+
 import html
 import json
 import os
@@ -27,6 +29,8 @@ from urllib.request import Request, urlopen
 from xml.etree import ElementTree
 
 import yt_dlp
+
+from src.db import get_db_driver
 
 VIDEOS_DIR = '/app/videos'
 YOUTUBE_CAPTION_LANGS = ('pt-BR', 'pt', 'pt.*')
@@ -564,13 +568,17 @@ def save_transcript(conn, video_id: str, transcript: dict) -> str:
 
     _log(f'Transcrição salva em disco: {transcript_path}')
 
+    transcript_json = json.dumps(transcript, ensure_ascii=False)
+    transcript_text = str(transcript.get('text') or '')
+    transcript_column = 'transcript_data=%s::json' if get_db_driver(conn) == 'pgsql' else 'transcript_data=%s'
     with conn.cursor() as cur:
         cur.execute(
-            'UPDATE source_videos SET transcript_path=%s WHERE youtube_video_id=%s',
-            (transcript_path, video_id),
+            f'UPDATE source_videos SET transcript_path=%s, {transcript_column}, transcript_text=%s '
+            'WHERE youtube_video_id=%s',
+            (transcript_path, transcript_json, transcript_text, video_id),
         )
 
     conn.commit()
-    _log(f'transcript_path atualizado no banco para {video_id}')
+    _log(f'Transcrição arquivada no banco para {video_id}')
 
     return transcript_path

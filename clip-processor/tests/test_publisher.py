@@ -2,6 +2,8 @@
 Testes para publisher.py — publicação de clips pendentes.
 """
 
+from __future__ import annotations
+
 import os
 from datetime import datetime
 from unittest.mock import MagicMock, patch

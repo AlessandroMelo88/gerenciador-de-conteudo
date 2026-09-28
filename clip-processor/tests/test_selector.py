@@ -3,9 +3,11 @@ test_selector.py — Testes unitários para selector.py (AI-02, AI-03).
 
 Os cenários cobrem seleção por formato, validação da resposta e persistência.
 """
+from __future__ import annotations
 
 import json
 from unittest.mock import MagicMock
+import pytest
 
 from src import selector as selector_module
 from src.selector import (
@@ -13,7 +15,10 @@ from src.selector import (
     HACKER_LIBERTARIO_PROMPT,
     LONG_SYSTEM_PROMPT,
     LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS,
+    MAX_REASON_CHARS,
     SYSTEM_PROMPT,
+    _clean_reason,
+    _parse_moments,
     complete_moment_boundaries,
     expand_longform_context,
     get_system_prompt,
@@ -36,6 +41,49 @@ SAMPLE_MOMENTS = [
     {'start_time': 100.0, 'end_time': 160.0, 'score': 8, 'reason': 'Debate acalorado'},
     {'start_time': 200.0, 'end_time': 245.0, 'score': 7, 'reason': 'Revelação de bastidores'},
 ]
+
+
+class TestCleanReason:
+    """Justificativa do momento não pode carregar o raciocínio do modelo (visto em 15/09/2026)."""
+
+    def test_colapsa_espacos_e_quebras(self):
+        assert _clean_reason('Análise\n  tática   profunda\n') == 'Análise tática profunda'
+
+    def test_ausente_vira_string_vazia(self):
+        """insert_selected_moments lê moment['reason'] direto — não pode faltar a chave."""
+        assert _clean_reason(None) == ''
+
+    def test_corta_raciocinio_longo_do_modelo(self):
+        raciocinio = (
+            'Vou selecionar o trecho de 0s a 454s? Não, o início é fraco. '
+            'Vou selecionar de 120s a 454s? Não atinge 420s. ' * 20
+        )
+        resultado = _clean_reason(raciocinio)
+
+        assert len(resultado) == MAX_REASON_CHARS + 1  # +1 pela reticência
+        assert resultado.endswith('…')
+
+    def test_parse_moments_aplica_limpeza(self):
+        """A limpeza tem que valer para os dois caminhos de IA, que passam por _parse_moments."""
+        bruto = json.dumps({
+            'moments': [{
+                'start_time': 0,
+                'end_time': 60,
+                'score': 9,
+                'reason': 'x' * (MAX_REASON_CHARS + 50),
+            }]
+        })
+
+        momentos = _parse_moments(bruto)
+
+        assert len(momentos[0]['reason']) == MAX_REASON_CHARS + 1
+
+    def test_parse_moments_preenche_reason_ausente(self):
+        bruto = json.dumps({'moments': [{'start_time': 0, 'end_time': 60, 'score': 9}]})
+
+        momentos = _parse_moments(bruto)
+
+        assert momentos[0]['reason'] == ''
 
 
 class TestSelectMoments:
@@ -297,16 +345,15 @@ class TestSelectMoments:
         assert result[0]['start_time'] == 120.0
 
     def test_shortform_under_30s_discarded(self, sample_video_id):
-        """Momentos abaixo de MIN_SHORTFORM_SECONDS (30s) são descartados no modo curto.
+        """Momento com menos de 15 s é descartado: em 3-5 s não há assunto.
 
-        Régua subiu de 15s para 30s: em 3-4s não há assunto, e mesmo 20s não fecha
-        raciocínio — o de 20s aqui existe justamente pra travar a regressão.
+        Esticar 3 s até 30 s não cria assunto — só adiciona contexto aleatório em volta
+        de uma interjeição. Abaixo do piso de esticamento, descarta.
         """
         mock_anthropic = MagicMock()
         short_moments = [
-            {'start_time': 10.0, 'end_time': 13.0, 'score': 9, 'reason': 'Corte irrelevante de 3s'},
-            {'start_time': 20.0, 'end_time': 25.0, 'score': 8, 'reason': 'Corte irrelevante de 5s'},
-            {'start_time': 50.0, 'end_time': 70.0, 'score': 9, 'reason': 'Curto demais: 20s'},
+            {'start_time': 10.0, 'end_time': 13.0, 'score': 9, 'reason': 'Irrelevante de 3s'},
+            {'start_time': 20.0, 'end_time': 25.0, 'score': 8, 'reason': 'Irrelevante de 5s'},
             {'start_time': 100.0, 'end_time': 140.0, 'score': 9, 'reason': 'Corte válido de 40s'},
         ]
         mock_response = MagicMock()
@@ -579,7 +626,42 @@ class TestSelectMoments:
 
         assert len(result) == 1
         assert result[0]['end_time'] <= 9958.279
+        assert result[0]['end_time'] <= 9958.279
         assert result[0]['end_time'] - result[0]['start_time'] >= 420
+
+    def test_shortform_entre_15s_e_30s_esticado(self, sample_video_id):
+        """Momento de 15 s a 30 s é esticado até MIN_SHORTFORM_SECONDS, não descartado.
+
+        Decisão do operador (15/09/2026): clip de 2-5 s não é assunto, mas a partir de 15 s
+        já existe conteúdo e vale completar os 30 s com o contexto em volta.
+        """
+        mock_anthropic = MagicMock()
+        moments = [{'start_time': 50.0, 'end_time': 70.0, 'score': 9, 'reason': 'Tem assunto, mas só 20s'}]
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text=json.dumps({'moments': moments}))]
+        mock_anthropic.messages.create.return_value = mock_response
+
+        result = select_moments(SAMPLE_TRANSCRIPT, anthropic_client=mock_anthropic, fmt='curto')
+
+        assert len(result) == 1
+        duracao = result[0]['end_time'] - result[0]['start_time']
+        assert duracao == 30.0, f'esperava 30 s após o esticamento, veio {duracao}'
+        # Esticou para os dois lados, sem sair do vídeo
+        assert result[0]['start_time'] >= 0.0
+        assert result[0]['start_time'] < 50.0
+
+    def test_shortform_acima_do_teto_limitado(self, sample_video_id):
+        """Momento maior que MAX_SHORTFORM_SECONDS (180 s, teto do Shorts) é cortado no teto."""
+        mock_anthropic = MagicMock()
+        moments = [{'start_time': 10.0, 'end_time': 300.0, 'score': 9, 'reason': 'Longo demais para short'}]
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text=json.dumps({'moments': moments}))]
+        mock_anthropic.messages.create.return_value = mock_response
+
+        result = select_moments(SAMPLE_TRANSCRIPT, anthropic_client=mock_anthropic, fmt='curto')
+
+        assert len(result) == 1
+        assert result[0]['end_time'] - result[0]['start_time'] <= 180.0
 
 
 class TestInsertMoments:

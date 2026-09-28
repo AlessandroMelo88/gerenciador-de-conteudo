@@ -18,6 +18,8 @@ Exporta:
   - main(url) -> int
 """
 
+from __future__ import annotations
+
 import re
 import sys
 from collections.abc import Mapping

@@ -37,6 +37,7 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            'brand' => \App\Support\Brand::resolve($request),
             'auth' => [
                 'user' => $request->user() ? [
                     'name' => $request->user()->name,
@@ -47,6 +48,27 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
+            'workers' => [
+                'downloader' => \App\Models\SourceVideo::query()->where('status', 'downloading')->count() . '/' . \App\Models\SourceVideo::query()->whereNotNull('local_path')->count(),
+                'transcriber' => \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() > 0 ? \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() . ' ativo' : 'ocioso',
+                'cutter' => \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() > 0 ? \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() . ' cortando' : 'ocioso',
+            ],
+            'destinationQuotas' => \App\Models\DestinationChannel::query()->where('active', true)->get()->map(function ($c) {
+                $today = \Illuminate\Support\Carbon::today('America/Sao_Paulo');
+                $count = \App\Models\GeneratedClip::query()
+                    ->where('destination_channel_id', $c->id)
+                    ->where('status', 'published')
+                    ->whereDate('updated_at', $today)
+                    ->count();
+
+                return [
+                    'name' => $c->name,
+                    'slug' => $c->slug,
+                    'niche' => $c->niche,
+                    'count' => $count,
+                    'limit' => 5,
+                ];
+            }),
         ];
     }
 }

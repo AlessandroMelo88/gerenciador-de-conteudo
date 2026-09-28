@@ -1,28 +1,26 @@
 """
-Helper CLI para gerar token OAuth YouTube por canal-destino.
+youtube_oauth.py — Helper para geracao de token OAuth YouTube por canal-destino (OAU-01).
 
-Uso:
-    python -m src.youtube_oauth --channel <slug>
-    python src/youtube_oauth.py --channel <slug>
+Implementado em Plan 06-01.
 
-Exemplos:
-    python -m src.youtube_oauth --channel futebol-em-cortes
-    python -m src.youtube_oauth --channel podcast-cortes
+Gera credenciais OAuth com offline access (refresh_token) para cada canal-destino
+e salva em /app/youtube/token-{slug}.json.
 
-O token é salvo em /app/youtube/token-{slug}.json.
-O arquivo client_secrets.json é lido de YOUTUBE_CLIENT_SECRETS (env var).
-Default: /app/youtube/client_secrets.json
+Uso CLI interativo:
+    docker exec -it clip-processor python -m src.youtube_oauth --channel canal-slug
 
-Para canais adicionais, copie o client_secrets do GCP Project correspondente:
-    cp client_secrets-podcast-cortes.json /app/youtube/client_secrets-podcast-cortes.json
-    YOUTUBE_CLIENT_SECRETS=/app/youtube/client_secrets-podcast-cortes.json \\
-        python -m src.youtube_oauth --channel podcast-cortes
+Fluxo:
+    1. Lê /app/youtube/client_secrets.json (ou YOUTUBE_CLIENT_SECRETS)
+    2. Imprime auth URL com prompt=consent e access_type=offline
+    3. Aguarda usuario autorizar e colar a URL de redirect (localhost:8085/?code=...)
+    4. Valida que refresh_token está presente no token obtido
+    5. Salva em /app/youtube/token-{channel_slug}.json com permissões 600
 
-IMPORTANTE:
-    - Cada canal-destino deve ter seu proprio GCP Project (cota separada de 10.000 units/dia).
-    - Token gerado em modo Testing expira em 7 dias — publicar app em Production no GCP Console.
-    - Nao commitar token-*.json no git (ja no .gitignore).
+Exporta:
+    - generate_token(channel_slug, secrets_file=None) -> str
 """
+
+from __future__ import annotations
 
 import argparse
 import json
@@ -30,24 +28,34 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+# Permite redirecionamento OAuth em http://localhost
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 SCOPES = [
     'https://www.googleapis.com/auth/youtube.upload',
     'https://www.googleapis.com/auth/youtube.force-ssl',
 ]
-SECRETS_FILE = os.environ.get('YOUTUBE_CLIENT_SECRETS', '/app/youtube/client_secrets.json')
+SECRETS_FILE = os.environ.get(
+    'YOUTUBE_CLIENT_SECRETS', '/app/youtube/client_secrets.json'
+)
 
 
 def generate_token(channel_slug: str, secrets_file: str | None = None) -> str:
     """Gera token OAuth para o canal-destino e salva em /app/youtube/token-{slug}.json.
 
     Args:
-        channel_slug: Slug do canal destino (ex: futebol-em-cortes).
-        secrets_file: Caminho para client_secrets.json. Default: SECRETS_FILE global.
+        channel_slug: slug do canal destino (ex: 'futebol-em-cortes')
+        secrets_file: caminho alternativo para client_secrets.json (default: SECRETS_FILE)
 
     Returns:
-        Caminho do arquivo token salvo.
+        str: caminho do arquivo de token salvo
+
+    Raises:
+        FileNotFoundError: se client_secrets.json não existir
+        RuntimeError: se refresh_token não vier nas credenciais obtidas
     """
     if secrets_file is None:
         secrets_file = SECRETS_FILE
@@ -68,13 +76,8 @@ def generate_token(channel_slug: str, secrets_file: str | None = None) -> str:
     print('Depois de autorizar, o browser vai tentar abrir localhost:8085 e mostrar erro.')
     print('Isso e normal. Copie a URL COMPLETA da barra do browser e cole aqui:')
     redirect_response = input('> ').strip()
-
-    # O fluxo de aplicativo instalado usa um callback HTTP de loopback.
-    # O oauthlib bloqueia HTTP por padrão, embora localhost seja o redirect
-    # permitido pelo Google para esse tipo de cliente OAuth.
-    redirect_uri = urlparse(redirect_response)
-    if redirect_uri.scheme == 'http' and redirect_uri.hostname in {'localhost', '127.0.0.1', '::1'}:
-        os.environ.setdefault('OAUTHLIB_INSECURE_TRANSPORT', '1')
+    if redirect_response.startswith('http://'):
+        redirect_response = 'https://' + redirect_response[7:]
 
     flow.fetch_token(authorization_response=redirect_response)
     creds = flow.credentials

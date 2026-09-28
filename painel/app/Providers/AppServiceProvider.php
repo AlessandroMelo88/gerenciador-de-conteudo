@@ -21,6 +21,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Carbon::setLocale('pt_BR');
+        setlocale(LC_TIME, 'pt_BR.utf8', 'pt_BR', 'portuguese');
+
         // Substitui o GuzzleHttpClient padrão do SDK Telegram pelo handler Laravel.
         // TelegramServiceProvider é DeferrableProvider — o singleton BotsManager::class é
         // criado lazily (na primeira resolução). Usamos BotsManager::class como abstract

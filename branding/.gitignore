@@ -2,3 +2,6 @@
 *.jpg
 *.jpeg
 !.gitkeep
+!background-*.png
+!watermark-*.png
+!logo-*.png

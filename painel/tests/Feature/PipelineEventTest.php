@@ -7,7 +7,6 @@ uses(DatabaseTransactions::class);
 
 beforeEach(function () {
     config(['services.clip_processor.token' => 'test-internal-token']);
-
     Http::fake([
         '*api.telegram.org*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]], 200),
     ]);
@@ -18,6 +17,22 @@ it('POST /internal/pipeline-event without token returns 401', function () {
         'event' => 'upload_published',
         'payload' => [],
     ])->assertStatus(401);
+});
+
+it('POST /internal/pipeline-event recusa tudo quando o token não está configurado', function () {
+    config(['services.clip_processor.token' => null]);
+
+    $this->postJson('/internal/pipeline-event', ['event' => 'daily_summary', 'payload' => []])
+        ->assertStatus(401);
+    $this->postJson('/internal/pipeline-event', ['event' => 'daily_summary', 'payload' => []],
+        ['X-Internal-Token' => ''])
+        ->assertStatus(401);
+});
+
+it('POST /internal/pipeline-event recusa token errado', function () {
+    $this->postJson('/internal/pipeline-event', ['event' => 'daily_summary', 'payload' => []],
+        ['X-Internal-Token' => 'outro'])
+        ->assertStatus(401);
 });
 
 it('POST /internal/pipeline-event upload_published sends Telegram message with title', function () {
@@ -63,5 +78,40 @@ it('POST /internal/pipeline-event daily_summary sends the summary text', functio
 
     Http::assertSent(fn ($req) => str_contains($req->url(), 'api.telegram.org') &&
         str_contains($req['text'] ?? '', 'Resumo')
+    );
+});
+
+it('POST /internal/pipeline-event watchdog_alert sends formatted telegram message with panel link', function () {
+    $token = config('services.clip_processor.token');
+
+    $this->postJson('/internal/pipeline-event', [
+        'event'   => 'watchdog_alert',
+        'payload' => ['message' => 'Janela de download travada em 7/7 vagas.'],
+    ], ['X-Internal-Token' => $token])
+        ->assertStatus(200);
+
+    Http::assertSent(fn ($req) =>
+        str_contains($req->url(), 'api.telegram.org') &&
+        str_contains($req['text'] ?? '', '[WATCHDOG]') &&
+        str_contains($req['text'] ?? '', '/painel')
+    );
+});
+
+it('POST /internal/pipeline-event oauth_warning sends warning message with channels link', function () {
+    $token = config('services.clip_processor.token');
+
+    $this->postJson('/internal/pipeline-event', [
+        'event'   => 'oauth_warning',
+        'payload' => [
+            'message' => 'Token expirado',
+            'warnings' => ['Canal Futebol sem token'],
+        ],
+    ], ['X-Internal-Token' => $token])
+        ->assertStatus(200);
+
+    Http::assertSent(fn ($req) =>
+        str_contains($req->url(), 'api.telegram.org') &&
+        str_contains($req['text'] ?? '', '[ALERTA OAUTH]') &&
+        str_contains($req['text'] ?? '', '/painel/canais')
     );
 });

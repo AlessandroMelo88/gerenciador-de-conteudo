@@ -1,67 +1,50 @@
-# Documentação — Canal de Cortes
+# Diretório de Documentação (`Docs/`)
 
-> **Tipo:** índice · **Status:** atualizado · **Data:** 2026-08-27
+Este diretório centraliza toda a documentação, estudos e especificações técnicas do projeto **Canal de Cortes**.
 
-Use esta página para escolher a referência certa. Documentos marcados como `as-built` descrevem o
-código atual; planos, ADRs, bugs e changelog registram decisões ou histórico.
+---
 
-## Leitura recomendada
+## Estrutura de Pastas
 
-| Objetivo | Documento |
-|---|---|
-| Entender o sistema | [`../README.md`](../README.md) e [`../ARCHITECTURE.md`](../ARCHITECTURE.md) |
-| Operar ou diagnosticar | [`RUNBOOK.md`](RUNBOOK.md) e [`../CLAUDE.md`](../CLAUDE.md) |
-| Entender a fila | [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) |
-| Entender IA, perfis e prompts | [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) |
-| Alterar código | [`DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md) e [`../CONTRIBUTING.md`](../CONTRIBUTING.md) |
+```
+Docs/
+├── sistema/    # Toda a documentação técnica oficial, subsistemas, arquitetura e runbooks
+└── estudos/    # Estudos de mercado, pesquisas e mineração de dados (ex: canais de futebol e política)
+```
 
-## Referências as-built
+---
 
-| Documento | Escopo | Fonte de verdade |
-|---|---|---|
-| [`PIPELINE-E-SCHEDULER.md`](PIPELINE-E-SCHEDULER.md) | workers por etapa, filas e recovery | `src/worker.py`, `docker-compose.yml` |
-| [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md) | RSS, dedup, download e janela | `rss_poller.py`, `dedup.py`, `downloader.py` |
-| [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | legendas, Groq Whisper e transcrição local | `transcriber.py`, `transcription_job.py` |
-| [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) | prompts, providers e validação | `selector.py`, `metadata_generator.py` |
-| [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg, assets e artefatos | `video_processor.py`, `media_*.py` |
-| [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md) | quota, OAuth e upload | `publisher.py`, `quota_manager.py`, `uploader.py` |
-| [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | API interna e controles | `internal_api.py`, `queue_controls.py` |
-| [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | mapa dos módulos Python | `clip-processor/src/` |
-| [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | rotas, páginas e controllers | `painel/routes/`, `painel/app/` |
-| [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | schema e donos das escritas | `painel/database/migrations/` |
-| [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) | estados, transições e recovery | migrations + código Python/PHP |
+## 1. Documentação do Sistema (`Docs/sistema/`)
 
-## Operação e desenvolvimento
+Contém as especificações operacionais e de engenharia de todos os componentes do sistema:
 
-| Documento | Uso |
-|---|---|
-| [`RUNBOOK.md`](RUNBOOK.md) | saúde, logs, reinício, fila, disco e backup |
-| [`DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md) | setup, lint, testes, CI e release |
-| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | branches, commits e changelog |
-| [`../CLAUDE.md`](../CLAUDE.md) | regras de segurança para operações destrutivas |
-| [`ADR/README.md`](ADR/README.md) | decisões de arquitetura aceitas ou substituídas |
+* [`Docs/sistema/README.md`](sistema/README.md) — Índice geral e mapa completo dos subsistemas.
+* [`Docs/sistema/ESTRATEGIA-YOUTUBE-E-BENCHMARK.md`](sistema/ESTRATEGIA-YOUTUBE-E-BENCHMARK.md) — Estratégia de conteúdo, diagnóstico do YouTube Studio, Benchmark de concorrentes e modelo viral de Política (MBL/Missão).
+* [`Docs/sistema/BANCO-DE-DADOS.md`](sistema/BANCO-DE-DADOS.md) — Schema, tabelas, suporte híbrido a MySQL/PostgreSQL e rotinas de backup/recuperação (`db:backup`, `db:restore`).
+* [`Docs/sistema/SISTEMA-PAINEL.md`](sistema/SISTEMA-PAINEL.md) — Interface web em Laravel 13 + Inertia + React 19, Assistente IA (LLaMA 3.3), Channel Template Studio (9:16), modal de preview de clipes e controles.
+* [`Docs/sistema/SISTEMA-CLIP-PROCESSOR.md`](sistema/SISTEMA-CLIP-PROCESSOR.md) — Daemon em Python (21 módulos), ciclo de vida, poller RSS, variáveis de ambiente.
+* [`Docs/sistema/SISTEMA-VIDEO.md`](sistema/SISTEMA-VIDEO.md) — Pipeline de vídeo com FFmpeg, enquadramento vertical com fundo desfocado, legendas e thumbnails.
+* [`Docs/sistema/SISTEMA-IA-SELECAO.md`](sistema/SISTEMA-IA-SELECAO.md) — Seleção inteligente de cortes por IA (Claude Haiku / Groq LLaMA 3.3).
+* [`Docs/sistema/SISTEMA-DOWNLOAD.md`](sistema/SISTEMA-DOWNLOAD.md) — Download via yt-dlp, controle de disco e limpeza automática.
+* [`Docs/sistema/SISTEMA-PUBLICACAO.md`](sistema/SISTEMA-PUBLICACAO.md) — Publicação no YouTube, controle de cotas, canais destino e round-robin.
+* [`Docs/sistema/SISTEMA-TRANSCRICAO.md`](sistema/SISTEMA-TRANSCRICAO.md) — Transcrição via Groq Whisper API e Transcrição Local com whisper.cpp.
+* [`Docs/sistema/SISTEMA-SIDECAR.md`](sistema/SISTEMA-SIDECAR.md) — API interna HTTP na porta 8090 para comunicação com o painel.
+* [`Docs/sistema/PIPELINE-E-SCHEDULER.md`](sistema/PIPELINE-E-SCHEDULER.md) — Agendamento de rotinas do daemon e cron jobs.
+* [`Docs/sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md`](sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md) — Observabilidade em três camadas: Better Stack (uptime/heartbeats), Sentry (crashes), Watchdog proativo (auto-cura de deadlocks e clipes fantasmas) e alertas via Telegram e Email.
+* [`Docs/sistema/ESTADOS-E-TRANSICOES.md`](sistema/ESTADOS-E-TRANSICOES.md) — Máquina de estados dos vídeos e clipes.
+* [`Docs/sistema/RUNBOOK.md`](sistema/RUNBOOK.md) — Comandos práticos de manutenção, operação e troubleshooting.
+* [`Docs/sistema/BUGS.md`](sistema/BUGS.md) — Histórico e backlog de bugs e correções.
+* [`Docs/sistema/RETOMADA-TRANSCRICOES.md`](sistema/RETOMADA-TRANSCRICOES.md) — **Retomada de 18/09/2026:** estado da master × produção, extensão do Chrome, próximas tarefas (destino local/produção, contexto de estudo, Hotmart) e pendências do operador.
+* [`Docs/sistema/CI-CD.md`](sistema/CI-CD.md) — Deploy automático diário: opções (launchd no Mac, cron na A1, GitHub Actions), recomendação e a trava que impede reiniciar no meio de um corte. **Só desenho, nada implementado.**
+* [`Docs/sistema/MIGRACAO-A1.md`](sistema/MIGRACAO-A1.md) — **Produção atual (17/09/2026):** VM A1 + PostgreSQL, rollback, backup e pendências da migração.
+* [`Docs/sistema/PLANO-MESTRE.md`](sistema/PLANO-MESTRE.md) — **Comece por aqui para retomar trabalho.** Advertência de direitos autorais, gate de licença, migração para A1 12 GB + PostgreSQL, marca Umbrella Solutions, afiliados e ordem de execução.
+* [`Docs/sistema/SISTEMA-AFILIADOS.md`](sistema/SISTEMA-AFILIADOS.md) — Ofertas de afiliado: worker local, API com token, aprovação no painel, link rastreável `/o/{slug}`, divulgação automática no Telegram, tela de performance e tema Umbrella Solutions.
+* [`Docs/sistema/RETOMADA-SESSAO-CRON.md`](sistema/RETOMADA-SESSAO-CRON.md) — Agendamento noturno e retomada da sessão Claude Code pós-limite de uso.
 
-## Histórico e planejamento
+---
 
-Estes arquivos não devem ser usados para inferir o comportamento atual sem conferir o código:
+## 2. Estudos e Pesquisas (`Docs/estudos/`)
 
-| Documento | Natureza |
-|---|---|
-| [`BUGS.md`](BUGS.md) | backlog e incidentes; itens podem estar desatualizados |
-| [`TODO-REFATORACAO.md`](TODO-REFATORACAO.md) | auditoria técnica datada |
-| [`PLANO-ORACLE.md`](PLANO-ORACLE.md) | migração futura; não iniciada |
-| [`PLANO-PROMPTS-EDITAVEIS.md`](PLANO-PROMPTS-EDITAVEIS.md) | editor/versionamento futuro; perfis-base já implementados |
-| [`../CHANGELOG.md`](../CHANGELOG.md) e [`../CHANGELOG.d/`](../CHANGELOG.d/README.md) | histórico de mudanças |
-| [`ADR/`](ADR/README.md) | decisões preservadas, inclusive as substituídas |
+Contém análises, pesquisas de canais, dados de mineração e benchmarks de conteúdo:
 
-`.planning/` contém planejamento GSD. `graphify-out/` contém o grafo do projeto. Nenhum dos dois
-substitui o código executado.
-
-## Regras de manutenção
-
-- comportamento alterado → atualize o documento do subsistema;
-- mudança de estado → atualize `ESTADOS-E-TRANSICOES.md`;
-- decisão estrutural → crie um ADR novo, sem editar um ADR aceito;
-- mudança relevante → adicione fragmento em `CHANGELOG.d/`;
-- use datas absolutas no formato `YYYY-MM-DD`;
-- em conflito, prefira código, migrations, Compose e `.env.example`, nessa ordem.
+* `Docs/estudos/mineracao_canis.xlxs` — Planilha com mapeamento, métricas e mineração de canais fonte e concorrentes no YouTube.

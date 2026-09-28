@@ -11,7 +11,10 @@ Exporta:
   - run_ttl_once(conn=None, redis_client=None) -> dict
 """
 
+from __future__ import annotations
+
 import os
+from datetime import datetime, timedelta
 
 import redis
 
@@ -45,13 +48,19 @@ def run_ttl_once(conn=None, redis_client=None) -> dict:
         )
 
     try:
+        # Cortes calculados em Python: `NOW() - INTERVAL n HOUR` é sintaxe só do
+        # MySQL e quebra no PostgreSQL (mesmo padrão de watchdog._horas_atras).
+        agora = datetime.now()
+        corte_ttl = agora - timedelta(hours=TTL_HOURS)
+        corte_warn = agora - timedelta(hours=WARN_HOURS)
+
         # 1) Expirar clipes com mais de TTL_HOURS
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE generated_clips SET status='rejected' "
                 "WHERE status='pending' AND youtube_video_id IS NULL "
-                "AND created_at < NOW() - (%s * INTERVAL '1 hour')",
-                (TTL_HOURS,),
+                "AND created_at < %s",
+                (corte_ttl,),
             )
             expired_count = cur.rowcount
             # Drain do cursor para liberar o resultset (no-op em UPDATE real;
@@ -66,11 +75,10 @@ def run_ttl_once(conn=None, redis_client=None) -> dict:
         with conn.cursor() as cur:
             cur.execute(
                 'SELECT id, title FROM generated_clips '
-                "WHERE status='pending' "
-                'AND youtube_video_id IS NULL '
-                "AND created_at < NOW() - (%s * INTERVAL '1 hour') "
-                "AND created_at > NOW() - (%s * INTERVAL '1 hour')",
-                (WARN_HOURS, TTL_HOURS),
+                "WHERE status='pending' AND youtube_video_id IS NULL "
+                "AND created_at < %s "
+                "AND created_at > %s",
+                (corte_warn, corte_ttl),
             )
             soon_to_expire = cur.fetchall()
 

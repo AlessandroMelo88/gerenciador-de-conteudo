@@ -34,6 +34,8 @@ class SourceChannelController extends Controller
                 'promptProfileName' => $c->promptProfile?->name,
                 'active' => $c->active,
                 'blacklisted' => $c->blacklisted,
+                'freshnessDays' => $c->freshness_days ?? 1500,
+                'inputPriority' => (int) ($c->input_priority ?? 0),
                 'createdAt' => $c->created_at ? Carbon::parse($c->created_at)->diffForHumans() : null,
             ]),
             'niches' => Niche::query()->orderBy('label')->get(['slug', 'label']),
@@ -99,6 +101,8 @@ class SourceChannelController extends Controller
             'blacklisted' => ['sometimes', 'boolean'],
             'active' => ['sometimes', 'boolean'],
             'prompt_profile_id' => ['sometimes', 'nullable', 'integer', 'exists:prompt_profiles,id'],
+            'freshness_days' => ['sometimes', 'integer', 'in:3,1500'],
+            'input_priority' => ['sometimes', 'integer', 'min:-10', 'max:10'],
         ]);
 
         if (array_key_exists('prompt_profile_id', $data)) {

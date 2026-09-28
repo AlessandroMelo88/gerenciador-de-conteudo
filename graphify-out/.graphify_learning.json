@@ -1,0 +1,118 @@
+{
+  "generated_at": "2026-09-06T05:52:37.858857+00:00",
+  "nodes": {
+    "clip_processor_src_media_composer": {
+      "code_fingerprint": "f94483b5438e5d6cf69073e6c0befa26813a4a4e6fdc5e70ebd6c4e047019047",
+      "label": "media_composer.py",
+      "last": "2026-09-06T05:51:02.709885+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-06T05:51:02.709885+00:00",
+          "outcome": "useful",
+          "q": "A musica no final do video esta ficando muito baixinha. Ela começa baxinha 30 segundos antes do video acabar, e vai aumentando, pra quando terminar de fato ja estar no volume do video."
+        }
+      ],
+      "score": 0.999974556,
+      "source_file": "clip-processor/src/media_composer.py",
+      "status": "tentative",
+      "uses": 1
+    },
+    "clip_processor_src_media_composer_compose_media": {
+      "code_fingerprint": "f94483b5438e5d6cf69073e6c0befa26813a4a4e6fdc5e70ebd6c4e047019047",
+      "label": "compose_media()",
+      "last": "2026-09-06T05:51:02.709885+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-06T05:51:02.709885+00:00",
+          "outcome": "useful",
+          "q": "A musica no final do video esta ficando muito baixinha. Ela começa baxinha 30 segundos antes do video acabar, e vai aumentando, pra quando terminar de fato ja estar no volume do video."
+        }
+      ],
+      "score": 0.999974556,
+      "source_file": "clip-processor/src/media_composer.py",
+      "status": "tentative",
+      "uses": 1
+    },
+    "clip_processor_src_media_composer_mix_music": {
+      "code_fingerprint": "f94483b5438e5d6cf69073e6c0befa26813a4a4e6fdc5e70ebd6c4e047019047",
+      "label": "_mix_music()",
+      "last": "2026-09-06T05:51:02.709885+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-06T05:51:02.709885+00:00",
+          "outcome": "useful",
+          "q": "A musica no final do video esta ficando muito baixinha. Ela começa baxinha 30 segundos antes do video acabar, e vai aumentando, pra quando terminar de fato ja estar no volume do video."
+        }
+      ],
+      "score": 0.999974556,
+      "source_file": "clip-processor/src/media_composer.py",
+      "status": "tentative",
+      "uses": 1
+    },
+    "clip_processor_src_publisher_publish_pending_clips": {
+      "code_fingerprint": "b9b8159799dad29e41b1bc4b8cd30c3bc9fe0670b065dea5179d60a40af66c1e",
+      "label": "publish_pending_clips()",
+      "last": "2026-09-06T00:16:39.918955+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-06T00:16:39.918955+00:00",
+          "outcome": "useful",
+          "q": "Como estamos as publicações ?"
+        }
+      ],
+      "score": 0.994623909,
+      "source_file": "clip-processor/src/publisher.py",
+      "status": "tentative",
+      "uses": 1
+    },
+    "clip_processor_src_quota_manager_quotamanager": {
+      "code_fingerprint": "396a6d4fcdce75e986efc63761057ef53c0bc7ec394755abee5f44dc99b190ee",
+      "label": "QuotaManager",
+      "last": "2026-09-06T00:16:39.918955+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-06T00:16:39.918955+00:00",
+          "outcome": "useful",
+          "q": "Como estamos as publicações ?"
+        }
+      ],
+      "score": 0.994623909,
+      "source_file": "clip-processor/src/quota_manager.py",
+      "status": "tentative",
+      "uses": 1
+    },
+    "clip_processor_tests_test_media_composer_test_compose_media_normalizes_segments_and_mixes_music": {
+      "code_fingerprint": "2299e5468daf8cb57f84a6a18979724406f02b06d01f47ef016e130e61f28d96",
+      "label": "test_compose_media_normalizes_segments_and_mixes_music()",
+      "last": "2026-09-06T05:51:02.709885+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-06T05:51:02.709885+00:00",
+          "outcome": "useful",
+          "q": "A musica no final do video esta ficando muito baixinha. Ela começa baxinha 30 segundos antes do video acabar, e vai aumentando, pra quando terminar de fato ja estar no volume do video."
+        }
+      ],
+      "score": 0.999974556,
+      "source_file": "clip-processor/tests/test_media_composer.py",
+      "status": "tentative",
+      "uses": 1
+    },
+    "painel_app_models_generatedclip_generatedclip": {
+      "code_fingerprint": "7d746812617901eb223687615bd7cd35261d9f973a04b4d4a09d2c0252fb8432",
+      "label": "GeneratedClip",
+      "last": "2026-09-06T00:16:39.918955+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-06T00:16:39.918955+00:00",
+          "outcome": "useful",
+          "q": "Como estamos as publicações ?"
+        }
+      ],
+      "score": 0.994623909,
+      "source_file": "painel/app/Models/GeneratedClip.php",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}

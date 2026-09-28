@@ -6,7 +6,8 @@ Atualizado em Plan 09-03: ttl_worker.py usa notify() do telegram_notifier
 em vez de requests.post direto — testes agora patcham src.ttl_worker.notify.
 """
 
-from unittest.mock import patch
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 from src.ttl_worker import run_ttl_once
 
@@ -31,7 +32,10 @@ class TestExpire:
         ]
         assert len(update_sqls) >= 1
         joined = ' '.join(update_sqls)
-        assert 'INTERVAL' in joined and 'HOUR' in joined
+        # Corte calculado em Python: INTERVAL n HOUR é só do MySQL e quebra no PostgreSQL.
+        assert 'INTERVAL' not in joined
+        expire_call = next(c for c in cursor.execute.call_args_list if 'REJECTED' in str(c).upper())
+        assert isinstance(expire_call[0][1][0], datetime)
 
 
 class TestWarn:

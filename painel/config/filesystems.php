@@ -52,7 +52,7 @@ return [
         // pra aplicar overlay nos clips cortados. Ver docker-compose.yml (root).
         'branding' => [
             'driver' => 'local',
-            'root' => env('BRANDING_DISK_ROOT', storage_path('app/branding')),
+            'root' => env('BRANDING_DISK_ROOT', (file_exists(base_path('../branding')) ? base_path('../branding') : storage_path('app/branding'))),
             'throw' => false,
             'report' => false,
         ],
@@ -62,7 +62,18 @@ return [
         // o preview player do dashboard (ver ClipPreviewController).
         'clips-videos' => [
             'driver' => 'local',
-            'root' => env('CLIPS_VIDEOS_DISK_ROOT', storage_path('app/clips-videos')),
+            'root' => env('CLIPS_VIDEOS_DISK_ROOT', (file_exists(base_path('../videos')) ? base_path('../videos') : storage_path('app/clips-videos'))),
+            'throw' => false,
+            'report' => false,
+        ],
+
+        // Material de curso: arquivo da aula baixado pelo worker do Mac (aulas/<id>.<ext>).
+        // Fora de public/ — é conteúdo pago, só sai por rota autenticada. Na A1 é o
+        // bind de /mnt/videos/conteudo-cursos (docker-compose.yml); no Mac, a pasta
+        // local de mesmo nome, que o worker preenche com a mesma árvore.
+        'conteudo-cursos' => [
+            'driver' => 'local',
+            'root' => env('CONTEUDO_CURSOS_DISK_ROOT', storage_path('app/private/conteudo-cursos')),
             'throw' => false,
             'report' => false,
         ],

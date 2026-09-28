@@ -160,3 +160,31 @@ def test_resolve_filesystem_assets_skips_identity_for_shorts(tmp_path, monkeypat
     )
 
     assert result == {}
+
+
+def test_resolve_filesystem_assets_prefers_channel_specific_audio(tmp_path, monkeypatch):
+    channels_root = tmp_path / 'channels'
+    channel_root = channels_root / 'canal'
+    channel_audio = channel_root / 'audio'
+    channel_audio.mkdir(parents=True)
+    (channel_audio / 'canal_track.mp3').write_bytes(b'channel_audio')
+
+    global_audio = tmp_path / 'audio'
+    global_audio.mkdir(parents=True)
+    (global_audio / 'global_track.mp3').write_bytes(b'global_audio')
+
+    monkeypatch.setattr(media_assets, 'ASSETS_ROOT', tmp_path)
+    monkeypatch.setattr(media_assets, 'CHANNELS_ROOT', channels_root)
+    monkeypatch.setattr(media_assets, 'AUDIO_ROOT', global_audio)
+
+    result = resolve_filesystem_media_assets(
+        channel_slug='canal',
+        video_format='longo',
+        clip_id=0,
+    )
+
+    assert 'music' in result
+    assert result['music']['name'] == 'canal_track.mp3'
+    assert result['music']['absolute_path'] == str(channel_audio / 'canal_track.mp3')
+    assert result['music']['music_volume'] == 0.24
+

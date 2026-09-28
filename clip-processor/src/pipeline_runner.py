@@ -1,4 +1,5 @@
 """Execução dos ciclos de ingestão e publicação do pipeline."""
+from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
@@ -7,6 +8,7 @@ from zoneinfo import ZoneInfo
 import redis as redis_lib
 
 from src.db import get_db_connection, update_status
+from src.fair_queue import channel_cap, fair_pick
 from src.downloader import VIDEOS_DIR, cleanup_stale_downloads, download_video
 from src.publisher import publish_pending_clips
 from src.queue_controls import _CLIP_STATUSES_NEED_RAW, _cleanup_partial
@@ -22,11 +24,18 @@ def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [RUN] {msg}', flush=True)
 
 
-# Janela: no máximo esses tantos vídeos com arquivo em disco (local_path IS NOT
-# NULL) ao mesmo tempo, por formato — não baixa mais que isso independente do
-# tamanho do backlog. Repõe só o déficit (janela - ocupação atual) a cada rodada,
-# então vaga aberta (por publicação concluída ou por exclusão manual no painel)
-# é reposta na rodada seguinte, mantendo a janela sempre perto de cheia.
+# Janela: no máximo DOWNLOAD_WINDOW_PER_CHANNEL vídeos ocupando o servidor por
+# canal destino ativo do nicho — arquivo em disco, em processamento ou com clip
+# ainda na fila de aprovação. Hoje: Futebol em Cortes + Fatos & Debates = 20 no
+# total. Cada canal destino novo soma mais 10 ao nicho dele. Repõe só o déficit
+# (janela - ocupação atual) a cada rodada, independente do tamanho do backlog.
+DOWNLOAD_WINDOW_PER_CHANNEL = int(os.environ.get('DOWNLOAD_WINDOW_PER_CHANNEL', 10))
+
+# Fallback só se a consulta aos canais destino falhar.
+DOWNLOAD_WINDOW_FUTEBOL = int(os.environ.get('DOWNLOAD_WINDOW_FUTEBOL', DOWNLOAD_WINDOW_PER_CHANNEL))
+DOWNLOAD_WINDOW_POLITICA = int(os.environ.get('DOWNLOAD_WINDOW_POLITICA', DOWNLOAD_WINDOW_PER_CHANNEL))
+
+# Aliases de compatibilidade
 DOWNLOAD_WINDOW_CURTO = int(os.environ.get('DOWNLOAD_WINDOW_CURTO', 6))
 DOWNLOAD_WINDOW_LONGO = int(os.environ.get('DOWNLOAD_WINDOW_LONGO', 4))
 
@@ -36,57 +45,129 @@ DOWNLOAD_WINDOW_LONGO = int(os.environ.get('DOWNLOAD_WINDOW_LONGO', 4))
 PIPELINE_LOCK_TIMEOUT_SECONDS = int(os.environ.get('PIPELINE_LOCK_TIMEOUT_SECONDS', 7200))
 PUBLISH_LOCK_TIMEOUT_SECONDS = int(os.environ.get('PUBLISH_LOCK_TIMEOUT_SECONDS', 7200))
 
-# Janela de frescor (em dias) para considerar vídeos na fila de download automático.
+# Fallback de frescor para bancos antigos. Em instalações atualizadas, cada
+# source_channel guarda seu próprio freshness_days (3 ou 1500) no PostgreSQL.
 FRESHNESS_DAYS = int(os.environ.get('FRESHNESS_DAYS', 1500))
+
+# Teto de vagas da janela por canal de origem. Vazio = calculado a cada rodada
+# (janela do nicho ÷ canais de origem ativos), que é o que se quer no dia a dia:
+# canal novo entra e o teto de todo mundo se ajusta sozinho.
+DOWNLOAD_MAX_PER_SOURCE_CHANNEL = os.environ.get('DOWNLOAD_MAX_PER_SOURCE_CHANNEL') or None
+
+# Quantos candidatos buscar por vaga livre. O round-robin precisa de mais de um
+# canal na mão para intercalar; pedir só o déficit traria os N primeiros do
+# mesmo canal prolífico e não haveria o que alternar.
+CANDIDATES_PER_SLOT = int(os.environ.get('CANDIDATES_PER_SLOT', 5))
+
+
+def _niche_windows(db_conn) -> list:
+    """Teto da janela por nicho: DOWNLOAD_WINDOW_PER_CHANNEL × canais destino ativos.
+
+    Futebol vem primeiro (prioridade de reposição). Nicho sem canal destino ativo
+    não entra — não há para onde publicar, então não baixa. Se a consulta falhar,
+    usa DOWNLOAD_WINDOW_FUTEBOL/POLITICA para não parar a ingestão.
+    """
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute(
+                "SELECT LOWER(TRIM(niche)) AS niche, COUNT(*) AS n "
+                "FROM destination_channels WHERE active = TRUE "
+                "GROUP BY LOWER(TRIM(niche))"
+            )
+            rows = cur.fetchall() or []
+    except Exception as e:
+        _log(f'Falha ao ler canais destino ({e}) — usando janela padrão')
+        return [('futebol', DOWNLOAD_WINDOW_FUTEBOL), ('politica', DOWNLOAD_WINDOW_POLITICA)]
+
+    windows = [(row['niche'], int(row['n']) * DOWNLOAD_WINDOW_PER_CHANNEL) for row in rows if row.get('niche')]
+    return sorted(windows, key=lambda w: (w[0] != 'futebol', w[0]))
+
+
+def _active_source_channels(db_conn, niche: str) -> int:
+    """Quantos canais de origem ativos o nicho tem — base do teto por canal."""
+    with db_conn.cursor() as cur:
+        cur.execute(
+            'SELECT COUNT(*) AS c FROM source_channels sc '
+            'WHERE sc.active = TRUE AND sc.blacklisted = FALSE AND ('
+            "  (LOWER(COALESCE(sc.target_niche, 'futebol')) = %s) "
+            "  OR (%s = 'futebol' AND (sc.target_niche IS NULL OR sc.target_niche = ''))"
+            ')',
+            (niche, niche),
+        )
+        return int(cur.fetchone()['c'])
 
 
 def _select_pending_videos(db_conn) -> list:
-    """Seleciona vídeos pendentes pra repor a janela de download ativo.
+    """Seleciona vídeos pendentes pra repor a janela de download ativo por nicho.
 
-    Para cada formato: conta quantos vídeos já ocupam a janela (com arquivo bruto
-    em disco, status em processamento ativo ou clips pendentes/aprovados que ainda
-    estão sendo trabalhados), calcula o déficit até o teto (DOWNLOAD_WINDOW_LONGO/CURTO)
-    e busca só esse tanto, restrito a published_at de hoje ou ontem (FRESHNESS_DAYS),
-    ordenado por prioridade e publicado_at DESC. Se um formato já está na janela
-    cheia, não baixa nada dele nesta rodada.
+    Para cada nicho com canal destino ativo (10 por canal): conta a ocupação atual
+    **por canal de origem** (arquivo bruto em disco, status em processamento ativo ou
+    clips ainda sendo trabalhados), calcula o déficit até o teto do nicho
+    (_niche_windows) e busca candidatos restritos a published_at de até
+    FRESHNESS_DAYS dias atrás, na ordem de prioridade, posição na fila e
+    published_at DESC.
+
+    A escolha final é justa por canal (`fair_queue.fair_pick`): cada canal de
+    origem só pode ocupar `channel_cap` vagas da janela, e quem ocupa menos vagas
+    escolhe primeiro. Sem isso, um canal que publica 50 vídeos por dia toma a
+    janela inteira e os outros nunca baixam. Nicho com a janela cheia não baixa nada.
     """
-    cutoff_date = (datetime.now(SAO_PAULO_TZ) - timedelta(days=FRESHNESS_DAYS)).date()
+    niche_windows = _niche_windows(db_conn)
 
-    result: list[str] = []
-    for fmt, window in (('longo', DOWNLOAD_WINDOW_LONGO), ('curto', DOWNLOAD_WINDOW_CURTO)):
+    result = []
+    for niche, window in niche_windows:
         with db_conn.cursor() as cur:
             cur.execute(
-                'SELECT COUNT(DISTINCT sv.id) AS c FROM source_videos sv '
+                'SELECT sv.channel_id AS channel_id, COUNT(DISTINCT sv.id) AS c '
+                'FROM source_videos sv '
+                'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
                 'LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id '
-                'WHERE sv.format = %s AND ('
-                "  (sv.local_path IS NOT NULL AND sv.status NOT IN ('failed', 'published')) "
+                'WHERE ('
+                '  (LOWER(COALESCE(sc.target_niche, \'futebol\')) = %s) '
+                "  OR (%s = 'futebol' AND (sc.target_niche IS NULL OR sc.target_niche = ''))"
+                ') AND ('
+                '  sv.local_path IS NOT NULL '
                 "  OR sv.status IN ('downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing') "
                 "  OR (gc.id IS NOT NULL AND gc.status IN ('pending_cut', 'pending', 'cutting', 'approved'))"
-                ')',
-                (fmt,),
+                ') GROUP BY sv.channel_id',
+                (niche, niche),
             )
-            occupied = cur.fetchone()['c']
+            rows = cur.fetchall() or []
+
+        occupancy = {row['channel_id']: int(row['c']) for row in rows}
+        occupied = sum(occupancy.values())
 
         deficit = max(0, window - occupied)
         if deficit == 0:
             continue
 
+        cap = channel_cap(
+            window=window,
+            active_channels=_active_source_channels(db_conn, niche),
+            override=DOWNLOAD_MAX_PER_SOURCE_CHANNEL,
+        )
+
         with db_conn.cursor() as cur:
             cur.execute(
-                'SELECT youtube_video_id FROM source_videos '
-                "WHERE status = 'pending' AND paused = FALSE AND format = %s "
-                'AND DATE(COALESCE(published_at, created_at)) >= %s '
-                'ORDER BY EXISTS ('
-                '  SELECT 1 FROM generated_clips gc '
-                '  WHERE gc.source_video_id = source_videos.id '
-                "  AND gc.status IN ('pending_cut', 'cutting')"
-                ') DESC, '
-                'priority DESC, '
-                'queue_position IS NULL, queue_position ASC, '
-                'COALESCE(published_at, created_at) DESC LIMIT %s',
-                (fmt, cutoff_date, deficit),
+                "SELECT sv.youtube_video_id, sv.channel_id, "
+                "COALESCE(sc.input_priority, 0) AS input_priority "
+                "FROM source_videos sv "
+                "LEFT JOIN source_channels sc ON sc.id = sv.channel_id "
+                "WHERE sv.status = 'pending' AND sv.paused = FALSE "
+                "AND ("
+                "  (LOWER(COALESCE(sc.target_niche, 'futebol')) = %s) "
+                "  OR (%s = 'futebol' AND (sc.target_niche IS NULL OR sc.target_niche = ''))"
+                ") "
+                "AND sv.published_at >= NOW() - (COALESCE(sc.freshness_days, %s) * INTERVAL '1 day') "
+                "ORDER BY sv.priority DESC, COALESCE(sc.input_priority, 0) DESC, "
+                "sv.queue_position IS NULL, sv.queue_position ASC, "
+                "sv.published_at DESC LIMIT %s",
+                (niche, niche, FRESHNESS_DAYS, deficit * CANDIDATES_PER_SLOT),
             )
-            result.extend(row['youtube_video_id'] for row in cur.fetchall())
+            candidates = [dict(row) for row in cur.fetchall()]
+
+        escolhidos = fair_pick(candidates, occupancy=occupancy, deficit=deficit, cap=cap)
+        result.extend(v['youtube_video_id'] for v in escolhidos)
 
     return result
 
@@ -148,12 +229,31 @@ def _discard_failed_download(db_conn, video_id: str) -> None:
     _log(f'Download FALHOU: {video_id} — arquivo removido e local_path limpo')
 
 
+def reconcile_active_window(db_conn) -> None:
+    """Verifica vídeos na janela ativa cujo arquivo não existe mais em disco e limpa."""
+    with db_conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, youtube_video_id, local_path, status FROM source_videos "
+            "WHERE local_path IS NOT NULL OR status IN ('selecting', 'downloading', 'transcribing')"
+        )
+        rows = cur.fetchall()
+
+    for row in rows:
+        vid_id = row['youtube_video_id']
+        local_path = row.get('local_path')
+        if not local_path or not os.path.exists(local_path):
+            if not _clips_need_raw(db_conn, vid_id):
+                update_status(db_conn, vid_id, 'failed', clear_local_path=True)
+                _log(f'Reconciliação: vídeo {vid_id} sem arquivo em disco — local_path limpo e status failed')
+
+
 def _download_pending_videos(db_conn) -> None:
     """Baixa vídeos com status 'pending', um por vez, atualizando status no DB."""
     # Antes de ocupar disco novo, devolve o que ficou preso em download morto —
     # o disk guard de 2GB do downloader mede o disco real, então órfão não
     # limpo vira bloqueio de download.
     cleanup_stale_downloads()
+    reconcile_active_window(db_conn)
 
     pending = _select_pending_videos(db_conn)
 
@@ -234,17 +334,21 @@ def run_pipeline_once(db_conn=None, redis_client=None):
                 },
             )
 
-        try:
-            _download_pending_videos(db_conn)
-        except Exception as exc:
-            _log(f'ERRO em _download_pending_videos: {exc}')
-            notify(
-                'pipeline_failure',
-                {
-                    'stage': 'download_pending_videos',
-                    'error_msg': str(exc)[:500],
-                },
-            )
+        allow_local = os.getenv('ALLOW_LOCAL_DOWNLOAD', 'false').lower() in ('true', '1', 'yes')
+        if not allow_local:
+            try:
+                _download_pending_videos(db_conn)
+            except Exception as exc:
+                _log(f'ERRO em _download_pending_videos: {exc}')
+                notify(
+                    'pipeline_failure',
+                    {
+                        'stage': 'download_pending_videos',
+                        'error_msg': str(exc)[:500],
+                    },
+                )
+        else:
+            _log('ALLOW_LOCAL_DOWNLOAD=true: downloads gerenciados pelo worker local (IP residencial)')
 
         if _acquire_redis_lock(
             redis_client,
@@ -415,17 +519,21 @@ def run_ingest_cycle(db_conn=None, redis_client=None):
                 },
             )
 
-        try:
-            _download_pending_videos(db_conn)
-        except Exception as exc:
-            _log(f'ERRO em _download_pending_videos (ciclo ingest): {exc}')
-            notify(
-                'pipeline_failure',
-                {
-                    'stage': 'download_pending_videos',
-                    'error_msg': str(exc)[:500],
-                },
-            )
+        allow_local = os.getenv('ALLOW_LOCAL_DOWNLOAD', 'false').lower() in ('true', '1', 'yes')
+        if not allow_local:
+            try:
+                _download_pending_videos(db_conn)
+            except Exception as exc:
+                _log(f'ERRO em _download_pending_videos (ciclo ingest): {exc}')
+                notify(
+                    'pipeline_failure',
+                    {
+                        'stage': 'download_pending_videos',
+                        'error_msg': str(exc)[:500],
+                    },
+                )
+        else:
+            _log('ALLOW_LOCAL_DOWNLOAD=true: downloads gerenciados pelo worker local (IP residencial)')
 
         _log('Ciclo de ingestão finalizado')
     finally:

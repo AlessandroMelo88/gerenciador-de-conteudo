@@ -1,0 +1,4 @@
+network;external_id;niche;title;affiliate_url;product_url;image_url;price;commission_percent;description
+hotmart;HP-ORATORIA-01;politica;Curso de Oratória e Argumentação;https://go.hotmart.com/EXEMPLO123;;;297,00;40;Curso online sobre técnicas de fala em público e construção de argumentos.
+amazon;B0EXEMPLO01;futebol;Camisa Retrô Seleção 1970;https://amzn.to/exemplo;https://www.amazon.com.br/dp/B0EXEMPLO01;;189,90;;
+kiwify;KW-EBOOK-02;politica;Ebook Como Ler Pesquisas Eleitorais;;;;;;Linha sem affiliate_url: fica fora do push com aviso.

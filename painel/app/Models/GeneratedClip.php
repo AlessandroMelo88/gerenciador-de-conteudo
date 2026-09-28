@@ -27,6 +27,7 @@ class GeneratedClip extends Model
         'start_time',
         'end_time',
         'youtube_video_id',
+        'status',
         'scheduled_for',
         'upload_error',
     ];

@@ -19,14 +19,40 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVerticalIcon, PauseIcon, PlayIcon, ArrowUpIcon } from 'lucide-react';
+import { GripVerticalIcon, PauseIcon, PlayIcon, ArrowUpIcon, MoreVerticalIcon, TrashIcon } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmButton } from '@/components/confirm-button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Progress } from '@/components/ui/progress';
 import type { ActiveWindowVideo } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 
@@ -42,22 +68,112 @@ const STATUS_LABEL: Record<string, string> = {
     failed: 'Falha',
 };
 
-function ScoreBadge({ score }: { score: number | null }) {
-    if (score === null) {
-        return <Badge variant="secondary">—</Badge>;
+function ScoreBadge({ score }: { score: number | null | undefined }) {
+    if (score === null || score === undefined) {
+        return <span className="text-muted-foreground">—</span>;
     }
-    return <Badge variant={score >= 7 ? 'default' : 'destructive'}>{score}</Badge>;
+
+    if (score >= 9) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-500 dark:text-red-400 shadow-xs">
+                🔥 {score}/10
+            </span>
+        );
+    }
+    if (score >= 8) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 shadow-xs">
+                ⭐ {score}/10
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 rounded-lg border border-zinc-500/30 bg-zinc-500/10 px-2.5 py-1 text-xs font-medium text-zinc-400">
+            {score}/10
+        </span>
+    );
 }
 
-function useSelection() {
+function NicheBadge({ niche, channelName }: { niche?: string | null; channelName?: string | null }) {
+    const n = (niche ?? '').toLowerCase();
+    const ch = (channelName ?? '').toLowerCase();
+
+    if (n === 'politica' || ch.includes('política') || ch.includes('politica')) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                🏛️ {channelName ?? 'Cortes da Política'}
+            </span>
+        );
+    }
+    if (n === 'podcast' || ch.includes('podcast')) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                🎙️ {channelName ?? 'Podcast'}
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            ⚽ {channelName ?? 'Futebol em Cortes'}
+        </span>
+    );
+}
+
+function FormatBadge({ format }: { format?: string | null }) {
+    const isLongo = format === 'longo';
+    if (isLongo) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-gradient-to-r from-amber-500/15 to-orange-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-500 dark:text-amber-400 shadow-xs">
+                ✨ Longo
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800/80 px-2 py-0.5 text-[11px] font-semibold text-zinc-300">
+            📱 Curto
+        </span>
+    );
+}
+
+function useSelection(items: ActiveWindowVideo[]) {
     const [selected, setSelected] = useState<number[]>([]);
+    const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
 
-    const toggle = (id: number) =>
-        setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    const toggle = (id: number, shiftKey = false) => {
+        setSelected((prev) => {
+            const isCurrentlySelected = prev.includes(id);
 
-    const toggleAll = (ids: number[]) => setSelected((prev) => (prev.length === ids.length ? [] : ids));
+            if (shiftKey && lastSelectedId !== null) {
+                const lastIdx = items.findIndex((x) => x.id === lastSelectedId);
+                const currIdx = items.findIndex((x) => x.id === id);
 
-    const clear = () => setSelected([]);
+                if (lastIdx !== -1 && currIdx !== -1) {
+                    const start = Math.min(lastIdx, currIdx);
+                    const end = Math.max(lastIdx, currIdx);
+                    const range = items
+                        .slice(start, end + 1)
+                        .filter((v) => v.canDelete)
+                        .map((v) => v.id);
+
+                    return Array.from(new Set([...prev, ...range]));
+                }
+            }
+
+            return isCurrentlySelected ? prev.filter((x) => x !== id) : [...prev, id];
+        });
+
+        setLastSelectedId(id);
+    };
+
+    const toggleAll = (ids: number[]) => {
+        setSelected((prev) => (prev.length === ids.length ? [] : ids));
+        setLastSelectedId(null);
+    };
+
+    const clear = () => {
+        setSelected([]);
+        setLastSelectedId(null);
+    };
 
     return { selected, toggle, toggleAll, clear };
 }
@@ -75,42 +191,61 @@ function postAction(url: string, data: RequestPayload = {}) {
 
 function VideoActions({ video }: { video: ActiveWindowVideo }) {
     return (
-        <div className="flex flex-wrap items-center gap-1">
-            {video.paused ? (
-                <Button variant="outline" size="sm" onClick={() => postAction(`/painel/videos/${video.id}/resume`)}>
-                    <PlayIcon className="size-3.5" />
-                    Retomar
-                </Button>
-            ) : (
-                <Button variant="outline" size="sm" onClick={() => postAction(`/painel/videos/${video.id}/pause`)}>
-                    <PauseIcon className="size-3.5" />
-                    Pausar
-                </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => postAction(`/painel/videos/${video.id}/prioritize`)}>
-                <ArrowUpIcon className="size-3.5" />
-                Priorizar
-            </Button>
-            {video.canDelete ? (
-                <ConfirmButton
-                    variant="destructive"
-                    size="sm"
-                    description={`Apagar o arquivo bruto de "${video.title}"? Os clips já cortados NÃO são afetados; libera vaga na janela.`}
-                    onConfirm={() => postAction(`/painel/videos/${video.id}/delete`)}
-                >
-                    Apagar
-                </ConfirmButton>
-            ) : (
-                <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled
-                    title="Arquivo em uso ou clips ainda precisam do bruto"
-                >
-                    Apagar
-                </Button>
-            )}
-        </div>
+        <AlertDialog>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="size-8" title="Ações">
+                        <MoreVerticalIcon className="size-4" />
+                        <span className="sr-only">Ações</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                    {video.paused ? (
+                        <DropdownMenuItem onClick={() => postAction(`/painel/videos/${video.id}/resume`)}>
+                            <PlayIcon className="mr-2 size-4" />
+                            Retomar
+                        </DropdownMenuItem>
+                    ) : (
+                        <DropdownMenuItem onClick={() => postAction(`/painel/videos/${video.id}/pause`)}>
+                            <PauseIcon className="mr-2 size-4" />
+                            Pausar
+                        </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => postAction(`/painel/videos/${video.id}/prioritize`)}>
+                        <ArrowUpIcon className="mr-2 size-4" />
+                        Priorizar
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {video.canDelete ? (
+                        <AlertDialogTrigger asChild>
+                            <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
+                                <TrashIcon className="mr-2 size-4" />
+                                Apagar
+                            </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                    ) : (
+                        <DropdownMenuItem variant="destructive" disabled title="Arquivo em uso ou clips ainda precisam do bruto">
+                            <TrashIcon className="mr-2 size-4" />
+                            Apagar
+                        </DropdownMenuItem>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Apagar o arquivo bruto de "{video.title}"? Os clips já cortados NÃO são afetados; libera vaga na janela.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => postAction(`/painel/videos/${video.id}/delete`)}>
+                        Confirmar
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 }
 
@@ -122,7 +257,7 @@ function VideoCells({
 }: {
     video: ActiveWindowVideo;
     isSelected: boolean;
-    onToggleSelect: () => void;
+    onToggleSelect: (shiftKey: boolean) => void;
     dragHandle?: ReactNode;
 }) {
     return (
@@ -131,7 +266,10 @@ function VideoCells({
                 <Checkbox
                     checked={isSelected}
                     disabled={!video.canDelete}
-                    onCheckedChange={onToggleSelect}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSelect(e.shiftKey);
+                    }}
                     title={!video.canDelete ? 'Arquivo em uso ou clips ainda precisam do bruto' : undefined}
                 />
             </TableCell>
@@ -147,11 +285,18 @@ function VideoCells({
                     )}
                 </span>
             </TableCell>
-            <TableCell className="text-muted-foreground">{video.sourceChannelName ?? '—'}</TableCell>
             <TableCell>
-                <Badge variant={video.format === 'longo' ? 'default' : 'secondary'}>
-                    {video.format === 'longo' ? 'Longo' : 'Curto'}
-                </Badge>
+                <div className="flex flex-col gap-1 py-0.5 min-w-[130px]">
+                    <span className="font-semibold text-xs text-foreground truncate max-w-[190px]" title={video.sourceChannelName ?? undefined}>
+                        {video.sourceChannelName ?? '—'}
+                    </span>
+                    <div>
+                        <NicheBadge niche={video.niche} channelName={video.destinationChannelName} />
+                    </div>
+                </div>
+            </TableCell>
+            <TableCell>
+                <FormatBadge format={video.format} />
             </TableCell>
             <TableCell>
                 <span
@@ -163,12 +308,20 @@ function VideoCells({
                     {STATUS_LABEL[video.status] ?? video.status}
                 </span>
             </TableCell>
+            <TableCell>
+                <div className="flex items-center gap-2 min-w-[110px]">
+                    <Progress value={video.progress ?? 0} className="h-1.5 flex-1" />
+                    <span className="text-xs text-muted-foreground tabular-nums w-8 text-right font-medium">
+                        {video.progress ?? 0}%
+                    </span>
+                </div>
+            </TableCell>
             <TableCell className="text-muted-foreground">{video.publishedAt ?? '—'}</TableCell>
             <TableCell>
                 <ScoreBadge score={video.score} />
             </TableCell>
             <TableCell className="text-muted-foreground">{video.clipCount}</TableCell>
-            <TableCell>
+            <TableCell className="text-right">
                 <VideoActions video={video} />
             </TableCell>
         </>
@@ -182,7 +335,7 @@ function SortableRow({
 }: {
     video: ActiveWindowVideo;
     isSelected: boolean;
-    onToggleSelect: () => void;
+    onToggleSelect: (id: number, shiftKey: boolean) => void;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: video.id,
@@ -197,7 +350,7 @@ function SortableRow({
             <VideoCells
                 video={video}
                 isSelected={isSelected}
-                onToggleSelect={onToggleSelect}
+                onToggleSelect={(shiftKey) => onToggleSelect(video.id, shiftKey)}
                 dragHandle={
                     <button
                         type="button"
@@ -225,7 +378,7 @@ function VideoTable({
     sortable?: boolean;
     onReorder?: (ids: number[]) => void;
     selected: number[];
-    onToggleSelect: (id: number) => void;
+    onToggleSelect: (id: number, shiftKey: boolean) => void;
 }) {
     const [orderedIds, setOrderedIds] = useState<number[] | null>(null);
     const items = useMemo(() => {
@@ -269,10 +422,11 @@ function VideoTable({
                 <TableHead>Canal</TableHead>
                 <TableHead>Formato</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="w-[120px]">Progresso</TableHead>
                 <TableHead>Publicado</TableHead>
                 <TableHead>Score</TableHead>
                 <TableHead>Clips</TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead className="w-12 text-right">Ações</TableHead>
             </TableRow>
         </TableHeader>
     );
@@ -291,7 +445,7 @@ function VideoTable({
                                 <VideoCells
                                     video={video}
                                     isSelected={selected.includes(video.id)}
-                                    onToggleSelect={() => onToggleSelect(video.id)}
+                                    onToggleSelect={(shiftKey) => onToggleSelect(video.id, shiftKey)}
                                     dragHandle={<span className="inline-block w-4" />}
                                 />
                             </TableRow>
@@ -314,7 +468,7 @@ function VideoTable({
                                     key={video.id}
                                     video={video}
                                     isSelected={selected.includes(video.id)}
-                                    onToggleSelect={() => onToggleSelect(video.id)}
+                                    onToggleSelect={onToggleSelect}
                                 />
                             ))}
                         </TableBody>
@@ -326,7 +480,7 @@ function VideoTable({
 }
 
 export function ActiveWindowTable({ videos }: { videos: ActiveWindowVideo[] }) {
-    const { selected, toggle, toggleAll, clear } = useSelection();
+    const { selected, toggle, toggleAll, clear } = useSelection(videos);
     const curtoCount = videos.filter((v) => v.format === 'curto').length;
     const longoCount = videos.filter((v) => v.format === 'longo').length;
     const processing = useMemo(() => videos.filter((v) => v.processing && !v.paused), [videos]);

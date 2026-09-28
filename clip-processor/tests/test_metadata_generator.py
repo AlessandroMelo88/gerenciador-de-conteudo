@@ -213,14 +213,13 @@ class TestMetadataGenerator:
         assert thumbnail_text in SAMPLE_CONTEXT['transcript_excerpt']
 
     def test_thumbnail_provider_failure_is_not_replaced_by_another_provider(
-        self, mocker, monkeypatch
+        self, monkeypatch
     ):
         monkeypatch.setenv('ANTHROPIC_API_KEY', 'configured')
-        mock_claude = mocker.patch(
-            'src.metadata_generator._generate_thumbnail_via_anthropic',
-            side_effect=RuntimeError('Claude indisponível'),
-        )
-        mock_groq = mocker.patch('src.metadata_generator._generate_thumbnail_via_groq')
+        mock_claude = MagicMock(side_effect=RuntimeError('Claude indisponível'))
+        mock_groq = MagicMock()
+        monkeypatch.setattr('src.metadata_generator._generate_thumbnail_via_anthropic', mock_claude)
+        monkeypatch.setattr('src.metadata_generator._generate_thumbnail_via_groq', mock_groq)
 
         with pytest.raises(RuntimeError, match='Claude indisponível'):
             generate_thumbnail_text(SAMPLE_CONTEXT)

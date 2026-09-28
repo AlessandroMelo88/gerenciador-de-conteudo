@@ -21,6 +21,8 @@ devolve False: na dúvida o pipeline mantém o comportamento antigo e queima a
 legenda.
 """
 
+from __future__ import annotations
+
 import os
 import re
 import shutil

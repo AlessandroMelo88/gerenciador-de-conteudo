@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 424 432" width="900" height="917" style="display:block; overflow:visible;">
+          <defs><clipPath id="mouthClipC"><path d="M142,236 Q200,222 258,236 Q200,304 142,236 Z"></path></clipPath></defs>
+          <ellipse cx="200" cy="398" rx="120" ry="14" fill="#0c1b12" opacity="0.18"></ellipse>
+          <circle cx="200" cy="190" r="160" fill="#FBF7EA" stroke="#10231A" stroke-width="13"></circle>
+          <polygon points="115,74 139.7,91.97 130.3,121 99.7,121 90.3,91.97" fill="#16241D"></polygon>
+          <polygon points="285,74 309.7,91.97 300.3,121 269.7,121 260.3,91.97" fill="#16241D"></polygon>
+          <polygon points="120,269 144.7,286.97 135.3,316 104.7,316 95.3,286.97" fill="#16241D"></polygon>
+          <polygon points="280,269 304.7,286.97 295.3,316 264.7,316 255.3,286.97" fill="#16241D"></polygon>
+          <line x1="130" y1="146" x2="190" y2="126" stroke="#10231A" stroke-width="19" stroke-linecap="round"></line>
+          <line x1="252" y1="120" x2="312" y2="140" stroke="#10231A" stroke-width="19" stroke-linecap="round"></line>
+          <ellipse cx="160" cy="180" rx="33" ry="39" fill="#FFFFFF" stroke="#10231A" stroke-width="9"></ellipse>
+          <ellipse cx="240" cy="180" rx="33" ry="39" fill="#FFFFFF" stroke="#10231A" stroke-width="9"></ellipse>
+          <circle cx="172" cy="186" r="15" fill="#10231A"></circle>
+          <circle cx="228" cy="186" r="15" fill="#10231A"></circle>
+          <circle cx="166" cy="179" r="5" fill="#FFFFFF"></circle>
+          <circle cx="222" cy="179" r="5" fill="#FFFFFF"></circle>
+          <path d="M142,236 Q200,222 258,236 Q200,304 142,236 Z" fill="#9E2B20" stroke="#10231A" stroke-width="9" stroke-linejoin="round"></path>
+          <g clip-path="url(#mouthClipC)">
+            <path d="M146,236 Q200,226 254,236 L254,252 Q200,244 146,252 Z" fill="#FFFFFF"></path>
+            <ellipse cx="200" cy="288" rx="40" ry="24" fill="#E8513A"></ellipse>
+          </g>
+          <line x1="338" y1="318" x2="356" y2="392" stroke="#10231A" stroke-width="15" stroke-linecap="round"></line>
+          <rect x="328" y="384" width="56" height="17" rx="8" fill="#10231A"></rect>
+          <rect x="306" y="226" width="60" height="104" rx="30" fill="#1C2B22" stroke="#10231A" stroke-width="8"></rect>
+          <line x1="318" y1="252" x2="354" y2="252" stroke="#46624F" stroke-width="6" stroke-linecap="round"></line>
+          <line x1="318" y1="272" x2="354" y2="272" stroke="#46624F" stroke-width="6" stroke-linecap="round"></line>
+          <line x1="318" y1="292" x2="354" y2="292" stroke="#46624F" stroke-width="6" stroke-linecap="round"></line>
+          <rect x="306" y="310" width="60" height="13" rx="6" fill="#FFC83D"></rect>
+        </svg>

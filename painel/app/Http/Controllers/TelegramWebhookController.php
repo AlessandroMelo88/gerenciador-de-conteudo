@@ -61,41 +61,73 @@ class TelegramWebhookController extends Controller
                 'pipeline_failure',
                 'clip_ttl_warning',
                 'daily_summary',
+                'watchdog_alert',
+                'oauth_warning',
+                'disk_warning',
             ])],
             'payload' => ['nullable', 'array'],
         ]);
 
         $event = (string) $data['event'];
         $payload = $data['payload'] ?? [];
+        $panelUrl = rtrim((string) config('app.url', 'https://toolscut.alessandromelo.com.br'), '/');
+
         $text = match ($event) {
             'upload_published' => sprintf(
-                'Upload publicado: %s — %s',
+                '✅ Upload publicado: %s — %s',
                 $this->payloadString($payload, 'title', 'sem título'),
                 $this->payloadString($payload, 'youtube_url', 'URL indisponível'),
             ),
             'pipeline_failure' => sprintf(
-                'Falha crítica [%s]: %s',
+                "🚨 Falha crítica [%s]: %s\n🔗 Painel: %s/painel",
                 $this->payloadString($payload, 'stage', 'etapa desconhecida'),
                 $this->payloadString($payload, 'error_msg', 'erro não informado'),
+                $panelUrl,
             ),
             'clip_ttl_warning' => sprintf(
-                'Clip #%s expira em %sh: %s',
+                "⚠️ Clip #%s expira em %sh: %s\n🔗 Painel: %s/painel",
                 $this->payloadString($payload, 'clip_id', '?'),
                 $this->payloadString($payload, 'expires_in_hours', '?'),
                 $this->payloadString($payload, 'title', 'sem título'),
+                $panelUrl,
             ),
-            'daily_summary' => $this->payloadString(
-                $payload,
-                'text',
-                'Resumo diário: sem clips pendentes.',
+            'daily_summary' => $this->payloadString($payload, 'text', 'Resumo diário: sem clips pendentes.'),
+            'watchdog_alert' => sprintf(
+                "🐕 [WATCHDOG] %s\n🔗 Painel: %s/painel",
+                $this->payloadString($payload, 'message', 'Alerta de integridade do pipeline'),
+                $panelUrl,
             ),
-            default => throw new LogicException('Evento de pipeline não suportado.'),
+            'oauth_warning' => sprintf(
+                "🔑 [ALERTA OAUTH] %s\n%s\n🔗 Canais: %s/painel/canais",
+                $this->payloadString($payload, 'message', 'Credenciais OAuth ausentes'),
+                isset($payload['warnings']) ? implode("\n", (array) $payload['warnings']) : '',
+                $panelUrl,
+            ),
+            'disk_warning' => sprintf(
+                "💾 [ALERTA DISCO] %s GB livres (%s%% em uso).\n🔗 Painel: %s/painel",
+                $this->payloadString($payload, 'free_gb', '?'),
+                $this->payloadString($payload, 'used_percent', '?'),
+                $panelUrl,
+            ),
+            default => "Evento: {$event}",
         };
 
         Telegram::sendMessage([
             'chat_id' => config('telegram.bots.mybot.chat_id_allowed'),
             'text' => $text,
         ]);
+
+        $alertEmail = env('ADMIN_ALERT_EMAIL');
+        if ($alertEmail && in_array($event, ['pipeline_failure', 'watchdog_alert', 'oauth_warning'])) {
+            try {
+                \Illuminate\Support\Facades\Mail::raw($text, function ($message) use ($alertEmail, $event) {
+                    $message->to($alertEmail)
+                        ->subject("[Alerta Canal de Cortes] {$event}");
+                });
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Falha ao enviar e-mail de alerta: " . $e->getMessage());
+            }
+        }
 
         return response()->json(['ok' => true]);
     }

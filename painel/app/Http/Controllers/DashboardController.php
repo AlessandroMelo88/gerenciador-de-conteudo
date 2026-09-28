@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -25,16 +26,18 @@ class DashboardController extends Controller
                 GeneratedClip::with(['sourceVideo.sourceChannel', 'destinationChannel'])
                     ->where('status', 'pending')
                     ->latest()
+                    ->limit(10)
                     ->get()
             ),
             'queuedClips' => $this->clipPayload(
                 GeneratedClip::with(['sourceVideo.sourceChannel', 'destinationChannel'])
                     ->where('status', 'approved')
                     ->oldest('created_at')
+                    ->limit(10)
                     ->get()
             ),
             'failures' => $this->clipPayload(
-                GeneratedClip::with(['destinationChannel'])
+                GeneratedClip::with(['sourceVideo.sourceChannel', 'destinationChannel'])
                     ->where('status', 'failed')
                     ->latest('updated_at')
                     ->limit(20)
@@ -55,37 +58,88 @@ class DashboardController extends Controller
     {
         $processing = ['downloading', 'transcribing', 'selecting'];
 
+        $destinationChannels = DestinationChannel::all();
+        $destMap = [];
+        foreach ($destinationChannels as $dc) {
+            $destMap[strtolower(trim($dc->niche))] = $dc->name;
+        }
+
         return SourceVideo::query()
             ->whereNotNull('local_path')
-            ->with(['sourceChannel', 'generatedClips'])
-            ->get()
-            ->sortBy(function (SourceVideo $video) use ($processing): array {
-                // Processando agora no topo; depois ordem DnD / prioridade / score baixo
-                return [
-                    in_array($video->status, $processing, true) ? 0 : 1,
-                    $video->paused ? 1 : 0,
-                    -((int) ($video->priority ?? 0)),
-                    $video->queue_position ?? 9999,
-                    $video->generatedClips->max('score') ?? 999,
-                    $video->published_at,
-                ];
+            ->where('local_path', '!=', '')
+            ->where(function ($query) {
+                $query->whereIn('status', ['downloading', 'downloaded', 'transcribing', 'selecting', 'cutting'])
+                    ->orWhereHas('generatedClips', function ($clipQuery) {
+                        $clipQuery->whereIn('status', ['pending_cut', 'cutting', 'pending']);
+                    });
             })
-            ->map(function (SourceVideo $video) use ($processing) {
+            ->with(['sourceChannel', 'generatedClips.destinationChannel'])
+            ->get()
+            ->sortBy([
+                // Processando agora no topo; depois ordem DnD / prioridade / score baixo
+                [fn (SourceVideo $video) => in_array($video->status, $processing, true) ? 0 : 1, 'asc'],
+                [fn (SourceVideo $video) => $video->paused ? 1 : 0, 'asc'],
+                [fn (SourceVideo $video) => -((int) ($video->priority ?? 0)), 'asc'],
+                [fn (SourceVideo $video) => $video->queue_position ?? 9999, 'asc'],
+                [fn (SourceVideo $video) => $video->generatedClips->max('score') ?? 999, 'asc'],
+                [fn (SourceVideo $video) => $video->published_at, 'asc'],
+            ])
+            ->map(function (SourceVideo $video) use ($processing, $destMap) {
                 $needsRaw = $video->generatedClips
                     ->whereIn('status', ['pending_cut', 'cutting'])
                     ->isNotEmpty();
+
+                $progress = match ($video->status) {
+                    'pending', 'failed' => 0,
+                    'downloading' => 20,
+                    'downloaded' => 40,
+                    'transcribing' => 60,
+                    'selecting' => $needsRaw ? 90 : ($video->generatedClips->isNotEmpty() ? 100 : 80),
+                    'cutting' => 90,
+                    'publishing', 'published' => 100,
+                    default => 0,
+                };
+
+                $niche = strtolower(trim($video->sourceChannel?->target_niche ?? ''));
+                if (empty($niche)) {
+                    $firstClipDest = $video->generatedClips->first()?->destinationChannel;
+                    $niche = $firstClipDest ? strtolower(trim($firstClipDest->niche)) : '';
+                }
+
+                if (empty($niche)) {
+                    $ch = strtolower($video->sourceChannel?->channel_name ?? '');
+                    if (str_contains($ch, 'espn') || str_contains($ch, 'cazé') || str_contains($ch, 'caze') || str_contains($ch, 'esporte') || str_contains($ch, 'futebol')) {
+                        $niche = 'futebol';
+                    } elseif (str_contains($ch, 'flow') || str_contains($ch, 'inteligência') || str_contains($ch, 'inteligencia') || str_contains($ch, 'pod')) {
+                        $niche = 'podcast';
+                    } elseif (str_contains($ch, 'monetiz') || str_contains($ch, '3g') || str_contains($ch, 'marketing')) {
+                        $niche = 'monetizacao';
+                    } else {
+                        $niche = 'politica';
+                    }
+                }
+
+                $destinationChannelName = $destMap[$niche] ?? match ($niche) {
+                    'futebol' => 'Futebol em Cortes',
+                    'politica' => 'Fatos & Debates',
+                    'monetizacao' => 'Monetização 3G',
+                    default => ucfirst($niche),
+                };
 
                 return [
                     'id' => $video->id,
                     'title' => $video->title,
                     'format' => $video->format,
                     'status' => $video->status,
+                    'progress' => $progress,
                     'paused' => (bool) $video->paused,
                     'priority' => (int) ($video->priority ?? 0),
                     'queuePosition' => $video->queue_position,
                     'processing' => in_array($video->status, $processing, true),
                     'canDelete' => ! in_array($video->status, ['downloading', 'cutting'], true) && ! $needsRaw,
                     'sourceChannelName' => $video->sourceChannel?->channel_name,
+                    'niche' => $niche,
+                    'destinationChannelName' => $destinationChannelName,
                     'publishedAt' => $video->published_at?->diffForHumans(),
                     'score' => $video->generatedClips->max('score'),
                     'clipCount' => $video->generatedClips->count(),
@@ -98,22 +152,31 @@ class DashboardController extends Controller
     private function quotaData(): array
     {
         $date = Carbon::now('America/Sao_Paulo')->format('Y-m-d');
+        $today = Carbon::today('America/Sao_Paulo');
         // min(MAX_UPLOADS_PER_DAY, 6) espelha ABSOLUTE_MAX_UPLOADS_PER_DAY em
         // clip-processor/src/quota_manager.py — mesma env var, mesmo teto.
-        $limit = (int) config('pipeline.max_uploads_per_day', 2);
+        $limit = min((int) env('MAX_UPLOADS_PER_DAY', 5), 6);
 
         return DestinationChannel::query()->where('active', true)->get()
-            ->map(function (DestinationChannel $channel) use ($date, $limit) {
+            ->map(function (DestinationChannel $channel) use ($date, $today, $limit) {
                 $key = "youtube_uploads:{$channel->youtube_channel_id}:{$date}";
                 try {
-                    $count = (int) (Redis::connection('pipeline')->get($key) ?? 0);
+                    $redisCount = (int) (Redis::connection('pipeline')->get($key) ?? 0);
                 } catch (\Throwable) {
-                    $count = 0;
+                    $redisCount = 0;
                 }
+
+                $dbCount = GeneratedClip::query()
+                    ->where('destination_channel_id', $channel->id)
+                    ->where('status', 'published')
+                    ->whereDate('updated_at', $today)
+                    ->count();
 
                 return [
                     'name' => $channel->name,
-                    'count' => $count,
+                    'slug' => $channel->slug,
+                    'niche' => $channel->niche,
+                    'count' => max($redisCount, $dbCount),
                     'limit' => $limit,
                 ];
             })->values()->all();
@@ -135,30 +198,75 @@ class DashboardController extends Controller
             ->whereHas('sourceVideo', fn ($q) => $q->where('format', 'longo'))
             ->count();
 
+        $publishedTotal = $publishedCurto + $publishedLongo;
+        $rejectedTotal = GeneratedClip::query()
+            ->where('status', 'rejected')
+            ->where('updated_at', '>=', $since)
+            ->count();
+        $decidedTotal = $publishedTotal + $rejectedTotal;
+        $approvalRate = $decidedTotal > 0 ? (int) round(($publishedTotal / $decidedTotal) * 100) : null;
+
         return [
             'publishedCurto' => $publishedCurto,
             'publishedLongo' => $publishedLongo,
-            'backlogCurto' => SourceVideo::query()->where('format', 'curto')->where('status', 'pending')->count(),
-            'backlogLongo' => SourceVideo::query()->where('format', 'longo')->where('status', 'pending')->count(),
+            'approvalRate' => $approvalRate,
+            'backlogCurto' => SourceVideo::query()->where('status', 'pending')->where(fn ($q) => $q->where('format', 'curto')->orWhereNull('format'))->count(),
+            'backlogLongo' => SourceVideo::query()->where('status', 'pending')->where('format', 'longo')->count(),
         ];
     }
 
     private function clipPayload($clips): array
     {
-        return $clips->map(fn (GeneratedClip $clip) => [
-            'id' => $clip->id,
-            'title' => $clip->title,
-            'score' => $clip->score,
-            'trecho' => $this->formatTrecho($clip->start_time, $clip->end_time),
-            'sourceVideoTitle' => $clip->sourceVideo?->title,
-            'sourceChannelName' => $clip->sourceVideo?->sourceChannel?->channel_name,
-            'format' => $clip->sourceVideo?->format ?? 'curto',
-            'destinationChannelName' => $clip->destinationChannel?->name,
-            'createdAt' => $clip->created_at?->diffForHumans(),
-            'updatedAt' => $clip->updated_at?->diffForHumans(),
-            'uploadError' => $clip->upload_error,
-            'previewUrl' => route('clips.preview', $clip->id),
-        ])->values()->all();
+        $disk = Storage::disk('clips-videos');
+
+        return $clips->map(function (GeneratedClip $clip) use ($disk) {
+            $hasVideo = $disk->exists("clips/{$clip->id}.mp4");
+            $hasThumb = $disk->exists("thumbnails/{$clip->id}.jpg");
+
+            $displayTitle = $clip->title;
+            if (empty($displayTitle)) {
+                $sourceTitle = $clip->sourceVideo?->title;
+                $displayTitle = $sourceTitle ? "Corte de: {$sourceTitle}" : "Clip #{$clip->id}";
+            }
+
+            $uploadError = $clip->upload_error;
+            if (empty($uploadError) && $clip->status === 'failed') {
+                $uploadError = 'Falha no corte ou processamento do vídeo fonte';
+            }
+
+            return [
+                'id' => $clip->id,
+                'title' => $displayTitle,
+                'score' => $clip->score,
+                'trecho' => $this->formatTrecho($clip->start_time, $clip->end_time),
+                'startTime' => $clip->start_time,
+                'endTime' => $clip->end_time,
+                'sourceVideoTitle' => $clip->sourceVideo?->title,
+                'sourceChannelName' => $clip->sourceVideo?->sourceChannel?->channel_name,
+                'format' => $clip->sourceVideo?->format ?? 'curto',
+                'destinationChannelName' => $clip->destinationChannel?->name,
+                'destinationChannelSlug' => $clip->destinationChannel?->slug,
+                'niche' => $clip->destinationChannel?->niche ?? $clip->sourceVideo?->sourceChannel?->target_niche ?? 'futebol',
+                'createdAt' => $clip->created_at?->diffForHumans(),
+                'updatedAt' => $clip->updated_at?->diffForHumans(),
+                'uploadError' => $uploadError,
+                'previewUrl' => route('clips.preview', $clip->id),
+                'thumbnailUrl' => route('clips.thumbnail', $clip->id) . ($hasThumb ? '?v=' . (@filemtime($disk->path("thumbnails/{$clip->id}.jpg")) ?: time()) : ''),
+                'hasVideoFile' => $hasVideo,
+                'hasThumbnailFile' => $hasThumb,
+                'description' => $clip->description,
+                'tags' => $clip->tags,
+                'destinationTemplate' => $clip->destinationChannel?->effective_template_config,
+                'destinationChannelWatermarkUrl' => $clip->destinationChannel?->slug
+                    ? (Storage::disk('branding')->exists("watermark-{$clip->destinationChannel->slug}.png")
+                        ? route('destination-channels.watermark', $clip->destinationChannel->id)
+                        : null)
+                    : null,
+                'destinationChannelBackgroundUrl' => $clip->destinationChannel?->id
+                    ? route('destination-channels.background', $clip->destinationChannel->id)
+                    : null,
+            ];
+        })->values()->all();
     }
 
     private function formatTrecho(?float $start, ?float $end): string
@@ -172,31 +280,42 @@ class DashboardController extends Controller
         return "{$fmt($start)}–{$fmt($end)}";
     }
 
-    public function approve(GeneratedClip $clip): RedirectResponse
+    public function approve(GeneratedClip $clip, ClipProcessorClient $client): RedirectResponse
     {
         $affected = GeneratedClip::query()
             ->where('id', $clip->id)
             ->where('status', 'pending')
             ->update(['status' => 'approved']);
 
+        if ($affected) {
+            $client->publishNow();
+        }
+
         return back()->with($affected ? 'success' : 'error', $affected
-            ? "Clip #{$clip->id} aprovado"
+            ? "Clip #{$clip->id} aprovado e enviado para publicação"
             : 'Clip não estava mais pendente');
     }
 
     public function reject(GeneratedClip $clip, ClipProcessorClient $client): RedirectResponse
     {
-        try {
-            $exit = $client->rejectClip($clip->id);
-        } catch (RuntimeException $e) {
-            return back()->with('error', $e->getMessage());
+        if (! in_array($clip->status, ['pending', 'approved'], true)) {
+            return back()->with('error', 'Status inválido para rejeitar');
         }
 
-        return match ($exit) {
-            0 => back()->with('success', "Clip #{$clip->id} rejeitado (MP4 removido)"),
-            1 => back()->with('error', 'Clip não existe'),
-            2 => back()->with('error', 'Status inválido para rejeitar'),
-            default => back()->with('error', "exit_code={$exit}"),
+        // O volume de vídeos é montado read-only no php (docker-compose.yml) e os
+        // arquivos são do root do clip-processor: Storage::delete falhava calado e o
+        // clip virava 'rejected' com mp4, _raw e thumbnail ainda no disco. Quem apaga
+        // é o sidecar, que grava no volume.
+        try {
+            $exitCode = $client->rejectClip($clip->id);
+        } catch (RuntimeException $e) {
+            return back()->with('error', "Não foi possível rejeitar o clip #{$clip->id}: {$e->getMessage()}");
+        }
+
+        return match ($exitCode) {
+            0 => back()->with('success', "Clip #{$clip->id} rejeitado"),
+            1 => back()->with('error', "Clip #{$clip->id} não existe mais"),
+            default => back()->with('error', 'Status inválido para rejeitar'),
         };
     }
 
@@ -205,7 +324,7 @@ class DashboardController extends Controller
      * corte nunca terminou (clip_path vazio), ou pro status publicável (approved/
      * pending, conforme MANUAL_APPROVAL_REQUIRED) se o corte existe e só o upload falhou.
      */
-    public function reprocess(GeneratedClip $clip): RedirectResponse
+    public function reprocess(GeneratedClip $clip, ClipProcessorClient $client): RedirectResponse
     {
         if ($clip->status !== 'failed') {
             return back()->with('error', 'Clip não está mais em falha');
@@ -219,12 +338,16 @@ class DashboardController extends Controller
             ->where('status', 'failed')
             ->update(['status' => $newStatus, 'upload_error' => null]);
 
+        if ($affected && $newStatus === 'approved') {
+            $client->publishNow();
+        }
+
         return back()->with($affected ? 'success' : 'error', $affected
             ? "Clip #{$clip->id} reenviado para reprocessamento"
             : 'Clip não está mais em falha');
     }
 
-    public function bulkApprove(Request $request): RedirectResponse
+    public function bulkApprove(Request $request, ClipProcessorClient $client): RedirectResponse
     {
         $ids = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']])['ids'];
 
@@ -233,67 +356,57 @@ class DashboardController extends Controller
             ->where('status', 'pending')
             ->update(['status' => 'approved']);
 
-        return back()->with('success', "{$affected} clip(s) aprovado(s)");
+        if ($affected > 0) {
+            $client->publishNow();
+        }
+
+        return back()->with('success', "{$affected} clip(s) aprovado(s) e enviado(s) para publicação");
     }
 
-    public function bulkDeleteVideos(Request $request, ClipProcessorClient $client): RedirectResponse
+    public function bulkDeleteVideos(Request $request): RedirectResponse
     {
         $ids = $request->validate([
             'ids' => ['required', 'array', 'min:1'],
             'ids.*' => ['integer'],
         ])['ids'];
 
-        $freedBytes = 0;
-        $failures = 0;
-        $skipped = 0;
-
-        $videos = SourceVideo::with('generatedClips')->whereIn('id', $ids)->get();
+        $videos = SourceVideo::whereIn('id', $ids)->get();
+        $disk = Storage::disk('clips-videos');
+        $deletedCount = 0;
 
         foreach ($videos as $video) {
-            $needsRaw = $video->generatedClips
-                ->whereIn('status', ['pending_cut', 'cutting'])
-                ->isNotEmpty();
-
-            $canDelete = ! in_array($video->status, ['downloading', 'cutting'], true) && ! $needsRaw;
-
-            if (! $canDelete || blank($video->local_path)) {
-                $skipped++;
-
-                continue;
+            $ytId = $video->youtube_video_id;
+            if ($ytId) {
+                $disk->delete(["{$ytId}.mp4", "{$ytId}_raw.mp4"]);
             }
-
-            try {
-                $result = $client->deleteSourceVideo($video->id);
-                $freedBytes += $result['freed_bytes'] ?? 0;
-            } catch (RuntimeException) {
-                $failures++;
-            }
+            $video->update([
+                'local_path' => null,
+                'status' => in_array($video->status, ['selecting', 'downloaded', 'transcribing', 'downloading']) ? 'failed' : $video->status,
+            ]);
+            $deletedCount++;
         }
 
-        $mb = round($freedBytes / 1024 / 1024, 1);
-        $extra = collect([
-            $failures > 0 ? "{$failures} arquivo(s) não puderam ser apagados." : null,
-            $skipped > 0 ? "{$skipped} em uso ou sem arquivo local (ignorados)." : null,
-        ])->filter()->implode(' ');
-
-        return back()->with('success', trim("{$mb} MB liberados. {$extra}"));
+        return back()->with('success', "{$deletedCount} vídeo(s) apagado(s) com sucesso");
     }
 
     /**
      * Apaga o arquivo bruto (.mp4) de um vídeo fonte pra liberar espaço/vaga na
      * janela de download. Não mexe nos clips já cortados a partir dele.
      */
-    public function deleteVideo(SourceVideo $video, ClipProcessorClient $client): RedirectResponse
+    public function deleteVideo(SourceVideo $video): RedirectResponse
     {
-        try {
-            $result = $client->deleteSourceVideo($video->id);
-        } catch (RuntimeException $e) {
-            return back()->with('error', $e->getMessage());
+        $disk = Storage::disk('clips-videos');
+        $ytId = $video->youtube_video_id;
+        if ($ytId) {
+            $disk->delete(["{$ytId}.mp4", "{$ytId}_raw.mp4"]);
         }
 
-        $mb = round($result['freed_bytes'] / 1024 / 1024, 1);
+        $video->update([
+            'local_path' => null,
+            'status' => in_array($video->status, ['selecting', 'downloaded', 'transcribing', 'downloading']) ? 'failed' : $video->status,
+        ]);
 
-        return back()->with('success', "Vídeo #{$video->id} apagado ({$mb} MB liberados)");
+        return back()->with('success', "Vídeo #{$video->id} apagado com sucesso");
     }
 
     public function pauseVideo(SourceVideo $video, ClipProcessorClient $client): RedirectResponse
@@ -349,18 +462,66 @@ class DashboardController extends Controller
     {
         $ids = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']])['ids'];
 
-        $ok = 0;
-        $fail = 0;
-        foreach ($ids as $id) {
+        $clipIds = GeneratedClip::query()
+            ->whereIn('id', $ids)
+            ->whereIn('status', ['pending', 'approved'])
+            ->pluck('id');
+
+        // Mesmo motivo do reject(): arquivo só sai do disco pelo sidecar.
+        $affected = 0;
+        $failed = [];
+        foreach ($clipIds as $clipId) {
             try {
-                $client->rejectClip((int) $id) === 0 ? $ok++ : $fail++;
+                if ($client->rejectClip((int) $clipId) === 0) {
+                    $affected++;
+                }
             } catch (RuntimeException) {
-                $fail++;
+                $failed[] = $clipId;
             }
         }
 
-        $message = "{$ok} clip(s) rejeitado(s)".($fail ? ", {$fail} falharam" : '');
+        if ($failed !== []) {
+            return back()->with('error', "{$affected} clip(s) rejeitado(s); falhou em: #".implode(', #', $failed));
+        }
 
-        return back()->with($fail ? 'error' : 'success', $message);
+        return back()->with('success', "{$affected} clip(s) rejeitado(s)");
+    }
+
+    public function purgeFailedClips(): RedirectResponse
+    {
+        $clips = GeneratedClip::where('status', 'failed')->get();
+        $disk = Storage::disk('clips-videos');
+        $count = 0;
+
+        foreach ($clips as $clip) {
+            $id = $clip->id;
+            $disk->delete([
+                "clips/{$id}.mp4",
+                "clips/{$id}_raw.mp4",
+                "clips/{$id}_subtitled.mp4",
+                "clips/{$id}.srt",
+                "thumbnails/{$id}.jpg",
+            ]);
+            $clip->delete();
+            $count++;
+        }
+
+        return back()->with('success', "{$count} clip(s) com falha removido(s) com sucesso");
+    }
+
+    public function deleteClip(GeneratedClip $clip): RedirectResponse
+    {
+        $disk = Storage::disk('clips-videos');
+        $id = $clip->id;
+        $disk->delete([
+            "clips/{$id}.mp4",
+            "clips/{$id}_raw.mp4",
+            "clips/{$id}_subtitled.mp4",
+            "clips/{$id}.srt",
+            "thumbnails/{$id}.jpg",
+        ]);
+        $clip->delete();
+
+        return back()->with('success', "Clip #{$id} removido com sucesso");
     }
 }
