@@ -5,6 +5,8 @@ com os campos do canal, vídeo e clip. O restante do pipeline trabalha com um
 dict de perfil pequeno e estável, sem conhecer a forma da query.
 """
 
+from __future__ import annotations
+
 import json
 from collections.abc import Mapping
 

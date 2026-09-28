@@ -14,6 +14,8 @@ Convenções:
   - thumbnail_text é gerada em uma chamada dedicada e não é persistida
 """
 
+from __future__ import annotations
+
 import json
 import os
 import re
