@@ -187,4 +187,3 @@ def test_resolve_filesystem_assets_prefers_channel_specific_audio(tmp_path, monk
     assert result['music']['name'] == 'canal_track.mp3'
     assert result['music']['absolute_path'] == str(channel_audio / 'canal_track.mp3')
     assert result['music']['music_volume'] == 0.24
-
