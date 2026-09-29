@@ -12,9 +12,10 @@
         "noEmit": true,
         "jsx": "react-jsx",
         "strict": true,
+        "types": ["vitest/globals", "@testing-library/jest-dom", "node"],
         "paths": {
             "@/*": ["./resources/js/*"]
         }
     },
-    "include": ["resources/js"]
+    "include": ["resources/js", "vitest.config.ts", "playwright.config.ts", "e2e"]
 }

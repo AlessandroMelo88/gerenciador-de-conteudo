@@ -70,3 +70,16 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+# ---------------------------------------------------------------------------
+# coverage — piso de cobertura (baseline 71% em 29/09/2026); só sobe, nunca desce
+# Rodar: pytest --cov   (o CI faz isso e falha abaixo do piso)
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["src"]
+branch = false
+
+[tool.coverage.report]
+fail_under = 68
+show_missing = false
+skip_empty = true

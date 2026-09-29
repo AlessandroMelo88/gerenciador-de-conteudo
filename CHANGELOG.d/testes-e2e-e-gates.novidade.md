@@ -1,0 +1,1 @@
+**Testes E2E e gates de qualidade** — suíte Playwright lenta (login, 12 telas, redirect `/o/{slug}`, rotas públicas, mobile), Vitest no painel, piso de cobertura no clip-processor e affiliate-worker, job `CI gate` no GitHub Actions e hooks de pytest/vitest no pre-commit

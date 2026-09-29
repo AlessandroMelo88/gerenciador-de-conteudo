@@ -102,3 +102,21 @@ repos:
         files: ^painel/.*\.php$
         pass_filenames: false
         stages: [pre-push]
+      - id: pytest-clip-processor
+        name: pytest + cobertura mínima (clip-processor)
+        entry: bash -c 'cd clip-processor && .venv/bin/pytest -q -p no:cacheprovider --cov --cov-report=term:skip-covered -x'
+        language: system
+        files: ^clip-processor/.*\.(py|toml|txt)$
+        pass_filenames: false
+      - id: pytest-affiliate-worker
+        name: pytest (affiliate-worker)
+        entry: bash -c 'cd affiliate-worker && python3 -m pytest -q -p no:cacheprovider -x'
+        language: system
+        files: ^affiliate-worker/.*\.(py|txt|ini)$
+        pass_filenames: false
+      - id: vitest
+        name: vitest (painel)
+        entry: bash -c 'cd painel && npx vitest run'
+        language: system
+        files: ^painel/(resources/js/.*\.(ts|tsx)|vitest\.config\.ts|package\.json)$
+        pass_filenames: false

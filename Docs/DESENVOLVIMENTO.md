@@ -54,9 +54,10 @@ e build frontend; testes PHP são executados separadamente.
 
 | Área | Ferramentas | Configuração |
 |---|---|---|
-| Python | Ruff check/format, mypy, pytest | `clip-processor/pyproject.toml` |
+| Python | Ruff check/format, mypy, pytest + piso de cobertura (68%), affiliate-worker (85%) | `clip-processor/pyproject.toml`, `affiliate-worker/pytest.ini` |
 | PHP | Pint, PHPStan/Larastan, Pest | `painel/pint.json`, `phpstan.neon.dist` |
-| Frontend | TypeScript, oxlint, Prettier, Vite | `painel/package.json` |
+| Frontend | TypeScript, oxlint, Prettier, Vitest (jsdom), Vite | `painel/package.json`, `painel/vitest.config.ts` |
+| E2E | Playwright (Chromium desktop + mobile), lento | `painel/playwright.config.ts`, `painel/e2e/` |
 | Shell/YAML/Docker | shellcheck, yamllint, hadolint, Compose config | arquivos de config da raiz |
 
 O PHPStan usa baseline existente; a regra é reduzir a baseline, nunca atualizá-la para esconder erro
@@ -68,11 +69,19 @@ e no TODO.
 O workflow está em `.github/workflows/ci.yml` e roda em push/PR conforme sua configuração.
 Ele valida:
 
-- Python 3.12: Ruff + pytest;
+- Python 3.12: Ruff + mypy + pytest com piso de cobertura;
+- affiliate-worker: pytest com piso de cobertura;
 - PHP: Pint + PHPStan;
 - PHP integrado: Pest com PostgreSQL/Redis descartáveis;
-- frontend: typecheck, oxlint, Prettier e Vite build;
-- infraestrutura: shellcheck, hadolint, yamllint e `docker compose config`.
+- frontend: typecheck, oxlint, Prettier, Vitest com cobertura e Vite build;
+- e2e: Playwright contra o painel real (PostgreSQL descartável, `E2ESeeder`); relatório/vídeo/trace
+  sobem como artefato se falhar;
+- infraestrutura: shellcheck, hadolint, yamllint e `docker compose config`;
+- **`CI gate`**: job final que só passa se todos os anteriores passaram. É o único check a exigir na
+  branch protection da `master` (Settings → Branches → *Require status checks* → `CI gate`).
+
+No commit, o `pre-commit` roda pytest (clip-processor e affiliate-worker) e Vitest além dos linters;
+no push, tsc, mypy e PHPStan. Instalar: `make hooks`.
 
 ## Testes
 
@@ -87,6 +96,19 @@ PHP:
 
 ~~~bash
 make test-php
+~~~
+
+Frontend (Vitest) e E2E (Playwright, lento — cobre login, 12 telas, redirect `/o/{slug}`, segurança
+das rotas públicas e viewport mobile):
+
+~~~bash
+cd painel
+npm test                  # unitários
+npm run e2e:install       # uma vez: baixa o Chromium
+# banco descartável migrado + seed fixo, depois:
+php artisan db:seed --class=E2ESeeder   # recusa rodar em produção
+npm run build && npm run e2e            # sobe `php -S` sozinho na :8099
+E2E_BASE_URL=http://host:porta npm run e2e   # ou aponta para um servidor já de pé
 ~~~
 
 O painel usa PostgreSQL e as migrations do projeto. Rode testes somente contra banco local/
