@@ -3,6 +3,7 @@
 namespace App\Telegram\Commands;
 
 use App\Models\GeneratedClip;
+use App\Services\ClipProcessorClient;
 use Telegram\Bot\Commands\Command;
 
 class AprovarCommand extends Command
@@ -34,8 +35,9 @@ class AprovarCommand extends Command
 
         if ($affected) {
             try {
-                app(\App\Services\ClipProcessorClient::class)->publishNow();
-            } catch (\Throwable) {}
+                app(ClipProcessorClient::class)->publishNow();
+            } catch (\Throwable) {
+            }
         }
 
         $this->replyWithMessage(['text' => $text]);

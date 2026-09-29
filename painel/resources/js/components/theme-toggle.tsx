@@ -30,7 +30,7 @@ export function ThemeToggle() {
             variant="outline"
             size="icon"
             onClick={toggle}
-            className="h-9 w-9 rounded-xl border-border hover:bg-accent transition-colors"
+            className="h-9 w-9 rounded-xl border-border transition-colors hover:bg-accent"
             title="Alternar tema claro / escuro"
         >
             {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-zinc-600" />}

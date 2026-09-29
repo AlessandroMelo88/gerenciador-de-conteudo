@@ -59,10 +59,10 @@ Verifique na ordem:
 
 1. `PIPELINE_ENABLED`;
 2. saúde do PostgreSQL e Redis;
-3. ocupação das janelas: padrão 6 `curto` e 4 `longo`;
+3. ocupação das janelas de download por formato e nicho;
 4. espaço livre em `/app/videos`;
 5. `source_videos` em `pending` e `paused=false`;
-6. `FRESHNESS_DAYS`;
+6. `freshness_days` configurado no canal-fonte (3 ou 1500 dias; `FRESHNESS_DAYS=1500` é fallback);
 7. parciais `.part`/`.ytdl` antigos.
 
 ~~~bash
@@ -98,11 +98,12 @@ docker compose exec -T redis redis-cli --scan --pattern 'youtube_uploads:*'
 docker compose logs --tail=300 clip-publisher clip-renderer | grep -iE 'PUB|oauth|upload|caption|thumbnail|processing'
 ~~~
 
-Regras padrão:
+Regras padrão por canal-destino:
 
-- janela 19:00–22:00 no horário de São Paulo;
-- total padrão 2/dia por destino, teto de 6;
-- longos usam reserva própria;
+- três vídeos longos por dia às 06h, 14h e 22h em `America/Sao_Paulo`;
+- Shorts nas janelas de pico de 12h e 20h;
+- máximo 6 publicações/dia: 3 longos e até 3 Shorts, sujeito a fila pronta e aos horários;
+- longos usam reserva própria; não há promessa de upload se fila, aprovação, OAuth, Redis ou YouTube impedirem;
 - `MANUAL_APPROVAL_REQUIRED=true` exige `approved`;
 - `YOUTUBE_WAIT_FOR_HD=true` mantém o vídeo privado até processamento/legenda;
 - Redis fora do ar impede decisão de quota.
@@ -132,6 +133,13 @@ docker compose exec clip-processor python -m src.processar <url>
 
 O CLI usa `curto` por padrão. Para `longo`, use a tela Processar vídeo ou envie
 `format=longo` à rota autenticada `/internal/process-url`.
+
+## Workers nativos Linux/macOS
+
+Para processar sem Docker, configure PostgreSQL/Redis, `.env` e o cron do host conforme
+[`EXECUCAO-NATIVA-CRON.md`](EXECUCAO-NATIVA-CRON.md). O cron enfileira cada etapa ao longo do dia;
+a etapa de publicação verifica os horários acima. O pipeline permanece pausado até
+`PIPELINE_ENABLED=true`.
 
 ## Disco e purga
 

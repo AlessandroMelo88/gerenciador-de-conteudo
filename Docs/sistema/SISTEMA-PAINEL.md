@@ -111,14 +111,15 @@ A biblioteca do painel aceita:
 
 - `intro` e `outro`: MP4/MOV/WEBM ou imagem;
 - `music`: MP3/WAV/M4A/OGG;
-- escopo opcional por destino e formato;
+- canal de destino obrigatório; formato é opcional e vale dentro desse canal;
 - prioridade, ativo, duração de imagem e volume da música.
 
-O volume informado para a música recebe ganho de 20% no render, limitado a 100%; a trilha é aplicada
-nos 15 segundos finais do vídeo longo, com fade-in e volume final nos 8 segundos finais.
+O volume informado é o nível inicial da trilha, com 24% como padrão; nos 15 segundos finais do vídeo
+longo, ela sobe gradualmente até 100% nos últimos 8 segundos. Shorts não recebem música.
 
-O longo exige um asset de cada tipo. O processador prefere filesystem canônico por canal e usa a
-biblioteca como fallback; detalhes em [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md).
+O longo exige um asset de cada tipo associado ao canal de destino. O processador prefere o
+filesystem canônico do próprio canal e usa a biblioteca do mesmo canal como fallback; detalhes em
+[`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md).
 
 A senha exige senha atual e nova senha com pelo menos 10 caracteres.
 

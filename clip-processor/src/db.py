@@ -66,7 +66,9 @@ def get_db_driver(conn=None) -> str:
     if env_driver == 'mysql':
         return 'mysql'
 
-    if (os.environ.get('POSTGRES_HOST') or os.environ.get('PGHOST')) and not os.environ.get('MYSQL_HOST'):
+    if (os.environ.get('POSTGRES_HOST') or os.environ.get('PGHOST')) and not os.environ.get(
+        'MYSQL_HOST'
+    ):
         return 'pgsql'
 
     return 'mysql'
@@ -89,7 +91,11 @@ class PostgresCursorWrapper:
 
         # Se for INSERT sem RETURNING, anexa RETURNING id para popular lastrowid
         is_insert = query_mod.strip().upper().startswith('INSERT INTO')
-        if is_insert and 'RETURNING' not in query_mod.upper() and 'ON CONFLICT' not in query_mod.upper():
+        if (
+            is_insert
+            and 'RETURNING' not in query_mod.upper()
+            and 'ON CONFLICT' not in query_mod.upper()
+        ):
             query_mod += ' RETURNING id'
             res = self._cursor.execute(query_mod, params)
             try:
@@ -156,16 +162,32 @@ def get_db_connection():
             raise ImportError(
                 'psycopg2 não está instalado. Instale psycopg2-binary para suporte ao PostgreSQL.'
             )
-        host = os.environ.get('POSTGRES_HOST') or os.environ.get('PGHOST') or os.environ.get('DB_HOST', 'localhost')
+        host = (
+            os.environ.get('POSTGRES_HOST')
+            or os.environ.get('PGHOST')
+            or os.environ.get('DB_HOST', 'localhost')
+        )
         database = (
             os.environ.get('POSTGRES_DB')
             or os.environ.get('POSTGRES_DATABASE')
             or os.environ.get('PGDATABASE')
             or os.environ.get('DB_DATABASE', 'clips_automation')
         )
-        user = os.environ.get('POSTGRES_USER') or os.environ.get('PGUSER') or os.environ.get('DB_USERNAME', 'clips_user')
-        password = os.environ.get('POSTGRES_PASSWORD') or os.environ.get('PGPASSWORD') or os.environ.get('DB_PASSWORD', '')
-        port = int(os.environ.get('POSTGRES_PORT') or os.environ.get('PGPORT') or os.environ.get('DB_PORT', 5432))
+        user = (
+            os.environ.get('POSTGRES_USER')
+            or os.environ.get('PGUSER')
+            or os.environ.get('DB_USERNAME', 'clips_user')
+        )
+        password = (
+            os.environ.get('POSTGRES_PASSWORD')
+            or os.environ.get('PGPASSWORD')
+            or os.environ.get('DB_PASSWORD', '')
+        )
+        port = int(
+            os.environ.get('POSTGRES_PORT')
+            or os.environ.get('PGPORT')
+            or os.environ.get('DB_PORT', 5432)
+        )
 
         raw_conn = psycopg2.connect(
             host=host,
@@ -222,25 +244,13 @@ def update_status(conn, video_id, status, local_path=None, clear_local_path=Fals
         clear_local_path: se True, seta local_path=NULL (ignora `local_path`)
     """
     if clear_local_path:
-        sql = (
-            'UPDATE source_videos '
-            'SET status=%s, local_path=NULL '
-            'WHERE youtube_video_id=%s'
-        )
+        sql = 'UPDATE source_videos SET status=%s, local_path=NULL WHERE youtube_video_id=%s'
         params = (status, video_id)
     elif local_path is not None:
-        sql = (
-            'UPDATE source_videos '
-            'SET status=%s, local_path=%s '
-            'WHERE youtube_video_id=%s'
-        )
+        sql = 'UPDATE source_videos SET status=%s, local_path=%s WHERE youtube_video_id=%s'
         params = (status, local_path, video_id)
     else:
-        sql = (
-            'UPDATE source_videos '
-            'SET status=%s '
-            'WHERE youtube_video_id=%s'
-        )
+        sql = 'UPDATE source_videos SET status=%s WHERE youtube_video_id=%s'
         params = (status, video_id)
 
     with conn.cursor() as cur:
@@ -350,12 +360,12 @@ def recover_stuck_transcribing(conn):
         sql_with_file = (
             "UPDATE source_videos SET status='downloaded' "
             "WHERE status='transcribing' AND local_path IS NOT NULL "
-            "AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)"
+            'AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)'
         )
         sql_without_file = (
             "UPDATE source_videos SET status='failed' "
             "WHERE status='transcribing' AND local_path IS NULL "
-            "AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)"
+            'AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)'
         )
 
     try:
@@ -406,75 +416,75 @@ def recover_stuck_selecting(conn):
     driver = get_db_driver(conn)
     if driver == 'pgsql':
         sql_stuck = (
-            "UPDATE source_videos "
+            'UPDATE source_videos '
             "SET status='downloaded' "
             "WHERE status='selecting' "
-            "AND local_path IS NOT NULL "
+            'AND local_path IS NOT NULL '
             "AND updated_at < (NOW() - (%s * INTERVAL '1 hour')) "
-            "AND NOT EXISTS ("
-            "  SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = source_videos.id"
-            ")"
+            'AND NOT EXISTS ('
+            '  SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = source_videos.id'
+            ')'
         )
         sql_terminal = (
-            "UPDATE source_videos "
+            'UPDATE source_videos '
             "SET status='failed' "
             "WHERE status='selecting' "
-            "AND EXISTS ("
-            "  SELECT 1 FROM generated_clips gc "
-            "  WHERE gc.source_video_id = source_videos.id"
-            ") "
-            "AND NOT EXISTS ("
-            "  SELECT 1 FROM generated_clips gc "
-            "  WHERE gc.source_video_id = source_videos.id "
+            'AND EXISTS ('
+            '  SELECT 1 FROM generated_clips gc '
+            '  WHERE gc.source_video_id = source_videos.id'
+            ') '
+            'AND NOT EXISTS ('
+            '  SELECT 1 FROM generated_clips gc '
+            '  WHERE gc.source_video_id = source_videos.id '
             "  AND gc.status IN ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')"
-            ") "
-            "AND NOT EXISTS ("
-            "  SELECT 1 FROM generated_clips gc "
+            ') '
+            'AND NOT EXISTS ('
+            '  SELECT 1 FROM generated_clips gc '
             "  WHERE gc.source_video_id = source_videos.id AND gc.status = 'published'"
-            ")"
+            ')'
         )
         sql_no_file = (
-            "UPDATE source_videos "
+            'UPDATE source_videos '
             "SET status='failed' "
             "WHERE status='selecting' "
-            "AND local_path IS NULL "
+            'AND local_path IS NULL '
             "AND updated_at < (NOW() - (%s * INTERVAL '1 hour'))"
         )
     else:
         sql_stuck = (
-            "UPDATE source_videos sv "
+            'UPDATE source_videos sv '
             "SET sv.status='downloaded' "
             "WHERE sv.status='selecting' "
-            "AND sv.local_path IS NOT NULL "
-            "AND sv.updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR) "
-            "AND NOT EXISTS ("
-            "  SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id"
-            ")"
+            'AND sv.local_path IS NOT NULL '
+            'AND sv.updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR) '
+            'AND NOT EXISTS ('
+            '  SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id'
+            ')'
         )
         sql_terminal = (
-            "UPDATE source_videos sv "
+            'UPDATE source_videos sv '
             "SET sv.status='failed' "
             "WHERE sv.status='selecting' "
-            "AND EXISTS ("
-            "  SELECT 1 FROM generated_clips gc "
-            "  WHERE gc.source_video_id = sv.id"
-            ") "
-            "AND NOT EXISTS ("
-            "  SELECT 1 FROM generated_clips gc "
-            "  WHERE gc.source_video_id = sv.id "
+            'AND EXISTS ('
+            '  SELECT 1 FROM generated_clips gc '
+            '  WHERE gc.source_video_id = sv.id'
+            ') '
+            'AND NOT EXISTS ('
+            '  SELECT 1 FROM generated_clips gc '
+            '  WHERE gc.source_video_id = sv.id '
             "  AND gc.status IN ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')"
-            ") "
-            "AND NOT EXISTS ("
-            "  SELECT 1 FROM generated_clips gc "
+            ') '
+            'AND NOT EXISTS ('
+            '  SELECT 1 FROM generated_clips gc '
             "  WHERE gc.source_video_id = sv.id AND gc.status = 'published'"
-            ")"
+            ')'
         )
         sql_no_file = (
-            "UPDATE source_videos "
+            'UPDATE source_videos '
             "SET status='failed' "
             "WHERE status='selecting' "
-            "AND local_path IS NULL "
-            "AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)"
+            'AND local_path IS NULL '
+            'AND updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)'
         )
 
     try:
@@ -573,7 +583,7 @@ def recover_stuck_publishing(conn):
             'UPDATE generated_clips '
             "SET status='pending' "
             "WHERE status='publishing' "
-            "AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)"
+            'AND updated_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)'
         )
     try:
         with conn.cursor() as cur:

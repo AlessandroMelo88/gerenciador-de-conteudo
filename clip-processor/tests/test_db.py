@@ -162,7 +162,8 @@ class TestRecoverStuckSelecting:
         executed = [call[0][0] for call in mock_cursor.execute.call_args_list]
 
         stuck_sql = [
-            sql for sql in executed
+            sql
+            for sql in executed
             if "status='downloaded'" in sql.replace(' ', '') or "status='downloaded'" in sql
         ]
         assert len(stuck_sql) == 1, 'deve haver 1 query de recuperação para downloaded'
@@ -213,7 +214,6 @@ class TestFetchUsedMoments:
 
 
 class TestPostgresSupport:
-
     def test_driver_detection(self, monkeypatch):
         from src.db import get_db_driver
 
@@ -245,6 +245,6 @@ class TestPostgresSupport:
 
         mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
         executed = [call[0][0] for call in mock_cursor.execute.call_args_list]
-        stuck_sql = [sql for sql in executed if "status='downloaded'" in sql][0]
+        stuck_sql = next(sql for sql in executed if "status='downloaded'" in sql)
         assert 'INTERVAL' in stuck_sql.upper()
         assert 'DATE_SUB' not in stuck_sql.upper()

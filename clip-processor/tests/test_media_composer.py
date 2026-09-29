@@ -39,7 +39,7 @@ def test_compose_media_normalizes_longform_segments_and_mixes_music(tmp_path, mo
     assert copyfile.call_args.args[1] == str(output_path)
 
 
-def test_mix_music_starts_15_seconds_before_end_and_fades_to_final_volume(tmp_path, mocker):
+def test_mix_music_starts_at_configured_volume_and_ramps_to_full_volume(tmp_path, mocker):
     input_path = tmp_path / 'concatenated.mp4'
     music_path = tmp_path / 'music.mp3'
     output_path = tmp_path / 'with_music.mp4'
@@ -49,13 +49,14 @@ def test_mix_music_starts_15_seconds_before_end_and_fades_to_final_volume(tmp_pa
     mocker.patch('src.media_composer._probe_duration', return_value=30.0)
     run_ffmpeg = mocker.patch('src.media_composer._run_ffmpeg')
 
-    _mix_music(str(input_path), str(music_path), str(output_path), 0.2)
+    _mix_music(str(input_path), str(music_path), str(output_path), 0.24)
 
     command = run_ffmpeg.call_args.args[0]
     filter_graph = command[command.index('-filter_complex') + 1]
     assert 'atrim=duration=15.000' in filter_graph
-    assert 'volume=0.240' in filter_graph
-    assert 'afade=t=in:st=0:d=7.000' in filter_graph
+    assert (
+        'if(lt(t,7.000),0.240,if(lt(t,15.000),0.240+(1-0.240)*(t-7.000)/8.000,1))' in filter_graph
+    )
     assert 'adelay=15000|15000' in filter_graph
     assert 'dropout_transition=0' in filter_graph
 

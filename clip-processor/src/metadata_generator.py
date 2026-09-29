@@ -13,6 +13,7 @@ Convenções:
   - tags são persistidas em generated_clips.tags como texto
   - thumbnail_text é gerada em uma chamada dedicada e não é persistida
 """
+
 from __future__ import annotations
 
 import json
@@ -25,8 +26,15 @@ from typing import Literal
 from src.fact_check_prompt import METADATA_FACT_CHECK_INSTRUCTION
 from src.prompt_profiles import profile_prompt
 
-GROQ_CHAT_MODEL = 'openai/gpt-oss-20b'
+GROQ_CHAT_MODEL = (
+    os.environ.get('GROQ_CHAT_MODEL') or os.environ.get('GROQ_MODEL') or 'openai/gpt-oss-20b'
+)
 GROQ_REASONING_EFFORT: Literal['low'] = 'low'
+
+
+def _configured_ai_provider() -> str:
+    return os.environ.get('AI_PROVIDER', 'groq').strip().lower()
+
 
 THUMBNAIL_TEXT_MAX_CHARS = 64
 THUMBNAIL_TEXT_MIN_WORDS = 2
@@ -151,12 +159,12 @@ THUMBNAIL_SYSTEM_PROMPT = (
 
 
 POLITICA_METADATA_PROMPT = (
-    "Você é um estrategista de elite em SEO e títulos virais de alta retenção para YouTube Shorts e Reels de POLÍTICA e DEBATES. "
-    "Gere metadados de alto impacto e curiosidade para o corte selecionado: "
-    "1. Título (máximo 100 caracteres): Crie um título extremamente chamativo com gancho de confronto, revelação ou refutação "
+    'Você é um estrategista de elite em SEO e títulos virais de alta retenção para YouTube Shorts e Reels de POLÍTICA e DEBATES. '
+    'Gere metadados de alto impacto e curiosidade para o corte selecionado: '
+    '1. Título (máximo 100 caracteres): Crie um título extremamente chamativo com gancho de confronto, revelação ou refutação '
     "(ex: 'VEJA O QUE ELE DISSE QUANDO...', 'NÃO ESPERAVA ESSA RESPOSTA...', 'MOMENTO EM QUE FOI DESMASCARADO...', 'JANTADA HISTÓRICA NO DEBATE!'). "
-    "2. Descrição: Resumo rápido do embate ou declaração, provocando a audiência a comentar. "
-    "3. Tags: Lista de tags em PT-BR (sem hashtag), incluindo temas como politica, debate, shorts, cortes, noticias e nomes citados."
+    '2. Descrição: Resumo rápido do embate ou declaração, provocando a audiência a comentar. '
+    '3. Tags: Lista de tags em PT-BR (sem hashtag), incluindo temas como politica, debate, shorts, cortes, noticias e nomes citados.'
 )
 
 
@@ -185,6 +193,8 @@ def get_system_prompt(
     if niche == 'politica':
         return POLITICA_METADATA_PROMPT
     return GENERIC_SYSTEM_PROMPT
+
+
 METADATA_OUTPUT_SCHEMA = {
     'format': {
         'type': 'json_schema',
@@ -640,26 +650,38 @@ def generate_thumbnail_text(clip_context: dict, anthropic_client=None) -> str:
         data = _generate_thumbnail_via_anthropic(clip_context, anthropic_client)
         return _normalize_thumbnail_text(data.get('thumbnail_text'), clip_context)
 
-    if os.environ.get('ANTHROPIC_API_KEY', '').strip():
+    provider = _configured_ai_provider()
+    if provider == 'groq':
+        data = _generate_thumbnail_via_groq(clip_context)
+    elif provider == 'anthropic':
+        if not os.environ.get('ANTHROPIC_API_KEY', '').strip():
+            raise RuntimeError('AI_PROVIDER=anthropic exige ANTHROPIC_API_KEY configurada')
         data = _generate_thumbnail_via_anthropic(clip_context, None)
     else:
-        data = _generate_thumbnail_via_groq(clip_context)
+        raise ValueError(f'AI_PROVIDER inválido: {provider!r}; use groq ou anthropic')
     return _normalize_thumbnail_text(data.get('thumbnail_text'), clip_context)
 
 
 def generate_metadata(clip_context: dict, anthropic_client=None) -> dict:
     """Gera title, description e tags editoriais para um clip.
 
-    Usa o cliente injetado ou o provider definido pela configuração: Anthropic
-    quando ``ANTHROPIC_API_KEY`` existe, Groq nos demais casos. A resposta deve
+    Usa o cliente injetado ou AI_PROVIDER (Groq por padrão; Anthropic somente
+    com ativação explícita). A resposta deve
     ser completa e editorial; não existe conteúdo determinístico substituto.
     A chamada da thumbnail é gerada separadamente por
     :func:`generate_thumbnail_text`.
     """
-    if anthropic_client is not None or os.environ.get('ANTHROPIC_API_KEY', '').strip():
+    if anthropic_client is not None:
         data = _generate_via_anthropic(clip_context, anthropic_client)
-    else:
+    elif _configured_ai_provider() == 'groq':
         data = _generate_via_groq(clip_context)
+    elif _configured_ai_provider() == 'anthropic':
+        if not os.environ.get('ANTHROPIC_API_KEY', '').strip():
+            raise RuntimeError('AI_PROVIDER=anthropic exige ANTHROPIC_API_KEY configurada')
+        data = _generate_via_anthropic(clip_context, None)
+    else:
+        provider = _configured_ai_provider()
+        raise ValueError(f'AI_PROVIDER inválido: {provider!r}; use groq ou anthropic')
     return _normalize_metadata(data, clip_context)
 
 

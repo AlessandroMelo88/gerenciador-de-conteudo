@@ -31,8 +31,8 @@ from xml.etree import ElementTree
 import yt_dlp
 
 from src.db import get_db_driver
+from src.paths import VIDEOS_DIR
 
-VIDEOS_DIR = '/app/videos'
 YOUTUBE_CAPTION_LANGS = ('pt-BR', 'pt', 'pt.*')
 YOUTUBE_PLAYER_CLIENT_VERSION = '20.10.38'
 YOUTUBE_REQUEST_TIMEOUT_SECONDS = 20
@@ -570,7 +570,9 @@ def save_transcript(conn, video_id: str, transcript: dict) -> str:
 
     transcript_json = json.dumps(transcript, ensure_ascii=False)
     transcript_text = str(transcript.get('text') or '')
-    transcript_column = 'transcript_data=%s::json' if get_db_driver(conn) == 'pgsql' else 'transcript_data=%s'
+    transcript_column = (
+        'transcript_data=%s::json' if get_db_driver(conn) == 'pgsql' else 'transcript_data=%s'
+    )
     with conn.cursor() as cur:
         cur.execute(
             f'UPDATE source_videos SET transcript_path=%s, {transcript_column}, transcript_text=%s '

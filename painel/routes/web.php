@@ -10,7 +10,6 @@ use App\Http\Controllers\NicheController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OfferPerformanceController;
 use App\Http\Controllers\OfferRedirectController;
-use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Controllers\ProcessVideoController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SourceChannelController;
@@ -18,9 +17,15 @@ use App\Http\Controllers\SourceVideoController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\TranscriptionController;
 use App\Http\Controllers\UsefulLinksController;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\GeneratedClip;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'show'])->name('login');
@@ -68,6 +73,7 @@ Route::middleware(['web', 'auth'])->group(function () {
         }
 
         $path = Storage::disk('clips-videos')->path($relativePath);
+
         return response()->file($path, [
             'Cache-Control' => 'no-cache, no-store, must-revalidate, max-age=0',
             'Pragma' => 'no-cache',
@@ -149,11 +155,11 @@ Route::get('/o/{slug}', OfferRedirectController::class)
     ->where('slug', '[A-Za-z0-9]{1,64}')
     ->middleware('throttle:120,1')
     ->withoutMiddleware([
-        \Illuminate\Cookie\Middleware\EncryptCookies::class,
-        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-        \Illuminate\Session\Middleware\StartSession::class,
-        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        PreventRequestForgery::class,
         HandleInertiaRequests::class,
     ])
     ->name('offers.redirect');

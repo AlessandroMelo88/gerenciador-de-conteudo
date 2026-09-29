@@ -26,21 +26,19 @@ import argparse
 import json
 import os
 from pathlib import Path
-from urllib.parse import urlparse
+
+from src.paths import YOUTUBE_CLIENT_SECRETS, YOUTUBE_DIR
 
 # Permite redirecionamento OAuth em http://localhost
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 SCOPES = [
     'https://www.googleapis.com/auth/youtube.upload',
     'https://www.googleapis.com/auth/youtube.force-ssl',
 ]
-SECRETS_FILE = os.environ.get(
-    'YOUTUBE_CLIENT_SECRETS', '/app/youtube/client_secrets.json'
-)
+SECRETS_FILE = YOUTUBE_CLIENT_SECRETS
 
 
 def generate_token(channel_slug: str, secrets_file: str | None = None) -> str:
@@ -60,7 +58,7 @@ def generate_token(channel_slug: str, secrets_file: str | None = None) -> str:
     if secrets_file is None:
         secrets_file = SECRETS_FILE
 
-    token_path = f'/app/youtube/token-{channel_slug}.json'
+    token_path = os.path.join(YOUTUBE_DIR, f'token-{channel_slug}.json')
 
     if not os.path.exists(secrets_file):
         raise FileNotFoundError(

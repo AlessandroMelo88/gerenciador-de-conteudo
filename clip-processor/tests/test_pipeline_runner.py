@@ -1,6 +1,7 @@
 """
 Testes para pipeline_runner.py — ciclo completo do pipeline.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -9,9 +10,7 @@ import pytest
 
 from src.pipeline_runner import (
     CANDIDATES_PER_SLOT,
-    DOWNLOAD_WINDOW_CURTO,
     DOWNLOAD_WINDOW_FUTEBOL,
-    DOWNLOAD_WINDOW_LONGO,
     DOWNLOAD_WINDOW_PER_CHANNEL,
     DOWNLOAD_WINDOW_POLITICA,
     PIPELINE_LOCK_TIMEOUT_SECONDS,
@@ -31,8 +30,10 @@ def _janela_fixa(request):
     if request.node.cls is TestNicheWindows:
         yield
         return
-    with patch('src.pipeline_runner._niche_windows',
-               return_value=[('futebol', DOWNLOAD_WINDOW_FUTEBOL), ('politica', DOWNLOAD_WINDOW_POLITICA)]):
+    with patch(
+        'src.pipeline_runner._niche_windows',
+        return_value=[('futebol', DOWNLOAD_WINDOW_FUTEBOL), ('politica', DOWNLOAD_WINDOW_POLITICA)],
+    ):
         yield
 
 
@@ -73,7 +74,10 @@ class TestNicheWindows:
 
     def test_falha_na_consulta_usa_padrao(self):
         conn = self._conn(error=RuntimeError('db fora'))
-        assert _niche_windows(conn) == [('futebol', DOWNLOAD_WINDOW_FUTEBOL), ('politica', DOWNLOAD_WINDOW_POLITICA)]
+        assert _niche_windows(conn) == [
+            ('futebol', DOWNLOAD_WINDOW_FUTEBOL),
+            ('politica', DOWNLOAD_WINDOW_POLITICA),
+        ]
 
 
 class TestRunPipelineOnce:
@@ -267,7 +271,7 @@ class TestSelectPendingVideos:
             fetchone_results=[{'c': 9}],
             fetchall_results=[
                 self._ocupacao({1: DOWNLOAD_WINDOW_FUTEBOL}),  # futebol cheio
-                [],                                            # politica vazia
+                [],  # politica vazia
                 [self._vid('pol1', 3)],
             ],
         )
@@ -300,10 +304,7 @@ class TestSelectPendingVideos:
 
     def test_filters_by_freshness_cutoff(self, monkeypatch):
         """SELECT deve restringir a published_at de até FRESHNESS_DAYS dias atrás."""
-        from datetime import datetime, timedelta
-
         import src.pipeline_runner as pipeline_runner
-        from src.pipeline_runner import SAO_PAULO_TZ, FRESHNESS_DAYS
 
         monkeypatch.setattr(pipeline_runner, 'FRESHNESS_DAYS', 1)
 
@@ -328,8 +329,8 @@ class TestSelectPendingVideos:
         cur = self._make_cursor(
             fetchone_results=[{'c': 2}],
             fetchall_results=[
-                [],                       # futebol sem ocupação
-                prolifico + pequeno,      # candidatos: canal 7 domina a ordem do SQL
+                [],  # futebol sem ocupação
+                prolifico + pequeno,  # candidatos: canal 7 domina a ordem do SQL
                 self._ocupacao({1: DOWNLOAD_WINDOW_POLITICA}),  # politica cheia
             ],
         )

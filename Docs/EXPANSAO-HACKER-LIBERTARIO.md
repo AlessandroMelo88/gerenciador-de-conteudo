@@ -54,7 +54,7 @@ O JSON respeita as colunas atuais de prompt_profiles: slug, name, niche, niche_a
 
 Para recompilar usando apenas Ruby e sua biblioteca YAML padrão, execute: ruby scripts/compile_prompt_profiles.rb
 
-O comando apenas gera os JSONs em prompts/compiled/; não grava no banco. Revise o JSON e aplique-o por uma migration/seeder idempotente quando decidir atualizar prompt_profiles. As regras técnicas compartilhadas que o worker acrescenta em runtime continuam obrigatórias e podem impor limites mais restritos que o alvo YAML. Hoje o contrato curto do worker pede exatamente 30 segundos; esse valor fica dentro do alvo editorial de até 45 segundos.
+O comando apenas gera os JSONs em prompts/compiled/; não grava no banco. Revise o JSON e aplique-o por uma migration/seeder idempotente quando decidir atualizar prompt_profiles. As regras técnicas compartilhadas que o worker acrescenta em runtime continuam obrigatórias e podem impor limites mais restritos que o alvo YAML. Hoje o worker aceita Shorts de 30 a 45 segundos por padrão. Para um teste ocasional mais longo, configure `SHORTS_MAX_DURATION_SECONDS` explicitamente.
 
 ## Medição da estratégia
 

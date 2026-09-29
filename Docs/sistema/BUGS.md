@@ -178,23 +178,16 @@ mesmo buraco residual: clip que nunca publica não passa pela finalização.
 
 ---
 
-## 6. ABERTO — Painel não consegue apagar o backlog de download
+## 6. FEITO — Painel permite remover registros do backlog sem arquivo local
 
-O card "Backlog download" mostrava 1062 vídeos `pending` sem arquivo em disco. Nenhuma ação do painel
-apaga essas **linhas**:
+O operador pode selecionar uma linha sem mídia local quando ela não está em processamento e usar
+**Excluir do Banco**. A ação remove o registro e seus clips associados; é diferente de **Apagar só
+arquivos**, que conserva histórico e transcrições.
 
-- `DashboardController::bulkDeleteVideos` pula `blank($video->local_path)` como *skipped* — só apaga
-  arquivo;
-- `SourceVideoController::bulkDeleteFiles` idem;
-- só `purgeOld` → `internal_api.purge_old_videos` apaga linha, e apenas por data.
-
-Resultado: o operador vê o número no painel e não tem botão que resolva.
-
-**Complicação a considerar antes de "resolver":** `purge_old_videos` também apaga as chaves Redis
-`video:<id>` de dedup ([`internal_api.py:220`](../clip-processor/src/internal_api.py#L220)). Os vídeos
-purgados deixam de estar "vistos" e voltam a ser inseridos como `pending` no próximo poll RSS. Não
-voltam a baixar (`FRESHNESS_DAYS=1` barra publicado antes de ontem), mas o contador reenche. Purgar
-trata o sintoma; a causa é o RSS ingerir mais do que a janela consome.
+A limpeza automática por data agora preserva `source_videos`, transcrições e registros associados,
+removendo somente arquivos locais seguros. Ela também mantém as chaves Redis de deduplicação, então
+o poll RSS não recria os registros limpos. O frescor efetivo vem de cada canal-fonte (3 ou 1500 dias);
+`FRESHNESS_DAYS=1500` é somente o fallback legado.
 
 ---
 

@@ -8,14 +8,13 @@
 
 ## O que o sistema é, em um parágrafo
 
-Pipeline automatizado que monitora canais no YouTube via RSS, corta os melhores momentos com
-IA e publica nos canais próprios. O fluxo é **100% automático** por default, da descoberta ao upload. O
-painel web existe para **observar, configurar templates e intervir**, não para operar o fluxo manual.
+Pipeline que monitora canais no YouTube via RSS, preserva transcrições pesquisáveis, seleciona
+momentos com IA e publica nos canais próprios. O fluxo pode rodar em Docker ou diretamente no
+Linux/macOS via cron. O painel web configura canais, frescor, mídia e revisão.
 
-Dois serviços principais: `clip-processor` (daemon Python, faz todo o trabalho de pipeline) e `painel` (Laravel 13 + Inertia 3 +
-React 19, interface administrativa, estúdio de templates e rotinas de backup). Dois formatos de saída, decididos pela duração do vídeo fonte: **`curto`**
-(fonte < 7 min ⇒ até 3 shorts verticais de 30 s a 3 min com enquadramento adaptativo ou blur background) e **`longo`** (fonte ≥ 7 min ⇒ um corte
-horizontal de 7 a 20 min).
+Dois serviços principais: `clip-processor` (workers Python do pipeline) e `painel` (Laravel 13 + Inertia 3 +
+React 19, interface administrativa, estúdio de templates e rotinas de backup). Os formatos são **`curto`**
+(fonte < 7 min; clipes padrão de 30 a 45 s) e **`longo`** (fonte ≥ 7 min; corte contínuo de 7 a 20 min).
 
 ---
 
@@ -28,6 +27,7 @@ horizontal de 7 a 20 min).
 | [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) | Arquitetura as-built: topologia dos containers, a fronteira painel ↔ pipeline, decisões e dívida técnica. **Primeira leitura de quem chega agora** |
 | [`../../CLAUDE.md`](../../CLAUDE.md) | As 7 regras de operação destrutiva e os incidentes que as geraram. **Ler antes de apagar qualquer coisa** |
 | [`RUNBOOK.md`](RUNBOOK.md) | Comandos do dia a dia: está de pé? por que parou? como reiniciar sem travar clip? como limpar disco em duas etapas? |
+| [`EXECUCAO-NATIVA-CRON.md`](EXECUCAO-NATIVA-CRON.md) | Instalação de workers no Linux/macOS com cron, sem Docker |
 | [`BUGS.md`](BUGS.md) | Backlog com status FEITO / PARCIAL / ABERTO / SUSPEITA, evidência e onde corrigir |
 
 ### Como o sistema funciona, por subsistema
@@ -38,9 +38,9 @@ horizontal de 7 a 20 min).
 | [`PIPELINE-E-SCHEDULER.md`](PIPELINE-E-SCHEDULER.md) | Quais jobs rodam em que cadência, o que cada ciclo executa, por que `rss_poller` faz mais que polling, e a armadilha do rebuild |
 | [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md) | Descoberta via RSS, dedup, filtro de título, detecção de formato, janela de download por formato, filtro de frescor, disk guard, limpeza de órfãos |
 | [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | Groq Whisper no pipeline (sem fallback) e a Transcrição Local com whisper.cpp, que é uma feature separada |
-| [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) | Seleção de cortes por IA: prompts por formato, score, limites de duração, Claude Haiku → fallback Groq LLaMA 3.3-70b |
+| [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) | Seleção de cortes por IA: Groq GPT-OSS 20B por padrão, score, limites e providers alternativos ativados explicitamente |
 | [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg: corte por formato, enquadramento vertical com fundo desfocado, geração e queima de legenda, marca d'água, thumbnail, e artefatos gerados |
-| [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md) | Quem é publicável, roteamento por nicho, round-robin, cota diária (teto rígido de 6), janela 19h–22h, OAuth por canal, TTL de clip |
+| [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md) | Publicação por canal, cotas de até 6/dia, três longos separados por oito horas, horários de pico para Shorts e OAuth |
 | [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | As 10 rotas do sidecar HTTP 8090, auth fail-closed, controles de fila (pause/resume/reorder/prioritize), rejeição de clip, eventos para o Telegram |
 | [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, **suporte híbrido a MySQL e PostgreSQL**, comandos de backup (`db:backup`) e recuperação (`db:restore`) |
 | [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | Índice módulo a módulo do daemon (21 módulos), padrões comuns de código, o que o Redis guarda, tabela de env vars |
@@ -56,11 +56,11 @@ horizontal de 7 a 20 min).
 | [`PLANO-MESTRE.md`](PLANO-MESTRE.md) | **Ponto de retomada.** Advertência de direitos autorais de 14/09/2026, gate de licença em `source_channels`, migração A1 12 GB + PostgreSQL, marca Umbrella Solutions, plano de afiliados, ordem de execução e decisões registradas |
 | [`PLANO-ORACLE.md`](PLANO-ORACLE.md) | Migração para Oracle Cloud Always Free: decisão, como o custo zero é garantido, riscos e checklist por fase |
 
-### Planos (nada implementado)
+### Plano histórico
 
 | Documento | Responde |
 |---|---|
-| [`PLANO-PROMPTS-EDITAVEIS.md`](PLANO-PROMPTS-EDITAVEIS.md) | Como tornar os prompts de seleção editáveis pelo painel, sem editar Python e sem rebuild, com métricas para comparar versões |
+| [`PLANO-PROMPTS-EDITAVEIS.md`](PLANO-PROMPTS-EDITAVEIS.md) | Proposta de 2026-08; perfis editoriais e camadas YAML já estão implementados. Use [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) para o estado atual |
 
 
 `.planning/` é do fluxo GSD (roadmap por fase) e **não** é fonte de verdade do estado atual.

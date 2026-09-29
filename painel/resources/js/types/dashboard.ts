@@ -36,6 +36,7 @@ export type ClipRow = {
 
 export type QuotaChannel = {
     name: string;
+    niche?: string | null;
     count: number;
     limit: number;
 };

@@ -10,19 +10,23 @@ import {
     CheckIcon,
     RefreshCwIcon,
     ZapIcon,
-    TrendingUpIcon,
     ClockIcon,
     DollarSignIcon,
-    HelpCircleIcon,
     BarChart3Icon,
-    FileTextIcon,
-    SlidersHorizontalIcon,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -39,7 +43,6 @@ type PageProps = {
         total_approved_clips: number;
         channels: Array<{ id?: number; name?: string; title?: string; niche: string; active: boolean; slug: string }>;
     };
-    groqModel: string;
 };
 
 type Message = {
@@ -98,7 +101,7 @@ Com base nos benchmarks de política no Brasil (estilo MBL / Missão):
     },
 ];
 
-export default function Assistant({ stats, groqModel }: PageProps) {
+export default function Assistant({ stats }: PageProps) {
     const { props } = usePage<PageProps>();
     const [messages, setMessages] = React.useState<Message[]>(() => {
         const initialGreeting = `Olá! Sou seu assistente de inteligência e estratégia de conteúdo com **LLaMA 3.3 70B** (via Groq). 
@@ -149,80 +152,84 @@ Como posso te ajudar hoje? Você pode clicar em **Diagnóstico YouTube Studio** 
         scrollToBottom();
     }, [messages, loading]);
 
+    const handleSend = React.useCallback(
+        async (textToSend?: string) => {
+            const query = (textToSend || input).trim();
+            if (!query || loading) return;
+
+            const userMsg: Message = {
+                id: `user-${Date.now()}`,
+                role: 'user',
+                content: query,
+                timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            };
+
+            const updatedMessages = [...messages, userMsg];
+            setMessages(updatedMessages);
+            setInput('');
+            setLoading(true);
+
+            try {
+                // Prepara histórico recente (excluindo saudação inicial)
+                const history = updatedMessages
+                    .filter((m) => m.id !== 'init-1')
+                    .slice(-6)
+                    .map((m) => ({ role: m.role, content: m.content }));
+
+                const response = await fetch('/painel/assistente/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN':
+                            (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                        Accept: 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: query,
+                        history: history.slice(0, -1), // histórico anterior
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Falha na resposta do assistente');
+                }
+
+                const botMsg: Message = {
+                    id: `bot-${Date.now()}`,
+                    role: 'assistant',
+                    content: data.response || 'Sem resposta gerada.',
+                    timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                };
+
+                setMessages((prev) => [...prev, botMsg]);
+            } catch (err: unknown) {
+                const errorMsg: Message = {
+                    id: `err-${Date.now()}`,
+                    role: 'assistant',
+                    content: `⚠️ **Erro ao consultar a IA:** ${err instanceof Error ? err.message : 'Verifique se a GROQ_API_KEY está configurada no .env'}`,
+                    timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                };
+                setMessages((prev) => [...prev, errorMsg]);
+            } finally {
+                setLoading(false);
+                setTimeout(() => textareaRef.current?.focus(), 50);
+            }
+        },
+        [input, loading, messages],
+    );
+
     // Verifica se veio prompt pela URL (?prompt=...)
     React.useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const urlPrompt = params.get('prompt');
         if (urlPrompt && urlPrompt.trim()) {
-            handleSend(urlPrompt);
+            void handleSend(urlPrompt);
             // Limpa query string sem recarregar a página
             window.history.replaceState({}, document.title, window.location.pathname);
         }
-    }, []);
-
-    const handleSend = async (textToSend?: string) => {
-        const query = (textToSend || input).trim();
-        if (!query || loading) return;
-
-        const userMsg: Message = {
-            id: `user-${Date.now()}`,
-            role: 'user',
-            content: query,
-            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        };
-
-        const updatedMessages = [...messages, userMsg];
-        setMessages(updatedMessages);
-        setInput('');
-        setLoading(true);
-
-        try {
-            // Prepara histórico recente (excluindo saudação inicial)
-            const history = updatedMessages
-                .filter((m) => m.id !== 'init-1')
-                .slice(-6)
-                .map((m) => ({ role: m.role, content: m.content }));
-
-            const response = await fetch('/painel/assistente/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({
-                    message: query,
-                    history: history.slice(0, -1), // histórico anterior
-                }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || data.error) {
-                throw new Error(data.error || 'Falha na resposta do assistente');
-            }
-
-            const botMsg: Message = {
-                id: `bot-${Date.now()}`,
-                role: 'assistant',
-                content: data.response || 'Sem resposta gerada.',
-                timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            };
-
-            setMessages((prev) => [...prev, botMsg]);
-        } catch (err: any) {
-            const errorMsg: Message = {
-                id: `err-${Date.now()}`,
-                role: 'assistant',
-                content: `⚠️ **Erro ao consultar a IA:** ${err.message || 'Verifique se a GROQ_API_KEY está configurada no .env'}`,
-                timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            };
-            setMessages((prev) => [...prev, errorMsg]);
-        } finally {
-            setLoading(false);
-            setTimeout(() => textareaRef.current?.focus(), 50);
-        }
-    };
+    }, [handleSend]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -307,22 +314,28 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                 description="Consultoria ao vivo com LLaMA 3.3 70B (Groq) para estratégia, retenção, monetização e YouTube Analytics."
                 withToaster={false}
             >
-                <div className="flex flex-col gap-4 max-w-5xl mx-auto w-full pb-8">
+                <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 pb-8">
                     {/* Header Banner com Status do Modelo e Ações Rápidas */}
-                    <div className="rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs">
+                    <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 shadow-xs md:flex-row md:items-center">
                         <div className="flex items-center gap-3">
-                            <div className="size-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+                            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
                                 <SparklesIcon className="size-5" />
                             </div>
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <h2 className="font-semibold text-foreground text-sm md:text-base">LLaMA 3.3 70B Versatile</h2>
-                                    <Badge variant="outline" className="text-[11px] font-mono border-emerald-500/40 text-emerald-500 bg-emerald-500/10">
+                                    <h2 className="text-sm font-semibold text-foreground md:text-base">
+                                        LLaMA 3.3 70B Versatile
+                                    </h2>
+                                    <Badge
+                                        variant="outline"
+                                        className="border-emerald-500/40 bg-emerald-500/10 font-mono text-[11px] text-emerald-500"
+                                    >
                                         Gratuito (Groq Cloud)
                                     </Badge>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    Respostas instantâneas contextualizadas com os dados e benchmarks dos seus canais de cortes.
+                                    Respostas instantâneas contextualizadas com os dados e benchmarks dos seus canais de
+                                    cortes.
                                 </p>
                             </div>
                         </div>
@@ -335,36 +348,39 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                         style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)', color: '#fff' }}
                                         className="h-8 text-xs shadow-xs hover:brightness-105"
                                     >
-                                        <BarChart3Icon className="size-3.5 mr-1.5" />
+                                        <BarChart3Icon className="mr-1.5 size-3.5" />
                                         Diagnóstico YouTube Studio
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-lg">
                                     <DialogHeader>
-                                        <DialogTitle className="font-display font-bold flex items-center gap-2">
+                                        <DialogTitle className="flex items-center gap-2 font-display font-bold">
                                             <BarChart3Icon className="size-5 text-primary" />
                                             Diagnosticar Métricas do YouTube Studio
                                         </DialogTitle>
                                         <DialogDescription className="text-xs">
-                                            Insira os dados do vídeo ou clique nos presets rápidos abaixo para o LLaMA analisar gargalos de retenção e CTR.
+                                            Insira os dados do vídeo ou clique nos presets rápidos abaixo para o LLaMA
+                                            analisar gargalos de retenção e CTR.
                                         </DialogDescription>
                                     </DialogHeader>
 
                                     {/* Presets Rápidos de 1 Clique */}
-                                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/60 border border-border/80">
-                                        <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">Preencher rápido:</span>
-                                        <div className="flex gap-1.5 flex-wrap">
+                                    <div className="flex items-center gap-2 rounded-lg border border-border/80 bg-muted/60 p-2">
+                                        <span className="text-[11px] font-semibold whitespace-nowrap text-muted-foreground">
+                                            Preencher rápido:
+                                        </span>
+                                        <div className="flex flex-wrap gap-1.5">
                                             <button
                                                 type="button"
                                                 onClick={() => setPresetDiagnosis('futebol')}
-                                                className="px-2 py-1 rounded text-[11px] font-medium bg-background border border-border/80 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-colors"
+                                                className="rounded border border-border/80 bg-background px-2 py-1 text-[11px] font-medium transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/10"
                                             >
                                                 ⚽ Futebol em Cortes
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => setPresetDiagnosis('politica')}
-                                                className="px-2 py-1 rounded text-[11px] font-medium bg-background border border-border/80 hover:border-red-500/50 hover:bg-red-500/10 transition-colors"
+                                                className="rounded border border-border/80 bg-background px-2 py-1 text-[11px] font-medium transition-colors hover:border-red-500/50 hover:bg-red-500/10"
                                             >
                                                 🏛️ Cortes da Política
                                             </button>
@@ -377,8 +393,10 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                                 <FieldLabel className="text-xs">Formato</FieldLabel>
                                                 <select
                                                     value={diagForm.videoType}
-                                                    onChange={(e) => setDiagForm({ ...diagForm, videoType: e.target.value })}
-                                                    className="w-full h-8 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs"
+                                                    onChange={(e) =>
+                                                        setDiagForm({ ...diagForm, videoType: e.target.value })
+                                                    }
+                                                    className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs"
                                                 >
                                                     <option value="shorts">📱 YouTube Shorts (Vertical)</option>
                                                     <option value="long">🎬 Vídeo Longo (Horizontal)</option>
@@ -388,8 +406,10 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                                 <FieldLabel className="text-xs">Nicho / Tema</FieldLabel>
                                                 <select
                                                     value={diagForm.niche}
-                                                    onChange={(e) => setDiagForm({ ...diagForm, niche: e.target.value })}
-                                                    className="w-full h-8 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs"
+                                                    onChange={(e) =>
+                                                        setDiagForm({ ...diagForm, niche: e.target.value })
+                                                    }
+                                                    className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs"
                                                 >
                                                     <option value="futebol">⚽ Futebol / Esportes</option>
                                                     <option value="politica">🏛️ Política / Debates</option>
@@ -400,7 +420,9 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                         </div>
 
                                         <Field>
-                                            <FieldLabel className="text-xs">Título Atual do Vídeo / Manchete</FieldLabel>
+                                            <FieldLabel className="text-xs">
+                                                Título Atual do Vídeo / Manchete
+                                            </FieldLabel>
                                             <Input
                                                 placeholder="Ex: Juiz errou feio no lance polêmico ontem"
                                                 value={diagForm.title}
@@ -415,7 +437,9 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                                 <Input
                                                     placeholder="Ex: 3.200"
                                                     value={diagForm.views}
-                                                    onChange={(e) => setDiagForm({ ...diagForm, views: e.target.value })}
+                                                    onChange={(e) =>
+                                                        setDiagForm({ ...diagForm, views: e.target.value })
+                                                    }
                                                     className="h-8 text-xs"
                                                 />
                                             </Field>
@@ -424,7 +448,9 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                                 <Input
                                                     placeholder="Ex: 44%"
                                                     value={diagForm.retention}
-                                                    onChange={(e) => setDiagForm({ ...diagForm, retention: e.target.value })}
+                                                    onChange={(e) =>
+                                                        setDiagForm({ ...diagForm, retention: e.target.value })
+                                                    }
                                                     className="h-8 text-xs"
                                                 />
                                             </Field>
@@ -433,7 +459,9 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                                 <Input
                                                     placeholder="Ex: 52%"
                                                     value={diagForm.first3s}
-                                                    onChange={(e) => setDiagForm({ ...diagForm, first3s: e.target.value })}
+                                                    onChange={(e) =>
+                                                        setDiagForm({ ...diagForm, first3s: e.target.value })
+                                                    }
                                                     className="h-8 text-xs"
                                                 />
                                             </Field>
@@ -449,24 +477,34 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                         </div>
 
                                         <Field>
-                                            <FieldLabel className="text-xs">Principal Dúvida ou Problema Observado</FieldLabel>
+                                            <FieldLabel className="text-xs">
+                                                Principal Dúvida ou Problema Observado
+                                            </FieldLabel>
                                             <Textarea
                                                 placeholder="Ex: O vídeo teve 1.500 visualizações na primeira hora e depois o YouTube parou completamente de entregar..."
                                                 value={diagForm.problem}
                                                 onChange={(e) => setDiagForm({ ...diagForm, problem: e.target.value })}
                                                 rows={2}
-                                                className="text-xs resize-none"
+                                                className="resize-none text-xs"
                                             />
                                         </Field>
 
                                         <DialogFooter className="pt-2">
-                                            <Button type="button" variant="outline" size="sm" onClick={() => setDiagOpen(false)}>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setDiagOpen(false)}
+                                            >
                                                 Cancelar
                                             </Button>
                                             <Button
                                                 type="submit"
                                                 size="sm"
-                                                style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)', color: '#fff' }}
+                                                style={{
+                                                    background: 'linear-gradient(160deg,#FF6A55,#E23C33)',
+                                                    color: '#fff',
+                                                }}
                                             >
                                                 🧠 Analisar com LLaMA
                                             </Button>
@@ -481,7 +519,7 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                 onClick={clearChat}
                                 className="h-8 text-xs text-muted-foreground hover:text-foreground"
                             >
-                                <Trash2Icon className="size-3.5 mr-1.5" />
+                                <Trash2Icon className="mr-1.5 size-3.5" />
                                 Limpar
                             </Button>
                         </div>
@@ -489,24 +527,24 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
 
                     {/* Sugestões Rápidas */}
                     {messages.length <= 2 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                             {SUGGESTIONS.map((sug, i) => (
                                 <Card
                                     key={i}
                                     onClick={() => handleSend(sug.prompt)}
-                                    className="cursor-pointer border-border/80 hover:border-primary/50 hover:bg-card/80 transition-all shadow-2xs hover:shadow-xs group"
+                                    className="group cursor-pointer border-border/80 shadow-2xs transition-all hover:border-primary/50 hover:bg-card/80 hover:shadow-xs"
                                 >
-                                    <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between space-y-0">
-                                        <sug.icon className="size-4 text-primary group-hover:scale-110 transition-transform" />
-                                        <Badge variant="secondary" className="text-[10px] font-medium py-0 px-1.5">
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2">
+                                        <sug.icon className="size-4 text-primary transition-transform group-hover:scale-110" />
+                                        <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-medium">
                                             {sug.tag}
                                         </Badge>
                                     </CardHeader>
                                     <CardContent className="p-3 pt-0">
-                                        <CardTitle className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                                        <CardTitle className="text-xs font-semibold text-foreground transition-colors group-hover:text-primary">
                                             {sug.title}
                                         </CardTitle>
-                                        <CardDescription className="text-[11px] line-clamp-2 mt-1">
+                                        <CardDescription className="mt-1 line-clamp-2 text-[11px]">
                                             {sug.prompt}
                                         </CardDescription>
                                     </CardContent>
@@ -516,40 +554,44 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                     )}
 
                     {/* Área de Mensagens */}
-                    <Card className="border-border/80 bg-card/60 flex flex-col min-h-[480px] max-h-[650px] shadow-sm">
-                        <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-4">
+                    <Card className="flex max-h-[650px] min-h-[480px] flex-col border-border/80 bg-card/60 shadow-sm">
+                        <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6">
                             {messages.map((msg) => {
                                 const isUser = msg.role === 'user';
                                 return (
                                     <div
                                         key={msg.id}
-                                        className={`flex gap-3 max-w-[88%] md:max-w-[80%] ${
+                                        className={`flex max-w-[88%] gap-3 md:max-w-[80%] ${
                                             isUser ? 'ml-auto flex-row-reverse' : 'mr-auto'
                                         }`}
                                     >
                                         <div
-                                            className={`size-8 shrink-0 rounded-full flex items-center justify-center text-xs font-bold shadow-xs ${
+                                            className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-xs ${
                                                 isUser
                                                     ? 'bg-primary text-primary-foreground'
-                                                    : 'bg-muted border border-border text-foreground'
+                                                    : 'border border-border bg-muted text-foreground'
                                             }`}
                                         >
-                                            {isUser ? <UserIcon className="size-4" /> : <BotIcon className="size-4 text-primary" />}
+                                            {isUser ? (
+                                                <UserIcon className="size-4" />
+                                            ) : (
+                                                <BotIcon className="size-4 text-primary" />
+                                            )}
                                         </div>
                                         <div className="flex flex-col gap-1">
                                             <div
-                                                className={`rounded-2xl px-4 py-3 text-[13.5px] leading-relaxed relative group ${
+                                                className={`group relative rounded-2xl px-4 py-3 text-[13.5px] leading-relaxed ${
                                                     isUser
-                                                        ? 'bg-primary text-primary-foreground rounded-tr-xs'
-                                                        : 'bg-muted/80 border border-border/70 text-foreground rounded-tl-xs'
+                                                        ? 'rounded-tr-xs bg-primary text-primary-foreground'
+                                                        : 'rounded-tl-xs border border-border/70 bg-muted/80 text-foreground'
                                                 }`}
                                             >
-                                                <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                                                <div className="break-words whitespace-pre-wrap">{msg.content}</div>
 
                                                 {!isUser && (
                                                     <button
                                                         onClick={() => copyToClipboard(msg.id, msg.content)}
-                                                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity size-7 rounded-md bg-background/80 hover:bg-background border border-border/80 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                                                        className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-md border border-border/80 bg-background/80 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-background hover:text-foreground"
                                                         title="Copiar resposta"
                                                     >
                                                         {copiedId === msg.id ? (
@@ -561,7 +603,7 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                                 )}
                                             </div>
                                             <span
-                                                className={`text-[10.5px] text-muted-foreground px-1 ${
+                                                className={`px-1 text-[10.5px] text-muted-foreground ${
                                                     isUser ? 'text-right' : 'text-left'
                                                 }`}
                                             >
@@ -573,11 +615,11 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                             })}
 
                             {loading && (
-                                <div className="flex gap-3 max-w-[80%] mr-auto">
-                                    <div className="size-8 shrink-0 rounded-full bg-muted border border-border flex items-center justify-center">
-                                        <BotIcon className="size-4 text-primary animate-pulse" />
+                                <div className="mr-auto flex max-w-[80%] gap-3">
+                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted">
+                                        <BotIcon className="size-4 animate-pulse text-primary" />
                                     </div>
-                                    <div className="rounded-2xl rounded-tl-xs px-4 py-3 bg-muted/80 border border-border/70 text-muted-foreground flex items-center gap-2 text-xs">
+                                    <div className="flex items-center gap-2 rounded-2xl rounded-tl-xs border border-border/70 bg-muted/80 px-4 py-3 text-xs text-muted-foreground">
                                         <RefreshCwIcon className="size-3.5 animate-spin text-primary" />
                                         <span>LLaMA 3.3 está pensando...</span>
                                     </div>
@@ -588,7 +630,7 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                         </div>
 
                         {/* Input Box */}
-                        <div className="p-3 md:p-4 border-t border-border bg-card/90 rounded-b-xl flex flex-col gap-2">
+                        <div className="flex flex-col gap-2 rounded-b-xl border-t border-border bg-card/90 p-3 md:p-4">
                             <div className="relative flex items-end gap-2">
                                 <Textarea
                                     ref={textareaRef}
@@ -598,7 +640,7 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                     placeholder="Faça uma pergunta sobre estratégia, ideias de cortes, horários ou monetização... (Enter para enviar)"
                                     rows={2}
                                     disabled={loading}
-                                    className="min-h-[60px] max-h-[140px] resize-none pr-12 text-[13.5px] bg-background/90 rounded-xl"
+                                    className="max-h-[140px] min-h-[60px] resize-none rounded-xl bg-background/90 pr-12 text-[13.5px]"
                                 />
                                 <Button
                                     onClick={() => handleSend()}
@@ -609,9 +651,19 @@ Analise esses números com base nos benchmarks oficiais do YouTube Brasil:
                                     <SendIcon className="size-4" />
                                 </Button>
                             </div>
-                            <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
-                                <span>Pressione <kbd className="font-mono bg-muted px-1 rounded-sm border border-border">Enter</kbd> para enviar, <kbd className="font-mono bg-muted px-1 rounded-sm border border-border">Shift+Enter</kbd> para nova linha</span>
-                                <span className="hidden sm:inline">IA especializada em YouTube & Estratégia de Conteúdo</span>
+                            <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+                                <span>
+                                    Pressione{' '}
+                                    <kbd className="rounded-sm border border-border bg-muted px-1 font-mono">Enter</kbd>{' '}
+                                    para enviar,{' '}
+                                    <kbd className="rounded-sm border border-border bg-muted px-1 font-mono">
+                                        Shift+Enter
+                                    </kbd>{' '}
+                                    para nova linha
+                                </span>
+                                <span className="hidden sm:inline">
+                                    IA especializada em YouTube & Estratégia de Conteúdo
+                                </span>
                             </div>
                         </div>
                     </Card>

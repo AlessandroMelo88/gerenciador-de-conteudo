@@ -26,14 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmButton } from '@/components/confirm-button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -75,14 +68,14 @@ function ScoreBadge({ score }: { score: number | null | undefined }) {
 
     if (score >= 9) {
         return (
-            <span className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-500 dark:text-red-400 shadow-xs">
+            <span className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-500 shadow-xs dark:text-red-400">
                 🔥 {score}/10
             </span>
         );
     }
     if (score >= 8) {
         return (
-            <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 shadow-xs">
+            <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 shadow-xs dark:text-emerald-400">
                 ⭐ {score}/10
             </span>
         );
@@ -123,7 +116,7 @@ function FormatBadge({ format }: { format?: string | null }) {
     const isLongo = format === 'longo';
     if (isLongo) {
         return (
-            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-gradient-to-r from-amber-500/15 to-orange-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-500 dark:text-amber-400 shadow-xs">
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-gradient-to-r from-amber-500/15 to-orange-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-500 shadow-xs dark:text-amber-400">
                 ✨ Longo
             </span>
         );
@@ -224,7 +217,11 @@ function VideoActions({ video }: { video: ActiveWindowVideo }) {
                             </DropdownMenuItem>
                         </AlertDialogTrigger>
                     ) : (
-                        <DropdownMenuItem variant="destructive" disabled title="Arquivo em uso ou clips ainda precisam do bruto">
+                        <DropdownMenuItem
+                            variant="destructive"
+                            disabled
+                            title="Arquivo em uso ou clips ainda precisam do bruto"
+                        >
                             <TrashIcon className="mr-2 size-4" />
                             Apagar
                         </DropdownMenuItem>
@@ -235,7 +232,8 @@ function VideoActions({ video }: { video: ActiveWindowVideo }) {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Apagar o arquivo bruto de "{video.title}"? Os clips já cortados NÃO são afetados; libera vaga na janela.
+                        Apagar o arquivo bruto de "{video.title}"? Os clips já cortados NÃO são afetados; libera vaga na
+                        janela.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -286,8 +284,11 @@ function VideoCells({
                 </span>
             </TableCell>
             <TableCell>
-                <div className="flex flex-col gap-1 py-0.5 min-w-[130px]">
-                    <span className="font-semibold text-xs text-foreground truncate max-w-[190px]" title={video.sourceChannelName ?? undefined}>
+                <div className="flex min-w-[130px] flex-col gap-1 py-0.5">
+                    <span
+                        className="max-w-[190px] truncate text-xs font-semibold text-foreground"
+                        title={video.sourceChannelName ?? undefined}
+                    >
                         {video.sourceChannelName ?? '—'}
                     </span>
                     <div>
@@ -309,9 +310,9 @@ function VideoCells({
                 </span>
             </TableCell>
             <TableCell>
-                <div className="flex items-center gap-2 min-w-[110px]">
+                <div className="flex min-w-[110px] items-center gap-2">
                     <Progress value={video.progress ?? 0} className="h-1.5 flex-1" />
-                    <span className="text-xs text-muted-foreground tabular-nums w-8 text-right font-medium">
+                    <span className="w-8 text-right text-xs font-medium text-muted-foreground tabular-nums">
                         {video.progress ?? 0}%
                     </span>
                 </div>

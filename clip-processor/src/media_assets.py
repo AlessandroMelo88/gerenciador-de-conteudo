@@ -13,12 +13,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 MEDIA_KINDS = ('intro', 'outro', 'music')
-# A pasta `assets/` é a fonte de verdade da identidade visual e da biblioteca
-# musical. O disk `branding` continua como fallback para registros antigos da
-# tabela `media_assets` e para as marcas d'água dos canais.
+# A pasta `assets/` é a fonte de verdade da identidade visual por canal. O disk
+# `branding` preserva os caminhos enviados pelo painel e as marcas d'água.
 ASSETS_ROOT = Path(os.environ.get('ASSETS_DIR', '/app/assets')).resolve()
 CHANNELS_ROOT = (ASSETS_ROOT / 'channels').resolve()
-AUDIO_ROOT = (ASSETS_ROOT / 'audio').resolve()
 MEDIA_ROOT = Path(os.environ.get('BRANDING_DIR', '/app/branding')).resolve()
 
 DEFAULT_STILL_DURATION_SECONDS = 3
@@ -82,10 +80,16 @@ def choose_media_asset(
     biblioteca com várias intros ativas use sempre o mesmo arquivo sem exigir
     aleatoriedade, o que facilita reproduzir um clip em testes.
     """
-    if not candidates:
+    if destination_channel_id is None:
         return None
 
-    normalized = [dict(candidate) for candidate in candidates]
+    normalized = [
+        dict(candidate)
+        for candidate in candidates
+        if candidate.get('destination_channel_id') == destination_channel_id
+    ]
+    if not normalized:
+        return None
     best_specificity = min(
         _asset_specificity(candidate, destination_channel_id, video_format)
         for candidate in normalized
@@ -154,23 +158,15 @@ def _resolve_channel_asset(channel_slug: object, kind: str) -> Path | None:
 
 def _resolve_audio_asset(clip_id: int, channel_slug: object = None) -> Path | None:
     channel_dir = _channel_directory(channel_slug)
-    if channel_dir is not None:
-        channel_audio = channel_dir / 'audio'
-        if channel_audio.is_dir():
-            channel_candidates = sorted(
-                path
-                for path in channel_audio.iterdir()
-                if path.is_file() and path.suffix.lower() in MUSIC_EXTENSIONS
-            )
-            if channel_candidates:
-                return channel_candidates[abs(int(clip_id)) % len(channel_candidates)]
-
-    if not AUDIO_ROOT.is_dir():
+    if channel_dir is None:
         return None
 
+    channel_audio = channel_dir / 'audio'
+    if not channel_audio.is_dir():
+        return None
     candidates = sorted(
         path
-        for path in AUDIO_ROOT.iterdir()
+        for path in channel_audio.iterdir()
         if path.is_file() and path.suffix.lower() in MUSIC_EXTENSIONS
     )
     if not candidates:
@@ -229,8 +225,8 @@ def resolve_media_assets(
 ) -> dict[str, dict[str, object]]:
     """Busca e valida a identidade de um vídeo longo.
 
-    A estrutura de arquivos por canal é preferida. A tabela ``media_assets``
-    permanece como fallback compatível com a configuração antiga do painel.
+    Todos os assets precisam estar associados a um canal de destino. Arquivos
+    e registros globais antigos ficam preservados, mas não são selecionados.
     Shorts não carregam intro, encerramento ou música.
     """
     if video_format != 'longo':
@@ -241,6 +237,9 @@ def resolve_media_assets(
         video_format=video_format,
         clip_id=clip_id,
     )
+
+    if destination_channel_id is None:
+        return resolved
 
     for kind in MEDIA_KINDS:
         if kind in resolved:
@@ -253,7 +252,7 @@ def resolve_media_assets(
                     'FROM media_assets '
                     'WHERE kind = %s AND active = TRUE '
                     'AND (format IS NULL OR format = %s) '
-                    'AND (destination_channel_id IS NULL OR destination_channel_id = %s) '
+                    'AND destination_channel_id = %s '
                     'ORDER BY priority DESC, id ASC',
                     (kind, video_format, destination_channel_id),
                 )

@@ -77,7 +77,8 @@ export function formatarDuracao(segundos: number | null): string | null {
 }
 
 function Controles({ job }: { job: Pick<Job, 'id' | 'status' | 'title' | 'source_url'> }) {
-    const acao = (caminho: string) => router.post(`/painel/transcricoes/${job.id}/${caminho}`, {}, { preserveScroll: true });
+    const acao = (caminho: string) =>
+        router.post(`/painel/transcricoes/${job.id}/${caminho}`, {}, { preserveScroll: true });
 
     return (
         <div className="flex gap-1">
@@ -107,14 +108,15 @@ function Controles({ job }: { job: Pick<Job, 'id' | 'status' | 'title' | 'source
                         <AlertDialogTitle>Apagar esta transcrição?</AlertDialogTitle>
                         <AlertDialogDescription>
                             {job.title || job.source_url}
-                            <br />
-                            O texto sai da sua base de conhecimento e não dá para desfazer.
+                            <br />O texto sai da sua base de conhecimento e não dá para desfazer.
                             {EM_ANDAMENTO.includes(job.status) && ' Se estiver andando, o Mac para no próximo passo.'}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => router.delete(`/painel/transcricoes/${job.id}`, { preserveScroll: true })}>
+                        <AlertDialogAction
+                            onClick={() => router.delete(`/painel/transcricoes/${job.id}`, { preserveScroll: true })}
+                        >
                             Apagar
                         </AlertDialogAction>
                     </AlertDialogFooter>
@@ -143,8 +145,18 @@ export function BotoesDownload({ job }: { job: Pick<Job, 'id' | 'status' | 'medi
                 </Button>
             )}
             {(['md', 'txt', 'srt'] as const).map((formato) => (
-                <Button key={formato} asChild={pronto} size="sm" variant={formato === 'md' ? 'default' : 'outline'} disabled={!pronto}>
-                    {pronto ? <a href={`/painel/transcricoes/${job.id}/download/${formato}`}>.{formato}</a> : <span>.{formato}</span>}
+                <Button
+                    key={formato}
+                    asChild={pronto}
+                    size="sm"
+                    variant={formato === 'md' ? 'default' : 'outline'}
+                    disabled={!pronto}
+                >
+                    {pronto ? (
+                        <a href={`/painel/transcricoes/${job.id}/download/${formato}`}>.{formato}</a>
+                    ) : (
+                        <span>.{formato}</span>
+                    )}
                 </Button>
             ))}
         </div>
@@ -202,7 +214,8 @@ export default function TranscricaoLocal() {
                                     onChange={(e) => setData('url', e.target.value)}
                                 />
                                 <FieldDescription>
-                                    Quem baixa e transcreve é o seu Mac — ele precisa estar ligado. Site que pede login (curso, Vimeo) usa o cookies.txt salvo em ~/.config/canaldecortes/.
+                                    Quem baixa e transcreve é o seu Mac — ele precisa estar ligado. Site que pede login
+                                    (curso, Vimeo) usa o cookies.txt salvo em ~/.config/canaldecortes/.
                                 </FieldDescription>
                                 {errors.url && <p className="text-xs text-red-600">{errors.url}</p>}
                             </Field>
@@ -240,7 +253,10 @@ export default function TranscricaoLocal() {
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="grid min-w-0 gap-1">
                                         {job.status === 'done' ? (
-                                            <Link href={`/painel/transcricoes/${job.id}`} className="truncate font-medium hover:underline">
+                                            <Link
+                                                href={`/painel/transcricoes/${job.id}`}
+                                                className="truncate font-medium hover:underline"
+                                            >
                                                 {job.title || job.source_url}
                                             </Link>
                                         ) : (
@@ -250,7 +266,9 @@ export default function TranscricaoLocal() {
                                         )}
                                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                             {job.platform && <Badge variant="secondary">{job.platform}</Badge>}
-                                            {formatarDuracao(job.duration_seconds) && <span>{formatarDuracao(job.duration_seconds)}</span>}
+                                            {formatarDuracao(job.duration_seconds) && (
+                                                <span>{formatarDuracao(job.duration_seconds)}</span>
+                                            )}
                                             <span>{new Date(job.created_at).toLocaleDateString('pt-BR')}</span>
                                         </div>
                                     </div>
@@ -266,7 +284,10 @@ export default function TranscricaoLocal() {
 
                                 {COM_BARRA.includes(job.status) && (
                                     <>
-                                        <Progress value={job.progress_percent} className={job.status === 'paused' ? 'opacity-50' : undefined} />
+                                        <Progress
+                                            value={job.progress_percent}
+                                            className={job.status === 'paused' ? 'opacity-50' : undefined}
+                                        />
                                         <div className="flex justify-between text-xs text-muted-foreground">
                                             <span>{STATUS_LABELS[job.status]}</span>
                                             <span className="tabular-nums">{job.progress_percent}%</span>
@@ -292,11 +313,29 @@ export default function TranscricaoLocal() {
                                     Página {pagina.current_page} de {pagina.last_page} ({pagina.total} transcrições)
                                 </span>
                                 <div className="flex gap-2">
-                                    <Button asChild={!!pagina.prev_page_url} size="sm" variant="outline" disabled={!pagina.prev_page_url}>
-                                        {pagina.prev_page_url ? <Link href={pagina.prev_page_url}>Anterior</Link> : <span>Anterior</span>}
+                                    <Button
+                                        asChild={!!pagina.prev_page_url}
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={!pagina.prev_page_url}
+                                    >
+                                        {pagina.prev_page_url ? (
+                                            <Link href={pagina.prev_page_url}>Anterior</Link>
+                                        ) : (
+                                            <span>Anterior</span>
+                                        )}
                                     </Button>
-                                    <Button asChild={!!pagina.next_page_url} size="sm" variant="outline" disabled={!pagina.next_page_url}>
-                                        {pagina.next_page_url ? <Link href={pagina.next_page_url}>Próxima</Link> : <span>Próxima</span>}
+                                    <Button
+                                        asChild={!!pagina.next_page_url}
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={!pagina.next_page_url}
+                                    >
+                                        {pagina.next_page_url ? (
+                                            <Link href={pagina.next_page_url}>Próxima</Link>
+                                        ) : (
+                                            <span>Próxima</span>
+                                        )}
                                     </Button>
                                 </div>
                             </div>

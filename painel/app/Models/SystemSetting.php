@@ -11,20 +11,24 @@ class SystemSetting extends Model
     public static function get(string $key, mixed $default = null): mixed
     {
         $setting = static::where('key', $key)->first();
-        if (!$setting) {
+        if (! $setting) {
             return $default;
         }
 
         $val = $setting->value;
-        if ($val === 'true') return true;
-        if ($val === 'false') return false;
+        if ($val === 'true') {
+            return true;
+        }
+        if ($val === 'false') {
+            return false;
+        }
 
         return $val;
     }
 
     public static function set(string $key, mixed $value, ?string $description = null): void
     {
-        $stringValue = is_bool($value) ? ($value ? 'true' : 'false') : (string)$value;
+        $stringValue = is_bool($value) ? ($value ? 'true' : 'false') : (string) $value;
 
         static::updateOrCreate(
             ['key' => $key],

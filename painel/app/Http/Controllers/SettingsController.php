@@ -35,7 +35,20 @@ class SettingsController extends Controller
                 'destinationChannelName' => $asset->destinationChannel?->name,
             ]);
 
-        $counts = $assets->where('active', true)->groupBy('kind')->map->count();
+        $longChannelAssets = $assets->filter(fn (array $asset) => $asset['active']
+            && $asset['destinationChannelId'] !== null
+            && in_array($asset['format'], [null, 'longo'], true)
+        );
+        $counts = $longChannelAssets->groupBy('kind')->map->count();
+        $activeDestinationChannels = DestinationChannel::query()->where('active', true)->get(['id', 'name']);
+        $readyChannelCount = $activeDestinationChannels->filter(function (DestinationChannel $channel) use ($longChannelAssets) {
+            $channelAssets = $longChannelAssets->where('destinationChannelId', $channel->id);
+
+            return collect(['intro', 'outro', 'music'])
+                ->every(fn (string $kind) => $channelAssets->contains('kind', $kind));
+        })->count();
+        $ready = $activeDestinationChannels->isNotEmpty()
+            && $readyChannelCount === $activeDestinationChannels->count();
 
         $cookiePath = file_exists('/var/www/html/youtube/cookies.txt')
             ? '/var/www/html/youtube/cookies.txt'
@@ -64,9 +77,9 @@ class SettingsController extends Controller
                 'introCount' => $counts->get('intro', 0),
                 'outroCount' => $counts->get('outro', 0),
                 'musicCount' => $counts->get('music', 0),
-                'ready' => $counts->get('intro', 0) > 0
-                    && $counts->get('outro', 0) > 0
-                    && $counts->get('music', 0) > 0,
+                'readyChannelCount' => $readyChannelCount,
+                'activeChannelCount' => $activeDestinationChannels->count(),
+                'ready' => $ready,
             ],
         ]);
     }

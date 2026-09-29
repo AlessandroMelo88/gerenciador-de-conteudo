@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import json
-import math
+import os
 import subprocess
 from typing import Any
 
 SHORTS_DURATION_SECONDS = 30.0
 SHORTS_DURATION_TOLERANCE_SECONDS = 0.35
+SHORTS_MIN_DURATION_SECONDS = 30.0
+SHORTS_MAX_DURATION_SECONDS = max(
+    SHORTS_MIN_DURATION_SECONDS,
+    float(os.environ.get('SHORTS_MAX_DURATION_SECONDS', '45')),
+)
 SHORTS_WIDTH = 1080
 SHORTS_HEIGHT = 1920
 
@@ -65,18 +70,21 @@ def probe_media(path: str) -> dict[str, Any]:
 def validate_short_media(path: str) -> dict[str, Any]:
     """Valida o arquivo final de um Short antes de qualquer upload.
 
-    A tolerância cobre apenas diferenças residuais de container/encodificação;
-    o renderizador sempre solicita exatamente 30 segundos.
+    A tolerância cobre diferenças residuais de container/encodificação. Por
+    padrão, o corte pode durar de 30 a 45 segundos; SHORTS_MAX_DURATION_SECONDS
+    permite experimentar com durações maiores quando isso for configurado.
     """
     info = probe_media(path)
     if not info['is_vertical']:
         raise MediaContractError(
             f'Short precisa ser vertical 9:16, mas recebeu {info["width"]}x{info["height"]}'
         )
-    if not math.isclose(
-        info['duration'],
-        SHORTS_DURATION_SECONDS,
-        abs_tol=SHORTS_DURATION_TOLERANCE_SECONDS,
+    if (
+        info['duration'] < SHORTS_MIN_DURATION_SECONDS - SHORTS_DURATION_TOLERANCE_SECONDS
+        or info['duration'] > SHORTS_MAX_DURATION_SECONDS + SHORTS_DURATION_TOLERANCE_SECONDS
     ):
-        raise MediaContractError(f'Short precisa ter 30s, mas recebeu {info["duration"]:.2f}s')
+        raise MediaContractError(
+            f'Short precisa ter entre {SHORTS_MIN_DURATION_SECONDS:.0f} e '
+            f'{SHORTS_MAX_DURATION_SECONDS:.0f}s, mas recebeu {info["duration"]:.2f}s'
+        )
     return info

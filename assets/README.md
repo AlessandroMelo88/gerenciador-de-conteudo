@@ -9,10 +9,11 @@ assets/
 │       ├── intro.jpg
 │       ├── intro.mp4
 │       ├── encerramento.jpg
-│       └── encerramento.mp4
+│       ├── encerramento.mp4
+│       └── audio/
+│           └── faixa-do-canal.wav
 └── audio/
-    ├── faixa_completa.wav
-    └── faixa_completa.txt   # letra, quando existir
+    └── originais mantidos como acervo, sem uso automático
 ```
 
 Os nomes visuais canônicos são `intro` e `encerramento`, sempre em minúsculas.
@@ -20,11 +21,12 @@ Quando os dois formatos existem, o pipeline prefere o vídeo e usa a imagem como
 fallback. `intro_2.jpg` é mantido como uma variação opcional e não é escolhido
 automaticamente.
 
-Para vídeos `longo`, o pipeline exige os três assets: intro, encerramento e uma
-faixa em `audio/`. A música é misturada nos 15 segundos finais do vídeo composto:
-começa bem baixa, sobe durante 7 segundos e permanece no volume final nos 8
-segundos finais. O volume configurado recebe ganho de 20%, limitado a 100%. As
-faixas são alternadas de forma determinística pelo id do clip.
+Os assets são sempre associados a um canal de destino. Para vídeos `longo`,
+intros e encerramentos vêm da pasta do canal; a trilha só pode vir de
+`channels/<slug>/audio/`. Faixas em `assets/audio/` ficam como originais e não
+são um fallback compartilhado. A música entra nos 15 segundos finais, começa
+no volume configurado (24% por padrão) e sobe gradualmente até 100% nos 8
+segundos finais. As faixas do canal alternam pelo id do clip.
 
 Os arquivos de áudio desta pasta foram copiados de
 `/Users/sierra/Producao_Musical/02_Faixas`. A origem disponibiliza seis WAVs

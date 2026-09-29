@@ -25,7 +25,7 @@ class MediaAssetController extends Controller
                 'mimes:mp4,mov,webm,jpg,jpeg,png,mp3,wav,m4a,ogg',
                 'max:102400',
             ],
-            'destination_channel_id' => ['nullable', 'integer', 'exists:destination_channels,id'],
+            'destination_channel_id' => ['required', 'integer', 'exists:destination_channels,id'],
             'format' => ['nullable', 'string', 'in:curto,longo'],
             'duration_seconds' => ['nullable', 'integer', 'min:1', 'max:60'],
             'music_volume' => ['nullable', 'numeric', 'min:0.01', 'max:1'],
@@ -64,13 +64,13 @@ class MediaAssetController extends Controller
                 'kind' => $data['kind'],
                 'name' => $data['name'],
                 'path' => $path,
-                'destination_channel_id' => $data['destination_channel_id'] ?? null,
+                'destination_channel_id' => $data['destination_channel_id'],
                 'format' => $data['format'] ?? null,
                 'duration_seconds' => $data['kind'] === 'music'
                     ? null
                     : ($data['duration_seconds'] ?? 3),
                 'music_volume' => $data['kind'] === 'music'
-                    ? ($data['music_volume'] ?? 0.12)
+                    ? ($data['music_volume'] ?? 0.24)
                     : null,
                 'priority' => $data['priority'] ?? 0,
                 'active' => $data['active'] ?? true,
@@ -87,7 +87,7 @@ class MediaAssetController extends Controller
     {
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:120'],
-            'destination_channel_id' => ['sometimes', 'nullable', 'integer', 'exists:destination_channels,id'],
+            'destination_channel_id' => ['sometimes', 'required', 'integer', 'exists:destination_channels,id'],
             'format' => ['sometimes', 'nullable', 'string', 'in:curto,longo'],
             'duration_seconds' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:60'],
             'music_volume' => ['sometimes', 'nullable', 'numeric', 'min:0.01', 'max:1'],

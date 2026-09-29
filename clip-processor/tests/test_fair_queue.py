@@ -1,4 +1,5 @@
 """Testes da escolha justa de vídeos por canal de origem na fila de download."""
+
 from src.fair_queue import channel_cap, fair_pick
 
 

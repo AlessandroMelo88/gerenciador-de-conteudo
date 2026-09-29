@@ -33,18 +33,19 @@ def reset_bypass(monkeypatch):
 
 
 class TestCanUpload:
-    def test_inside_evening_window_below_quota(self):
-        """Deve permitir upload dentro da janela da noite (19h às 22h)."""
+    def test_inside_shorts_peak_window_below_quota(self):
+        """Deve permitir Shorts na janela de pico configurada às 20h."""
         r = make_redis(count=0)
         qm = QuotaManager(r, max_uploads_per_day=2)
-        assert qm.can_upload(now=dt_sp(19, 30)) is True
+        assert qm.can_upload(now=dt_sp(20, 30)) is True
 
-    def test_inside_lunch_window_below_quota(self):
-        """Deve permitir upload dentro da janela do almoço/meio-dia (12h às 14h)."""
+    def test_shorts_peak_windows_are_configured_hours(self):
+        """Shorts podem publicar às 12h e 20h; horários vizinhos ficam fora."""
         r = make_redis(count=0)
         qm = QuotaManager(r, max_uploads_per_day=2)
         assert qm.can_upload(now=dt_sp(12, 30)) is True
-        assert qm.can_upload(now=dt_sp(13, 59)) is True
+        assert qm.can_upload(now=dt_sp(13, 59)) is False
+        assert qm.can_upload(now=dt_sp(20, 30)) is True
 
     def test_between_windows_denied_without_bypass(self):
         """Deve negar upload entre as janelas (ex: 15h) quando não há bypass."""
@@ -58,11 +59,14 @@ class TestCanUpload:
         qm = QuotaManager(r, max_uploads_per_day=2)
         assert qm.can_upload(now=dt_sp(15, 0), bypass_window=True) is True
 
-    def test_after_evening_window_end(self):
-        """Deve negar upload às 22h ou depois."""
+    def test_longo_uploads_use_three_eight_hour_slots(self):
+        """Vídeos longos podem sair às 06h, 14h e 22h, separados por oito horas."""
         r = make_redis(count=0)
         qm = QuotaManager(r, max_uploads_per_day=2)
-        assert qm.can_upload(now=dt_sp(22, 0)) is False
+        assert qm.can_upload(now=dt_sp(6, 0), format='longo') is True
+        assert qm.can_upload(now=dt_sp(14, 0), format='longo') is True
+        assert qm.can_upload(now=dt_sp(22, 0), format='longo') is True
+        assert qm.can_upload(now=dt_sp(21, 0), format='longo') is False
 
     def test_outside_window_midnight(self):
         """Deve negar upload à meia-noite."""
@@ -89,12 +93,12 @@ class TestCanUpload:
         qm = QuotaManager(r)  # lê do env
         assert qm._max == 100
 
-    def test_default_max_is_two(self, monkeypatch):
-        """Sem env, default é 2."""
+    def test_default_max_is_six(self, monkeypatch):
+        """Sem env, o teto total padrão é seis uploads por canal/dia."""
         monkeypatch.delenv('MAX_UPLOADS_PER_DAY', raising=False)
         r = make_redis(count=0)
         qm = QuotaManager(r)
-        assert qm._max == 2
+        assert qm._max == 6
 
     def test_no_redis_key_treats_as_zero(self):
         """Redis retornando None (chave não existe) deve contar como 0."""
@@ -106,11 +110,7 @@ class TestCanUpload:
         """Intervalo configurado impede publicar outro clip antes do prazo."""
         last_upload = dt_sp(20, 0).timestamp()
         r = MagicMock()
-        r.get.side_effect = lambda key: (
-            str(last_upload)
-            if key.endswith(':last_upload_at')
-            else '0'
-        )
+        r.get.side_effect = lambda key: str(last_upload) if key.endswith(':last_upload_at') else '0'
         qm = QuotaManager(
             r,
             max_uploads_per_day=6,
@@ -118,7 +118,7 @@ class TestCanUpload:
         )
 
         assert qm.can_upload(now=dt_sp(20, 59)) is False
-        assert qm.can_upload(now=dt_sp(21, 0)) is True
+        assert qm.can_upload(now=dt_sp(21, 0), bypass_window=True) is True
 
     def test_min_upload_interval_is_disabled_by_default(self):
         """Sem configuração, a quota mantém o comportamento histórico."""
@@ -257,7 +257,7 @@ class TestLongoReservation:
         r.get.side_effect = lambda key: '3' if not key.endswith(':longo') else '0'
         qm = QuotaManager(r, max_uploads_per_day=5, max_longo_per_day=2)
         assert qm.can_upload(now=dt_sp(20), format='curto', longo_waiting=True) is False
-        assert qm.can_upload(now=dt_sp(20), format='longo', longo_waiting=True) is True
+        assert qm.can_upload(now=dt_sp(14), format='longo', longo_waiting=True) is True
 
     def test_curto_unblocked_when_no_longo_waiting(self):
         """Sem longo na fila, curto pode usar o restante da cota total."""

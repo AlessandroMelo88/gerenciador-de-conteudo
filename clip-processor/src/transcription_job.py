@@ -23,8 +23,8 @@ import threading
 from collections.abc import Mapping
 
 from src.db import get_db_connection
+from src.paths import VIDEOS_DIR
 
-VIDEOS_DIR = '/app/videos'
 TRANSCRIPTS_DIR = os.path.join(VIDEOS_DIR, 'transcripts')
 
 WHISPER_BIN = os.environ.get('WHISPER_CPP_BIN', '/opt/whisper.cpp/build/bin/whisper-cli')

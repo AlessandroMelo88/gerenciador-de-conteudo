@@ -40,17 +40,21 @@ type CookiesInfo = {
     lines: number;
 } | null;
 
+type MediaConfiguration = {
+    introCount: number;
+    outroCount: number;
+    musicCount: number;
+    readyChannelCount: number;
+    activeChannelCount: number;
+    ready: boolean;
+};
+
 type PageProps = {
     auth: { user: { name: string; email: string } | null };
     flash: { success: string | null; error: string | null };
     mediaAssets?: MediaAsset[];
     destinationChannels?: DestinationChannel[];
-    mediaConfiguration?: {
-        introCount: number;
-        outroCount: number;
-        musicCount: number;
-        ready: boolean;
-    };
+    mediaConfiguration: MediaConfiguration;
     settings?: {
         allow_local_download: boolean;
     };
@@ -67,7 +71,13 @@ function FormError({ message }: { message?: string }) {
     return message ? <p className="text-sm text-destructive">{message}</p> : null;
 }
 
-function SystemTab({ initialSettings, cookiesInfo }: { initialSettings?: { allow_local_download: boolean }; cookiesInfo?: CookiesInfo }) {
+function SystemTab({
+    initialSettings,
+    cookiesInfo,
+}: {
+    initialSettings?: { allow_local_download: boolean };
+    cookiesInfo?: CookiesInfo;
+}) {
     const { data, setData, put, processing } = useForm({
         allow_local_download: initialSettings?.allow_local_download ?? false,
     });
@@ -105,7 +115,8 @@ function SystemTab({ initialSettings, cookiesInfo }: { initialSettings?: { allow
                                     Permitir Processamento e Download Local
                                 </FieldLabel>
                                 <p className="text-sm text-muted-foreground">
-                                    Quando ativado, permite que scripts executados localmente na sua máquina realizem testes de download e corte de vídeos.
+                                    Quando ativado, permite que scripts executados localmente na sua máquina realizem
+                                    testes de download e corte de vídeos.
                                 </p>
                             </div>
                             <Switch
@@ -128,7 +139,8 @@ function SystemTab({ initialSettings, cookiesInfo }: { initialSettings?: { allow
                         <div className="space-y-1">
                             <h3 className="text-base font-semibold">Cookies do YouTube (yt-dlp)</h3>
                             <p className="text-sm text-muted-foreground">
-                                O YouTube exige cookies de autenticação atualizados para permitir downloads no servidor em nuvem.
+                                O YouTube exige cookies de autenticação atualizados para permitir downloads no servidor
+                                em nuvem.
                             </p>
                         </div>
 
@@ -140,7 +152,8 @@ function SystemTab({ initialSettings, cookiesInfo }: { initialSettings?: { allow
                                         Arquivo de cookies presente no servidor
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                        Última atualização: {cookiesInfo.updated_at} ({Math.round(cookiesInfo.size / 1024)} KB, {cookiesInfo.lines} linhas)
+                                        Última atualização: {cookiesInfo.updated_at} (
+                                        {Math.round(cookiesInfo.size / 1024)} KB, {cookiesInfo.lines} linhas)
                                     </p>
                                 </div>
                             ) : (
@@ -169,7 +182,7 @@ function SystemTab({ initialSettings, cookiesInfo }: { initialSettings?: { allow
                             <textarea
                                 id="cookies_content"
                                 rows={4}
-                                className="w-full rounded-md border bg-background p-2 text-xs font-mono"
+                                className="w-full rounded-md border bg-background p-2 font-mono text-xs"
                                 placeholder="# Netscape HTTP Cookie File..."
                                 value={cookiesForm.data.cookies_content}
                                 onChange={(e) => cookiesForm.setData('cookies_content', e.target.value)}
@@ -241,7 +254,7 @@ function PasswordTab() {
     );
 }
 
-function MediaStatus({ configuration }: { configuration: PageProps['mediaConfiguration'] }) {
+function MediaStatus({ configuration }: { configuration: MediaConfiguration }) {
     const entries = [
         ['Intro', configuration.introCount],
         ['Encerramento', configuration.outroCount],
@@ -253,8 +266,8 @@ function MediaStatus({ configuration }: { configuration: PageProps['mediaConfigu
             <CardHeader>
                 <CardTitle>{configuration.ready ? 'Biblioteca pronta' : 'Configure a identidade dos vídeos'}</CardTitle>
                 <CardDescription>
-                    O pipeline escolhe automaticamente a identidade dos vídeos longos por canal e formato. Shorts são
-                    verticais e não recebem intro nem encerramento.
+                    Cada canal de destino precisa de intro, encerramento e música próprios para liberar vídeos longos.
+                    Shorts são verticais e não recebem esses assets.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -273,8 +286,9 @@ function MediaStatus({ configuration }: { configuration: PageProps['mediaConfigu
                 </div>
                 {!configuration.ready && (
                     <p className="mt-4 text-sm text-muted-foreground">
-                        Adicione pelo menos uma intro, um encerramento e uma música antes de ligar o processamento
-                        automático de vídeos longos.
+                        Identidade completa em {configuration.readyChannelCount} de {configuration.activeChannelCount}{' '}
+                        canais ativos. Associe intro, encerramento e música a cada canal antes de processar vídeos
+                        longos.
                     </p>
                 )}
             </CardContent>
@@ -298,10 +312,10 @@ function MediaUploadForm({ destinationChannels }: { destinationChannels: Destina
         kind: 'intro',
         name: '',
         file: null,
-        destination_channel_id: 'global',
+        destination_channel_id: '',
         format: 'all',
         duration_seconds: '3',
-        music_volume: '0.12',
+        music_volume: '0.24',
         priority: '0',
         active: true,
     });
@@ -310,11 +324,10 @@ function MediaUploadForm({ destinationChannels }: { destinationChannels: Destina
         e.preventDefault();
         transform((form) => ({
             ...form,
-            destination_channel_id:
-                form.destination_channel_id === 'global' ? null : Number(form.destination_channel_id),
+            destination_channel_id: Number(form.destination_channel_id),
             format: form.format === 'all' ? null : form.format,
             duration_seconds: form.kind === 'music' ? null : Number(form.duration_seconds || 3),
-            music_volume: form.kind === 'music' ? Number(form.music_volume || 0.12) : null,
+            music_volume: form.kind === 'music' ? Number(form.music_volume || 0.24) : null,
             priority: Number(form.priority || 0),
         }));
         post('/painel/configuracoes/midia', {
@@ -333,8 +346,8 @@ function MediaUploadForm({ destinationChannels }: { destinationChannels: Destina
                 <CardTitle>Adicionar mídia</CardTitle>
                 <CardDescription>
                     Envie um vídeo ou imagem para intro/encerramento, ou um arquivo de áudio para trilha. A identidade é
-                    aplicada somente aos vídeos longos; Shorts permanecem verticais sem intro nem encerramento. O
-                    arquivo fica no volume compartilhado com o worker.
+                    configurada por canal e aplicada somente aos vídeos longos. Shorts permanecem verticais sem intro
+                    nem encerramento; escolha o canal antes de enviar.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -382,10 +395,9 @@ function MediaUploadForm({ destinationChannels }: { destinationChannels: Destina
                             onValueChange={(value) => setData('destination_channel_id', value)}
                         >
                             <SelectTrigger>
-                                <SelectValue />
+                                <SelectValue placeholder="Selecione um canal" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="global">Global (fallback)</SelectItem>
                                 {destinationChannels.map((channel) => (
                                     <SelectItem key={channel.id} value={String(channel.id)}>
                                         {channel.name}
@@ -438,7 +450,9 @@ function MediaUploadForm({ destinationChannels }: { destinationChannels: Destina
                                 onChange={(e) => setData('music_volume', e.target.value)}
                             />
                             <FieldDescription>
-                                O valor recebe +20% no render (0.12 resulta em 14,4%); a trilha entra nos 15 s finais.
+                                O volume configurado vale no início (24% por padrão). Nos vídeos longos, a trilha sobe
+                                gradualmente até 100% nos 8 segundos finais dos últimos 15 segundos. Shorts não recebem
+                                música.
                             </FieldDescription>
                             <FormError message={errors.music_volume} />
                         </Field>
@@ -457,7 +471,7 @@ function MediaUploadForm({ destinationChannels }: { destinationChannels: Destina
                         <FormError message={errors.priority} />
                     </Field>
                     <div className="flex items-end lg:col-span-2">
-                        <Button type="submit" disabled={processing || !data.file}>
+                        <Button type="submit" disabled={processing || !data.file || !data.destination_channel_id}>
                             {processing ? 'Enviando…' : 'Adicionar à biblioteca'}
                         </Button>
                     </div>
@@ -467,14 +481,20 @@ function MediaUploadForm({ destinationChannels }: { destinationChannels: Destina
     );
 }
 
-function MediaLibrary({ assets }: { assets: MediaAsset[] }) {
+function MediaLibrary({
+    assets,
+    destinationChannels,
+}: {
+    assets: MediaAsset[];
+    destinationChannels: DestinationChannel[];
+}) {
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Biblioteca configurada</CardTitle>
                 <CardDescription>
-                    Ative mais de uma mídia no mesmo escopo para o worker alternar entre elas automaticamente nos vídeos
-                    longos.
+                    Cada mídia pertence a um canal. Arquivos antigos sem canal ficam preservados, mas não entram nos
+                    vídeos até que você os associe a um destino.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -502,7 +522,37 @@ function MediaLibrary({ assets }: { assets: MediaAsset[] }) {
                                             <div className="text-xs text-muted-foreground">{asset.fileName}</div>
                                         </TableCell>
                                         <TableCell>
-                                            <div>{asset.destinationChannelName ?? 'Global'}</div>
+                                            <Select
+                                                value={
+                                                    asset.destinationChannelId
+                                                        ? String(asset.destinationChannelId)
+                                                        : 'unassigned'
+                                                }
+                                                onValueChange={(value) => {
+                                                    if (value === 'unassigned') return;
+                                                    router.patch(
+                                                        `/painel/configuracoes/midia/${asset.id}`,
+                                                        { destination_channel_id: Number(value) },
+                                                        { preserveScroll: true },
+                                                    );
+                                                }}
+                                            >
+                                                <SelectTrigger aria-label={`Canal da mídia ${asset.name}`}>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {!asset.destinationChannelId && (
+                                                        <SelectItem value="unassigned">
+                                                            Sem canal (não usada)
+                                                        </SelectItem>
+                                                    )}
+                                                    {destinationChannels.map((channel) => (
+                                                        <SelectItem key={channel.id} value={String(channel.id)}>
+                                                            {channel.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                             <div className="text-xs text-muted-foreground">
                                                 {asset.format === 'curto'
                                                     ? 'Shorts'
@@ -515,7 +565,8 @@ function MediaLibrary({ assets }: { assets: MediaAsset[] }) {
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 <Switch
-                                                    checked={asset.active}
+                                                    checked={asset.active && Boolean(asset.destinationChannelId)}
+                                                    disabled={!asset.destinationChannelId}
                                                     aria-label={`Ativar ${asset.name}`}
                                                     onCheckedChange={(active) =>
                                                         router.patch(
@@ -525,8 +576,18 @@ function MediaLibrary({ assets }: { assets: MediaAsset[] }) {
                                                         )
                                                     }
                                                 />
-                                                <Badge variant={asset.active ? 'default' : 'secondary'}>
-                                                    {asset.active ? 'Ativa' : 'Pausada'}
+                                                <Badge
+                                                    variant={
+                                                        asset.destinationChannelId && asset.active
+                                                            ? 'default'
+                                                            : 'secondary'
+                                                    }
+                                                >
+                                                    {!asset.destinationChannelId
+                                                        ? 'Sem canal'
+                                                        : asset.active
+                                                          ? 'Ativa'
+                                                          : 'Pausada'}
                                                 </Badge>
                                             </div>
                                         </TableCell>
@@ -560,13 +621,13 @@ function MediaTab({
 }: {
     assets: MediaAsset[];
     destinationChannels: DestinationChannel[];
-    configuration: PageProps['mediaConfiguration'];
+    configuration: MediaConfiguration;
 }) {
     return (
         <div className="grid gap-4">
             <MediaStatus configuration={configuration} />
             <MediaUploadForm destinationChannels={destinationChannels} />
-            <MediaLibrary assets={assets} />
+            <MediaLibrary assets={assets} destinationChannels={destinationChannels} />
         </div>
     );
 }
@@ -581,7 +642,15 @@ function PlaceholderTab({ label }: { label: string }) {
 
 export default function Settings() {
     const { props } = usePage<PageProps>();
-    const { auth, flash, mediaAssets = [], destinationChannels = [], mediaConfiguration, settings, cookiesInfo } = props;
+    const {
+        auth,
+        flash,
+        mediaAssets = [],
+        destinationChannels = [],
+        mediaConfiguration,
+        settings,
+        cookiesInfo,
+    } = props;
 
     useEffect(() => {
         if (flash?.success) toast.success(flash.success);
@@ -611,7 +680,16 @@ export default function Settings() {
                         <MediaTab
                             assets={mediaAssets}
                             destinationChannels={destinationChannels}
-                            configuration={mediaConfiguration ?? { introCount: 0, outroCount: 0, musicCount: 0, ready: false }}
+                            configuration={
+                                mediaConfiguration ?? {
+                                    introCount: 0,
+                                    outroCount: 0,
+                                    musicCount: 0,
+                                    readyChannelCount: 0,
+                                    activeChannelCount: 0,
+                                    ready: false,
+                                }
+                            }
                         />
                     </TabsContent>
                     <TabsContent value="senha" className="mt-4">

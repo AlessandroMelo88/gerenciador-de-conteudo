@@ -7,7 +7,6 @@
 PROJECT_DIR="/Users/alessandrobm1/develop/server/wordpress/canaldecortes"
 LOG_FILE="$PROJECT_DIR/scripts/resume_claude_session.log"
 DAEMON_LOG="$PROJECT_DIR/scripts/daemon_runner.log"
-CRON_LOG="$PROJECT_DIR/scripts/cron.log"
 STATUS_JSON="$PROJECT_DIR/scripts/cron_status.json"
 
 echo "================================================================"

@@ -104,7 +104,7 @@ O `watchdog.py` roda a cada **30 minutos** e executa 5 verificações essenciais
 
 ### 4.4. Validador Prévio de OAuth (`check_youtube_tokens`)
 - **Problema**: Canal ativo configurado no painel sem o arquivo `token-{slug}.json` em `/app/youtube/`.
-- **Ação**: Envia alerta com link direto para `/painel/canais` para reautenticação antes que ocorra a tentativa de upload na janela nobre (19h–22h).
+- **Ação**: Envia alerta com link direto para `/painel/canais` para reautenticação antes do próximo horário de publicação configurado para o canal.
 
 ### 4.5. Monitor de Armazenamento SSD (`check_disk_space`)
 - **Problema**: Espaço livre menor que 5 GB ou uso do disco superior a 85%.

@@ -27,17 +27,21 @@ from datetime import datetime
 
 from src.media_assets import resolve_media_assets
 from src.media_composer import compose_media, content_start_offset
-from src.media_contract import SHORTS_DURATION_SECONDS, SHORTS_DURATION_TOLERANCE_SECONDS
+from src.media_contract import (
+    SHORTS_DURATION_TOLERANCE_SECONDS,
+    SHORTS_MAX_DURATION_SECONDS,
+    SHORTS_MIN_DURATION_SECONDS,
+)
 from src.metadata_generator import generate_metadata, generate_thumbnail_text, update_clip_metadata
+from src.paths import BRANDING_DIR, VIDEOS_DIR, resolve_stored_video_path
 from src.prompt_profiles import PROMPT_PROFILE_SQL_COLUMNS, profile_from_row, profile_matches_niche
 from src.related_video import related_video_from_clip
 from src.selector import complete_moment_boundaries, normalize_shortform_moment
 from src.subtitle_detector import has_burned_subtitles
 from src.video_quality import AUDIO_ENCODER_OPTIONS, VIDEO_ENCODER_OPTIONS
 
-VIDEOS_DIR = '/app/videos'
-CLIPS_DIR = '/app/videos/clips'
-THUMBNAILS_DIR = '/app/videos/thumbnails'
+CLIPS_DIR = os.path.join(VIDEOS_DIR, 'clips')
+THUMBNAILS_DIR = os.path.join(VIDEOS_DIR, 'thumbnails')
 THUMBNAIL_FONT_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
 REQUIRED_LONGFORM_ASSETS = ('intro', 'outro', 'music')
 
@@ -134,11 +138,19 @@ def render_short_clip(
 
     Cortar, queimar legenda e aplicar watermark em chamadas FFmpeg separadas
     acumulava perdas de qualidade. Esta função compõe todas as camadas no mesmo
-    filtro e limita a saída a exatamente 30 segundos em 1080x1920.
+    filtro e mantém a duração selecionada, entre 30 e 45 segundos por padrão,
+    em 1080x1920.
     """
     duration = float(end_time) - float(start_time)
-    if abs(duration - SHORTS_DURATION_SECONDS) > SHORTS_DURATION_TOLERANCE_SECONDS:
-        raise ValueError(f'Short precisa ser renderizado com 30s, recebeu {duration:.2f}s')
+    if (
+        duration < SHORTS_MIN_DURATION_SECONDS - SHORTS_DURATION_TOLERANCE_SECONDS
+        or duration > SHORTS_MAX_DURATION_SECONDS + SHORTS_DURATION_TOLERANCE_SECONDS
+    ):
+        raise ValueError(
+            f'Short precisa ter entre {SHORTS_MIN_DURATION_SECONDS:.0f} e '
+            f'{SHORTS_MAX_DURATION_SECONDS:.0f}s, recebeu {duration:.2f}s'
+        )
+    render_duration = min(max(duration, SHORTS_MIN_DURATION_SECONDS), SHORTS_MAX_DURATION_SECONDS)
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     filter_graph = SHORTS_VERTICAL_FILTER.replace('[v]', '[short_base]')
@@ -162,7 +174,7 @@ def render_short_clip(
         if watermark_path:
             _log(f'[WATERMARK] Arquivo não encontrado: {watermark_path} — pulo overlay')
 
-    fade_out_start = SHORTS_DURATION_SECONDS - 0.20
+    fade_out_start = max(0.0, render_duration - 0.20)
     afade_filter = f'afade=t=in:ss=0:d=0.08,afade=t=out:st={fade_out_start:.2f}:d=0.20'
     command = [
         'ffmpeg',
@@ -176,7 +188,7 @@ def render_short_clip(
     command.extend(
         [
             '-t',
-            f'{SHORTS_DURATION_SECONDS:.2f}',
+            f'{render_duration:.2f}',
             '-filter_complex',
             filter_graph,
             '-map',
@@ -435,9 +447,9 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             _log(f'Clip {clip_id} não encontrado')
             return False
 
-        transcript_path = clip.get('transcript_path')
+        transcript_path = resolve_stored_video_path(clip.get('transcript_path'))
         transcript_data = clip.get('transcript_data')
-        local_path = clip.get('local_path')
+        local_path = resolve_stored_video_path(clip.get('local_path'))
 
         if not transcript_path and not transcript_data:
             err = f'Clip {clip_id} sem transcrição arquivada'
@@ -467,7 +479,9 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             with open(transcript_path, encoding='utf-8') as f:
                 transcript = json.load(f)
         else:
-            transcript = json.loads(transcript_data) if isinstance(transcript_data, str) else transcript_data
+            transcript = (
+                json.loads(transcript_data) if isinstance(transcript_data, str) else transcript_data
+            )
         if not isinstance(transcript, dict) or not isinstance(transcript.get('segments'), list):
             raise ValueError(f'Clip {clip_id} tem transcrição inválida ou vazia')
 
@@ -528,7 +542,10 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
                 )
             watermark_path = None
             if clip.get('destination_channel_slug'):
-                watermark_path = f'/app/branding/watermark-{clip["destination_channel_slug"]}.png'
+                watermark_path = os.path.join(
+                    BRANDING_DIR,
+                    f'watermark-{clip["destination_channel_slug"]}.png',
+                )
             render_short_clip(
                 clip['local_path'],
                 clip['start_time'],
@@ -552,7 +569,7 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             # único dos Shorts.
             slug = clip.get('destination_channel_slug')
             if slug:
-                watermark_path = f'/app/branding/watermark-{slug}.png'
+                watermark_path = os.path.join(BRANDING_DIR, f'watermark-{slug}.png')
                 result_path = overlay_watermark(
                     processed_clip_path, watermark_path, final_clip_path
                 )
@@ -564,9 +581,9 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
                 os.rename(processed_clip_path, final_clip_path)
 
         if video_format == 'longo':
-            # Assets visuais vêm de assets/channels/<canal> e a música de
-            # assets/audio. O banco de media_assets continua sendo fallback
-            # para instalações antigas. Shorts não passam por esta etapa.
+            # Assets do canal vêm de assets/channels/<canal>, incluindo a
+            # música em audio/. O banco mantém assets legados já associados a
+            # um destino. Shorts não passam por esta etapa.
             channel_slug = clip.get('destination_channel_slug') or clip.get('source_niche')
             media_assets = resolve_media_assets(
                 conn,
@@ -588,7 +605,7 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
                 missing = ', '.join(missing_assets)
                 raise RuntimeError(
                     f'Clip longo {clip_id} sem assets obrigatórios: {missing}. '
-                    'Configure assets/channels/<canal> e assets/audio.'
+                    'Configure assets/channels/<canal>/ e associe os assets do painel ao canal.'
                 )
 
             if media_assets:

@@ -1,19 +1,15 @@
 """
 selector.py — Seleção de momentos via IA com fallback automático.
 
-Prioridade em produção:
-  1. Anthropic Claude Haiku — se ANTHROPIC_API_KEY definida e válida
-  2. Groq GPT-OSS 20B      — fallback (usa GROQ_API_KEY já presente)
-
-Na prática hoje quem seleciona é o Groq: ANTHROPIC_API_KEY está vazia no
-container (config normal de operação), então o caminho 1 nunca roda. O texto
-editorial pode vir de prompt_profiles; sem perfil, entram as constantes de
-fallback deste módulo. Groq (inferência, free tier) não tem relação com Grok
-(modelo da xAI), que não é usado aqui.
+O provider padrão é Groq com GPT-OSS 20B. Outro provider só é usado quando
+AI_PROVIDER o seleciona explicitamente. O texto editorial pode vir de
+prompt_profiles; sem perfil, entram as constantes de fallback deste módulo.
+Groq (inferência, free tier) não tem relação com Grok (modelo da xAI).
 Ver Docs/SISTEMA-IA-SELECAO.md.
 
 Em testes: anthropic_client injetado é usado diretamente (sem fallback).
 """
+
 from __future__ import annotations
 
 import json
@@ -25,8 +21,11 @@ from typing import Literal
 
 from src.db import fetch_used_moments
 from src.fact_check_prompt import FACT_CHECK_INSTRUCTION, FAKE_NEWS_STATUSES
-from src.media_contract import SHORTS_DURATION_SECONDS
+from src.media_contract import SHORTS_MAX_DURATION_SECONDS, SHORTS_MIN_DURATION_SECONDS
 from src.prompt_profiles import profile_prompt
+
+MIN_LONGFORM_SECONDS = 420
+MAX_LONGFORM_SECONDS = 1200
 
 CONTENT_SELECTION_RULES = (
     'REGRA OBRIGATÓRIA — ANÁLISE AUTÔNOMA DA TRANSCRIÇÃO: leia e interprete todas as linhas '
@@ -40,7 +39,8 @@ CONTENT_SELECTION_RULES = (
     'incluindo a transição de entrada e saída, e exclua o bloco inteiro — nunca apenas uma frase. '
     'NÃO use posição fixa ou horário fixo, nem suponha que a propaganda esteja sempre '
     'no começo: cada vídeo pode ter publicidade em pontos e durações diferentes. No formato curto, '
-    'a única duração fixa é a janela final de exatamente 30 segundos; a posição deve ser encontrada semanticamente. Uma menção editorial '
+    f'escolha uma janela completa de {SHORTS_MIN_DURATION_SECONDS:.0f} a '
+    f'{SHORTS_MAX_DURATION_SECONDS:.0f} segundos; a posição deve ser encontrada semanticamente. Uma menção editorial '
     'a uma marca não é publicidade se não houver promoção, venda ou chamada comercial. Nenhum momento '
     'pode sobrepor publicidade, nem por poucos segundos. '
     'Para o ASSUNTO COMPLETO, encontre um único raciocínio com começo, meio e fim: introdução/contexto, '
@@ -49,7 +49,8 @@ CONTENT_SELECTION_RULES = (
     'desfecho ou conclusão, em uma pausa clara ou troca de assunto. NUNCA corte no meio de uma palavra, '
     'frase, fala, resposta, pergunta, explicação, história, piada ou raciocínio, nem em conjunções ou '
     'preposições ("mas", "porque", "então", "apesar de"). Para Shorts, procure um assunto completo '
-    'que caiba em uma janela exata de 30 segundos; não force uma janela que corte o assunto. Se não '
+    f'que caiba em uma janela de {SHORTS_MIN_DURATION_SECONDS:.0f} a '
+    f'{SHORTS_MAX_DURATION_SECONDS:.0f} segundos; não force uma janela que corte o assunto. Se não '
     'houver segmento editorial completo e seguro, retorne {"moments": []}. Se aparecer o marcador '
     '[... trecho intermediário omitido ...], trate a lacuna como desconhecida; não atravesse essa lacuna '
     'nem crie um momento que a atravesse. '
@@ -82,15 +83,17 @@ SELECTION_VALIDATION_RULES = (
 )
 
 SHORTFORM_CONTRACT_RULE = (
-    'CONTRATO TÉCNICO DO FORMATO CURTO — cada momento retornado deve ter exatamente 30 segundos: '
-    'end_time - start_time = 30. Nunca retorne um Short de 30–180 segundos nem estenda a janela '
-    'para preservar uma duração preferida; escolha uma janela editorial completa que caiba nos 30s. '
+    f'CONTRATO TÉCNICO DO FORMATO CURTO — cada momento retornado deve durar de '
+    f'{SHORTS_MIN_DURATION_SECONDS:.0f} a {SHORTS_MAX_DURATION_SECONDS:.0f} segundos: '
+    'end_time - start_time deve ficar nesse intervalo. Prefira a menor janela que preserve o assunto '
+    'completo. '
 )
 
 SYSTEM_PROMPT = (
     'Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos. '
     'Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, '
-    'com duração EXATA de 30 segundos (end_time - start_time = 30). Se o vídeo tiver menos de 30 segundos, '
+    f'com duração entre {SHORTS_MIN_DURATION_SECONDS:.0f} e {SHORTS_MAX_DURATION_SECONDS:.0f} segundos. '
+    f'Se o vídeo tiver menos de {SHORTS_MIN_DURATION_SECONDS:.0f} segundos, '
     'selecione o vídeo completo e marque-o para descarte na validação técnica. '
     + CONTENT_SELECTION_RULES
     + 'Para futebol: priorize análise tática, debate acalorado, revelação de bastidores e o COMENTÁRIO sobre um gol. '
@@ -112,11 +115,11 @@ LONG_SYSTEM_PROMPT = (
     'Você é um especialista em identificar o melhor segmento de ANÁLISE ou ENTREVISTA longa '
     'de um vídeo de futebol/esportes para virar um vídeo único no YouTube (não um short). '
     'Analise a transcrição e identifique O MELHOR segmento CONTÍNUO — não fragmente em vários '
-    'pedaços — com duração de PREFERÊNCIA ENTRE 420 e 1200 segundos (7 a 20 minutos). '
+    f'pedaços — com duração entre {MIN_LONGFORM_SECONDS} e {MAX_LONGFORM_SECONDS} segundos. '
     'Priorize um raciocínio completo: uma análise tática do início ao fim, uma resposta longa e '
     'coesa de um entrevistado, ou um debate que se desenvolve com começo, meio e fim. Se o '
-    'raciocínio natural passar de 20 minutos, pode estender até o ponto em que ele realmente '
-    'termina — não corte no meio de uma ideia só pra caber na janela preferida. Não escolha um '
+    'raciocínio natural não couber nessa duração, escolha outro segmento completo; não corte '
+    'uma ideia só para atingir o teto. Não escolha um '
     'trecho curto — o segmento PRECISA ter pelo menos 420 segundos de duração '
     '(end_time - start_time >= 420). '
     + CONTENT_SELECTION_RULES
@@ -134,7 +137,8 @@ HACKER_LIBERTARIO_PROMPT = (
     'Você é um especialista em identificar momentos virais, insights profundos e explicações técnicas de alto impacto para o canal Hacker Libertário: '
     'Inteligência Artificial (IA), Open Source, Linux, Programação, Segurança, Criptografia, Privacidade, Soberania Digital e Cultura Hacker Libertária. '
     'Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, '
-    'com duração EXATA de 30 segundos (end_time - start_time = 30). Se o vídeo tiver menos de 30 segundos, '
+    f'com duração entre {SHORTS_MIN_DURATION_SECONDS:.0f} e {SHORTS_MAX_DURATION_SECONDS:.0f} segundos. '
+    f'Se o vídeo tiver menos de {SHORTS_MIN_DURATION_SECONDS:.0f} segundos, '
     'selecione o vídeo completo e marque-o para descarte na validação técnica. '
     + CONTENT_SELECTION_RULES
     + 'DIRETRIZES LIBERTÁRIAS E EDITORIAIS INEGOCIÁVEIS: '
@@ -157,7 +161,7 @@ HACKER_LIBERTARIO_LONG_PROMPT = (
     'para o canal Hacker Libertário sobre Tecnologia, Inteligência Artificial, Linux, Open Source, Cibersegurança ou Filosofia Hacker '
     'para virar um vídeo único no YouTube (não um short). '
     'Analise a transcrição e identifique O MELHOR segmento CONTÍNUO — não fragmente em vários '
-    'pedaços — com duração de PREFERÊNCIA ENTRE 420 e 1200 segundos (7 a 20 minutos). '
+    f'pedaços — com duração entre {MIN_LONGFORM_SECONDS} e {MAX_LONGFORM_SECONDS} segundos. '
     'Priorize um raciocínio completo: uma explicação aprofundada de um conceito de IA/sistemas, '
     'uma reflexão densa sobre soberania tecnológica, ou um debate técnico do início ao fim. '
     + CONTENT_SELECTION_RULES
@@ -173,6 +177,7 @@ HACKER_LIBERTARIO_LONG_PROMPT = (
     'Responda APENAS com JSON válido, sem texto adicional:\n'
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>", "fake_news": "<positivo|negativo|inconclusivo>"}]}'
 )
+
 
 def _build_profile_selection_prompt(instruction: str, is_longo: bool) -> str:
     output_instruction = (
@@ -209,13 +214,15 @@ POLITICA_SYSTEM_PROMPT = _build_profile_selection_prompt(POLITICA_SELECTION_INST
 
 POLITICA_LONG_SELECTION_INSTRUCTION = (
     'Você é um especialista em identificar o melhor bloco completo de sabatina, debate ou análise política '
-    'para virar um vídeo longo monetizável no YouTube (7 a 20 minutos). '
-    'Analise a transcrição e identifique O MELHOR segmento CONTÍNUO com duração de PREFERÊNCIA ENTRE 420 e 1200 segundos (7 a 20 minutos). '
+    f'para virar um vídeo longo monetizável no YouTube ({MIN_LONGFORM_SECONDS // 60} a {MAX_LONGFORM_SECONDS // 60} minutos). '
+    f'Analise a transcrição e identifique O MELHOR segmento CONTÍNUO com duração entre {MIN_LONGFORM_SECONDS} e {MAX_LONGFORM_SECONDS} segundos. '
     'Priorize um bloco temático fechado e aprofundado: uma discussão completa sobre um tema polêmico, '
     'uma entrevista reveladora ou um confronto de ideias do início ao desfecho do argumento.'
 )
 
-POLITICA_LONG_SYSTEM_PROMPT = _build_profile_selection_prompt(POLITICA_LONG_SELECTION_INSTRUCTION, True)
+POLITICA_LONG_SYSTEM_PROMPT = _build_profile_selection_prompt(
+    POLITICA_LONG_SELECTION_INSTRUCTION, True
+)
 
 
 GENERIC_SELECTION_INSTRUCTION = (
@@ -249,9 +256,9 @@ def get_system_prompt(
     return LONG_SYSTEM_PROMPT if is_longo else SYSTEM_PROMPT
 
 
-MIN_SHORTFORM_SECONDS = int(SHORTS_DURATION_SECONDS)
+MIN_SHORTFORM_SECONDS = int(SHORTS_MIN_DURATION_SECONDS)
 MIN_SHORTFORM_CANDIDATE_SECONDS = 15.0
-MAX_SHORTFORM_SECONDS = 180
+MAX_SHORTFORM_SECONDS = int(SHORTS_MAX_DURATION_SECONDS)
 
 # Pequena tolerância para a borda de dois intervalos vizinhos. O filtro do
 # banco bloqueia qualquer repetição material, mas não considera 0,5 s de ruído
@@ -340,9 +347,6 @@ _INCOMPLETE_TRAILING_WORDS = frozenset(
     ]
 )
 
-MIN_LONGFORM_SECONDS = 420
-MAX_LONGFORM_SECONDS = 800
-
 # O modelo precisa de alguma folga para não começar no meio da introdução do
 # assunto nem terminar na primeira frase da conclusão. A expansão é limitada
 # por pausas da transcrição e pelo teto abaixo para não engolir o tópico seguinte.
@@ -356,7 +360,9 @@ LONGFORM_NATURAL_PAUSE_SECONDS = 2.5
 # Modelos maiores consumiam a cota diária rapidamente e, com teto curto, podiam
 # gastar toda a resposta em raciocínio antes de emitir o JSON. O 20B com
 # raciocínio baixo é suficiente para esta tarefa e deixa margem para o worker.
-GROQ_CHAT_MODEL = os.environ.get('GROQ_CHAT_MODEL', 'openai/gpt-oss-120b')
+GROQ_CHAT_MODEL = (
+    os.environ.get('GROQ_CHAT_MODEL') or os.environ.get('GROQ_MODEL') or 'openai/gpt-oss-20b'
+)
 GROQ_REASONING_EFFORT: Literal['low'] = 'low'
 SELECTOR_MAX_OUTPUT_TOKENS = 2048
 # A seleção longa precisa devolver apenas um momento em JSON. Manter a saída
@@ -895,7 +901,7 @@ def _select_via_anthropic_client(
     return _parse_moments(response.content[0].text)
 
 
-GROQ_MODEL = os.environ.get('GROQ_MODEL') or os.environ.get('GROQ_CHAT_MODEL', 'qwen/qwen3.8-27b')
+GROQ_MODEL = GROQ_CHAT_MODEL
 GROQ_MAX_OUTPUT_TOKENS = int(os.environ.get('GROQ_MAX_OUTPUT_TOKENS', '1000'))
 
 
@@ -982,7 +988,9 @@ def _enforce_longform_duration(moments: list[dict], transcript_duration: float) 
 
         # Limitar teto máximo primeiro
         if duration > MAX_LONGFORM_SECONDS:
-            _log(f'[SELECTOR] Momento longo ({duration:.1f}s) limitado para o máximo ({MAX_LONGFORM_SECONDS}s)')
+            _log(
+                f'[SELECTOR] Momento longo ({duration:.1f}s) limitado para o máximo ({MAX_LONGFORM_SECONDS}s)'
+            )
             end = start + MAX_LONGFORM_SECONDS
             duration = MAX_LONGFORM_SECONDS
             m_copy['end_time'] = end
@@ -1012,14 +1020,14 @@ def _enforce_longform_duration(moments: list[dict], transcript_duration: float) 
 def _filter_shortform_duration(
     moments: list[dict], transcript_duration: float | None = None
 ) -> list[dict]:
-    """Valida candidatos e os normaliza para janelas de 30 segundos."""
+    """Garante o mínimo de 30s e conserva durações até o máximo configurado."""
     valid: list[dict] = []
-    target_duration = SHORTS_DURATION_SECONDS
+    target_duration = SHORTS_MIN_DURATION_SECONDS
 
     if transcript_duration is not None and transcript_duration < target_duration:
         _log(
             f'[SELECTOR] Vídeo descartado: transcrição tem {transcript_duration:.1f}s, '
-            'menos que os 30s exigidos para um Short'
+            'menos que os 30s mínimos para um Short'
         )
         return valid
 
@@ -1062,12 +1070,22 @@ def _filter_shortform_duration(
                 f'[SELECTOR] Momento ajustado: duração {duration:.1f}s limitada para {MAX_SHORTFORM_SECONDS}s'
             )
             duration = MAX_SHORTFORM_SECONDS
+        else:
+            duration = max(duration, target_duration)
+        if transcript_duration is not None:
+            duration = min(duration, transcript_duration)
+        if duration < target_duration:
+            _log(
+                f'[SELECTOR] Momento descartado: há apenas {duration:.1f}s disponíveis '
+                'na transcrição'
+            )
+            continue
         normalized_start = max(0.0, start_time)
-        if transcript_duration:
-            normalized_start = min(normalized_start, transcript_duration - target_duration)
+        if transcript_duration is not None:
+            normalized_start = min(normalized_start, max(0.0, transcript_duration - duration))
         normalized = dict(m)
         normalized['start_time'] = round(normalized_start, 2)
-        normalized['end_time'] = round(normalized_start + target_duration, 2)
+        normalized['end_time'] = round(normalized_start + duration, 2)
         valid.append(normalized)
     return valid
 
@@ -1111,7 +1129,9 @@ def _clamp_moment_bounds(moments: list[dict], transcript_duration: float) -> lis
     return clamped
 
 
-def _snap_to_sentence_boundaries(moments: list[dict], segments: list[dict], buffer_end: float = 1.0) -> list[dict]:
+def _snap_to_sentence_boundaries(
+    moments: list[dict], segments: list[dict], buffer_end: float = 1.0
+) -> list[dict]:
     """Ajusta os timestamps dos momentos para respeitar os finais reais de frases do Whisper.
 
     Evita cortes no meio de uma oração ou pensamento incompleto.
@@ -1249,38 +1269,38 @@ def select_moments(
             _log(f'Erro ao selecionar momentos: {e}')
             return []
 
-    # Produção: tenta Anthropic primeiro, cai para Groq
-    api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
-    if api_key:
-        try:
+    try:
+        provider = os.environ.get('AI_PROVIDER', 'groq').strip().lower()
+        if provider == 'anthropic':
+            api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
+            if not api_key:
+                raise RuntimeError('AI_PROVIDER=anthropic exige ANTHROPIC_API_KEY configurada')
             import anthropic
 
             client = anthropic.Anthropic(api_key=api_key)
-            _log('[SELECTOR] Usando Anthropic Claude Haiku')
+            _log('[SELECTOR] Usando Anthropic por configuração explícita')
             moments = _select_via_anthropic_client(client, transcript_text, system_prompt)
-            return _finalize(moments)
-        except Exception as e:
-            _log(f'[SELECTOR] Anthropic indisponível ({e}) — fallback para Groq')
-    else:
-        _log('[SELECTOR] ANTHROPIC_API_KEY ausente — usando Groq GPT-OSS diretamente')
-
-    try:
-        moments = _select_via_groq(
-            transcript_text,
-            system_prompt,
-            max_tokens=selector_max_tokens,
-        )
+        elif provider == 'groq':
+            moments = _select_via_groq(
+                transcript_text,
+                system_prompt,
+                max_tokens=selector_max_tokens,
+            )
+        else:
+            raise ValueError(f'AI_PROVIDER inválido: {provider!r}; use groq ou anthropic')
         if not moments and is_longo and transcript_duration >= 420:
             _log('[SELECTOR] Fallback longo ativado: usando bloco principal contínuo do vídeo')
             start = 30.0 if transcript_duration > 600 else 10.0
             end = min(transcript_duration - 10.0, start + 780.0)
             if end - start >= 420:
-                moments = [{
-                    'start_time': start,
-                    'end_time': end,
-                    'score': 8,
-                    'reason': 'Recorte contínuo do tema principal do vídeo',
-                }]
+                moments = [
+                    {
+                        'start_time': start,
+                        'end_time': end,
+                        'score': 8,
+                        'reason': 'Recorte contínuo do tema principal do vídeo',
+                    }
+                ]
         return _finalize(moments)
     except Exception as e:
         _log(f'Erro ao selecionar momentos: {e}')

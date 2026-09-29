@@ -97,8 +97,8 @@
     /* Marca padrão (Canal de Cortes). */
     --brand-font-sans: 'Geist Variable', sans-serif;
     --brand-font-heading: var(--brand-font-sans);
-    --brand-logo-from: #FF6A55;
-    --brand-logo-to: #E23C33;
+    --brand-logo-from: #ff6a55;
+    --brand-logo-to: #e23c33;
 }
 
 .dark {

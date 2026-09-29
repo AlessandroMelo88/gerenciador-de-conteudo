@@ -2,6 +2,7 @@
 Testes para YouTubeUploader — upload de clips e thumbnails.
 Todas as chamadas YouTube API são mockadas.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -57,8 +58,10 @@ class TestUploadClip:
         clip_file.write_bytes(b'fake_mp4')
         yt = make_youtube_mock('blocked_vid')
         uploader = YouTubeUploader(token_file='/fake/token.json', service=yt)
+
         def _mock_validate(path):
             raise ValueError('mídia inválida')
+
         monkeypatch.setattr('src.uploader.validate_short_media', _mock_validate)
 
         with pytest.raises(ValueError, match='mídia inválida'):

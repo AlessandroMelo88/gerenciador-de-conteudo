@@ -14,7 +14,8 @@ DAEMON_LOG="$PROJECT_DIR/scripts/daemon_runner.log"
 cd "$PROJECT_DIR" || exit 1
 
 log_daemon() {
-    local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    local msg
+    msg="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
     echo "$msg"
     echo "$msg" >> "$DAEMON_LOG"
 }

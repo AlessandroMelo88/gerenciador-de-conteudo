@@ -7,6 +7,7 @@ uma etapa posterior (watermark, composição ou legenda) reduza a qualidade.
 
 import os
 
+
 def video_render_mode() -> str:
     mode = (os.environ.get('VIDEO_RENDER_MODE') or '').strip().lower()
     if mode in ('fast', 'ultra'):

@@ -2,7 +2,7 @@
 quota_manager.py — Limite diario e janela de horario para uploads YouTube.
 
 Exporta:
-  - QuotaManager: guarda contagem diaria no Redis e valida janela 19h-22h.
+  - QuotaManager: guarda contagem diária no Redis e valida horários por formato.
 """
 
 from __future__ import annotations
@@ -12,16 +12,32 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 SAO_PAULO_TZ = ZoneInfo('America/Sao_Paulo')
-DEFAULT_MAX_UPLOADS_PER_DAY = 2
+DEFAULT_MAX_UPLOADS_PER_DAY = 6
 ABSOLUTE_MAX_UPLOADS_PER_DAY = int(os.environ.get('ABSOLUTE_MAX_UPLOADS_PER_DAY', '100'))
-DEFAULT_MAX_LONGO_UPLOADS_PER_DAY = 2
+DEFAULT_MAX_LONGO_UPLOADS_PER_DAY = 3
 DEFAULT_MIN_UPLOAD_INTERVAL_MINUTES = 0
-UPLOAD_WINDOWS = [
-    (12, 14),  # Janela 1: Almoço / Meio-dia (12h às 14h BRT)
-    (19, 22),  # Janela 2: Noite / Horário Nobre (19h às 22h BRT)
-]
-UPLOAD_WINDOW_START_HOUR = 19
-UPLOAD_WINDOW_END_HOUR = 22
+DEFAULT_LONG_UPLOAD_HOURS = (6, 14, 22)
+DEFAULT_SHORTS_PEAK_HOURS = (12, 20)
+
+
+def _configured_hours(name: str, default: tuple[int, ...]) -> tuple[int, ...]:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        hours = tuple(sorted({int(part.strip()) for part in raw.split(',') if part.strip()}))
+    except ValueError as exc:
+        raise ValueError(f'{name} deve ser uma lista de horas separadas por vírgula') from exc
+    if not hours or any(hour < 0 or hour > 23 for hour in hours):
+        raise ValueError(f'{name} precisa conter horas entre 0 e 23')
+    return hours
+
+
+LONG_UPLOAD_HOURS = _configured_hours('LONG_UPLOAD_HOURS', DEFAULT_LONG_UPLOAD_HOURS)
+SHORTS_PEAK_HOURS = _configured_hours('SHORTS_PEAK_HOURS', DEFAULT_SHORTS_PEAK_HOURS)
+UPLOAD_WINDOWS = sorted(set(LONG_UPLOAD_HOURS) | set(SHORTS_PEAK_HOURS))
+UPLOAD_WINDOW_START_HOUR = min(UPLOAD_WINDOWS)
+UPLOAD_WINDOW_END_HOUR = max(UPLOAD_WINDOWS) + 1
 UPLOAD_WINDOW_START = UPLOAD_WINDOW_START_HOUR
 UPLOAD_WINDOW_END = UPLOAD_WINDOW_END_HOUR
 
@@ -58,7 +74,12 @@ class QuotaManager:
         self.min_upload_interval_minutes = max(0, int(min_upload_interval_minutes))
         self.channel_id = channel_id
 
-    def has_capacity(self, now: datetime | None = None, bypass_window: bool = False) -> bool:
+    def has_capacity(
+        self,
+        now: datetime | None = None,
+        bypass_window: bool = False,
+        format: str | None = None,
+    ) -> bool:
         """Janela + cota total, ignorando reserva por formato.
 
         Usado para decidir se o ciclo de publicação inteiro deve parar
@@ -66,7 +87,7 @@ class QuotaManager:
         de formato (outro clip de formato diferente ainda pode publicar).
         """
         now = self._local_now(now)
-        if not self._is_upload_window(now, bypass_window=bypass_window):
+        if not self._is_upload_window(now, bypass_window=bypass_window, format=format):
             return False
 
         current_count = int(self.redis_client.get(self._key(now)) or 0)
@@ -82,7 +103,7 @@ class QuotaManager:
     ) -> bool:
         """Retorna True se horario e quota (total + formato/reserva) permitirem upload."""
         now = self._local_now(now)
-        if not self.has_capacity(now=now, bypass_window=bypass_window):
+        if not self.has_capacity(now=now, bypass_window=bypass_window, format=format):
             return False
 
         if self.min_upload_interval_minutes > 0:
@@ -95,6 +116,10 @@ class QuotaManager:
         current_count = int(self.redis_client.get(self._key(now)) or 0)
         longo_count = int(self.redis_client.get(self._format_key(now, 'longo')) or 0)
         curto_count = max(0, current_count - longo_count)
+
+        slot_count = int(self.redis_client.get(self._slot_key(now, format)) or 0)
+        if slot_count >= 1:
+            return False
 
         if format == 'longo':
             return not longo_count >= self.max_longo_per_day
@@ -127,6 +152,11 @@ class QuotaManager:
             if longo_new_count == 1:
                 self.redis_client.expire(longo_key, self._seconds_until_next_midnight(now))
 
+        slot_key = self._slot_key(now, format)
+        slot_count = int(self.redis_client.incr(slot_key))
+        if slot_count == 1:
+            self.redis_client.expire(slot_key, self._seconds_until_next_midnight(now))
+
         if self.min_upload_interval_minutes > 0:
             last_upload_key = self._last_upload_key(now)
             self.redis_client.set(
@@ -156,10 +186,19 @@ class QuotaManager:
             return now.replace(tzinfo=SAO_PAULO_TZ)
         return now.astimezone(SAO_PAULO_TZ)
 
-    def _is_upload_window(self, now: datetime, bypass_window: bool = False) -> bool:
+    def _is_upload_window(
+        self,
+        now: datetime,
+        bypass_window: bool = False,
+        format: str | None = None,
+    ) -> bool:
         if bypass_window or os.environ.get('UPLOAD_WINDOW_BYPASS', 'false').lower() == 'true':
             return True
-        return any(start <= now.hour < end for start, end in UPLOAD_WINDOWS)
+        if format == 'longo':
+            return now.hour in LONG_UPLOAD_HOURS
+        if format == 'curto':
+            return now.hour in SHORTS_PEAK_HOURS
+        return now.hour in UPLOAD_WINDOWS
 
     def _key(self, now: datetime) -> str:
         date_str = now.strftime('%Y-%m-%d')
@@ -172,6 +211,9 @@ class QuotaManager:
 
     def _last_upload_key(self, now: datetime) -> str:
         return f'{self._key(now)}:last_upload_at'
+
+    def _slot_key(self, now: datetime, format: str) -> str:
+        return f'{self._key(now)}:slot:{format}:{now.hour:02d}'
 
     def _seconds_until_next_midnight(self, now: datetime) -> int:
         next_day = (now + timedelta(days=1)).date()

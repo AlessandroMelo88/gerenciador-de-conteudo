@@ -23,3 +23,10 @@ Redis; nenhuma operação de "reset" toca no Redis por padrão.
 - Recuperação de estado preso é responsabilidade do job `state_recovery` (banco), não de limpeza de cache.
 - Redis pode ser perdido sem perda de trabalho — apenas re-ingestão de vídeos antigos dentro do
   filtro de frescor (`FRESHNESS_DAYS=1`).
+
+## Atualização de retenção (28/09/2026)
+
+A limpeza automática de mídia não exclui registros: remove arquivos locais seguros, arquiva a
+transcrição no banco e preserva `source_videos`, `generated_clips` e as chaves de deduplicação.
+A exclusão definitiva de registros continua sendo uma ação explícita do painel. O frescor agora é
+configurado por canal-fonte (3 ou 1500 dias), com `FRESHNESS_DAYS=1500` como fallback legado.

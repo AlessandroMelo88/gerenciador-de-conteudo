@@ -20,6 +20,7 @@ import shutil
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+from src.paths import VIDEOS_DIR, YOUTUBE_DIR, resolve_stored_video_path
 from src.telegram_notifier import notify
 
 SAO_PAULO_TZ = ZoneInfo('America/Sao_Paulo')
@@ -57,13 +58,13 @@ def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [WATCHDOG] {msg}', flush=True)
 
 
-def check_disk_space(path: str = '/app/videos') -> dict | None:
+def check_disk_space(path: str = VIDEOS_DIR) -> dict | None:
     """Verifica espaço livre em disco no volume de vídeos."""
     target_path = path if os.path.exists(path) else '/'
     try:
         total, used, free = shutil.disk_usage(target_path)
-        total_gb = total / (1024 ** 3)
-        free_gb = free / (1024 ** 3)
+        total_gb = total / (1024**3)
+        free_gb = free / (1024**3)
         used_percent = (used / total) * 100 if total > 0 else 0
 
         if free_gb < MIN_FREE_DISK_GB or used_percent > MAX_DISK_PERCENT:
@@ -100,18 +101,17 @@ def check_ghost_clips(conn) -> int:
     for clip in clips:
         clip_id = clip['id']
         source_id = clip['source_video_id']
-        clip_path = clip.get('clip_path')
+        clip_path = resolve_stored_video_path(clip.get('clip_path'))
         status = clip.get('status')
-        source_local_path = clip.get('source_local_path')
+        source_local_path = resolve_stored_video_path(clip.get('source_local_path'))
 
         is_ghost = False
         error_reason = ''
 
-        if status in ('approved', 'pending'):
+        if status in ('approved', 'pending') and (not clip_path or not os.path.exists(clip_path)):
             # Clip já foi cortado — arquivo final deve existir
-            if not clip_path or not os.path.exists(clip_path):
-                is_ghost = True
-                error_reason = 'Arquivo .mp4 do corte não encontrado no disco (auto-cura watchdog)'
+            is_ghost = True
+            error_reason = 'Arquivo .mp4 do corte não encontrado no disco (auto-cura watchdog)'
         elif status == 'pending_cut':
             # Clip ainda não foi cortado — arquivo fonte original deve existir para permitir o corte
             if not source_local_path or not os.path.exists(source_local_path):
@@ -120,17 +120,19 @@ def check_ghost_clips(conn) -> int:
 
         if is_ghost:
             title = clip.get('title') or clip.get('source_title') or f'Clip #{clip_id}'
-            _log(f'Auto-cura: Clip fantasma #{clip_id} ("{title}") status={status}. Marcando failed: {error_reason}')
+            _log(
+                f'Auto-cura: Clip fantasma #{clip_id} ("{title}") status={status}. Marcando failed: {error_reason}'
+            )
             with conn.cursor() as cur:
                 cur.execute(
                     "UPDATE generated_clips SET status = 'failed', clip_path = NULL, "
-                    "upload_error = %s "
-                    "WHERE id = %s",
+                    'upload_error = %s '
+                    'WHERE id = %s',
                     (error_reason, clip_id),
                 )
                 # Libera o vídeo fonte se não houver outros clipes válidos
                 cur.execute(
-                    "SELECT COUNT(*) as c FROM generated_clips "
+                    'SELECT COUNT(*) as c FROM generated_clips '
                     "WHERE source_video_id = %s AND status IN ('pending_cut', 'cutting', 'pending', 'approved')",
                     (source_id,),
                 )
@@ -145,11 +147,14 @@ def check_ghost_clips(conn) -> int:
 
     if curated_count > 0:
         _log(f'{curated_count} clipe(s) fantasma(s) corrigido(s) e vagas liberadas.')
-        notify('watchdog_alert', {
-            'type': 'ghost_clips_healed',
-            'count': curated_count,
-            'message': f'Auto-cura executada: {curated_count} clipe(s) sem arquivo foram removidos da fila e as vagas de download foram liberadas.',
-        })
+        notify(
+            'watchdog_alert',
+            {
+                'type': 'ghost_clips_healed',
+                'count': curated_count,
+                'message': f'Auto-cura executada: {curated_count} clipe(s) sem arquivo foram removidos da fila e as vagas de download foram liberadas.',
+            },
+        )
 
     return curated_count
 
@@ -185,14 +190,19 @@ def check_download_window_health(conn) -> bool:
         active_recent = int(cur.fetchone().get('active_recent') or 0)
 
     if active_recent == 0:
-        _log(f'DEADLOCK DETECTADO: Janela de download cheia ({occupied}/{max_slots}) sem atividade há >{WINDOW_STUCK_HOURS}h!')
-        notify('watchdog_alert', {
-            'type': 'download_window_deadlock',
-            'occupied': occupied,
-            'max_slots': max_slots,
-            'stuck_hours': WINDOW_STUCK_HOURS,
-            'message': f'🚨 Alerta Crítico: A Janela de Download está travada em {occupied}/{max_slots} vagas sem progresso há mais de {WINDOW_STUCK_HOURS} horas. O robô está impedido de baixar novos vídeos.',
-        })
+        _log(
+            f'DEADLOCK DETECTADO: Janela de download cheia ({occupied}/{max_slots}) sem atividade há >{WINDOW_STUCK_HOURS}h!'
+        )
+        notify(
+            'watchdog_alert',
+            {
+                'type': 'download_window_deadlock',
+                'occupied': occupied,
+                'max_slots': max_slots,
+                'stuck_hours': WINDOW_STUCK_HOURS,
+                'message': f'🚨 Alerta Crítico: A Janela de Download está travada em {occupied}/{max_slots} vagas sem progresso há mais de {WINDOW_STUCK_HOURS} horas. O robô está impedido de baixar novos vídeos.',
+            },
+        )
         return False
 
     return True
@@ -212,28 +222,30 @@ def check_approval_queue_activity(conn) -> None:
 
         # Clipes criados nas últimas APPROVAL_IDLE_HOURS horas
         cur.execute(
-            'SELECT COUNT(*) AS created_recent FROM generated_clips '
-            'WHERE created_at >= %s',
+            'SELECT COUNT(*) AS created_recent FROM generated_clips WHERE created_at >= %s',
             (_horas_atras(APPROVAL_IDLE_HOURS),),
         )
         created_recent = int(cur.fetchone().get('created_recent') or 0)
 
     if pending_count == 0 and created_recent == 0:
-        _log(f'Aviso: Fila de aprovação vazia e nenhum corte gerado nas últimas {APPROVAL_IDLE_HOURS}h.')
-        notify('watchdog_alert', {
-            'type': 'empty_approval_queue',
-            'idle_hours': APPROVAL_IDLE_HOURS,
-            'message': f'⚠️ Fila de aprovação vazia há mais de {APPROVAL_IDLE_HOURS} horas no horário diurno. Verifique se os canais fonte estão publicando conteúdo novo.',
-        })
+        _log(
+            f'Aviso: Fila de aprovação vazia e nenhum corte gerado nas últimas {APPROVAL_IDLE_HOURS}h.'
+        )
+        notify(
+            'watchdog_alert',
+            {
+                'type': 'empty_approval_queue',
+                'idle_hours': APPROVAL_IDLE_HOURS,
+                'message': f'⚠️ Fila de aprovação vazia há mais de {APPROVAL_IDLE_HOURS} horas no horário diurno. Verifique se os canais fonte estão publicando conteúdo novo.',
+            },
+        )
 
 
-def check_youtube_tokens(conn, token_dir: str = '/app/youtube') -> list[str]:
+def check_youtube_tokens(conn, token_dir: str = YOUTUBE_DIR) -> list[str]:
     """Verifica se todos os canais destino ativos possuem arquivo de credencial OAuth presente."""
     warnings = []
     with conn.cursor() as cur:
-        cur.execute(
-            'SELECT id, name, slug, active FROM destination_channels WHERE active = TRUE'
-        )
+        cur.execute('SELECT id, name, slug, active FROM destination_channels WHERE active = TRUE')
         channels = cur.fetchall() or []
 
     for ch in channels:
@@ -246,11 +258,14 @@ def check_youtube_tokens(conn, token_dir: str = '/app/youtube') -> list[str]:
             warnings.append(msg)
 
     if warnings:
-        notify('oauth_warning', {
-            'type': 'missing_oauth_tokens',
-            'warnings': warnings,
-            'message': f'🔑 Alerta de OAuth: {len(warnings)} canal(is) ativo(s) sem token de publicação configurado.',
-        })
+        notify(
+            'oauth_warning',
+            {
+                'type': 'missing_oauth_tokens',
+                'warnings': warnings,
+                'message': f'🔑 Alerta de OAuth: {len(warnings)} canal(is) ativo(s) sem token de publicação configurado.',
+            },
+        )
 
     return warnings
 

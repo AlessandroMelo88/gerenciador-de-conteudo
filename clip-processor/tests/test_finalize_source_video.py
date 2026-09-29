@@ -6,6 +6,7 @@ Antes, `_maybe_finalize_source_video` só encerrava quando ao menos um clip
 tinha sido publicado: vídeo com todos os clips rejeitados segurava a vaga
 para sempre.
 """
+
 from unittest.mock import MagicMock, patch
 
 from src.publisher import (
@@ -57,13 +58,11 @@ def make_conn(counts, clips=None, settled=None):
 
 def source_update(cursor):
     return [
-        (sql, params) for sql, params in cursor.executed
-        if sql.startswith('UPDATE source_videos')
+        (sql, params) for sql, params in cursor.executed if sql.startswith('UPDATE source_videos')
     ]
 
 
 class TestFinalizeSourceVideo:
-
     def test_todos_rejeitados_apaga_raw_e_libera_vaga(self, tmp_path):
         raw = tmp_path / 'abc.mp4'
         raw.write_bytes(b'raw')
@@ -140,7 +139,6 @@ class TestFinalizeSourceVideo:
 
 
 class TestFinalizeSettledSourceVideos:
-
     def test_varre_selecting_com_clips_todos_terminais(self):
         conn, cursor = make_conn(
             {'total_count': 1, 'non_terminal_count': 0, 'published_count': 0},
@@ -181,9 +179,11 @@ def test_recovery_periodico_chama_a_varredura():
     import src.main as main
 
     conn = MagicMock()
-    with patch.object(main, 'get_db_connection', return_value=conn), \
-            patch.object(main, 'recover_stuck_downloads'), \
-            patch.object(main, 'recover_stuck_selecting'), \
-            patch.object(main, 'finalize_settled_source_videos') as sweep:
+    with (
+        patch.object(main, 'get_db_connection', return_value=conn),
+        patch.object(main, 'recover_stuck_downloads'),
+        patch.object(main, 'recover_stuck_selecting'),
+        patch.object(main, 'finalize_settled_source_videos') as sweep,
+    ):
         main.run_recovery_once()
     sweep.assert_called_once_with(conn)

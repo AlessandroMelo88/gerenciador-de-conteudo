@@ -273,7 +273,9 @@ class TestAIPipelineIntegration:
         # Verificar que save_transcript foi chamado após transcrição bem-sucedida
         mock_save.assert_called_once_with(mock_db_conn, 'vid001aaaaaa', mock_transcript)
         # Verificar que select_moments foi chamado (fmt default 'curto' quando ausente no row)
-        mock_select.assert_called_once_with(mock_transcript, anthropic_client=None, fmt='curto', niche='futebol')
+        mock_select.assert_called_once_with(
+            mock_transcript, anthropic_client=None, fmt='curto', niche='futebol'
+        )
 
     def test_process_ai_pipeline_passes_source_prompt_profile(self, mock_db_conn, mocker):
         """O perfil ativo do canal-fonte chega ao seletor sem usar perfil de outro nicho."""
@@ -465,3 +467,39 @@ class TestBlacklistGuard:
         poll_all_channels(mock_db_conn, mock_redis)
 
         assert mock_insert.call_count >= 1
+
+
+class TestSourceInputPriority:
+    """A prioridade configurada no canal vale para a fila atual e a futura."""
+
+    @staticmethod
+    def _normalized_query(cursor):
+        return ' '.join(cursor.execute.call_args.args[0].split())
+
+    def test_downloaded_ai_queue_uses_live_source_priority_after_video_priority(self, mock_db_conn):
+        from src.rss_poller import _process_downloaded_videos
+
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+
+        _process_downloaded_videos(mock_db_conn)
+
+        query = self._normalized_query(cursor)
+        assert 'JOIN source_channels sc ON sc.id = sv.channel_id' in query
+        assert (
+            'ORDER BY sv.priority DESC, COALESCE(sc.input_priority, 0) DESC, '
+            'sv.queue_position IS NULL'
+        ) in query
+
+    def test_pending_cuts_use_live_source_priority_before_format_order(self, mock_db_conn):
+        from src.rss_poller import _process_pending_clips
+
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+
+        _process_pending_clips(mock_db_conn)
+
+        query = self._normalized_query(cursor)
+        assert 'JOIN source_channels sc ON sc.id = sv.channel_id' in query
+        assert (
+            'ORDER BY sv.priority DESC, COALESCE(sc.input_priority, 0) DESC, '
+            "(sv.format = 'longo') DESC, gc.id ASC"
+        ) in query

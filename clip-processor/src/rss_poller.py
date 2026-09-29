@@ -18,20 +18,30 @@ Comportamento:
 
 from __future__ import annotations
 
-import os
 import json
+import os
 import re
-from datetime import datetime, timezone
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 
 import feedparser
 import redis
 import requests
 import yt_dlp
+
+from src.db import (
+    fetch_used_moments,
+    get_db_connection,
+    insert_video,
+    reconcile_source_video_status,
+    update_status,
+)
+from src.dedup import is_seen
+from src.paths import VIDEOS_DIR, YOUTUBE_COOKIES_FILE, resolve_stored_video_path
+from src.prompt_profiles import PROMPT_PROFILE_SQL_COLUMNS, profile_from_row, profile_matches_niche
+from src.queue_controls import _cleanup_partial
+from src.selector import MIN_LONGFORM_SECONDS, insert_selected_moments, select_moments
+from src.transcriber import save_transcript, transcribe_video
+from src.video_processor import process_clip
 
 # Palavras-chave que bloqueiam ingestão de vídeos — títulos com qualquer uma são ignorados
 _TITLE_BLOCK_KEYWORDS = [
@@ -57,23 +67,9 @@ def _is_blocked_title(title: str) -> bool:
     return any(kw in t for kw in _TITLE_BLOCK_KEYWORDS)
 
 
-from src.db import (
-    fetch_used_moments,
-    get_db_connection,
-    insert_video,
-    reconcile_source_video_status,
-    update_status,
-)
-from src.dedup import is_seen
-from src.prompt_profiles import PROMPT_PROFILE_SQL_COLUMNS, profile_from_row, profile_matches_niche
-from src.selector import MIN_LONGFORM_SECONDS, insert_selected_moments, select_moments
-from src.transcriber import save_transcript, transcribe_video
-from src.video_processor import process_clip
-from src.queue_controls import _cleanup_partial
-
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
-SOURCE_FILE_ROOT = os.path.realpath('/app/videos')
+SOURCE_FILE_ROOT = os.path.realpath(VIDEOS_DIR)
 CLIP_STATUSES_NEED_RAW = ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')
 AUTO_INGEST_FORMATS = {'auto', 'curto', 'longo'}
 
@@ -108,7 +104,7 @@ def _release_failed_source_files(conn, video_id: str) -> None:
     if not source or source.get('status') != 'failed' or source.get('has_active_clip'):
         return
 
-    transcript_path = source.get('transcript_path')
+    transcript_path = resolve_stored_video_path(source.get('transcript_path'))
     transcript_archived = not transcript_path or not os.path.isfile(transcript_path)
     if transcript_path and os.path.isfile(transcript_path):
         try:
@@ -118,7 +114,7 @@ def _release_failed_source_files(conn, video_id: str) -> None:
         except (OSError, ValueError) as exc:
             _log(f'[AI] Transcrição de {video_id} não pôde ser arquivada; arquivo mantido: {exc}')
 
-    paths = [source.get('local_path')]
+    paths = [resolve_stored_video_path(source.get('local_path'))]
     if transcript_archived:
         paths.append(transcript_path)
     for raw_path in paths:
@@ -175,13 +171,9 @@ def _detect_format(video_id: str) -> str:
             'no_color': True,
             'skip_download': True,
             'remote_components': ['ejs:github'],
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['mweb', 'tv', 'ios', 'android']
-                }
-            },
+            'extractor_args': {'youtube': {'player_client': ['mweb', 'tv', 'ios', 'android']}},
         }
-        cookie_file = '/app/youtube/cookies.txt'
+        cookie_file = YOUTUBE_COOKIES_FILE
         if os.path.exists(cookie_file):
             ydl_opts['cookiefile'] = cookie_file
 
@@ -393,15 +385,20 @@ def _process_downloaded_videos(conn) -> None:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                'SELECT youtube_video_id, local_path FROM source_videos '
-                "WHERE status = 'downloaded' AND local_path IS NOT NULL AND paused = FALSE "
-                'ORDER BY priority DESC, queue_position IS NULL, queue_position ASC, published_at DESC'
+                'SELECT sv.youtube_video_id, sv.local_path FROM source_videos sv '
+                'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
+                "WHERE sv.status = 'downloaded' AND sv.local_path IS NOT NULL AND sv.paused = FALSE "
+                'ORDER BY sv.priority DESC, COALESCE(sc.input_priority, 0) DESC, '
+                'sv.queue_position IS NULL, sv.queue_position ASC, sv.published_at DESC'
             )
             downloaded_videos = cur.fetchall()
 
         for video_row in downloaded_videos:
             vid_id = video_row['youtube_video_id']
-            vid_path = video_row['local_path']
+            vid_path = resolve_stored_video_path(video_row['local_path'])
+            if not vid_path or not os.path.exists(vid_path):
+                _log(f'[AI] Arquivo fonte de {vid_id} não está disponível em {vid_path}')
+                continue
             _log(f'[AI] Iniciando pipeline de IA para {vid_id}')
             try:
                 _process_ai_pipeline(conn, vid_id, vid_path)
@@ -421,9 +418,11 @@ def _process_pending_clips(conn) -> None:
         cur.execute(
             'SELECT gc.id, gc.source_video_id FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
+            'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
             "WHERE gc.status = 'pending_cut' AND sv.paused = FALSE "
             'AND sv.local_path IS NOT NULL AND sv.transcript_path IS NOT NULL '
-            "ORDER BY (sv.format = 'longo') DESC, gc.id ASC"
+            'ORDER BY sv.priority DESC, COALESCE(sc.input_priority, 0) DESC, '
+            "(sv.format = 'longo') DESC, gc.id ASC"
         )
         rows = cur.fetchall()
 
@@ -480,7 +479,9 @@ def poll_all_channels(
         try:
             lock_acquired = bool(redis_client.set(lock_key, '1', ex=600, nx=True))
             if not lock_acquired:
-                _log('AVISO: Outro ciclo de poll_all_channels já está em execução — pulando para evitar sobrecarga.')
+                _log(
+                    'AVISO: Outro ciclo de poll_all_channels já está em execução — pulando para evitar sobrecarga.'
+                )
                 if _own_db:
                     db_conn.close()
                 return

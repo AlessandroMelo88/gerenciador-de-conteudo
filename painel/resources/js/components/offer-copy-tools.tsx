@@ -23,7 +23,7 @@ export function InfoHint({ title, children }: { title: string; children: ReactNo
             <PopoverTrigger
                 type="button"
                 aria-label={title}
-                className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 onMouseEnter={() => setOpen(true)}
                 onMouseLeave={() => !pinned.current && setOpen(false)}
                 onClick={(e) => {
@@ -47,10 +47,12 @@ export function CtaHint() {
     return (
         <InfoHint title="O que é CTA?">
             <p>
-                <strong className="text-foreground">CTA</strong> (call to action, ou chamada para ação) é a frase curta que diz
-                ao leitor o que fazer agora, normalmente no botão ou logo antes do link.
+                <strong className="text-foreground">CTA</strong> (call to action, ou chamada para ação) é a frase curta
+                que diz ao leitor o que fazer agora, normalmente no botão ou logo antes do link.
             </p>
-            <p>Bons exemplos: “Garanta o seu”, “Ver oferta”, “Quero conhecer”. Até 60 caracteres, um verbo no começo.</p>
+            <p>
+                Bons exemplos: “Garanta o seu”, “Ver oferta”, “Quero conhecer”. Até 60 caracteres, um verbo no começo.
+            </p>
         </InfoHint>
     );
 }
@@ -81,7 +83,8 @@ export function GenerateCopyButton({
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
-                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                    'X-CSRF-TOKEN':
+                        (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
                 },
                 body: JSON.stringify({
                     affiliate_url: source.affiliateUrl.trim() || null,
@@ -100,7 +103,10 @@ export function GenerateCopyButton({
 
             const previous = { ...current };
             const hadText = Boolean(previous.cta_text || previous.copy_short || previous.copy_long);
-            onGenerated({ cta_text: body.cta_text, copy_short: body.copy_short, copy_long: body.copy_long }, body.provider);
+            onGenerated(
+                { cta_text: body.cta_text, copy_short: body.copy_short, copy_long: body.copy_long },
+                body.provider,
+            );
             toast.success('Texto gerado com IA. Revise antes de salvar.', {
                 action: hadText ? { label: 'Desfazer', onClick: () => onGenerated(previous, null) } : undefined,
             });
@@ -118,10 +124,18 @@ export function GenerateCopyButton({
             size="sm"
             onClick={generate}
             disabled={loading || !hasUrl}
-            title={hasUrl ? 'Gera CTA, texto curto e texto longo a partir da página' : 'Preencha o link de afiliado ou a página do produto'}
+            title={
+                hasUrl
+                    ? 'Gera CTA, texto curto e texto longo a partir da página'
+                    : 'Preencha o link de afiliado ou a página do produto'
+            }
             className="h-7 gap-1.5 text-xs"
         >
-            {loading ? <Loader2Icon className="size-3.5 animate-spin" /> : <SparklesIcon className="size-3.5 text-violet-500" />}
+            {loading ? (
+                <Loader2Icon className="size-3.5 animate-spin" />
+            ) : (
+                <SparklesIcon className="size-3.5 text-violet-500" />
+            )}
             {loading ? 'Gerando…' : 'Gerar com IA'}
         </Button>
     );

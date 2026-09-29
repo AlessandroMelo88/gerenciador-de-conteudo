@@ -34,14 +34,14 @@ import sys
 # Alias `db_connect` para preservar o nome esperado pelos testes
 # (patch('src.rejeitar.db_connect', ...))
 from src.db import get_db_connection as db_connect
-
-VIDEOS_DIR = '/app/videos'
+from src.paths import VIDEOS_DIR, resolve_stored_video_path
 
 
 def _clip_artifacts(clip_id: int, clip_path: str | None) -> list[str]:
     """Arquivos em disco de um clip. Só clip_path e thumbnail_path ficam no banco;
     <id>_raw.mp4, <id>_subtitled.mp4 e <id>.srt não estão em coluna nenhuma
     (CLAUDE.md, regra 3), então o caminho é montado pelo id."""
+    clip_path = resolve_stored_video_path(clip_path)
     paths = [
         os.path.join(VIDEOS_DIR, 'clips', f'{clip_id}.mp4'),
         os.path.join(VIDEOS_DIR, 'clips', f'{clip_id}_raw.mp4'),
@@ -81,10 +81,7 @@ def rejeitar(clip_id: int) -> int:
     conn = db_connect()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                'SELECT clip_path, status FROM generated_clips WHERE id=%s',
-                (clip_id,)
-            )
+            cur.execute('SELECT clip_path, status FROM generated_clips WHERE id=%s', (clip_id,))
             row = cur.fetchone()
 
             if not row:
@@ -101,7 +98,7 @@ def rejeitar(clip_id: int) -> int:
             cur.execute(
                 "UPDATE generated_clips SET status='rejected' "
                 "WHERE id=%s AND status IN ('pending', 'approved')",
-                (clip_id,)
+                (clip_id,),
             )
             affected = cur.rowcount
 

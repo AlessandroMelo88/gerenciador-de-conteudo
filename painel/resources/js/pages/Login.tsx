@@ -13,7 +13,7 @@ export default function LoginPage() {
             <div className="grid min-h-svh lg:grid-cols-2">
                 <div className="flex flex-col gap-4 p-6 md:p-10">
                     <div className="flex justify-center gap-2 md:justify-start">
-                        <div className="flex items-center gap-2 font-medium font-display">
+                        <div className="flex items-center gap-2 font-display font-medium">
                             <BrandMark className="size-6 rounded-md" iconClassName="size-4" />
                             {brand.name}
                         </div>

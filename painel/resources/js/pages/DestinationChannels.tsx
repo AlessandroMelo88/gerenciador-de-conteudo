@@ -6,7 +6,6 @@ import { Landmark, Trophy, Mic, PlusCircle, Trash2, Edit2, Search, Sparkles } fr
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
 import { PromptProfileSelect, type PromptProfile } from '@/components/prompt-profile-select';
-import { Badge } from '@/components/ui/badge';
 import { ChannelTemplateModal, type TemplateConfig } from '@/components/channel-template-modal';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -43,29 +42,29 @@ type PageProps = {
 
 function NicheIcon({ niche }: { niche: string }) {
     const n = (niche ?? '').toLowerCase();
-    if (n.includes('política') || n.includes('politica')) return <Landmark className="w-5 h-5 text-white" />;
-    if (n.includes('podcast')) return <Mic className="w-5 h-5 text-white" />;
-    return <Trophy className="w-5 h-5 text-white" />;
+    if (n.includes('política') || n.includes('politica')) return <Landmark className="h-5 w-5 text-white" />;
+    if (n.includes('podcast')) return <Mic className="h-5 w-5 text-white" />;
+    return <Trophy className="h-5 w-5 text-white" />;
 }
 
 function NicheBadge({ niche }: { niche: string }) {
     const n = (niche ?? '').toLowerCase();
     if (n.includes('política') || n.includes('politica')) {
         return (
-            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+            <span className="rounded-lg border border-purple-500/20 bg-purple-500/10 px-2.5 py-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400">
                 🏛️ Política
             </span>
         );
     }
     if (n.includes('podcast')) {
         return (
-            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
                 🎙️ Podcast
             </span>
         );
     }
     return (
-        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+        <span className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
             ⚽ Futebol
         </span>
     );
@@ -147,11 +146,7 @@ function ChannelDialog({
 
                     <Field>
                         <FieldLabel>Nicho</FieldLabel>
-                        <NicheCombobox
-                            niches={niches}
-                            value={data.niche}
-                            onChange={(val) => setData('niche', val)}
-                        />
+                        <NicheCombobox niches={niches} value={data.niche} onChange={(val) => setData('niche', val)} />
                         {errors.niche && <p className="text-xs text-destructive">{errors.niche}</p>}
                     </Field>
 
@@ -231,7 +226,7 @@ export default function DestinationChannels() {
             {
                 preserveScroll: true,
                 onSuccess: () => toast.success(`Canal ${!channel.active ? 'ativado' : 'pausado'}`),
-            }
+            },
         );
     };
 
@@ -245,7 +240,11 @@ export default function DestinationChannels() {
     const counts = {
         todos: channels.length,
         futebol: channels.filter((c) => (c.niche ?? '').toLowerCase() === 'futebol').length,
-        politica: channels.filter((c) => (c.niche ?? '').toLowerCase().includes('politica') || (c.niche ?? '').toLowerCase().includes('política')).length,
+        politica: channels.filter(
+            (c) =>
+                (c.niche ?? '').toLowerCase().includes('politica') ||
+                (c.niche ?? '').toLowerCase().includes('política'),
+        ).length,
         podcast: channels.filter((c) => (c.niche ?? '').toLowerCase() === 'podcast').length,
     };
 
@@ -253,7 +252,9 @@ export default function DestinationChannels() {
         const matchesTab =
             activeTab === 'todos' ||
             (activeTab === 'futebol' && (c.niche ?? '').toLowerCase() === 'futebol') ||
-            (activeTab === 'politica' && ((c.niche ?? '').toLowerCase().includes('politica') || (c.niche ?? '').toLowerCase().includes('política'))) ||
+            (activeTab === 'politica' &&
+                ((c.niche ?? '').toLowerCase().includes('politica') ||
+                    (c.niche ?? '').toLowerCase().includes('política'))) ||
             (activeTab === 'podcast' && (c.niche ?? '').toLowerCase() === 'podcast');
 
         const matchesSearch =
@@ -281,7 +282,7 @@ export default function DestinationChannels() {
                                 style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)', color: '#fff' }}
                                 className="shadow-sm hover:brightness-105"
                             >
-                                <PlusCircle className="w-4 h-4 mr-1.5" /> Novo Canal Destino
+                                <PlusCircle className="mr-1.5 h-4 w-4" /> Novo Canal Destino
                             </Button>
                         }
                     />
@@ -290,7 +291,7 @@ export default function DestinationChannels() {
                 <div className="flex flex-col gap-4">
                     {/* Subtabs de nicho + Toggle Quadro/Tabela + Busca */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl border border-border bg-card w-fit">
+                        <div className="flex w-fit flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-1.5">
                             <button
                                 type="button"
                                 onClick={() => setActiveTab('todos')}
@@ -301,7 +302,7 @@ export default function DestinationChannels() {
                                 }`}
                             >
                                 <span>Todos</span>
-                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono">
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px]">
                                     {counts.todos}
                                 </span>
                             </button>
@@ -311,11 +312,11 @@ export default function DestinationChannels() {
                                 className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                                     activeTab === 'futebol'
                                         ? 'bg-emerald-600 text-white shadow-sm'
-                                        : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                                        : 'text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400'
                                 }`}
                             >
                                 <span>⚽ Futebol</span>
-                                <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 font-mono text-[10px]">
                                     {counts.futebol}
                                 </span>
                             </button>
@@ -325,11 +326,11 @@ export default function DestinationChannels() {
                                 className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                                     activeTab === 'politica'
                                         ? 'bg-purple-600 text-white shadow-sm'
-                                        : 'text-purple-600 dark:text-purple-400 hover:bg-purple-500/10'
+                                        : 'text-purple-600 hover:bg-purple-500/10 dark:text-purple-400'
                                 }`}
                             >
                                 <span>🏛️ Política</span>
-                                <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 font-mono text-[10px]">
                                     {counts.politica}
                                 </span>
                             </button>
@@ -340,11 +341,11 @@ export default function DestinationChannels() {
                                     className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                                         activeTab === 'podcast'
                                             ? 'bg-amber-600 text-white shadow-sm'
-                                            : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                                            : 'text-amber-600 hover:bg-amber-500/10 dark:text-amber-400'
                                     }`}
                                 >
                                     <span>🎙️ Podcast</span>
-                                    <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                    <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 font-mono text-[10px]">
                                         {counts.podcast}
                                     </span>
                                 </button>
@@ -352,11 +353,11 @@ export default function DestinationChannels() {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
+                            <div className="flex overflow-hidden rounded-lg border bg-card p-0.5">
                                 <button
                                     type="button"
                                     onClick={() => setViewMode('grid')}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                                         viewMode === 'grid'
                                             ? 'bg-primary text-primary-foreground shadow-sm'
                                             : 'text-muted-foreground hover:text-foreground'
@@ -368,7 +369,7 @@ export default function DestinationChannels() {
                                 <button
                                     type="button"
                                     onClick={() => setViewMode('list')}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                                         viewMode === 'list'
                                             ? 'bg-primary text-primary-foreground shadow-sm'
                                             : 'text-muted-foreground hover:text-foreground'
@@ -380,75 +381,96 @@ export default function DestinationChannels() {
                             </div>
 
                             <div className="relative">
-                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Buscar canal..."
-                                    className="h-10 w-[200px] pl-9 pr-3 rounded-xl text-xs bg-card"
+                                    className="h-10 w-[200px] rounded-xl bg-card pr-3 pl-9 text-xs"
                                 />
                             </div>
                         </div>
                     </div>
 
                     {viewMode === 'grid' ? (
-                        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                             {filtered.map((channel) => {
-                                const isPol = (channel.niche ?? '').toLowerCase().includes('política') || (channel.niche ?? '').toLowerCase().includes('politica');
-                                const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                                const isPol =
+                                    (channel.niche ?? '').toLowerCase().includes('política') ||
+                                    (channel.niche ?? '').toLowerCase().includes('politica');
+                                const bgGrad = isPol
+                                    ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)'
+                                    : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
                                 const isAuth = channel.oauthStatus === 'authorized';
 
                                 return (
                                     <div
                                         key={channel.id}
-                                        className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 shadow-xs hover:border-primary/30 transition-all"
+                                        className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/30"
                                     >
                                         <div className="flex items-start gap-3">
                                             {channel.hasWatermark && channel.watermarkUrl ? (
                                                 <img
                                                     src={channel.watermarkUrl}
                                                     alt={channel.name}
-                                                    className="w-11 h-11 rounded-xl object-cover shrink-0 shadow-sm border border-border bg-black/20"
+                                                    className="h-11 w-11 shrink-0 rounded-xl border border-border bg-black/20 object-cover shadow-sm"
                                                 />
                                             ) : (
-                                                <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0 shadow-sm" style={{ background: bgGrad }}>
+                                                <div
+                                                    className="grid h-11 w-11 shrink-0 place-items-center rounded-xl shadow-sm"
+                                                    style={{ background: bgGrad }}
+                                                >
                                                     <NicheIcon niche={channel.niche} />
                                                 </div>
                                             )}
                                             <div className="min-w-0 flex-1">
-                                                <div className="font-bold text-sm tracking-tight truncate text-foreground">{channel.name}</div>
-                                                <div className="font-mono text-[11px] text-muted-foreground truncate">{channel.slug}</div>
+                                                <div className="truncate text-sm font-bold tracking-tight text-foreground">
+                                                    {channel.name}
+                                                </div>
+                                                <div className="truncate font-mono text-[11px] text-muted-foreground">
+                                                    {channel.slug}
+                                                </div>
                                             </div>
                                             <NicheBadge niche={channel.niche} />
                                         </div>
 
                                         <div className="flex items-center gap-2">
                                             <span
-                                                className={`flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border ${
+                                                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11.5px] font-semibold ${
                                                     isAuth
-                                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                                                        : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                                                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                                        : 'border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400'
                                                 }`}
                                             >
-                                                <span className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                                <span
+                                                    className={`h-1.5 w-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                                />
                                                 {isAuth ? 'OAuth autorizado' : 'Sem autorização'}
                                             </span>
-                                            <span className="font-mono text-[10.5px] text-muted-foreground truncate" title={channel.youtubeChannelId}>
+                                            <span
+                                                className="truncate font-mono text-[10.5px] text-muted-foreground"
+                                                title={channel.youtubeChannelId}
+                                            >
                                                 {channel.youtubeChannelId}
                                             </span>
                                         </div>
 
                                         <div className="rounded-xl border border-border bg-muted/40 p-3">
-                                            <div className="flex items-center justify-between text-xs mb-2">
+                                            <div className="mb-2 flex items-center justify-between text-xs">
                                                 <span className="text-muted-foreground">Cota diária restante</span>
-                                                <span className="font-mono font-semibold text-foreground">5 de 5 slots</span>
+                                                <span className="font-mono font-semibold text-foreground">
+                                                    5 de 5 slots
+                                                </span>
                                             </div>
-                                            <div className="h-1.5 rounded-full bg-black/10 dark:bg-white/[.08] overflow-hidden">
-                                                <div className="h-full rounded-full bg-emerald-500" style={{ width: '100%' }} />
+                                            <div className="h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/[.08]">
+                                                <div
+                                                    className="h-full rounded-full bg-emerald-500"
+                                                    style={{ width: '100%' }}
+                                                />
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                                        <div className="flex items-center gap-2 border-t border-border/60 pt-2">
                                             <Switch
                                                 checked={channel.active}
                                                 onCheckedChange={() => toggleActive(channel)}
@@ -461,28 +483,32 @@ export default function DestinationChannels() {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => setTemplateModalChannel(channel)}
-                                                className="h-8 px-2.5 rounded-lg text-xs border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                                                className="h-8 rounded-lg border-amber-500/30 px-2.5 text-xs text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
                                             >
-                                                <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" /> Template 9:16
+                                                <Sparkles className="mr-1 h-3.5 w-3.5 text-amber-500" /> Template 9:16
                                             </Button>
                                             <ChannelDialog
                                                 channel={channel}
                                                 niches={niches}
                                                 promptProfiles={promptProfiles}
                                                 trigger={
-                                                    <Button variant="outline" size="sm" className="h-8 px-3 rounded-lg text-xs">
-                                                        <Edit2 className="w-3.5 h-3.5 mr-1" /> Editar
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 rounded-lg px-3 text-xs"
+                                                    >
+                                                        <Edit2 className="mr-1 h-3.5 w-3.5" /> Editar
                                                     </Button>
                                                 }
                                             />
                                             <ConfirmButton
                                                 variant="destructive"
                                                 size="sm"
-                                                className="h-8 w-8 p-0 rounded-lg"
+                                                className="h-8 w-8 rounded-lg p-0"
                                                 description={`Excluir canal "${channel.name}"?`}
                                                 onConfirm={() => deleteChannel(channel)}
                                             >
-                                                <Trash2 className="w-3.5 h-3.5" />
+                                                <Trash2 className="h-3.5 w-3.5" />
                                             </ConfirmButton>
                                         </div>
                                     </div>
@@ -494,35 +520,45 @@ export default function DestinationChannels() {
                                 niches={niches}
                                 promptProfiles={promptProfiles}
                                 trigger={
-                                    <div className="rounded-2xl border-2 border-dashed border-border/80 p-8 flex flex-col items-center justify-center gap-3 text-center hover:border-primary/50 cursor-pointer transition-colors min-h-[220px]">
-                                        <div className="w-12 h-12 rounded-xl bg-muted/60 grid place-items-center">
-                                            <PlusCircle className="w-6 h-6 text-muted-foreground" />
+                                    <div className="flex min-h-[220px] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border/80 p-8 text-center transition-colors hover:border-primary/50">
+                                        <div className="grid h-12 w-12 place-items-center rounded-xl bg-muted/60">
+                                            <PlusCircle className="h-6 w-6 text-muted-foreground" />
                                         </div>
                                         <div>
-                                            <div className="font-bold text-sm text-foreground">Conectar Novo Canal</div>
-                                            <div className="text-xs text-muted-foreground mt-0.5">Cadastre um canal do YouTube para receber clipes</div>
+                                            <div className="text-sm font-bold text-foreground">Conectar Novo Canal</div>
+                                            <div className="mt-0.5 text-xs text-muted-foreground">
+                                                Cadastre um canal do YouTube para receber clipes
+                                            </div>
                                         </div>
                                     </div>
                                 }
                             />
                         </div>
                     ) : (
-                        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                        <div className="overflow-hidden rounded-2xl border border-border bg-card">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="hover:bg-transparent">
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Canal</TableHead>
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Nicho</TableHead>
-                                        <TableHead className="px-5 py-3.5 text-xs font-semibold">Status OAuth</TableHead>
+                                        <TableHead className="px-5 py-3.5 text-xs font-semibold">
+                                            Status OAuth
+                                        </TableHead>
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Channel ID</TableHead>
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Ativo</TableHead>
-                                        <TableHead className="px-5 py-3.5 text-xs font-semibold text-right">Ações</TableHead>
+                                        <TableHead className="px-5 py-3.5 text-right text-xs font-semibold">
+                                            Ações
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filtered.map((channel) => {
-                                        const isPol = (channel.niche ?? '').toLowerCase().includes('política') || (channel.niche ?? '').toLowerCase().includes('politica');
-                                        const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                                        const isPol =
+                                            (channel.niche ?? '').toLowerCase().includes('política') ||
+                                            (channel.niche ?? '').toLowerCase().includes('politica');
+                                        const bgGrad = isPol
+                                            ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)'
+                                            : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
                                         const isAuth = channel.oauthStatus === 'authorized';
                                         return (
                                             <TableRow key={channel.id} className="hover:bg-muted/30">
@@ -532,16 +568,23 @@ export default function DestinationChannels() {
                                                             <img
                                                                 src={channel.watermarkUrl}
                                                                 alt={channel.name}
-                                                                className="w-8 h-8 rounded-lg object-cover shrink-0 border border-border bg-black/20"
+                                                                className="h-8 w-8 shrink-0 rounded-lg border border-border bg-black/20 object-cover"
                                                             />
                                                         ) : (
-                                                            <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: bgGrad }}>
+                                                            <div
+                                                                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
+                                                                style={{ background: bgGrad }}
+                                                            >
                                                                 <NicheIcon niche={channel.niche} />
                                                             </div>
                                                         )}
                                                         <div>
-                                                            <div className="font-semibold text-foreground">{channel.name}</div>
-                                                            <div className="font-mono text-[11px] text-muted-foreground">{channel.slug}</div>
+                                                            <div className="font-semibold text-foreground">
+                                                                {channel.name}
+                                                            </div>
+                                                            <div className="font-mono text-[11px] text-muted-foreground">
+                                                                {channel.slug}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </TableCell>
@@ -550,13 +593,15 @@ export default function DestinationChannels() {
                                                 </TableCell>
                                                 <TableCell className="px-5 py-3">
                                                     <span
-                                                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
+                                                        className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${
                                                             isAuth
-                                                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                                                                : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                                                                ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                                                : 'border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400'
                                                         }`}
                                                     >
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                                        <span
+                                                            className={`h-1.5 w-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                                        />
                                                         {isAuth ? 'Autorizado' : 'Pendente'}
                                                     </span>
                                                 </TableCell>
@@ -575,29 +620,34 @@ export default function DestinationChannels() {
                                                             variant="outline"
                                                             size="sm"
                                                             onClick={() => setTemplateModalChannel(channel)}
-                                                            className="h-8 px-2.5 rounded-lg text-xs border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                                                            className="h-8 rounded-lg border-amber-500/30 px-2.5 text-xs text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
                                                             title="Personalizar Template 9:16"
                                                         >
-                                                            <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" /> Template
+                                                            <Sparkles className="mr-1 h-3.5 w-3.5 text-amber-500" />{' '}
+                                                            Template
                                                         </Button>
                                                         <ChannelDialog
                                                             channel={channel}
                                                             niches={niches}
                                                             promptProfiles={promptProfiles}
                                                             trigger={
-                                                                <Button variant="outline" size="sm" className="h-8 px-2.5 rounded-lg text-xs">
-                                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="h-8 rounded-lg px-2.5 text-xs"
+                                                                >
+                                                                    <Edit2 className="h-3.5 w-3.5" />
                                                                 </Button>
                                                             }
                                                         />
                                                         <ConfirmButton
                                                             variant="destructive"
                                                             size="sm"
-                                                            className="h-8 w-8 p-0 rounded-lg"
+                                                            className="h-8 w-8 rounded-lg p-0"
                                                             description={`Excluir canal "${channel.name}"?`}
                                                             onConfirm={() => deleteChannel(channel)}
                                                         >
-                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                            <Trash2 className="h-3.5 w-3.5" />
                                                         </ConfirmButton>
                                                     </div>
                                                 </TableCell>

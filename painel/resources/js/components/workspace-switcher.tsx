@@ -24,7 +24,15 @@ export type Workspace = {
     gradient?: string;
 };
 
-function WorkspaceMark({ workspace, className, iconClassName }: { workspace: Workspace; className?: string; iconClassName?: string }) {
+function WorkspaceMark({
+    workspace,
+    className,
+    iconClassName,
+}: {
+    workspace: Workspace;
+    className?: string;
+    iconClassName?: string;
+}) {
     if (!workspace.icon) {
         return <BrandMark className={className} iconClassName={iconClassName} />;
     }
@@ -58,7 +66,9 @@ export function WorkspaceSwitcher({ workspaces, active }: { workspaces: Workspac
                         >
                             <WorkspaceMark workspace={active} className="size-9 rounded-xl" iconClassName="size-4.5" />
                             <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-display font-bold text-foreground">{label(active).name}</span>
+                                <span className="truncate font-display font-bold text-foreground">
+                                    {label(active).name}
+                                </span>
                                 <span className="truncate text-xs text-muted-foreground">{label(active).tagline}</span>
                             </div>
                             <ChevronsUpDownIcon className="ml-auto size-4 text-muted-foreground" />
@@ -77,7 +87,11 @@ export function WorkspaceSwitcher({ workspaces, active }: { workspaces: Workspac
                                 onClick={() => workspace.key !== active.key && router.visit(workspace.home)}
                                 className="cursor-pointer gap-2 p-2"
                             >
-                                <WorkspaceMark workspace={workspace} className="size-7 rounded-lg" iconClassName="size-3.5" />
+                                <WorkspaceMark
+                                    workspace={workspace}
+                                    className="size-7 rounded-lg"
+                                    iconClassName="size-3.5"
+                                />
                                 <div className="grid flex-1 leading-tight">
                                     <span className="text-sm font-medium">{label(workspace).name}</span>
                                     <span className="text-xs text-muted-foreground">{label(workspace).tagline}</span>

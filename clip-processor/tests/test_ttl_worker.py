@@ -7,7 +7,7 @@ em vez de requests.post direto — testes agora patcham src.ttl_worker.notify.
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from src.ttl_worker import run_ttl_once
 

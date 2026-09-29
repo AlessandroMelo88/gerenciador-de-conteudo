@@ -16,16 +16,12 @@ export function PasswordInput({ className, ...props }: React.ComponentProps<type
 
     return (
         <div className="relative">
-            <Input
-                {...props}
-                type={visible ? 'text' : 'password'}
-                className={cn('pr-10', className)}
-            />
+            <Input {...props} type={visible ? 'text' : 'password'} className={cn('pr-10', className)} />
             <button
                 type="button"
                 tabIndex={-1}
                 onClick={() => setVisible((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                 aria-label={visible ? 'Esconder senha' : 'Ver senha'}
             >
                 {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

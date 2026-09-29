@@ -70,17 +70,20 @@ class AssistantController extends Controller
 
         $channelsSummary = $destChannels->map(function ($ch) {
             $name = $ch->name ?? $ch->slug ?? 'Canal';
-            return "- {$name} (Nicho: {$ch->niche}, Slug: {$ch->slug}, Ativo: " . ($ch->active ? 'Sim' : 'Não') . ')';
+
+            return "- {$name} (Nicho: {$ch->niche}, Slug: {$ch->slug}, Ativo: ".($ch->active ? 'Sim' : 'Não').')';
         })->implode("\n");
 
         $sourcesSummary = $sourceChannels->map(function ($sc) {
             $name = $sc->channel_name ?? 'Canal Fonte';
+
             return "- {$name} (Nicho: {$sc->target_niche})";
         })->implode("\n");
 
         $recentClipsSummary = $recentClips->map(function ($clip) {
             $title = $clip->title ?: $clip->sourceVideo?->title ?: 'Sem título';
             $channel = $clip->destinationChannel?->name ?: 'Geral';
+
             return "- '{$title}' no canal {$channel} (Publicado em: {$clip->published_at})";
         })->implode("\n");
 
@@ -153,9 +156,10 @@ PROMPT;
             ]);
 
             if ($response->failed()) {
-                Log::error('Groq API Error: ' . $response->body());
+                Log::error('Groq API Error: '.$response->body());
+
                 return response()->json([
-                    'error' => 'Erro ao comunicar com a Groq API: ' . ($response->json('error.message') ?: $response->status()),
+                    'error' => 'Erro ao comunicar com a Groq API: '.($response->json('error.message') ?: $response->status()),
                 ], 500);
             }
 
@@ -165,9 +169,10 @@ PROMPT;
                 'response' => $content,
             ]);
         } catch (\Exception $e) {
-            Log::error('AssistantController Exception: ' . $e->getMessage());
+            Log::error('AssistantController Exception: '.$e->getMessage());
+
             return response()->json([
-                'error' => 'Erro interno ao processar a pergunta: ' . $e->getMessage(),
+                'error' => 'Erro interno ao processar a pergunta: '.$e->getMessage(),
             ], 500);
         }
     }

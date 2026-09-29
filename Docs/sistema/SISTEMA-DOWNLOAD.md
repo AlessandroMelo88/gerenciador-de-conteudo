@@ -33,18 +33,26 @@ A fila continua sendo PostgreSQL.
 - `curto`: duração da fonte menor que 420 s;
 - `longo`: duração da fonte igual ou maior que 420 s;
 - janela padrão de download: 6 curtos e 4 longos;
-- janela de frescor: `FRESHNESS_DAYS`, padrão 365 dias no código;
-- ordem: `priority DESC`, `queue_position` e `published_at DESC`.
+- janela de frescor configurada por canal-fonte no painel: 3 ou 1500 dias;
+- `FRESHNESS_DAYS=1500` é somente o fallback para registros sem valor de canal;
+- registros sem `published_at` usam `created_at` para o filtro e a ordenação da janela;
+- ordem: `priority DESC`, `queue_position` e data efetiva (`published_at` ou `created_at`) DESC.
 
 A ocupação considera raw local, estados ativos e clips que ainda precisam do raw. O ciclo baixa apenas
 o déficit de cada formato.
+
+Apagar o arquivo bruto libera disco sem apagar a linha em `source_videos`, a transcrição (`transcript_text`
+e `transcript_data`) ou os clips e metadados associados. Assim, o assunto continua pesquisável e pode
+ser localizado para novos cortes. Uma busca editorial pode combinar referências de fontes e pessoas
+diferentes quando tratam do mesmo tema. A busca do painel consulta a transcrição e os metadados dos
+clips e apresenta cada fonte separadamente; cada corte continua vinculado à sua origem no banco.
 
 ## Download com yt-dlp
 
 `download_video`:
 
 - usa `bestvideo[height<=1080]+bestaudio/best` e mescla em MP4;
-- verifica pelo menos 2 GB livres em `/app/videos`;
+- verifica pelo menos 2 GB livres em `VIDEOS_DIR` (no Docker, `/app/videos`);
 - tenta até 3 vezes;
 - espera 60 s entre tentativas;
 - não repete erros identificados como privado, removido, indisponível ou bloqueado por região;

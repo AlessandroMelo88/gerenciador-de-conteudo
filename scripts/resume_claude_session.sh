@@ -23,7 +23,8 @@ export SHELL="/bin/zsh"
 cd "$PROJECT_DIR" || exit 1
 
 log() {
-    local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    local msg
+    msg="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
     echo "$msg"
     echo "$msg" >> "$LOG_FILE"
 }

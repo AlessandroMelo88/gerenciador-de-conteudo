@@ -63,6 +63,7 @@ except ModuleNotFoundError:
 
         def start(self):
             return None
+
     BlockingScheduler = _FallbackScheduler
 else:
     BlockingScheduler = _BlockingScheduler
@@ -81,6 +82,7 @@ def pipeline_enabled() -> bool:
         'yes',
         'on',
     }
+
 
 SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
 if sentry_sdk and SENTRY_DSN:
@@ -248,8 +250,8 @@ if __name__ == '__main__':
     log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")}')
     log(f'[ACQU] YOUTUBE_WAIT_FOR_HD: {os.environ.get("YOUTUBE_WAIT_FOR_HD", "true")}')
     log(f'[ACQU] AUTO_INGEST_FORMAT: {os.environ.get("AUTO_INGEST_FORMAT", "auto")}')
-    log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
-    log(f'[ACQU] MAX_LONGO_UPLOADS_PER_DAY: {os.environ.get("MAX_LONGO_UPLOADS_PER_DAY", "2")}')
+    log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "6")}')
+    log(f'[ACQU] MAX_LONGO_UPLOADS_PER_DAY: {os.environ.get("MAX_LONGO_UPLOADS_PER_DAY", "3")}')
     log(f'[ACQU] MIN_UPLOAD_INTERVAL_MINUTES: {os.environ.get("MIN_UPLOAD_INTERVAL_MINUTES", "0")}')
     log(
         f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)'

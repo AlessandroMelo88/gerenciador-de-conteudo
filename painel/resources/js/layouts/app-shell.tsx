@@ -30,9 +30,11 @@ export function AppShell({ title, user, description, actions, children, withToas
         <SidebarProvider style={shellStyle}>
             {withToaster && <Toaster />}
             <AppSidebar variant="inset" user={user} />
-            <SidebarInset className="min-w-0 flex-1 w-full max-w-full overflow-x-hidden">
+            <SidebarInset className="w-full max-w-full min-w-0 flex-1 overflow-x-hidden">
                 <SiteHeader title={title} description={description} actions={actions} />
-                <div className="flex flex-1 flex-col gap-4 px-3 py-4 sm:px-4 md:gap-6 md:py-6 lg:px-6 min-w-0 w-full max-w-full">{children}</div>
+                <div className="flex w-full max-w-full min-w-0 flex-1 flex-col gap-4 px-3 py-4 sm:px-4 md:gap-6 md:py-6 lg:px-6">
+                    {children}
+                </div>
             </SidebarInset>
         </SidebarProvider>
     );

@@ -14,6 +14,7 @@ Comportamento:
   - Limpa artefatos de download incompleto após cada falha e varre os órfãos de
     crash (processo morto sem passar pelo except) a cada ciclo do pipeline
 """
+
 from __future__ import annotations
 
 import glob
@@ -26,9 +27,9 @@ from datetime import datetime
 import yt_dlp
 from yt_dlp.utils import DownloadError
 
+from src.paths import VIDEOS_DIR, YOUTUBE_COOKIES_FILE
 from src.queue_controls import PauseAborted
 
-VIDEOS_DIR = '/app/videos'
 MIN_FREE_BYTES = 2 * 1024**3  # 2 GB
 # Respostas definitivas para o ciclo atual. Estreias futuras e lives ainda não
 # iniciadas não são falhas transitórias: repetir em intervalos de 60s só segura
@@ -185,18 +186,13 @@ def download_video(video_id: str, output_path: str | None = None) -> bool:
         'fragment_retries': 0,
         'progress_hooks': [_abort_if_paused],
         'remote_components': ['ejs:github'],
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['mweb', 'tv', 'ios', 'android']
-            }
-        },
+        'extractor_args': {'youtube': {'player_client': ['mweb', 'tv', 'ios', 'android']}},
     }
 
-    cookie_file = '/app/youtube/cookies.txt'
+    cookie_file = YOUTUBE_COOKIES_FILE
     if os.path.exists(cookie_file):
         ydl_opts['cookiefile'] = cookie_file
-        if 'extractor_args' in ydl_opts:
-            del ydl_opts['extractor_args']
+        ydl_opts.pop('extractor_args', None)
 
     for attempt in range(1, 4):
         try:

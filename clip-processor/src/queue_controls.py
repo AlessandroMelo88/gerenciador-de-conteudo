@@ -9,6 +9,7 @@ import subprocess
 from datetime import datetime
 
 from src.db import get_db_connection
+from src.paths import VIDEOS_DIR
 
 _CLIP_STATUSES_NEED_RAW = ('pending_cut', 'cutting')
 
@@ -185,7 +186,7 @@ def can_delete_raw(conn, source_video_id: int) -> tuple[bool, str]:
     return True, ''
 
 
-def _cleanup_partial(youtube_video_id: str, videos_dir: str = '/app/videos') -> None:
+def _cleanup_partial(youtube_video_id: str, videos_dir: str = VIDEOS_DIR) -> None:
     """Apaga o raw e os temporários de download de um vídeo (best-effort)."""
     import glob
 

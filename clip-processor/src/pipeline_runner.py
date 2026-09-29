@@ -1,15 +1,17 @@
 """Execução dos ciclos de ingestão e publicação do pipeline."""
+
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import redis as redis_lib
 
 from src.db import get_db_connection, update_status
-from src.fair_queue import channel_cap, fair_pick
 from src.downloader import VIDEOS_DIR, cleanup_stale_downloads, download_video
+from src.fair_queue import channel_cap, fair_pick
+from src.paths import resolve_stored_video_path
 from src.publisher import publish_pending_clips
 from src.queue_controls import _CLIP_STATUSES_NEED_RAW, _cleanup_partial
 from src.rss_poller import poll_all_channels
@@ -32,8 +34,12 @@ def _log(msg: str) -> None:
 DOWNLOAD_WINDOW_PER_CHANNEL = int(os.environ.get('DOWNLOAD_WINDOW_PER_CHANNEL', 10))
 
 # Fallback só se a consulta aos canais destino falhar.
-DOWNLOAD_WINDOW_FUTEBOL = int(os.environ.get('DOWNLOAD_WINDOW_FUTEBOL', DOWNLOAD_WINDOW_PER_CHANNEL))
-DOWNLOAD_WINDOW_POLITICA = int(os.environ.get('DOWNLOAD_WINDOW_POLITICA', DOWNLOAD_WINDOW_PER_CHANNEL))
+DOWNLOAD_WINDOW_FUTEBOL = int(
+    os.environ.get('DOWNLOAD_WINDOW_FUTEBOL', DOWNLOAD_WINDOW_PER_CHANNEL)
+)
+DOWNLOAD_WINDOW_POLITICA = int(
+    os.environ.get('DOWNLOAD_WINDOW_POLITICA', DOWNLOAD_WINDOW_PER_CHANNEL)
+)
 
 # Aliases de compatibilidade
 DOWNLOAD_WINDOW_CURTO = int(os.environ.get('DOWNLOAD_WINDOW_CURTO', 6))
@@ -70,16 +76,20 @@ def _niche_windows(db_conn) -> list:
     try:
         with db_conn.cursor() as cur:
             cur.execute(
-                "SELECT LOWER(TRIM(niche)) AS niche, COUNT(*) AS n "
-                "FROM destination_channels WHERE active = TRUE "
-                "GROUP BY LOWER(TRIM(niche))"
+                'SELECT LOWER(TRIM(niche)) AS niche, COUNT(*) AS n '
+                'FROM destination_channels WHERE active = TRUE '
+                'GROUP BY LOWER(TRIM(niche))'
             )
             rows = cur.fetchall() or []
     except Exception as e:
         _log(f'Falha ao ler canais destino ({e}) — usando janela padrão')
         return [('futebol', DOWNLOAD_WINDOW_FUTEBOL), ('politica', DOWNLOAD_WINDOW_POLITICA)]
 
-    windows = [(row['niche'], int(row['n']) * DOWNLOAD_WINDOW_PER_CHANNEL) for row in rows if row.get('niche')]
+    windows = [
+        (row['niche'], int(row['n']) * DOWNLOAD_WINDOW_PER_CHANNEL)
+        for row in rows
+        if row.get('niche')
+    ]
     return sorted(windows, key=lambda w: (w[0] != 'futebol', w[0]))
 
 
@@ -123,7 +133,7 @@ def _select_pending_videos(db_conn) -> list:
                 'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
                 'LEFT JOIN generated_clips gc ON gc.source_video_id = sv.id '
                 'WHERE ('
-                '  (LOWER(COALESCE(sc.target_niche, \'futebol\')) = %s) '
+                "  (LOWER(COALESCE(sc.target_niche, 'futebol')) = %s) "
                 "  OR (%s = 'futebol' AND (sc.target_niche IS NULL OR sc.target_niche = ''))"
                 ') AND ('
                 '  sv.local_path IS NOT NULL '
@@ -149,19 +159,20 @@ def _select_pending_videos(db_conn) -> list:
 
         with db_conn.cursor() as cur:
             cur.execute(
-                "SELECT sv.youtube_video_id, sv.channel_id, "
-                "COALESCE(sc.input_priority, 0) AS input_priority "
-                "FROM source_videos sv "
-                "LEFT JOIN source_channels sc ON sc.id = sv.channel_id "
+                'SELECT sv.youtube_video_id, sv.channel_id, '
+                'COALESCE(sc.input_priority, 0) AS input_priority '
+                'FROM source_videos sv '
+                'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
                 "WHERE sv.status = 'pending' AND sv.paused = FALSE "
-                "AND ("
+                'AND ('
                 "  (LOWER(COALESCE(sc.target_niche, 'futebol')) = %s) "
                 "  OR (%s = 'futebol' AND (sc.target_niche IS NULL OR sc.target_niche = ''))"
-                ") "
-                "AND sv.published_at >= NOW() - (COALESCE(sc.freshness_days, %s) * INTERVAL '1 day') "
-                "ORDER BY sv.priority DESC, COALESCE(sc.input_priority, 0) DESC, "
-                "sv.queue_position IS NULL, sv.queue_position ASC, "
-                "sv.published_at DESC LIMIT %s",
+                ') '
+                'AND COALESCE(sv.published_at, sv.created_at) >= '
+                "NOW() - (COALESCE(sc.freshness_days, %s) * INTERVAL '1 day') "
+                'ORDER BY sv.priority DESC, COALESCE(sc.input_priority, 0) DESC, '
+                'sv.queue_position IS NULL, sv.queue_position ASC, '
+                'COALESCE(sv.published_at, sv.created_at) DESC LIMIT %s',
                 (niche, niche, FRESHNESS_DAYS, deficit * CANDIDATES_PER_SLOT),
             )
             candidates = [dict(row) for row in cur.fetchall()]
@@ -233,18 +244,21 @@ def reconcile_active_window(db_conn) -> None:
     """Verifica vídeos na janela ativa cujo arquivo não existe mais em disco e limpa."""
     with db_conn.cursor() as cur:
         cur.execute(
-            "SELECT id, youtube_video_id, local_path, status FROM source_videos "
+            'SELECT id, youtube_video_id, local_path, status FROM source_videos '
             "WHERE local_path IS NOT NULL OR status IN ('selecting', 'downloading', 'transcribing')"
         )
         rows = cur.fetchall()
 
     for row in rows:
         vid_id = row['youtube_video_id']
-        local_path = row.get('local_path')
-        if not local_path or not os.path.exists(local_path):
-            if not _clips_need_raw(db_conn, vid_id):
-                update_status(db_conn, vid_id, 'failed', clear_local_path=True)
-                _log(f'Reconciliação: vídeo {vid_id} sem arquivo em disco — local_path limpo e status failed')
+        local_path = resolve_stored_video_path(row.get('local_path'))
+        if (not local_path or not os.path.exists(local_path)) and not _clips_need_raw(
+            db_conn, vid_id
+        ):
+            update_status(db_conn, vid_id, 'failed', clear_local_path=True)
+            _log(
+                f'Reconciliação: vídeo {vid_id} sem arquivo em disco — local_path limpo e status failed'
+            )
 
 
 def _download_pending_videos(db_conn) -> None:
@@ -348,7 +362,9 @@ def run_pipeline_once(db_conn=None, redis_client=None):
                     },
                 )
         else:
-            _log('ALLOW_LOCAL_DOWNLOAD=true: downloads gerenciados pelo worker local (IP residencial)')
+            _log(
+                'ALLOW_LOCAL_DOWNLOAD=true: downloads gerenciados pelo worker local (IP residencial)'
+            )
 
         if _acquire_redis_lock(
             redis_client,
@@ -533,7 +549,9 @@ def run_ingest_cycle(db_conn=None, redis_client=None):
                     },
                 )
         else:
-            _log('ALLOW_LOCAL_DOWNLOAD=true: downloads gerenciados pelo worker local (IP residencial)')
+            _log(
+                'ALLOW_LOCAL_DOWNLOAD=true: downloads gerenciados pelo worker local (IP residencial)'
+            )
 
         _log('Ciclo de ingestão finalizado')
     finally:

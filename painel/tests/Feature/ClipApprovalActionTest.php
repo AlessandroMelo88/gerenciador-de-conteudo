@@ -81,7 +81,7 @@ it('keeps the clip and shows an error when the sidecar is unreachable', function
     // então a falha HTTP é simulada no client (o que rejectClip lança em 5xx/timeout).
     $this->mock(ClipProcessorClient::class, fn ($mock) => $mock
         ->shouldReceive('rejectClip')
-        ->andThrow(new \RuntimeException('Erro ao rejeitar clip: HTTP 500')));
+        ->andThrow(new RuntimeException('Erro ao rejeitar clip: HTTP 500')));
     $user = User::factory()->create();
     $clip = GeneratedClip::factory()->create(['status' => 'pending']);
 

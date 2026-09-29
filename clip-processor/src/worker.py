@@ -115,22 +115,23 @@ def _run_maintenance(conn, redis_client) -> None:
     run_ttl_once(conn=conn, redis_client=redis_client)
 
 
-def run_stage_once(stage: str) -> None:
-    """Executa uma rodada da etapa informada; erros não derrubam o loop."""
+def run_stage_once(stage: str) -> bool:
+    """Executa uma rodada e informa se a etapa terminou sem erro."""
     if stage != 'maintenance' and not pipeline_enabled():
         _log(stage, 'Pausado por PIPELINE_ENABLED=false')
-        return
+        return True
 
     conn = None
     redis_client = None
     lock = None
+    success = True
     try:
         conn = get_db_connection()
         redis_client = _redis_client()
         lock = _acquire_stage_lock(redis_client, stage)
         if lock is None:
             _log(stage, 'Outra instância já está executando esta etapa — pulando')
-            return
+            return True
 
         if stage == 'poll':
             poll_sources_only(db_conn=conn, redis_client=redis_client)
@@ -149,6 +150,7 @@ def run_stage_once(stage: str) -> None:
             raise ValueError(f'Etapa desconhecida: {stage}')
     except Exception as exc:
         _log(stage, f'ERRO na rodada: {exc}')
+        success = False
     finally:
         _release_stage_lock(redis_client, lock)
         if conn is not None:
@@ -156,6 +158,7 @@ def run_stage_once(stage: str) -> None:
                 conn.close()
             except Exception:
                 pass
+    return success
 
 
 def _shutdown(signum, frame) -> None:
@@ -163,7 +166,7 @@ def _shutdown(signum, frame) -> None:
     STOP.set()
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stage', choices=STAGES, default=os.environ.get('WORKER_STAGE', 'poll'))
     parser.add_argument(
@@ -171,6 +174,11 @@ def main() -> None:
         type=int,
         default=int(os.environ.get('WORKER_INTERVAL_SECONDS', '0')),
         help='intervalo entre rodadas; 0 usa o padrão da etapa',
+    )
+    parser.add_argument(
+        '--once',
+        action='store_true',
+        help='executa uma rodada e sai com código diferente de zero se houver erro',
     )
     args = parser.parse_args()
     interval = max(1, args.interval or DEFAULT_INTERVALS[args.stage])
@@ -190,6 +198,9 @@ def main() -> None:
             if conn is not None:
                 conn.close()
 
+    if args.once:
+        return 0 if run_stage_once(args.stage) else 1
+
     while not STOP.is_set():
         started = time.monotonic()
         run_stage_once(args.stage)
@@ -197,6 +208,8 @@ def main() -> None:
         _log(args.stage, f'Próxima rodada em {interval}s (duração={elapsed:.1f}s)')
         STOP.wait(interval)
 
+    return 0
+
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

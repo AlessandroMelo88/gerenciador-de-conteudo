@@ -38,8 +38,8 @@ clip-publisher   -> publishing -> published
 clip-maintenance -> recovery + TTL
 ~~~
 
-Todos usam PostgreSQL como fila durável e o volume compartilhado
-`/app/videos`. Cada etapa possui uma trava Redis própria com token e TTL; uma
+Todos usam PostgreSQL como fila durável e o diretório compartilhado configurado
+por `VIDEOS_DIR` (no Docker, `/app/videos`). Cada etapa possui uma trava Redis própria com token e TTL; uma
 instância por etapa é o perfil ativo. `process_clip` ainda faz a transição
 atômica `pending_cut -> cutting` como segunda proteção contra duplicidade.
 
@@ -47,10 +47,13 @@ atômica `pending_cut -> cutting` como segunda proteção contra duplicidade.
 
 - `PIPELINE_ENABLED=false` pausa todos os workers de negócio, mas mantém o
   sidecar e a manutenção disponíveis.
-- `AUTO_INGEST_FORMAT=curto` mantém o destino Hacker Libertário no contrato de
-  Shorts: 9:16, 1080×1920 e 30 segundos exatos.
-- `MAX_UPLOADS_PER_DAY=6` e `MIN_UPLOAD_INTERVAL_MINUTES=60` permanecem
-  aplicados por destino; publicação não é paralelizada.
+- `FRESHNESS_DAYS=1500` é fallback; cada canal-fonte configura 3 ou 1500 dias no painel.
+- `AI_PROVIDER=groq` usa `GROQ_CHAT_MODEL=openai/gpt-oss-20b`; outro provider precisa ser configurado e ativado explicitamente.
+- Shorts duram de 30 a 45 segundos por padrão. `SHORTS_MAX_DURATION_SECONDS`
+  permite configurar um teto maior para testes.
+- `MAX_UPLOADS_PER_DAY=6`, `MAX_LONGO_UPLOADS_PER_DAY=3` e
+  `MAX_CURTO_UPLOADS_PER_DAY=3` são aplicados por destino. Longos são liberados
+  às 06h, 14h e 22h; Shorts às 12h e 20h, no horário de São Paulo.
 - o worker de IA recupera `transcribing` antigo para `downloaded` quando há raw;
   sem raw, marca `failed` depois de duas horas.
 - o renderer recupera `cutting` somente no boot, nunca durante um encode ativo.
@@ -72,3 +75,9 @@ docker compose up -d --force-recreate clip-processor clip-poller clip-downloader
 Mudanças no Dockerfile, dependências ou pacotes do sistema exigem `--build`.
 Não use `FLUSHALL` para destravar a fila; investigue o status no PostgreSQL e
 a chave Redis específica da etapa.
+
+## Workers diretos no Linux/macOS
+
+O mesmo pipeline pode rodar no host com cron, sem Docker para os workers. A
+configuração de serviços, diretórios, horários, logs e remoção segura do bloco
+de cron está em [EXECUCAO-NATIVA-CRON.md](EXECUCAO-NATIVA-CRON.md).

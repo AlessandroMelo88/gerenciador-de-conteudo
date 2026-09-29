@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('destination_channels')) {
+        if (! Schema::hasTable('destination_channels')) {
             Schema::create('destination_channels', function (Blueprint $table) {
                 $table->id();
                 $table->string('slug', 50)->unique();
@@ -22,7 +22,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('source_channels')) {
+        if (! Schema::hasTable('source_channels')) {
             Schema::create('source_channels', function (Blueprint $table) {
                 $table->id();
                 $table->string('youtube_channel_id', 64)->unique();
@@ -36,7 +36,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('source_videos')) {
+        if (! Schema::hasTable('source_videos')) {
             Schema::create('source_videos', function (Blueprint $table) {
                 $table->id();
                 $table->string('youtube_video_id', 64)->unique();
@@ -54,7 +54,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('generated_clips')) {
+        if (! Schema::hasTable('generated_clips')) {
             Schema::create('generated_clips', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedBigInteger('source_video_id');

@@ -1,44 +1,42 @@
-# 📋 Regras de Negócio e Gatilhos Operacionais — Canal de Cortes
+# Regras operacionais atuais — Canal de Cortes
 
-Este documento resume as regras de negócio, limites diários de download e postagem, e gatilhos de auto-expurgo do sistema.
+Este documento descreve os padrões atuais do pipeline. Valores podem ser ajustados por canal ou
+no `.env`, conforme indicado.
 
----
+## Publicação por canal de destino
 
-## 1. 🎯 Metas Diárias de Publicação (Cota do Canal)
-* **Meta Diária:** **10 vídeos por dia**
-  * ⚽ **Futebol em Cortes:** 5 publicações por dia
-  * 🏛️ **Cortes da Política:** 5 publicações por dia
-* **Horários / Janelas de Upload:**
-  * Meio-dia (12:00 BRT)
-  * Noite (19:00 BRT)
-  * **Ou imediato:** se aprovado manualmente pelo operador no painel.
+- O limite padrão é 6 vídeos por dia: até 3 longos e até 3 Shorts.
+- Vídeos longos têm três horários diários: 06h, 14h e 22h no fuso `America/Sao_Paulo`, separados
+  por oito horas.
+- Shorts têm janelas de pico às 12h e 20h. Com esses dois horários, o máximo efetivamente agendado
+  é dois Shorts por dia; `SHORTS_PEAK_HOURS` pode receber mais horários se necessário.
+- Há no máximo um upload de cada formato por canal em cada horário configurado. A publicação
+  depende de fila pronta, quota, aprovação quando exigida, OAuth e disponibilidade do YouTube.
 
----
+## Frescor das fontes
 
-## 2. 📥 Janela de Download e Captação
-* **Teto Máximo por Ciclo:** **20 vídeos no total** (10 futebol + 10 política).
-* **Idade Máxima do Conteúdo (48 Horas):**
-  * O monitor de RSS e o worker residencial filtram estritamente:  
-    `published_at >= NOW() - INTERVAL 2 DAY`.
-  * **Motivo:** Notícias de futebol e política perdem relevância rapidamente. Qualquer matéria com mais de 2 dias é ignorada.
+Cada canal-fonte define no painel se aceita vídeos publicados nos últimos 3 ou 1500 dias.
+`FRESHNESS_DAYS=1500` é o fallback para linhas sem configuração. A fila mantém prioridade,
+posição configurada e data de publicação.
 
----
+## Seleção e duração
 
-## 3. 🤖 Seleção e Ranqueamento por IA
-* **Modo Vídeos Longos:**
-  * Duração permitida: **7 a 20 minutos** (trava rígida máxima de 30 minutos).
-* **Modo Vídeos Curtos (Shorts):**
-  * Duração permitida: **30 a 180 segundos** (máximo 3 minutos).
-* **Ranqueamento (Score 1 a 10):**
-  * A IA atribui nota para cada momento viral identificado.
-  * O operador revisa e aprova os **10 melhores clips** na **Fila de Aprovação**.
+- Shorts duram de 30 a 45 segundos por padrão. `SHORTS_MAX_DURATION_SECONDS` permite testar um
+  limite maior sem mudar o mínimo de 30 segundos.
+- Vídeos longos usam um único segmento contínuo de 420 a 1200 segundos (7 a 20 minutos).
+- A seleção usa score e regras editoriais por canal; as aprovações do painel dependem de
+  `MANUAL_APPROVAL_REQUIRED`.
 
----
+## Limpeza e histórico pesquisável
 
-## 4. 🧹 Gatilhos de Auto-Expurgo e Limpeza de Disco (Watchdog & TTL)
-* **Auto-Purge de Vídeos Velhos:**  
-  Vídeos pendentes com mais de 48 horas são automaticamente marcados como descartados e removidos da fila de download.
-* **Liberação de Disco Imediata:**  
-  Após a publicação no YouTube (ou rejeição de um clipe), os arquivos brutos `.mp4` e `.jpg` locais são apagados, mantendo o consumo de disco do servidor sempre baixo (dentro da cota gratuita).
-* **Proteção de CPU:**  
-  Nenhum processo de renderização pode ultrapassar o teto estipulado, evitando congelamento ou sobrecarga do servidor.
+Limpeza de disco remove arquivos locais quando eles não são mais necessários. Ela preserva as
+linhas de `source_videos` e `generated_clips`, as transcrições (`transcript_text` e
+`transcript_data`) e os metadados no PostgreSQL. Os assuntos continuam pesquisáveis para encontrar
+novos cortes, inclusive em fontes de pessoas diferentes que abordem o mesmo tema. Cada corte
+permanece ligado à sua fonte original.
+
+## Música por canal
+
+Cada música precisa estar associada a um canal de destino no painel ou em
+`assets/channels/<slug>/audio/`. O acervo antigo em `assets/audio/` fica preservado como origem e
+não é aplicado automaticamente. Shorts não recebem música; o áudio é usado somente em vídeos longos.

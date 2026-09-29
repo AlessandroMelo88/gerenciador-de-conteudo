@@ -144,38 +144,51 @@ def test_purge_old_videos_missing_date_returns_400(client):
     assert resp.status_code == 400
 
 
-def test_purge_old_videos_deletes_rows_and_frees_files(client, mocker):
-    """purge_old_videos apaga linhas sem clips e libera arquivo de linhas com clips
-    (desde que nenhum clip pending_cut/cutting dependa do bruto), e limpa as chaves
-    Redis de deduplicação das linhas apagadas."""
+def test_purge_old_videos_preserves_history_and_cleans_safe_files(client, mocker):
+    """A purga preserva os registros e delega a limpeza de cada artefato ao guard seguro."""
     mock_conn = MagicMock()
     mock_cursor = mock_conn.cursor.return_value.__enter__.return_value
-    mock_cursor.rowcount = 5
-    mock_cursor.fetchall.side_effect = [
-        [{'youtube_video_id': 'abc123xyz01'}],  # SELECT video_ids antes do DELETE
-        [{'id': 42, 'local_path': '/app/videos/abc.mp4'}],  # SELECT rows_with_file
+    mock_cursor.fetchall.return_value = [
+        {'id': 42, 'local_path': '/app/videos/abc.mp4', 'transcript_path': '/app/videos/abc.json'},
+        {'id': 43, 'local_path': None, 'transcript_path': None},
     ]
     mocker.patch('src.internal_api.get_db_connection', return_value=mock_conn)
-    mocker.patch('os.path.exists', return_value=True)
-    mocker.patch('os.path.getsize', return_value=1024 * 1024)
-    mock_remove = mocker.patch('os.remove')
-    mock_redis = MagicMock()
-    mocker.patch('src.internal_api.redis.Redis', return_value=mock_redis)
+    cleanup = mocker.patch(
+        'src.internal_api.delete_source_video_file',
+        return_value={
+            'deleted': True,
+            'transcript_archived': True,
+            'freed_bytes': 1024 * 1024,
+        },
+    )
 
     result = purge_old_videos('2026-07-10')
 
-    assert result == {'deleted_rows': 5, 'freed_bytes': 1024 * 1024}
-    mock_remove.assert_called_once_with('/app/videos/abc.mp4')
-    mock_redis.delete.assert_called_once_with('video:abc123xyz01')
-    # `DELETE sv FROM ...` é sintaxe só do MySQL e quebra no PostgreSQL.
-    delete_sql = next(c[0][0] for c in mock_cursor.execute.call_args_list if c[0][0].startswith('DELETE'))
-    assert delete_sql.startswith('DELETE FROM source_videos ')
+    assert result == {
+        'deleted_rows': 0,
+        'retained_rows': 2,
+        'cleaned_videos': 1,
+        'transcripts_archived': 1,
+        'skipped_rows': 0,
+        'freed_bytes': 1024 * 1024,
+    }
+    cleanup.assert_called_once_with(42)
+    assert all(
+        not call.args[0].lstrip().upper().startswith('DELETE FROM SOURCE_VIDEOS')
+        for call in mock_cursor.execute.call_args_list
+    )
 
 
 def test_purge_old_videos_route_returns_result(client, mocker):
-    mocker.patch(
-        'src.internal_api.purge_old_videos', return_value={'deleted_rows': 3, 'freed_bytes': 2048}
-    )
+    result = {
+        'deleted_rows': 0,
+        'retained_rows': 3,
+        'cleaned_videos': 2,
+        'transcripts_archived': 2,
+        'skipped_rows': 0,
+        'freed_bytes': 2048,
+    }
+    mocker.patch('src.internal_api.purge_old_videos', return_value=result)
 
     resp = client.post(
         '/internal/purge-old-videos',
@@ -183,7 +196,7 @@ def test_purge_old_videos_route_returns_result(client, mocker):
         headers={'X-Internal-Token': 'test-token-123'},
     )
     assert resp.status_code == 200
-    assert resp.get_json() == {'deleted_rows': 3, 'freed_bytes': 2048}
+    assert resp.get_json() == result
 
 
 def test_publish_now_requires_auth(client):
@@ -200,4 +213,3 @@ def test_publish_now_spawns_thread_and_returns_ok(client, mocker):
     assert resp.status_code == 200
     assert resp.get_json()['ok'] is True
     mock_thread.assert_called_once()
-

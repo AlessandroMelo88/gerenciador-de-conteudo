@@ -73,18 +73,19 @@ Consulte [Expansão do Hacker Libertário](EXPANSAO-HACKER-LIBERTARIO.md) para o
 
 ## Providers atuais
 
-| Etapa | Anthropic | Groq | Comportamento |
+| Etapa | Padrão | Alternativa ativada manualmente | Comportamento |
 |---|---|---|---|
-| seleção | `claude-haiku-4-5`, quando há chave | `openai/gpt-oss-20b` | Anthropic → Groq em produção |
-| metadata | `claude-haiku-4-5`, quando há chave | `openai/gpt-oss-20b` | provider escolhido pela configuração; sem fallback cruzado |
-| thumbnail | `claude-haiku-4-5`, quando há chave | `openai/gpt-oss-20b` | provider escolhido pela configuração; sem fallback cruzado |
+| seleção | Groq `openai/gpt-oss-20b` | Anthropic `claude-haiku-4-5` | `AI_PROVIDER=anthropic`; sem fallback cruzado |
+| metadata | Groq `openai/gpt-oss-20b` | Anthropic `claude-haiku-4-5` | `AI_PROVIDER=anthropic`; sem fallback cruzado |
+| thumbnail | Groq `openai/gpt-oss-20b` | Anthropic `claude-haiku-4-5` | `AI_PROVIDER=anthropic`; sem fallback cruzado |
 | transcrição | — | `whisper-large-v3-turbo` | não usa prompt de linguagem natural |
 
 A seleção usa temperatura 0,3, raciocínio `low` e até 2.048 tokens. Metadata usa
 temperatura 0,3 e até 2.048 tokens no Groq. A chamada da thumbnail usa temperatura 0,2 e até
 512 tokens no Groq.
 
-Com `ANTHROPIC_API_KEY` vazia, seleção, metadata e thumbnail usam Groq diretamente. Se
+Ter `ANTHROPIC_API_KEY` preenchida não muda o provider: a seleção, metadata e thumbnail usam Groq
+até `AI_PROVIDER=anthropic` ser definido. Se
 metadata ou thumbnail falharem, o clip falha; metadata não possui fallback determinístico e
 thumbnail não possui fallback local.
 
@@ -123,9 +124,9 @@ natural e fechamento da ideia; se não confirmar sem atravessar lacuna ou public
 
 | Constante | Família/formato | Finalidade |
 |---|---|---|
-| `SYSTEM_PROMPT` | futebol/podcast, curto | até 3 momentos de 30 s exatos; prioriza análise tática, debate, bastidores, gol, revelação, conflito ou humor |
+| `SYSTEM_PROMPT` | futebol/podcast, curto | até 3 momentos de 30–45 s por padrão; prioriza análise tática, debate, bastidores, gol, revelação, conflito ou humor |
 | `LONG_SYSTEM_PROMPT` | futebol/esportes, longo | exatamente 1 segmento contínuo de 420–1200 s; análise, entrevista ou debate completo |
-| `HACKER_LIBERTARIO_PROMPT` | tecnologia, curto | até 3 momentos de 30 s exatos; IA, Linux, Open Source, programação, segurança, privacidade, soberania e carreira |
+| `HACKER_LIBERTARIO_PROMPT` | tecnologia, curto | até 3 momentos de 30–45 s por padrão; IA, Linux, Open Source, programação, segurança, privacidade, soberania e carreira |
 | `HACKER_LIBERTARIO_LONG_PROMPT` | tecnologia, longo | exatamente 1 segmento contínuo de 420–1200 s; explicação técnica, soberania ou debate aprofundado |
 
 Cada prompt de seleção concatena as três regras compartilhadas, `FACT_CHECK_INSTRUCTION`
@@ -184,7 +185,7 @@ O histórico do vídeo é anexado depois da transcrição. Após a resposta da I
 3. expande contexto do longo;
 4. remove material repetido e overlaps;
 5. aplica quantidade máxima (3 curto, 1 longo);
-6. aplica duração (curto 30 s exatos; longo 420–1200 s);
+6. aplica duração (curto 30–45 s por padrão; longo 420–1200 s);
 7. insere somente momentos com score mínimo 7.
 
 O campo `generated_clips.reason` preserva o motivo e a classificação factual. A inserção
@@ -282,7 +283,8 @@ Regras Python:
 - não pode ser vazio;
 - não é persistido em `generated_clips`; é aplicado na imagem.
 
-O sistema seleciona Anthropic se a chave existir, caso contrário Groq. Resposta inválida ou frase
+O sistema usa Groq por padrão. Anthropic exige `AI_PROVIDER=anthropic` e uma chave válida.
+Resposta inválida ou frase
 não literal lança erro e marca o clip como `failed`.
 
 ## Instruções que não são prompts de LLM
@@ -297,7 +299,7 @@ não literal lança erro e marca o clip como `failed`.
 
 ## Fonte de verdade
 
-Ao alterar um perfil, atualize a seed/migration de dados, o teste correspondente e este catálogo. Confira
-sempre `GROQ_CHAT_MODEL` em ambos os módulos; a configuração atual é `openai/gpt-oss-20b`.
+Ao alterar um perfil, atualize a seed/migration de dados e este catálogo. O padrão dos dois módulos
+é `openai/gpt-oss-20b`; `GROQ_CHAT_MODEL` pode substituí-lo quando explicitamente configurado.
 Não use descrições antigas que mencionem LLaMA 3.3/70B, 120B, metadata determinística ou editor de
 prompts como se fossem runtime.

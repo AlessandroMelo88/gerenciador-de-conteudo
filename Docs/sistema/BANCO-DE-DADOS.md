@@ -36,10 +36,10 @@ docker compose exec php php artisan migrate:status
 | Tabela | Chave/relacionamento | Campos operacionais |
 |---|---|---|
 | `source_channels` | `youtube_channel_id` único | nome, RSS, nicho, handle, ativo, blacklist |
-| `source_videos` | `youtube_video_id` único; pertence a source channel | título, publicação, status, formato, raw, transcrição, prioridade, pausa, posição |
+| `source_videos` | `youtube_video_id` único; pertence a source channel | título, publicação, status, formato, caminho raw, texto/dados da transcrição, prioridade, pausa, posição, frescor por canal-fonte |
 | `destination_channels` | `slug` e ID YouTube únicos | nome, nicho, crédito, ativo, flag OAuth |
 | `generated_clips` | pertence a source video; destino opcional | intervalo, score, motivo, metadata, paths, YouTube ID, quota/status |
-| `media_assets` | destino opcional; `nullOnDelete` | intro/outro/music, formato, duração, volume, prioridade, ativo |
+| `media_assets` | destino nullable para legado; `nullOnDelete` | intro/outro/music, formato, duração, volume, prioridade, ativo; novos envios exigem canal |
 | `niches` | `slug` único | label dos selects do painel |
 | `prompt_profiles` | `slug` único; referenciado pelos canais | nicho canônico, aliases, cinco prompts editoriais e ativo |
 | `transcription_jobs` | independente da fila de clips | URL, status, progresso, SRT, erro |
@@ -112,8 +112,9 @@ O Laravel usa `QUEUE_CONNECTION=database` por padrão; isso grava jobs em
 ## Integridade e limpeza
 
 As FKs de source videos e generated clips não têm cascade de exclusão. Para apagar fonte com clips,
-trate os filhos explicitamente. O processamento final pode limpar arquivos e zerar paths sem remover
-as linhas históricas.
+trate os filhos explicitamente. A limpeza operacional de arquivos locais preserva as linhas de
+`source_videos` e `generated_clips`, suas transcrições e metadados pesquisáveis; apagar um arquivo não
+é excluir o histórico do banco.
 
 Ao cruzar banco e disco, use o ID do registro e o estado do clip. Arquivos `.srt` e
 intermediários podem não aparecer em colunas próprias.

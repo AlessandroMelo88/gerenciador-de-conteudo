@@ -75,14 +75,14 @@ class DashboardController extends Controller
             })
             ->with(['sourceChannel', 'generatedClips.destinationChannel'])
             ->get()
-            ->sortBy([
+            ->sortBy(fn (SourceVideo $video): array => [
                 // Processando agora no topo; depois ordem DnD / prioridade / score baixo
-                [fn (SourceVideo $video) => in_array($video->status, $processing, true) ? 0 : 1, 'asc'],
-                [fn (SourceVideo $video) => $video->paused ? 1 : 0, 'asc'],
-                [fn (SourceVideo $video) => -((int) ($video->priority ?? 0)), 'asc'],
-                [fn (SourceVideo $video) => $video->queue_position ?? 9999, 'asc'],
-                [fn (SourceVideo $video) => $video->generatedClips->max('score') ?? 999, 'asc'],
-                [fn (SourceVideo $video) => $video->published_at, 'asc'],
+                in_array($video->status, $processing, true) ? 0 : 1,
+                $video->paused ? 1 : 0,
+                -((int) ($video->priority ?? 0)),
+                $video->queue_position ?? 9999,
+                $video->generatedClips->max('score') ?? 999,
+                $video->published_at?->getTimestamp() ?? PHP_INT_MIN,
             ])
             ->map(function (SourceVideo $video) use ($processing, $destMap) {
                 $needsRaw = $video->generatedClips
@@ -96,18 +96,18 @@ class DashboardController extends Controller
                     'transcribing' => 60,
                     'selecting' => $needsRaw ? 90 : ($video->generatedClips->isNotEmpty() ? 100 : 80),
                     'cutting' => 90,
-                    'publishing', 'published' => 100,
+                    'publishing' => 100,
                     default => 0,
                 };
 
-                $niche = strtolower(trim($video->sourceChannel?->target_niche ?? ''));
+                $niche = strtolower(trim($video->sourceChannel->target_niche ?? ''));
                 if (empty($niche)) {
                     $firstClipDest = $video->generatedClips->first()?->destinationChannel;
                     $niche = $firstClipDest ? strtolower(trim($firstClipDest->niche)) : '';
                 }
 
                 if (empty($niche)) {
-                    $ch = strtolower($video->sourceChannel?->channel_name ?? '');
+                    $ch = strtolower($video->sourceChannel->channel_name ?? '');
                     if (str_contains($ch, 'espn') || str_contains($ch, 'cazé') || str_contains($ch, 'caze') || str_contains($ch, 'esporte') || str_contains($ch, 'futebol')) {
                         $niche = 'futebol';
                     } elseif (str_contains($ch, 'flow') || str_contains($ch, 'inteligência') || str_contains($ch, 'inteligencia') || str_contains($ch, 'pod')) {
@@ -155,7 +155,7 @@ class DashboardController extends Controller
         $today = Carbon::today('America/Sao_Paulo');
         // min(MAX_UPLOADS_PER_DAY, 6) espelha ABSOLUTE_MAX_UPLOADS_PER_DAY em
         // clip-processor/src/quota_manager.py — mesma env var, mesmo teto.
-        $limit = min((int) env('MAX_UPLOADS_PER_DAY', 5), 6);
+        $limit = min((int) env('MAX_UPLOADS_PER_DAY', 6), 6);
 
         return DestinationChannel::query()->where('active', true)->get()
             ->map(function (DestinationChannel $channel) use ($date, $today, $limit) {
@@ -246,12 +246,12 @@ class DashboardController extends Controller
                 'format' => $clip->sourceVideo?->format ?? 'curto',
                 'destinationChannelName' => $clip->destinationChannel?->name,
                 'destinationChannelSlug' => $clip->destinationChannel?->slug,
-                'niche' => $clip->destinationChannel?->niche ?? $clip->sourceVideo?->sourceChannel?->target_niche ?? 'futebol',
+                'niche' => $clip->destinationChannel->niche ?? $clip->sourceVideo->sourceChannel->target_niche ?? 'futebol',
                 'createdAt' => $clip->created_at?->diffForHumans(),
                 'updatedAt' => $clip->updated_at?->diffForHumans(),
                 'uploadError' => $uploadError,
                 'previewUrl' => route('clips.preview', $clip->id),
-                'thumbnailUrl' => route('clips.thumbnail', $clip->id) . ($hasThumb ? '?v=' . (@filemtime($disk->path("thumbnails/{$clip->id}.jpg")) ?: time()) : ''),
+                'thumbnailUrl' => route('clips.thumbnail', $clip->id).($hasThumb ? '?v='.(@filemtime($disk->path("thumbnails/{$clip->id}.jpg")) ?: time()) : ''),
                 'hasVideoFile' => $hasVideo,
                 'hasThumbnailFile' => $hasThumb,
                 'description' => $clip->description,
@@ -502,11 +502,11 @@ class DashboardController extends Controller
                 "clips/{$id}.srt",
                 "thumbnails/{$id}.jpg",
             ]);
-            $clip->delete();
+            $clip->update(['clip_path' => null, 'thumbnail_path' => null]);
             $count++;
         }
 
-        return back()->with('success', "{$count} clip(s) com falha removido(s) com sucesso");
+        return back()->with('success', "{$count} arquivo(s) de clip com falha removido(s); registros e vínculos preservados");
     }
 
     public function deleteClip(GeneratedClip $clip): RedirectResponse

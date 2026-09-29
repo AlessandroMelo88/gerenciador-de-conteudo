@@ -5,9 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\Rule;
-use LogicException;
 use Telegram\Bot\Laravel\Facades\Telegram;
 use Telegram\Bot\Objects\Update;
 
@@ -120,12 +121,12 @@ class TelegramWebhookController extends Controller
         $alertEmail = env('ADMIN_ALERT_EMAIL');
         if ($alertEmail && in_array($event, ['pipeline_failure', 'watchdog_alert', 'oauth_warning'])) {
             try {
-                \Illuminate\Support\Facades\Mail::raw($text, function ($message) use ($alertEmail, $event) {
+                Mail::raw($text, function ($message) use ($alertEmail, $event) {
                     $message->to($alertEmail)
                         ->subject("[Alerta Canal de Cortes] {$event}");
                 });
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning("Falha ao enviar e-mail de alerta: " . $e->getMessage());
+                Log::warning('Falha ao enviar e-mail de alerta: '.$e->getMessage());
             }
         }
 

@@ -28,13 +28,13 @@ def test_choose_media_asset_prefers_channel_and_format_scope():
 
 def test_choose_media_asset_uses_priority_before_rotation():
     candidates = [
-        {'id': 10, 'destination_channel_id': None, 'format': None, 'priority': 1},
-        {'id': 11, 'destination_channel_id': None, 'format': None, 'priority': 5},
+        {'id': 10, 'destination_channel_id': 7, 'format': None, 'priority': 1},
+        {'id': 11, 'destination_channel_id': 7, 'format': None, 'priority': 5},
     ]
 
     result = choose_media_asset(
         candidates,
-        destination_channel_id=None,
+        destination_channel_id=7,
         video_format='longo',
         clip_id=99,
     )
@@ -44,13 +44,13 @@ def test_choose_media_asset_uses_priority_before_rotation():
 
 def test_choose_media_asset_rotates_equivalent_assets_by_clip_id():
     candidates = [
-        {'id': 20, 'destination_channel_id': None, 'format': None, 'priority': 0},
-        {'id': 21, 'destination_channel_id': None, 'format': None, 'priority': 0},
+        {'id': 20, 'destination_channel_id': 7, 'format': None, 'priority': 0},
+        {'id': 21, 'destination_channel_id': 7, 'format': None, 'priority': 0},
     ]
 
     result = choose_media_asset(
         candidates,
-        destination_channel_id=None,
+        destination_channel_id=7,
         video_format='curto',
         clip_id=1,
     )
@@ -60,7 +60,6 @@ def test_choose_media_asset_rotates_equivalent_assets_by_clip_id():
 
 def test_resolve_media_assets_rolls_back_optional_table_failure(tmp_path, monkeypatch):
     """A ausência da tabela opcional não pode abortar a transação do clip."""
-    monkeypatch.setattr(media_assets, 'AUDIO_ROOT', tmp_path / 'empty-audio')
     monkeypatch.setattr(media_assets, 'CHANNELS_ROOT', tmp_path / 'empty-channels')
     conn = MagicMock()
     cursor = MagicMock()
@@ -71,7 +70,7 @@ def test_resolve_media_assets_rolls_back_optional_table_failure(tmp_path, monkey
 
     result = resolve_media_assets(
         conn,
-        destination_channel_id=None,
+        destination_channel_id=7,
         video_format='longo',
         clip_id=84,
     )
@@ -96,18 +95,17 @@ def test_resolve_media_assets_skips_all_assets_for_shorts():
 
 def test_resolve_filesystem_assets_prefers_video_and_rotates_audio(tmp_path, monkeypatch):
     channels_root = tmp_path / 'channels'
-    audio_root = tmp_path / 'audio'
     channel_root = channels_root / 'hacker-libertario'
     channel_root.mkdir(parents=True)
-    audio_root.mkdir()
+    channel_audio = channel_root / 'audio'
+    channel_audio.mkdir()
 
     for filename in ('intro.mp4', 'intro.jpg', 'encerramento.mp4', 'encerramento.jpg'):
         (channel_root / filename).write_bytes(b'asset')
-    (audio_root / 'a.wav').write_bytes(b'audio')
+    (channel_audio / 'a.wav').write_bytes(b'audio')
 
     monkeypatch.setattr(media_assets, 'ASSETS_ROOT', tmp_path)
     monkeypatch.setattr(media_assets, 'CHANNELS_ROOT', channels_root)
-    monkeypatch.setattr(media_assets, 'AUDIO_ROOT', audio_root)
 
     result = resolve_filesystem_media_assets(
         channel_slug='hacker-libertario',
@@ -117,7 +115,7 @@ def test_resolve_filesystem_assets_prefers_video_and_rotates_audio(tmp_path, mon
 
     assert result['intro']['absolute_path'] == str(channel_root / 'intro.mp4')
     assert result['outro']['absolute_path'] == str(channel_root / 'encerramento.mp4')
-    assert result['music']['absolute_path'] == str(audio_root / 'a.wav')
+    assert result['music']['absolute_path'] == str(channel_audio / 'a.wav')
 
 
 def test_resolve_filesystem_assets_uses_images_when_video_is_missing(tmp_path, monkeypatch):
@@ -129,7 +127,6 @@ def test_resolve_filesystem_assets_uses_images_when_video_is_missing(tmp_path, m
 
     monkeypatch.setattr(media_assets, 'ASSETS_ROOT', tmp_path)
     monkeypatch.setattr(media_assets, 'CHANNELS_ROOT', channels_root)
-    monkeypatch.setattr(media_assets, 'AUDIO_ROOT', tmp_path / 'audio-inexistente')
 
     result = resolve_filesystem_media_assets(
         channel_slug='canal',
@@ -151,7 +148,6 @@ def test_resolve_filesystem_assets_skips_identity_for_shorts(tmp_path, monkeypat
 
     monkeypatch.setattr(media_assets, 'ASSETS_ROOT', tmp_path)
     monkeypatch.setattr(media_assets, 'CHANNELS_ROOT', channels_root)
-    monkeypatch.setattr(media_assets, 'AUDIO_ROOT', tmp_path / 'audio')
 
     result = resolve_filesystem_media_assets(
         channel_slug='canal',
@@ -175,7 +171,6 @@ def test_resolve_filesystem_assets_prefers_channel_specific_audio(tmp_path, monk
 
     monkeypatch.setattr(media_assets, 'ASSETS_ROOT', tmp_path)
     monkeypatch.setattr(media_assets, 'CHANNELS_ROOT', channels_root)
-    monkeypatch.setattr(media_assets, 'AUDIO_ROOT', global_audio)
 
     result = resolve_filesystem_media_assets(
         channel_slug='canal',

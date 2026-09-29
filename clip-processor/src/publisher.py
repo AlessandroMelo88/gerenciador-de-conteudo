@@ -7,17 +7,14 @@ Exporta:
   - _fetch_pending_clips_for_channel(conn, destination_channel_id)
   - finalize_settled_source_videos(conn)
 """
+
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
-
-try:
-    from datetime import UTC  # type: ignore
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 
 from src.metadata_generator import append_credits, resolve_credit_handle
+from src.paths import resolve_stored_video_path
 from src.quota_manager import QuotaManager
 from src.related_video import append_related_video, related_video_from_clip
 from src.telegram_notifier import notify
@@ -67,7 +64,14 @@ def publish_pending_clips(
         _log('[PUBLISHER] Nenhum canal-destino ativo — usando fluxo legado')
         ch_uploader = uploader or YouTubeUploader()
         ch_quota = quota_manager or QuotaManager(redis_client)
-        return _publish_clips_for(conn, _fetch_pending_clips(conn), ch_uploader, ch_quota, now, bypass_window=bypass_window)
+        return _publish_clips_for(
+            conn,
+            _fetch_pending_clips(conn),
+            ch_uploader,
+            ch_quota,
+            now,
+            bypass_window=bypass_window,
+        )
 
     total = 0
     for dest in dest_channels:
@@ -154,7 +158,7 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'JOIN source_channels sc ON sc.id = sv.channel_id '
-            'WHERE gc.status IN (\'approved\', \'pending\') '
+            "WHERE gc.status IN ('approved', 'pending') "
             'AND gc.destination_channel_id = %s '
             'AND gc.clip_path IS NOT NULL '
             'AND gc.title IS NOT NULL '
@@ -230,7 +234,9 @@ def _mark_clip_transient_failure(conn, clip_id: int, status: str, error_msg: str
     conn.commit()
 
 
-def _publish_clips_for(conn, clips: list[dict], uploader, quota_manager, now, bypass_window: bool = False) -> int:
+def _publish_clips_for(
+    conn, clips: list[dict], uploader, quota_manager, now, bypass_window: bool = False
+) -> int:
     published_count = 0
     current_status = _publishable_status()
     remaining = list(clips)
@@ -245,11 +251,10 @@ def _publish_clips_for(conn, clips: list[dict], uploader, quota_manager, now, by
             _log(f'Clip {clip_id} mantido {current_status} por quota/janela')
             break
 
-        if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting, bypass_window=bypass_window):
-            _log(
-                f'Clip {clip_id} ({clip_format}) mantido {current_status} '
-                'por cota de formato'
-            )
+        if not quota_manager.can_upload(
+            now=now, format=clip_format, longo_waiting=longo_waiting, bypass_window=bypass_window
+        ):
+            _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por cota de formato')
             remaining.pop(0)
             continue
 
@@ -297,13 +302,24 @@ def _publish_clips_for(conn, clips: list[dict], uploader, quota_manager, now, by
     return published_count
 
 
-def _publish_one(conn, clip, uploader, quota_manager, now, *, longo_waiting: bool = False, bypass_window: bool = False) -> int:
+def _publish_one(
+    conn,
+    clip,
+    uploader,
+    quota_manager,
+    now,
+    *,
+    longo_waiting: bool = False,
+    bypass_window: bool = False,
+) -> int:
     """Publica um único clip. Retorna 1 se publicado, 0 caso contrário."""
     current_status = _publishable_status()
     clip_id = clip['id']
     clip_format = clip.get('format') or 'curto'
 
-    if not quota_manager.can_upload(now=now, format=clip_format, longo_waiting=longo_waiting, bypass_window=bypass_window):
+    if not quota_manager.can_upload(
+        now=now, format=clip_format, longo_waiting=longo_waiting, bypass_window=bypass_window
+    ):
         _log(f'Clip {clip_id} ({clip_format}) mantido {current_status} por quota/janela')
         return 0
 
@@ -382,11 +398,11 @@ def _fetch_pending_clips(conn) -> list[dict]:
 
 
 def _ensure_publishable_files(clip: dict) -> None:
-    clip_path = clip.get('clip_path')
+    clip_path = resolve_stored_video_path(clip.get('clip_path'))
     if not clip_path or not os.path.exists(clip_path):
         raise FileNotFoundError(f'clip_path not found: {clip_path}')
 
-    thumbnail_path = clip.get('thumbnail_path')
+    thumbnail_path = resolve_stored_video_path(clip.get('thumbnail_path'))
     if thumbnail_path and not os.path.exists(thumbnail_path):
         raise FileNotFoundError(f'thumbnail_path not found: {thumbnail_path}')
 
@@ -394,11 +410,12 @@ def _ensure_publishable_files(clip: dict) -> None:
 def _prepare_publication_clip(clip: dict) -> dict:
     """Garante um link relacionado no final da descrição enviada ao YouTube."""
     related_video = related_video_from_clip(clip)
-    if not related_video:
-        return clip
-
     prepared = dict(clip)
-    prepared['description'] = append_related_video(prepared.get('description'), related_video)
+    for field in ('clip_path', 'thumbnail_path', 'source_local_path'):
+        if field in prepared:
+            prepared[field] = resolve_stored_video_path(prepared[field])
+    if related_video:
+        prepared['description'] = append_related_video(prepared.get('description'), related_video)
     return prepared
 
 
@@ -512,6 +529,7 @@ def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: 
     # Arquivo antes do banco, e conferindo: se o raw não saiu do disco, o banco
     # fica como está e a próxima varredura tenta de novo (senão local_path=NULL
     # esconderia um arquivo órfão ocupando disco).
+    source_local_path = resolve_stored_video_path(source_local_path)
     if source_local_path and os.path.exists(source_local_path):
         try:
             os.remove(source_local_path)
@@ -529,7 +547,7 @@ def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: 
         clips = cur.fetchall() or []
 
     for clip in clips:
-        clip_path = clip.get('clip_path')
+        clip_path = resolve_stored_video_path(clip.get('clip_path'))
         if clip_path:
             prefix = clip_path[:-4] if clip_path.endswith('.mp4') else clip_path
             for candidate in (
@@ -543,7 +561,7 @@ def _maybe_finalize_source_video(conn, source_video_id: int, source_local_path: 
                         os.remove(candidate)
                     except OSError:
                         pass
-        thumb_path = clip.get('thumbnail_path')
+        thumb_path = resolve_stored_video_path(clip.get('thumbnail_path'))
         if thumb_path and os.path.exists(thumb_path):
             try:
                 os.remove(thumb_path)

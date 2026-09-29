@@ -4,6 +4,7 @@ uploader.py — Upload de clips para YouTube Data API v3.
 Exporta:
   - YouTubeUploader.upload_clip(clip) -> youtube_video_id
 """
+
 from __future__ import annotations
 
 import os
@@ -15,8 +16,9 @@ from typing import Any
 
 from src.db import get_db_connection as db_connect
 from src.media_contract import validate_short_media
+from src.paths import YOUTUBE_DIR
 
-DEFAULT_TOKEN_FILE = '/app/youtube/token-futebol-em-cortes.json'
+DEFAULT_TOKEN_FILE = os.path.join(YOUTUBE_DIR, 'token-futebol-em-cortes.json')
 YOUTUBE_UPLOAD_SCOPES = [
     'https://www.googleapis.com/auth/youtube.upload',
     'https://www.googleapis.com/auth/youtube.force-ssl',
@@ -129,7 +131,7 @@ class YouTubeUploader:
     ):
         self.channel_slug = channel_slug  # armazenado para uso em _flag_expired / _clear_expired
         if channel_slug:
-            self.token_file = f'/app/youtube/token-{channel_slug}.json'
+            self.token_file = os.path.join(YOUTUBE_DIR, f'token-{channel_slug}.json')
         else:
             self.token_file = token_file or os.environ.get('YOUTUBE_TOKEN_FILE', DEFAULT_TOKEN_FILE)
         self._youtube_factory = youtube_factory
@@ -393,7 +395,10 @@ class YouTubeUploader:
                 try:
                     token_path.write_text(creds.to_json())
                 except Exception as save_err:
-                    print(f'[UPLOADER] Aviso: não foi possível persistir token atualizado: {save_err}', file=sys.stderr)
+                    print(
+                        f'[UPLOADER] Aviso: não foi possível persistir token atualizado: {save_err}',
+                        file=sys.stderr,
+                    )
             except RefreshError:
                 self._flag_expired()  # persiste no PostgreSQL antes de re-raise
                 raise

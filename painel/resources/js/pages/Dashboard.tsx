@@ -25,7 +25,7 @@ export default function Dashboard() {
                 user={auth?.user ?? null}
                 description='Central de controle do pipeline: baixa → transcreve → IA seleciona momentos → corta → publica. Clips com o mesmo título vindo do mesmo vídeo não são duplicados — veja a coluna "Trecho".'
             >
-                <OverviewCards quota={quota} overview={overview} activeWindow={activeWindow} />
+                <OverviewCards quota={quota} overview={overview} />
                 <ClipQueueTabs
                     pendingClips={pendingClips}
                     queuedClips={queuedClips}

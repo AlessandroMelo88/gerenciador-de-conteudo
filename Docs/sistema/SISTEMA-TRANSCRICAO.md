@@ -51,7 +51,7 @@ janela de download.
 ### Formato do transcript salvo
 
 `save_transcript` ([`transcriber.py:116`](../clip-processor/src/transcriber.py#L116)) grava
-`/app/videos/<video_id>_transcript.json`:
+`${VIDEOS_DIR}/<video_id>_transcript.json` (no Docker, `/app/videos/`):
 
 ```json
 {"video_id": "...", "text": "...", "segments": [{"start": 0.0, "end": 4.2, "text": "..."}]}
@@ -279,7 +279,8 @@ Funções: `create_transcription_job` ([`:42`](../clip-processor/src/transcripti
 `process_transcription_job` ([`:222`](../clip-processor/src/transcription_job.py#L222)),
 `start_transcription_job` ([`:257`](../clip-processor/src/transcription_job.py#L257)).
 
-Saída em `/app/videos/transcripts/` ([`:27`](../clip-processor/src/transcription_job.py#L27)).
+Saída em `${VIDEOS_DIR}/transcripts/` (no Docker, `/app/videos/transcripts/`; consulte
+[`paths.py`](../clip-processor/src/paths.py)).
 
 > **Não confirmado:** se existe rotina de limpeza para os `.srt` e os áudios baixados por esta
 > feature. Não encontrei nenhuma varredura que toque em `videos/transcripts/`.

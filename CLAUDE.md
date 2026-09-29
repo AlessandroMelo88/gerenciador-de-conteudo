@@ -168,10 +168,10 @@ a quota junto.
 **Contador de quota travado ≠ fila travada.** Se o problema for só "não sobe mais hoje", conferir
 `youtube_uploads:<hoje>` no Redis; resetar só essa chave, não o dedup.
 
-**Filtro de frescor no download:** `pipeline_runner.py` (`FRESHNESS_DAYS=1`) só baixa `pending` com
-`published_at` de hoje/ontem. Vídeo pendente mais velho que isso nunca baixa — fica em `pending`
-pra sempre sem ser lixo de verdade. Considerar isso antes de classificar `pending` antigo como
-backlog descartável.
+**Filtro de frescor no download:** cada canal-fonte aceita vídeos dos últimos 3 ou 1500 dias;
+`FRESHNESS_DAYS=1500` é somente o fallback legado para canais sem valor gravado. Um vídeo pendente
+fora da janela definida para seu canal não entra na seleção, mas continua no banco. Confira o valor
+do canal antes de classificar um `pending` antigo como descartável.
 
 ---
 

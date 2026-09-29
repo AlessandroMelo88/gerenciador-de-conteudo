@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class ClipProcessorClient
@@ -79,10 +80,10 @@ class ClipProcessorClient
     }
 
     /**
-     * Apaga o arquivo bruto (.mp4) de um source_video no disco do clip-processor
-     * e zera local_path no banco. Não mexe em status/generated_clips.
+     * Limpa arquivos locais seguros, arquiva a transcrição e preserva as linhas
+     * da fonte e dos clips no PostgreSQL.
      *
-     * @return array{deleted: bool, freed_bytes: int}
+     * @return array{deleted: bool, transcript_archived: bool, freed_bytes: int}
      *
      * @throws RuntimeException ao falhar (vídeo não existe, em uso, ou erro HTTP).
      */
@@ -102,16 +103,15 @@ class ClipProcessorClient
 
         return [
             'deleted' => (bool) $response->json('deleted', false),
+            'transcript_archived' => (bool) $response->json('transcript_archived', false),
             'freed_bytes' => (int) $response->json('freed_bytes', 0),
         ];
     }
 
     /**
-     * Limpa vídeos fonte publicados antes de `$beforeDate` (formato 'Y-m-d'):
-     * apaga a linha inteira dos que nunca foram processados (sem clips), e libera
-     * o arquivo bruto dos que já geraram clips mas não precisam mais dele.
+     * Remove arquivos locais antigos e preserva as linhas e transcrições no banco.
      *
-     * @return array{deleted_rows: int, freed_bytes: int}
+     * @return array{deleted_rows: int, retained_rows: int, cleaned_videos: int, transcripts_archived: int, skipped_rows: int, freed_bytes: int}
      *
      * @throws RuntimeException em erro HTTP.
      */
@@ -127,10 +127,13 @@ class ClipProcessorClient
 
         return [
             'deleted_rows' => (int) $response->json('deleted_rows', 0),
+            'retained_rows' => (int) $response->json('retained_rows', 0),
+            'cleaned_videos' => (int) $response->json('cleaned_videos', 0),
+            'transcripts_archived' => (int) $response->json('transcripts_archived', 0),
+            'skipped_rows' => (int) $response->json('skipped_rows', 0),
             'freed_bytes' => (int) $response->json('freed_bytes', 0),
         ];
     }
-
 
     public function pauseVideo(int $sourceVideoId): array
     {
@@ -195,10 +198,9 @@ class ClipProcessorClient
 
             return $response->successful();
         } catch (\Throwable $e) {
-            \Log::warning('Falha ao disparar publicação imediata: '.$e->getMessage());
+            Log::warning('Falha ao disparar publicação imediata: '.$e->getMessage());
 
             return false;
         }
     }
 }
-

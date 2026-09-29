@@ -11,7 +11,13 @@ export type Brand = {
     logo: string | null;
 };
 
-const FALLBACK: Brand = { key: 'canaldecortes', name: 'Canal de Cortes', tagline: 'Pipeline de clipes', icon: 'clapperboard', logo: null };
+const FALLBACK: Brand = {
+    key: 'canaldecortes',
+    name: 'Canal de Cortes',
+    tagline: 'Pipeline de clipes',
+    icon: 'clapperboard',
+    logo: null,
+};
 
 const ICONS = { clapperboard: ClapperboardIcon, umbrella: UmbrellaIcon } as const;
 

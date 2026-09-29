@@ -1,7 +1,9 @@
 # Faixas completas
 
-As faixas de áudio ficam diretamente nesta pasta. Para associar uma letra,
-adicione um arquivo de texto com o mesmo nome-base da faixa, por exemplo:
+Os arquivos desta pasta são preservados como acervo original; o worker não os
+usa automaticamente. Para associar uma trilha a um canal, coloque o arquivo em
+`assets/channels/<slug>/audio/`. Para adicionar uma letra, coloque o arquivo de
+texto ao lado da faixa e use o mesmo nome-base, por exemplo:
 
 ```text
 Soberania_Total.wav

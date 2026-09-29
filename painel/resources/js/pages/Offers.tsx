@@ -77,10 +77,18 @@ const BASE_URL = '/painel/ofertas';
 
 const TABS: { key: TabKey; label: string; empty: string }[] = [
     { key: 'draft', label: 'Rascunhos', empty: 'Nenhum rascunho. Rode o affiliate-worker para buscar ofertas.' },
-    { key: 'approved', label: 'Aprovadas', empty: 'Nenhuma oferta aprovada ainda. Revise os rascunhos e aprove as que valem divulgar.' },
+    {
+        key: 'approved',
+        label: 'Aprovadas',
+        empty: 'Nenhuma oferta aprovada ainda. Revise os rascunhos e aprove as que valem divulgar.',
+    },
     { key: 'rejected', label: 'Rejeitadas', empty: 'Nenhuma oferta rejeitada.' },
     { key: 'archived', label: 'Arquivadas', empty: 'Nenhuma oferta arquivada.' },
-    { key: 'todos', label: 'Todas', empty: 'Nenhuma oferta cadastrada. Rode o affiliate-worker ou crie uma manualmente.' },
+    {
+        key: 'todos',
+        label: 'Todas',
+        empty: 'Nenhuma oferta cadastrada. Rode o affiliate-worker ou crie uma manualmente.',
+    },
 ];
 
 const STATUS_LABEL: Record<OfferStatus, string> = {
@@ -188,7 +196,7 @@ function firstError(errors: Record<string, string>): string {
 
 function StatusBadge({ status }: { status: OfferStatus }) {
     return (
-        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${STATUS_CLASS[status]}`}>
+        <span className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold ${STATUS_CLASS[status]}`}>
             {STATUS_LABEL[status]}
         </span>
     );
@@ -200,8 +208,10 @@ function OfferThumb({ offer, size = 'sm' }: { offer: Offer; size?: 'sm' | 'lg' }
 
     if (!offer.imageUrl || broken) {
         return (
-            <span className={`${box} grid place-items-center bg-muted text-muted-foreground shrink-0 border border-border`}>
-                <ImageOffIcon className="w-4 h-4" />
+            <span
+                className={`${box} grid shrink-0 place-items-center border border-border bg-muted text-muted-foreground`}
+            >
+                <ImageOffIcon className="h-4 w-4" />
             </span>
         );
     }
@@ -212,7 +222,7 @@ function OfferThumb({ offer, size = 'sm' }: { offer: Offer; size?: 'sm' | 'lg' }
             loading="lazy"
             referrerPolicy="no-referrer"
             onError={() => setBroken(true)}
-            className={`${box} object-cover shrink-0 border border-border bg-muted`}
+            className={`${box} shrink-0 border border-border bg-muted object-cover`}
         />
     );
 }
@@ -222,8 +232,8 @@ function CopyLinkMenu({ offer, label = 'Copiar link' }: { offer: Offer; label?: 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs gap-1.5">
-                    <CopyIcon className="w-3.5 h-3.5" /> {label}
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 px-2.5 text-xs">
+                    <CopyIcon className="h-3.5 w-3.5" /> {label}
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -240,7 +250,9 @@ function CopyLinkMenu({ offer, label = 'Copiar link' }: { offer: Offer; label?: 
                         }
                     >
                         {ch.label}
-                        {ch.key && <span className="ml-auto font-mono text-[10px] text-muted-foreground">?c={ch.key}</span>}
+                        {ch.key && (
+                            <span className="ml-auto font-mono text-[10px] text-muted-foreground">?c={ch.key}</span>
+                        )}
                     </DropdownMenuItem>
                 ))}
             </DropdownMenuContent>
@@ -288,10 +300,10 @@ function CreateOfferDialog({ niches }: { niches: Niche[] }) {
         >
             <DialogTrigger asChild>
                 <Button style={GRADIENT} className="shadow-sm hover:brightness-105">
-                    <PlusIcon className="w-4 h-4 mr-1.5" /> Nova oferta
+                    <PlusIcon className="mr-1.5 h-4 w-4" /> Nova oferta
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="font-display font-bold">Nova oferta</DialogTitle>
                 </DialogHeader>
@@ -341,11 +353,22 @@ function CreateOfferDialog({ niches }: { niches: Niche[] }) {
                     <div className="flex items-center justify-between gap-3 border-t pt-4">
                         <div>
                             <p className="text-sm font-medium">Texto de divulgação</p>
-                            <p className="text-xs text-muted-foreground">Escreva ou gere a partir da página do produto.</p>
+                            <p className="text-xs text-muted-foreground">
+                                Escreva ou gere a partir da página do produto.
+                            </p>
                         </div>
                         <GenerateCopyButton
-                            source={{ affiliateUrl: data.affiliate_url, productUrl: data.product_url, title: data.title, niche: data.niche }}
-                            current={{ cta_text: data.cta_text, copy_short: data.copy_short, copy_long: data.copy_long }}
+                            source={{
+                                affiliateUrl: data.affiliate_url,
+                                productUrl: data.product_url,
+                                title: data.title,
+                                niche: data.niche,
+                            }}
+                            current={{
+                                cta_text: data.cta_text,
+                                copy_short: data.copy_short,
+                                copy_long: data.copy_long,
+                            }}
                             onGenerated={applyCopy}
                         />
                     </div>
@@ -440,8 +463,8 @@ function OfferEditForm({ offer, niches, onDone }: { offer: Offer; niches: Niche[
     }
 
     return (
-        <form onSubmit={submit} className="flex flex-1 flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-5">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex-1 space-y-5 overflow-y-auto px-4 pb-4">
                 {/* Resumo somente leitura do que veio do worker */}
                 <div className="flex gap-3 rounded-xl border border-border bg-muted/30 p-3">
                     <OfferThumb offer={offer} size="lg" />
@@ -472,7 +495,7 @@ function OfferEditForm({ offer, niches, onDone }: { offer: Offer; niches: Niche[
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1 text-primary hover:underline"
                                 >
-                                    Produto <ExternalLinkIcon className="w-3 h-3" />
+                                    Produto <ExternalLinkIcon className="h-3 w-3" />
                                 </a>
                             )}
                             <a
@@ -481,11 +504,11 @@ function OfferEditForm({ offer, niches, onDone }: { offer: Offer; niches: Niche[
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-primary hover:underline"
                             >
-                                Link de afiliado <ExternalLinkIcon className="w-3 h-3" />
+                                Link de afiliado <ExternalLinkIcon className="h-3 w-3" />
                             </a>
                         </div>
                         {offer.externalId && (
-                            <div className="font-mono text-[10.5px] text-muted-foreground truncate">
+                            <div className="truncate font-mono text-[10.5px] text-muted-foreground">
                                 ID na rede: {offer.externalId}
                             </div>
                         )}
@@ -493,12 +516,19 @@ function OfferEditForm({ offer, niches, onDone }: { offer: Offer; niches: Niche[
                 </div>
 
                 {offer.description && (
-                    <p className="text-xs text-muted-foreground whitespace-pre-line line-clamp-6">{offer.description}</p>
+                    <p className="line-clamp-6 text-xs whitespace-pre-line text-muted-foreground">
+                        {offer.description}
+                    </p>
                 )}
 
                 <Field>
                     <FieldLabel htmlFor="edit-offer-title">Título</FieldLabel>
-                    <Input id="edit-offer-title" value={data.title} onChange={(e) => setData('title', e.target.value)} required />
+                    <Input
+                        id="edit-offer-title"
+                        value={data.title}
+                        onChange={(e) => setData('title', e.target.value)}
+                        required
+                    />
                     {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
                 </Field>
 
@@ -511,7 +541,12 @@ function OfferEditForm({ offer, niches, onDone }: { offer: Offer; niches: Niche[
                 <div className="flex items-center justify-between gap-3 border-t pt-4">
                     <p className="text-sm font-medium">Texto de divulgação</p>
                     <GenerateCopyButton
-                        source={{ affiliateUrl: data.affiliate_url, productUrl: offer.productUrl ?? '', title: data.title, niche: data.niche }}
+                        source={{
+                            affiliateUrl: data.affiliate_url,
+                            productUrl: offer.productUrl ?? '',
+                            title: data.title,
+                            niche: data.niche,
+                        }}
                         current={{ cta_text: data.cta_text, copy_short: data.copy_short, copy_long: data.copy_long }}
                         onGenerated={applyCopy}
                     />
@@ -522,7 +557,11 @@ function OfferEditForm({ offer, niches, onDone }: { offer: Offer; niches: Niche[
                         <FieldLabel htmlFor="edit-offer-cta">Chamada (CTA)</FieldLabel>
                         <CtaHint />
                     </div>
-                    <Input id="edit-offer-cta" value={data.cta_text} onChange={(e) => setData('cta_text', e.target.value)} />
+                    <Input
+                        id="edit-offer-cta"
+                        value={data.cta_text}
+                        onChange={(e) => setData('cta_text', e.target.value)}
+                    />
                     {errors.cta_text && <p className="text-xs text-destructive">{errors.cta_text}</p>}
                 </Field>
 
@@ -567,11 +606,11 @@ function OfferEditForm({ offer, niches, onDone }: { offer: Offer; niches: Niche[
                 )}
             </div>
 
-            <SheetFooter className="border-t border-border flex-row flex-wrap justify-between gap-2">
+            <SheetFooter className="flex-row flex-wrap justify-between gap-2 border-t border-border">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button type="button" variant="outline" size="sm" disabled={!isApproved} className="gap-1.5">
-                            <CopyIcon className="w-3.5 h-3.5" /> Copiar texto curto + link
+                            <CopyIcon className="h-3.5 w-3.5" /> Copiar texto curto + link
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
@@ -641,7 +680,7 @@ export default function Offers() {
                     <>
                         <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-xl" asChild>
                             <Link href={`${BASE_URL}/performance`}>
-                                <ChartColumnIcon className="w-4 h-4" /> Performance
+                                <ChartColumnIcon className="h-4 w-4" /> Performance
                             </Link>
                         </Button>
                         <CreateOfferDialog niches={niches} />
@@ -650,7 +689,7 @@ export default function Offers() {
             >
                 <div className="flex flex-col gap-4">
                     {/* Tabs de status com contagem vinda do backend */}
-                    <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl border border-border bg-card w-fit">
+                    <div className="flex w-fit flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-1.5">
                         {TABS.map((tab) => (
                             <button
                                 key={tab.key}
@@ -663,7 +702,7 @@ export default function Offers() {
                                 }`}
                             >
                                 <span>{tab.label}</span>
-                                <span className="rounded-md bg-muted text-muted-foreground px-1.5 py-0.5 text-[10px] font-mono">
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                                     {counts[tab.key]}
                                 </span>
                             </button>
@@ -675,30 +714,36 @@ export default function Offers() {
                             {currentTab.empty}
                         </div>
                     ) : (
-                        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+                        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
                             <div className="overflow-x-auto">
                                 <Table className="w-full text-xs">
                                     <TableHeader className="bg-muted/40">
                                         <TableRow>
                                             <TableHead className="px-5 py-3 font-semibold">Oferta</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold">Preço</TableHead>
-                                            <TableHead className="px-5 py-3 font-semibold text-right">Cliques</TableHead>
-                                            <TableHead className="px-5 py-3 font-semibold hidden lg:table-cell">IA</TableHead>
-                                            <TableHead className="px-5 py-3 font-semibold hidden md:table-cell">Criada</TableHead>
-                                            <TableHead className="px-5 py-3 font-semibold text-right">Ações</TableHead>
+                                            <TableHead className="px-5 py-3 text-right font-semibold">
+                                                Cliques
+                                            </TableHead>
+                                            <TableHead className="hidden px-5 py-3 font-semibold lg:table-cell">
+                                                IA
+                                            </TableHead>
+                                            <TableHead className="hidden px-5 py-3 font-semibold md:table-cell">
+                                                Criada
+                                            </TableHead>
+                                            <TableHead className="px-5 py-3 text-right font-semibold">Ações</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {offers.map((offer) => (
                                             <TableRow key={offer.id} className="hover:bg-muted/30">
                                                 <TableCell className="px-5 py-3">
-                                                    <div className="flex items-center gap-3 min-w-[240px] max-w-[420px]">
+                                                    <div className="flex max-w-[420px] min-w-[240px] items-center gap-3">
                                                         <OfferThumb offer={offer} />
                                                         <div className="min-w-0">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setEditingId(offer.id)}
-                                                                className="block w-full text-left font-semibold text-foreground truncate hover:text-primary"
+                                                                className="block w-full truncate text-left font-semibold text-foreground hover:text-primary"
                                                                 title={offer.title}
                                                             >
                                                                 {offer.title}
@@ -710,11 +755,13 @@ export default function Offers() {
                                                                 <span className="text-[11px] text-muted-foreground">
                                                                     {nicheLabel(offer.niche)}
                                                                 </span>
-                                                                {activeStatus === 'todos' && <StatusBadge status={offer.status} />}
+                                                                {activeStatus === 'todos' && (
+                                                                    <StatusBadge status={offer.status} />
+                                                                )}
                                                                 {offer.telegramPostedAt && (
                                                                     <Badge
                                                                         variant="outline"
-                                                                        className="text-[10.5px] border-sky-500/30 text-sky-600 dark:text-sky-400"
+                                                                        className="border-sky-500/30 text-[10.5px] text-sky-600 dark:text-sky-400"
                                                                         title={`Divulgada no Telegram ${offer.telegramPostedAt}`}
                                                                     >
                                                                         Telegram
@@ -734,12 +781,14 @@ export default function Offers() {
                                                             : 'comissão —'}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="px-5 py-3 text-right font-mono">{offer.clicksCount}</TableCell>
-                                                <TableCell className="px-5 py-3 hidden lg:table-cell text-muted-foreground">
+                                                <TableCell className="px-5 py-3 text-right font-mono">
+                                                    {offer.clicksCount}
+                                                </TableCell>
+                                                <TableCell className="hidden px-5 py-3 text-muted-foreground lg:table-cell">
                                                     {offer.aiProvider ?? 'manual'}
                                                 </TableCell>
                                                 <TableCell
-                                                    className="px-5 py-3 hidden md:table-cell text-muted-foreground whitespace-nowrap"
+                                                    className="hidden px-5 py-3 whitespace-nowrap text-muted-foreground md:table-cell"
                                                     title={offer.createdAt ?? undefined}
                                                 >
                                                     {timeAgo(offer.createdAt)}
@@ -750,18 +799,22 @@ export default function Offers() {
                                                             <>
                                                                 <Button
                                                                     size="sm"
-                                                                    className="h-8 px-2.5 text-xs gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
-                                                                    onClick={() => setStatus(offer, 'approved', 'Oferta aprovada')}
+                                                                    className="h-8 gap-1 bg-emerald-600 px-2.5 text-xs text-white hover:bg-emerald-700"
+                                                                    onClick={() =>
+                                                                        setStatus(offer, 'approved', 'Oferta aprovada')
+                                                                    }
                                                                 >
-                                                                    <CheckIcon className="w-3.5 h-3.5" /> Aprovar
+                                                                    <CheckIcon className="h-3.5 w-3.5" /> Aprovar
                                                                 </Button>
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    className="h-8 px-2.5 text-xs gap-1"
-                                                                    onClick={() => setStatus(offer, 'rejected', 'Oferta rejeitada')}
+                                                                    className="h-8 gap-1 px-2.5 text-xs"
+                                                                    onClick={() =>
+                                                                        setStatus(offer, 'rejected', 'Oferta rejeitada')
+                                                                    }
                                                                 >
-                                                                    <XIcon className="w-3.5 h-3.5" /> Rejeitar
+                                                                    <XIcon className="h-3.5 w-3.5" /> Rejeitar
                                                                 </Button>
                                                             </>
                                                         )}
@@ -771,21 +824,31 @@ export default function Offers() {
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    className="h-8 px-2.5 text-xs gap-1"
-                                                                    onClick={() => setStatus(offer, 'archived', 'Oferta arquivada')}
+                                                                    className="h-8 gap-1 px-2.5 text-xs"
+                                                                    onClick={() =>
+                                                                        setStatus(offer, 'archived', 'Oferta arquivada')
+                                                                    }
                                                                 >
-                                                                    <ArchiveIcon className="w-3.5 h-3.5" /> Arquivar
+                                                                    <ArchiveIcon className="h-3.5 w-3.5" /> Arquivar
                                                                 </Button>
                                                             </>
                                                         )}
-                                                        {(offer.status === 'rejected' || offer.status === 'archived') && (
+                                                        {(offer.status === 'rejected' ||
+                                                            offer.status === 'archived') && (
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                className="h-8 px-2.5 text-xs gap-1"
-                                                                onClick={() => setStatus(offer, 'draft', 'Oferta voltou para rascunho')}
+                                                                className="h-8 gap-1 px-2.5 text-xs"
+                                                                onClick={() =>
+                                                                    setStatus(
+                                                                        offer,
+                                                                        'draft',
+                                                                        'Oferta voltou para rascunho',
+                                                                    )
+                                                                }
                                                             >
-                                                                <RotateCcwIcon className="w-3.5 h-3.5" /> Voltar para rascunho
+                                                                <RotateCcwIcon className="h-3.5 w-3.5" /> Voltar para
+                                                                rascunho
                                                             </Button>
                                                         )}
                                                         <Button
@@ -796,7 +859,7 @@ export default function Offers() {
                                                             title="Revisar e editar"
                                                             aria-label="Revisar e editar"
                                                         >
-                                                            <PencilIcon className="w-3.5 h-3.5" />
+                                                            <PencilIcon className="h-3.5 w-3.5" />
                                                         </Button>
                                                         {/* ConfirmButton não aceita className; tamanho vem do size */}
                                                         <ConfirmButton
@@ -805,7 +868,7 @@ export default function Offers() {
                                                             description={`Apagar a oferta "${offer.title}"? Os cliques registrados dela também deixam de aparecer.`}
                                                             onConfirm={() => destroy(offer)}
                                                         >
-                                                            <Trash2Icon className="w-3.5 h-3.5" />
+                                                            <Trash2Icon className="h-3.5 w-3.5" />
                                                         </ConfirmButton>
                                                     </div>
                                                 </TableCell>
@@ -819,11 +882,11 @@ export default function Offers() {
                 </div>
 
                 <Sheet open={editing !== null} onOpenChange={(open) => !open && setEditingId(null)}>
-                    <SheetContent side="right" className="w-full data-[side=right]:sm:max-w-xl p-0 gap-0">
+                    <SheetContent side="right" className="w-full gap-0 p-0 data-[side=right]:sm:max-w-xl">
                         {editing && (
                             <>
                                 <SheetHeader className="border-b border-border pr-12">
-                                    <SheetTitle className="font-display font-bold truncate">{editing.title}</SheetTitle>
+                                    <SheetTitle className="truncate font-display font-bold">{editing.title}</SheetTitle>
                                     <SheetDescription>Revise os textos gerados antes de divulgar.</SheetDescription>
                                 </SheetHeader>
                                 <OfferEditForm

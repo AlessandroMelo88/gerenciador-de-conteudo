@@ -22,7 +22,6 @@ import {
     RadioTowerIcon,
     TvIcon,
     BookOpenIcon,
-    SparklesIcon,
     BotIcon,
     BookmarkIcon,
     ChartColumnIcon,
@@ -40,7 +39,7 @@ type NavItem = {
 const BADGE_CLASSES =
     'font-mono text-[10.5px] font-semibold px-1.5 py-0.5 rounded-md bg-muted text-[#8a6508] dark:text-[#b8860b]';
 
-type SidebarItem = NavItem & { badge?: string | number };
+type SidebarItem = NavItem & { badge?: string | number; external?: boolean };
 
 const clipItems: SidebarItem[] = [
     { title: 'Dashboard', url: '/painel', icon: LayoutDashboardIcon, badge: 9 },
@@ -60,7 +59,14 @@ const affiliateItems: SidebarItem[] = [
 ];
 
 const WORKSPACES: (Workspace & { items: SidebarItem[]; matches: (path: string) => boolean })[] = [
-    { key: 'clipes', name: 'Canal de Cortes', tagline: 'Pipeline de clipes', home: '/painel', items: clipItems, matches: () => true },
+    {
+        key: 'clipes',
+        name: 'Canal de Cortes',
+        tagline: 'Pipeline de clipes',
+        home: '/painel',
+        items: clipItems,
+        matches: () => true,
+    },
     {
         key: 'afiliados',
         name: 'Afiliados',
@@ -120,34 +126,26 @@ export function AppSidebar({
                 <WorkspaceSwitcher workspaces={WORKSPACES} active={workspace} />
             </SidebarHeader>
             <SidebarContent>
-                <SidebarMenu className="px-2 gap-1">
+                <SidebarMenu className="gap-1 px-2">
                     {workspace.items.map((item) => (
                         <SidebarMenuItem key={item.url}>
                             <SidebarMenuButton
-                                className="h-10 rounded-xl text-[13.5px] font-medium justify-between"
+                                className="h-10 justify-between rounded-xl text-[13.5px] font-medium"
                                 asChild
                                 isActive={currentPath === item.url}
                                 tooltip={item.title}
                             >
                                 {item.external ? (
-                                    <a href={item.url} className="flex items-center w-full">
-                                        <item.icon className="size-4.5 mr-2" />
+                                    <a href={item.url} className="flex w-full items-center">
+                                        <item.icon className="mr-2 size-4.5" />
                                         <span className="flex-1">{item.title}</span>
-                                        {item.badge && (
-                                            <span className={BADGE_CLASSES}>
-                                                {item.badge}
-                                            </span>
-                                        )}
+                                        {item.badge && <span className={BADGE_CLASSES}>{item.badge}</span>}
                                     </a>
                                 ) : (
-                                    <Link href={item.url} className="flex items-center w-full">
-                                        <item.icon className="size-4.5 mr-2" />
+                                    <Link href={item.url} className="flex w-full items-center">
+                                        <item.icon className="mr-2 size-4.5" />
                                         <span className="flex-1">{item.title}</span>
-                                        {item.badge && (
-                                            <span className={BADGE_CLASSES}>
-                                                {item.badge}
-                                            </span>
-                                        )}
+                                        {item.badge && <span className={BADGE_CLASSES}>{item.badge}</span>}
                                     </Link>
                                 )}
                             </SidebarMenuButton>
@@ -155,32 +153,36 @@ export function AppSidebar({
                     ))}
                 </SidebarMenu>
             </SidebarContent>
-            <SidebarFooter className="p-3 flex flex-col gap-2">
+            <SidebarFooter className="flex flex-col gap-2 p-3">
                 {/* Workers Status Box (Dinâmico) — só na área de clipes */}
                 {workspace.key === 'clipes' && (
-                <div className="rounded-xl border border-border bg-card/60 p-3 flex flex-col gap-2 text-xs">
-                    <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        <span>Workers</span>
-                        <span className="flex items-center gap-1.5 text-emerald-500 normal-case tracking-normal">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>3 online
-                        </span>
+                    <div className="flex flex-col gap-2 rounded-xl border border-border bg-card/60 p-3 text-xs">
+                        <div className="flex items-center justify-between text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                            <span>Workers</span>
+                            <span className="flex items-center gap-1.5 tracking-normal text-emerald-500 normal-case">
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>3 online
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[12px]">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                            <span className="flex-1 text-foreground/80">downloader</span>
+                            <span className="font-mono text-[10.5px] text-muted-foreground">{workers.downloader}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[12px]">
+                            <span
+                                className={`h-1.5 w-1.5 rounded-full ${workers.transcriber !== 'ocioso' && workers.transcriber !== 'idle' ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                            ></span>
+                            <span className="flex-1 text-foreground/80">transcriber</span>
+                            <span className="font-mono text-[10.5px] text-muted-foreground">{workers.transcriber}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[12px]">
+                            <span
+                                className={`h-1.5 w-1.5 rounded-full ${workers.cutter !== 'ocioso' && workers.cutter !== 'idle' ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                            ></span>
+                            <span className="flex-1 text-foreground/80">cutter · uploader</span>
+                            <span className="font-mono text-[10.5px] text-muted-foreground">{workers.cutter}</span>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 text-[12px]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                        <span className="flex-1 text-foreground/80">downloader</span>
-                        <span className="font-mono text-[10.5px] text-muted-foreground">{workers.downloader}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[12px]">
-                        <span className={`w-1.5 h-1.5 rounded-full ${workers.transcriber !== 'ocioso' && workers.transcriber !== 'idle' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
-                        <span className="flex-1 text-foreground/80">transcriber</span>
-                        <span className="font-mono text-[10.5px] text-muted-foreground">{workers.transcriber}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[12px]">
-                        <span className={`w-1.5 h-1.5 rounded-full ${workers.cutter !== 'ocioso' && workers.cutter !== 'idle' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
-                        <span className="flex-1 text-foreground/80">cutter · uploader</span>
-                        <span className="font-mono text-[10.5px] text-muted-foreground">{workers.cutter}</span>
-                    </div>
-                </div>
                 )}
                 <NavUser user={user} />
             </SidebarFooter>

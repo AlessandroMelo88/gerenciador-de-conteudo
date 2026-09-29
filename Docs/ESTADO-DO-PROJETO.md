@@ -1,7 +1,11 @@
 # Estado do projeto — leia primeiro
 
-**Última atualização:** 20/09/2026
+**Última atualização:** 28/09/2026
 **Produção:** commit `3cc729b`, no ar em https://toolscut.alessandromelo.com.br
+
+**Integração em revisão:** `release/rico` já contém a `origin/master` atual. A PR #1 para `master`
+está aberta; as mudanças desta rodada ainda não foram publicadas em produção. Não houve deploy nem
+validação de postagem real nesta rodada.
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
 Ele resume e aponta; o detalhe fica nos arquivos citados.
@@ -81,8 +85,11 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
   num dia e encheu o disco, derrubando o painel (bug 12).
 - **Rejeitar clip só apaga arquivo pelo sidecar.** O container `php` monta os vídeos como somente
   leitura; o `Storage::delete` falhava calado (bug 13).
-- **Corte curto: descarta abaixo de 15 s, estica de 15 s a 30 s, teto de 180 s.** Clip de 2–5 s não tem
-  assunto.
+- **Shorts: 30–45 s por padrão.** Um candidato de pelo menos 15 s pode ser ampliado até 30 s quando
+  houver contexto suficiente. Testes acima de 45 s exigem configurar `SHORTS_MAX_DURATION_SECONDS`.
+- **Frescor das fontes:** cada canal escolhe 3 ou 1500 dias; `FRESHNESS_DAYS=1500` é apenas fallback.
+- **Publicação planejada:** vídeos longos às 06h, 14h e 22h (intervalos de 8h); Shorts às 12h e 20h.
+  Isso define as janelas do worker, não confirma publicações reais.
 - **Nada de burlar detecção de direitos autorais.** O que muda o risco é a fonte: programa falado em vez
   de imagem de emissora.
 - **PostgreSQL no lugar do MySQL.** O suporte já existia no código; a produção migrou junto com a VM.
@@ -130,5 +137,6 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Data | Rodada | Onde parou | Próximo passo combinado |
 |---|---|---|---|
 | 20/09/2026 | Criação deste checkpoint | Produção em `3cc729b`, saudável: 141 clips publicados, 16 na fila de aprovação, 18 vídeos na janela, 0 ofertas | Cadastrar a primeira oferta real de afiliado |
+| 28/09/2026 | Integração `release/rico` | `origin/master` incorporada; PR #1 aberta para revisão. Ajustes de frescor por fonte, retenção de transcrições, mídia por destino, horários de publicação e cron nativo ainda aguardam integração/deploy | Revisar e integrar a PR; configurar credenciais e confirmar a fila antes de ativar publicações |
 | 18/09/2026 | Afiliados na master, modo manutenção, hotfix do Vite | Afiliados em produção com token configurado | Criar canais do Telegram |
 | 17/09/2026 | Migração para a VM A1 | Produção em PostgreSQL, disco dedicado | Encerrar a VM antiga depois do período de rollback |

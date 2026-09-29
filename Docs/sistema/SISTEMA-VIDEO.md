@@ -30,7 +30,7 @@ os intermediários em toda falha; confira `videos/clips` antes de uma limpeza ma
 
 | Formato | Corte | Legenda | Dimensão/saída |
 |---|---|---|---|
-| `curto` | janela exata de 30s | render único com quadro vertical, SRT queimado salvo quando a fonte já tem legenda gravada, e watermark opcional | vertical 1080×1920 |
+| `curto` | janela de 30 a 45s por padrão; limite configurável | render único com quadro vertical, SRT queimado salvo quando a fonte já tem legenda gravada, e watermark opcional | vertical 1080×1920 |
 | `longo` | trecho horizontal | SRT gerado depois da composição e enviado como legenda oficial | horizontal, altura 1080 |
 
 ### Curto
@@ -63,16 +63,21 @@ O trecho é normalizado para canvas horizontal 1920×1080. Intro, conteúdo e en
 com transição curta; a música é misturada nos 15 segundos finais do vídeo composto. O encerramento
 pode receber card com thumbnail/título de outro vídeo publicado no mesmo destino.
 
-O longo exige os três tipos `intro`, `outro` e `music`. Se algum faltar,
-o clip falha. O SRT é gerado após a composição, com offset calculado para a intro, e o uploader o envia como
+Os assets do longo pertencem ao canal de destino. Quando o canal não tiver os
+três tipos `intro`, `outro` e `music`, o clip falha. A música começa em 24% por padrão e cresce
+até 100% nos últimos oito segundos. O SRT é gerado após a
+composição, com offset calculado para a intro, e o uploader o envia como
 legenda oficial `pt-BR`.
 
 ## Resolução de assets
 
 Ordem:
 
-1. filesystem canônico por canal: `assets/channels/<slug>`;
-2. biblioteca legada em `media_assets` no PostgreSQL.
+1. filesystem do canal: `assets/channels/<slug>`;
+2. `media_assets` associado ao mesmo canal no PostgreSQL.
+
+Não existe fallback global: um asset sem canal é preservado no painel, mas não
+entra em nenhum vídeo. Shorts não recebem música, intro ou encerramento.
 
 Arquivos aceitos:
 
@@ -80,15 +85,17 @@ Arquivos aceitos:
 |---|---|
 | intro | `intro.mp4`, `intro.mov`, `intro.webm`, imagens equivalentes |
 | outro | `encerramento.mp4`, `outro.mp4`, imagens equivalentes |
-| music | qualquer `.mp3`, `.wav`, `.m4a`, `.ogg`, `.flac` ou `.aac` em `assets/audio` |
+| music | arquivos `.mp3`, `.wav`, `.m4a`, `.ogg`, `.flac` ou `.aac` em `assets/channels/<slug>/audio/` |
 
-Para cada tipo, a resolução prioriza canal + formato, depois prioridade e uma rotação determinística
+Para cada tipo, a resolução prioriza o canal e o formato, depois prioridade e uma rotação determinística
 por ID do clip. Imagens são transformadas em vídeo estático de 3 s quando necessário. A música é
-misturada nos 15 segundos finais do vídeo já composto: começa bem baixa, sobe durante 7 segundos e
-fica no volume final nos 8 segundos finais. O volume configurado recebe ganho de 20%, limitado a 100%,
-e a faixa entra em loop apenas para cobrir esse trecho.
+misturada nos 15 segundos finais do vídeo já composto: começa no volume configurado (24% por padrão)
+e sobe gradualmente até 100% nos 8 segundos finais. A faixa entra em loop apenas para cobrir esse trecho.
+Arquivos mantidos em `assets/audio/` são acervo original e não são usados automaticamente.
+Na atualização que introduz o padrão de 24%, a migration `2026_09_28_140000_raise_default_music_volume`
+eleva músicas existentes que ainda estavam no padrão antigo de 12%; volumes personalizados são mantidos.
 
-A marca d’água é `/app/branding/watermark-{destination_slug}.png`, no canto superior
+A marca d’água é `${BRANDING_DIR}/watermark-{destination_slug}.png` (no Docker, `/app/branding`), no canto superior
 direito. Se não existir, o pipeline segue sem watermark.
 
 ## Relacionado e thumbnail
@@ -105,17 +112,19 @@ direito. Se não existir, o pipeline segue sem watermark.
 
 | Artefato | Local |
 |---|---|
-| raw fonte | `/app/videos/<youtube_id>.mp4` |
-| transcript | `/app/videos/<youtube_id>_transcript.json` |
-| raw do clip | `/app/videos/clips/<id>_raw.mp4` |
-| SRT | `/app/videos/clips/<id>.srt` |
-| intermediário de Shorts | `/app/videos/clips/<id>_subtitled.mp4` |
-| final | `/app/videos/clips/<id>.mp4` |
-| thumbnail | `/app/videos/thumbnails/<id>.jpg` |
+| raw fonte | `${VIDEOS_DIR}/<youtube_id>.mp4` (Docker: `/app/videos/<youtube_id>.mp4`) |
+| transcript em arquivo | `${VIDEOS_DIR}/<youtube_id>_transcript.json` |
+| raw do clip | `${VIDEOS_DIR}/clips/<id>_raw.mp4` |
+| SRT | `${VIDEOS_DIR}/clips/<id>.srt` |
+| intermediário de Shorts | `${VIDEOS_DIR}/clips/<id>_subtitled.mp4` |
+| final | `${VIDEOS_DIR}/clips/<id>.mp4` |
+| thumbnail | `${VIDEOS_DIR}/thumbnails/<id>.jpg` |
 
 Os caminhos finais ficam em `generated_clips.clip_path` e
-`generated_clips.thumbnail_path`. Na finalização da fonte, o publisher remove raw, finals,
-SRTs, intermediários e thumbnail, zera os dois caminhos e marca a fonte como publicada.
+`generated_clips.thumbnail_path`. Na finalização da fonte, o publisher remove arquivos locais
+descartáveis e zera os caminhos correspondentes, mas preserva as linhas, transcrições e metadados
+no PostgreSQL para pesquisa posterior. Caminhos gravados no formato Docker são traduzidos quando o
+worker roda no host.
 
 ## Operação segura
 

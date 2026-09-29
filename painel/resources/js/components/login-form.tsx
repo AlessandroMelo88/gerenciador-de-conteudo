@@ -25,7 +25,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
         <form className={cn('flex flex-col gap-6', className)} onSubmit={submit} {...props}>
             <FieldGroup>
                 <div className="flex flex-col items-center gap-1 text-center">
-                    <h1 className="text-2xl font-bold font-display">{brand.name}</h1>
+                    <h1 className="font-display text-2xl font-bold">{brand.name}</h1>
                     <p className="text-sm text-balance text-muted-foreground">Entre com seu e-mail e senha</p>
                 </div>
                 <Field>

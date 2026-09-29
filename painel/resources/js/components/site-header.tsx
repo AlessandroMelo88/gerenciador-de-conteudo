@@ -15,20 +15,24 @@ export function SiteHeader({
     actions?: ReactNode;
 }) {
     return (
-        <header className="sticky top-0 z-30 flex min-h-[64px] shrink-0 flex-col justify-center border-b bg-background/85 px-3 py-2.5 sm:px-4 sm:py-3 backdrop-blur-xl transition-[width,height] ease-linear lg:px-6">
+        <header className="sticky top-0 z-30 flex min-h-[64px] shrink-0 flex-col justify-center border-b bg-background/85 px-3 py-2.5 backdrop-blur-xl transition-[width,height] ease-linear sm:px-4 sm:py-3 lg:px-6">
             <div className="flex w-full items-center gap-2.5 sm:gap-3">
-                <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground shrink-0" />
+                <SidebarTrigger className="-ml-1 shrink-0 text-muted-foreground hover:text-foreground" />
                 <div className="min-w-0 flex-1">
-                    <h1 className="truncate font-display text-base sm:text-lg font-bold tracking-tight text-foreground">{title}</h1>
-                    {description && <p className="truncate text-xs text-muted-foreground hidden sm:block">{description}</p>}
+                    <h1 className="truncate font-display text-base font-bold tracking-tight text-foreground sm:text-lg">
+                        {title}
+                    </h1>
+                    {description && (
+                        <p className="hidden truncate text-xs text-muted-foreground sm:block">{description}</p>
+                    )}
                 </div>
-                
+
                 {/* Quota badges rápidos no topo */}
-                <div className="hidden xl:flex items-center gap-2 pr-3 border-r border-border shrink-0">
-                    <span className="font-mono text-[11px] px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">
+                <div className="hidden shrink-0 items-center gap-2 border-r border-border pr-3 xl:flex">
+                    <span className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 font-mono text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                         ⚽ Futebol: 0/5
                     </span>
-                    <span className="font-mono text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-medium">
+                    <span className="rounded-lg border border-purple-500/20 bg-purple-500/10 px-2.5 py-1 font-mono text-[11px] font-medium text-purple-600 dark:text-purple-400">
                         🏛️ Política: 0/5
                     </span>
                 </div>

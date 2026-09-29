@@ -17,13 +17,22 @@ type ConfirmButtonProps = {
     onConfirm: () => void;
     children: React.ReactNode;
     disabled?: boolean;
+    className?: string;
 } & Pick<ComponentProps<typeof Button>, 'variant' | 'size'>;
 
-export function ConfirmButton({ description, onConfirm, children, disabled, variant, size }: ConfirmButtonProps) {
+export function ConfirmButton({
+    description,
+    onConfirm,
+    children,
+    disabled,
+    variant,
+    size,
+    className,
+}: ConfirmButtonProps) {
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>
-                <Button variant={variant} size={size} disabled={disabled}>
+                <Button variant={variant} size={size} disabled={disabled} className={className}>
                     {children}
                 </Button>
             </AlertDialogTrigger>

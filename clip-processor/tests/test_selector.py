@@ -3,10 +3,12 @@ test_selector.py — Testes unitários para selector.py (AI-02, AI-03).
 
 Os cenários cobrem seleção por formato, validação da resposta e persistência.
 """
+
 from __future__ import annotations
 
 import json
 from unittest.mock import MagicMock
+
 import pytest
 
 from src import selector as selector_module
@@ -65,14 +67,18 @@ class TestCleanReason:
 
     def test_parse_moments_aplica_limpeza(self):
         """A limpeza tem que valer para os dois caminhos de IA, que passam por _parse_moments."""
-        bruto = json.dumps({
-            'moments': [{
-                'start_time': 0,
-                'end_time': 60,
-                'score': 9,
-                'reason': 'x' * (MAX_REASON_CHARS + 50),
-            }]
-        })
+        bruto = json.dumps(
+            {
+                'moments': [
+                    {
+                        'start_time': 0,
+                        'end_time': 60,
+                        'score': 9,
+                        'reason': 'x' * (MAX_REASON_CHARS + 50),
+                    }
+                ]
+            }
+        )
 
         momentos = _parse_moments(bruto)
 
@@ -92,10 +98,13 @@ class TestSelectMoments:
             pass
 
         class FakeMessage:
-            content = '{"moments": [{"start_time": 0, "end_time": 30, "score": 9, "reason": "Insight"}]}'
+            content = (
+                '{"moments": [{"start_time": 0, "end_time": 30, "score": 9, "reason": "Insight"}]}'
+            )
 
         class FakeResponse:
-            choices = [type('Choice', (), {'message': FakeMessage()})()]
+            def __init__(self):
+                self.choices = [type('Choice', (), {'message': FakeMessage()})()]
 
         class FakeCompletions:
             def __init__(self):
@@ -364,9 +373,9 @@ class TestSelectMoments:
 
         assert len(result) == 1
         assert result[0]['start_time'] == 100.0
-        assert result[0]['end_time'] == 130.0
+        assert result[0]['end_time'] == 140.0
 
-    def test_shortform_is_normalized_to_exactly_30s(self):
+    def test_shortform_is_clamped_to_maximum_duration(self):
         mock_anthropic = MagicMock()
         mock_response = MagicMock()
         mock_response.content = [
@@ -397,7 +406,7 @@ class TestSelectMoments:
 
         assert len(result) == 1
         assert result[0]['start_time'] == 115.0
-        assert result[0]['end_time'] == 145.0
+        assert result[0]['end_time'] == 160.0
 
     def test_shortform_completes_small_boundary_gap_to_30s(self):
         mock_anthropic = MagicMock()
@@ -431,7 +440,7 @@ class TestSelectMoments:
         assert result[0]['end_time'] == 129.4
 
     def test_shortform_normalizes_after_completing_transcript_boundary(self, sample_video_id):
-        """A borda é completada e o Short final continua com 30s exatos."""
+        """A borda de fala é completada sem encurtar um Short dentro do limite."""
         mock_anthropic = MagicMock()
         mock_response = MagicMock()
         mock_response.content = [
@@ -460,10 +469,10 @@ class TestSelectMoments:
         result = select_moments(transcript, anthropic_client=mock_anthropic)
 
         assert len(result) == 1
-        assert result[0]['end_time'] - result[0]['start_time'] == 30.0
+        assert result[0]['end_time'] - result[0]['start_time'] == pytest.approx(34.96)
 
     def test_shortform_keeps_exact_duration_after_boundary_adjustment(self, sample_video_id):
-        """Mesmo após ajustar uma frase vizinha, a saída curta fica em 30s."""
+        """Uma frase vizinha pode ser ajustada, respeitando o teto de 45s."""
         mock_anthropic = MagicMock()
         mock_response = MagicMock()
         mock_response.content = [
@@ -499,7 +508,7 @@ class TestSelectMoments:
         result = select_moments(transcript, anthropic_client=mock_anthropic)
 
         assert len(result) == 1
-        assert result[0]['end_time'] - result[0]['start_time'] == 30.0
+        assert result[0]['end_time'] - result[0]['start_time'] == 45.0
 
     def test_end_time_snaps_to_segment_end_when_cut_is_inside_a_phrase(self):
         """Um fim no meio do bloco não pode truncar a última frase."""
@@ -636,7 +645,9 @@ class TestSelectMoments:
         já existe conteúdo e vale completar os 30 s com o contexto em volta.
         """
         mock_anthropic = MagicMock()
-        moments = [{'start_time': 50.0, 'end_time': 70.0, 'score': 9, 'reason': 'Tem assunto, mas só 20s'}]
+        moments = [
+            {'start_time': 50.0, 'end_time': 70.0, 'score': 9, 'reason': 'Tem assunto, mas só 20s'}
+        ]
         mock_response = MagicMock()
         mock_response.content = [MagicMock(text=json.dumps({'moments': moments}))]
         mock_anthropic.messages.create.return_value = mock_response
@@ -651,9 +662,11 @@ class TestSelectMoments:
         assert result[0]['start_time'] < 50.0
 
     def test_shortform_acima_do_teto_limitado(self, sample_video_id):
-        """Momento maior que MAX_SHORTFORM_SECONDS (180 s, teto do Shorts) é cortado no teto."""
+        """Momento maior que MAX_SHORTFORM_SECONDS é cortado no teto configurado."""
         mock_anthropic = MagicMock()
-        moments = [{'start_time': 10.0, 'end_time': 300.0, 'score': 9, 'reason': 'Longo demais para short'}]
+        moments = [
+            {'start_time': 10.0, 'end_time': 300.0, 'score': 9, 'reason': 'Longo demais para short'}
+        ]
         mock_response = MagicMock()
         mock_response.content = [MagicMock(text=json.dumps({'moments': moments}))]
         mock_anthropic.messages.create.return_value = mock_response
@@ -661,7 +674,7 @@ class TestSelectMoments:
         result = select_moments(SAMPLE_TRANSCRIPT, anthropic_client=mock_anthropic, fmt='curto')
 
         assert len(result) == 1
-        assert result[0]['end_time'] - result[0]['start_time'] <= 180.0
+        assert result[0]['end_time'] - result[0]['start_time'] == 45.0
 
 
 class TestInsertMoments:

@@ -7,8 +7,8 @@ os cortes — sem editar Python e sem `docker compose build` — e acompanhar m�
 um prompt novo é melhor que o anterior.
 
 > **Nota:** esta é uma proposta futura e contém valores do snapshot de 2026-08-13. O runtime atual
-> já usa `prompt_profiles` para separar os textos editoriais por nicho, sem editor, versionamento
-> ou métricas por versão. O catálogo ativo, os providers e os schemas estão em
+> já usa `prompt_profiles` e camadas YAML para separar os textos editoriais por nicho e destino,
+> sem editor, versionamento ou métricas por versão. O catálogo ativo, os providers e os schemas estão em
 > [SISTEMA-IA-SELECAO.md](SISTEMA-IA-SELECAO.md). Não use este plano para configurar produção.
 
 ---

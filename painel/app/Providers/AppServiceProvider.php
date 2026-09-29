@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\TelegramHttpClientHandler;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\ServiceProvider;
 use Telegram\Bot\BotsManager;
 
@@ -21,7 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Illuminate\Support\Carbon::setLocale('pt_BR');
+        Carbon::setLocale('pt_BR');
         setlocale(LC_TIME, 'pt_BR.utf8', 'pt_BR', 'portuguese');
 
         // Substitui o GuzzleHttpClient padrão do SDK Telegram pelo handler Laravel.

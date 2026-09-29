@@ -17,8 +17,6 @@ DEFAULT_STILL_DURATION_SECONDS = 3
 DEFAULT_MUSIC_VOLUME = 0.24
 MUSIC_DURATION_SECONDS = 15
 MUSIC_FINAL_VOLUME_SECONDS = 8
-MUSIC_FADE_IN_SECONDS = MUSIC_DURATION_SECONDS - MUSIC_FINAL_VOLUME_SECONDS
-MUSIC_VOLUME_GAIN = 1.20
 DEFAULT_TRANSITION_SECONDS = 0.35
 RELATED_CARD_FONT_PATH = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
 
@@ -369,8 +367,19 @@ def _mix_music(input_path: str, music_path: str, output_path: str, volume: float
 
     music_duration = min(float(MUSIC_DURATION_SECONDS), input_duration)
     music_start = max(input_duration - music_duration, 0.0)
-    fade_duration = min(float(MUSIC_FADE_IN_SECONDS), music_duration)
-    safe_volume = min(max(float(volume) * MUSIC_VOLUME_GAIN, 0.01), 1.0)
+    safe_volume = min(max(float(volume), 0.01), 1.0)
+    ramp_duration = min(float(MUSIC_FINAL_VOLUME_SECONDS), music_duration)
+    ramp_start = max(0.0, music_duration - ramp_duration)
+    if ramp_duration > 0:
+        volume_expression = (
+            f'if(lt(t,{ramp_start:.3f}),'
+            f'{safe_volume:.3f},'
+            f'if(lt(t,{music_duration:.3f}),'
+            f'{safe_volume:.3f}+(1-{safe_volume:.3f})*'
+            f'(t-{ramp_start:.3f})/{ramp_duration:.3f},1))'
+        )
+    else:
+        volume_expression = f'{safe_volume:.3f}'
     delay_ms = round(music_start * 1000)
     _run_ffmpeg(
         [
@@ -385,8 +394,7 @@ def _mix_music(input_path: str, music_path: str, output_path: str, volume: float
             '-filter_complex',
             (
                 f'[1:a]atrim=duration={music_duration:.3f},'
-                f'volume={safe_volume:.3f},'
-                f'afade=t=in:st=0:d={fade_duration:.3f},'
+                f"volume='{volume_expression}':eval=frame,"
                 f'asetpts=PTS-STARTPTS,adelay={delay_ms}|{delay_ms}[music];'
                 '[0:a][music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]'
             ),

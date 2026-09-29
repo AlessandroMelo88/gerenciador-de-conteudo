@@ -5,13 +5,14 @@ Endpoints:
   - POST /internal/resolve-channel      {url}              -> {channel_id, channel_name, channel_handle}
   - POST /internal/reject-clip          {clip_id}          -> {exit_code}
   - POST /internal/process-url          {url}              -> {exit_code}
-  - POST /internal/delete-source-video  {source_video_id}  -> {deleted, freed_bytes}
+  - POST /internal/delete-source-video  {source_video_id}  -> cleanup local, histórico preservado
   - POST /internal/transcribe           {url}              -> {job_id}
 
 Auth: header X-Internal-Token verificado contra CLIP_PROCESSOR_INTERNAL_TOKEN.
 Rede: bind 0.0.0.0:8090 dentro do container `clip-processor`, rede docker `internal`
       — sem publicação de porta no host.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,6 +24,7 @@ import redis
 from flask import Flask, jsonify, request
 
 from src.db import get_db_connection
+from src.paths import resolve_stored_video_path
 from src.processar import main as processar_main
 from src.publisher import publish_pending_clips
 from src.rejeitar import rejeitar
@@ -96,11 +98,41 @@ def reject_clip(clip_id: int) -> int:
 
 def _archive_transcript_if_needed(conn, source_video_id: int, transcript_path: str | None) -> bool:
     """Garante que a transcrição antiga também esteja guardada no PostgreSQL."""
+    transcript_path = resolve_stored_video_path(transcript_path)
     with conn.cursor() as cur:
-        cur.execute('SELECT transcript_data FROM source_videos WHERE id = %s', (source_video_id,))
+        cur.execute(
+            'SELECT transcript_data, transcript_text FROM source_videos WHERE id = %s',
+            (source_video_id,),
+        )
         row = cur.fetchone()
-    if row and row.get('transcript_data'):
+    existing_data = row.get('transcript_data') if row else None
+    existing_text = str((row or {}).get('transcript_text') or '').strip()
+    if existing_text:
         return True
+
+    transcript = existing_data
+    if isinstance(transcript, str):
+        try:
+            transcript = json.loads(transcript)
+        except ValueError:
+            transcript = None
+    if isinstance(transcript, dict):
+        text = str(
+            transcript.get('text')
+            or ' '.join(
+                str(segment.get('text') or '')
+                for segment in transcript.get('segments', [])
+                if isinstance(segment, dict)
+            )
+        ).strip()
+        if text:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'UPDATE source_videos SET transcript_text=%s WHERE id=%s',
+                    (text, source_video_id),
+                )
+            conn.commit()
+            return True
     if not transcript_path or not os.path.isfile(transcript_path):
         return False
 
@@ -113,14 +145,21 @@ def _archive_transcript_if_needed(conn, source_video_id: int, transcript_path: s
 
     if not isinstance(transcript, dict):
         return False
-    text = str(transcript.get('text') or ' '.join(
-        str(segment.get('text') or '')
-        for segment in transcript.get('segments', [])
-        if isinstance(segment, dict)
-    ))
+    text = str(
+        transcript.get('text')
+        or ' '.join(
+            str(segment.get('text') or '')
+            for segment in transcript.get('segments', [])
+            if isinstance(segment, dict)
+        )
+    ).strip()
+    if not text:
+        return False
     from src.db import get_db_driver
 
-    json_assignment = 'transcript_data=%s::json' if get_db_driver(conn) == 'pgsql' else 'transcript_data=%s'
+    json_assignment = (
+        'transcript_data=%s::json' if get_db_driver(conn) == 'pgsql' else 'transcript_data=%s'
+    )
     with conn.cursor() as cur:
         cur.execute(
             f'UPDATE source_videos SET {json_assignment}, transcript_text=%s WHERE id=%s',
@@ -158,9 +197,13 @@ def delete_source_video_file(source_video_id: int) -> dict:
         if not row:
             raise RuntimeError('source_video não encontrado')
 
-        transcript_archived = _archive_transcript_if_needed(
-            conn, source_video_id, row.get('transcript_path')
-        )
+        transcript_path = resolve_stored_video_path(row.get('transcript_path'))
+        local_path = resolve_stored_video_path(row.get('local_path'))
+        transcript_archived = _archive_transcript_if_needed(conn, source_video_id, transcript_path)
+        if transcript_path and os.path.isfile(transcript_path) and not transcript_archived:
+            raise RuntimeError(
+                'Transcrição local não pôde ser arquivada no banco; os arquivos foram preservados.'
+            )
         freed_bytes = 0
 
         # 1. Apagar clips gerados em disco (videos/clips/ e videos/thumbnails/)
@@ -175,7 +218,7 @@ def delete_source_video_file(source_video_id: int) -> dict:
         for clip in clips:
             if clip.get('status') not in ('published', 'rejected', 'failed'):
                 continue
-            clip_path = clip.get('clip_path')
+            clip_path = resolve_stored_video_path(clip.get('clip_path'))
             if clip_path:
                 clip_stem = os.path.splitext(clip_path)[0]
                 for candidate in (
@@ -188,26 +231,24 @@ def delete_source_video_file(source_video_id: int) -> dict:
                         freed_bytes += os.path.getsize(candidate)
                         os.remove(candidate)
 
-            thumb_path = clip.get('thumbnail_path')
+            thumb_path = resolve_stored_video_path(clip.get('thumbnail_path'))
             if thumb_path and os.path.exists(thumb_path):
                 freed_bytes += os.path.getsize(thumb_path)
                 os.remove(thumb_path)
 
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE generated_clips SET clip_path = NULL, thumbnail_path = NULL "
+                'UPDATE generated_clips SET clip_path = NULL, thumbnail_path = NULL '
                 "WHERE source_video_id = %s AND status IN ('published', 'rejected', 'failed')",
                 (source_video_id,),
             )
 
         # 2. Apagar vídeo bruto
-        local_path = row.get('local_path')
         if local_path and os.path.exists(local_path):
             freed_bytes += os.path.getsize(local_path)
             os.remove(local_path)
 
         # 3. Apagar transcrição
-        transcript_path = row.get('transcript_path')
         if transcript_archived and transcript_path and os.path.exists(transcript_path):
             freed_bytes += os.path.getsize(transcript_path)
             os.remove(transcript_path)
@@ -219,15 +260,23 @@ def delete_source_video_file(source_video_id: int) -> dict:
 
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE source_videos SET local_path = NULL, "
-                "transcript_path = CASE WHEN %s THEN NULL ELSE transcript_path END, "
-                "status = CASE WHEN status IN ('selecting', 'downloaded', 'transcribing', 'downloading') THEN 'failed' ELSE status END "
-                "WHERE id = %s",
-                (transcript_archived or not (transcript_path and os.path.exists(transcript_path)), source_video_id),
+                'UPDATE source_videos SET local_path = NULL, '
+                'transcript_path = CASE WHEN %s THEN NULL ELSE transcript_path END, '
+                "status = CASE WHEN status IN ('pending', 'selecting', 'downloaded', 'transcribing', 'downloading') THEN 'failed' ELSE status END "
+                'WHERE id = %s',
+                (
+                    transcript_archived
+                    or not (transcript_path and os.path.exists(transcript_path)),
+                    source_video_id,
+                ),
             )
         conn.commit()
 
-        return {'deleted': True, 'transcript_archived': transcript_archived, 'freed_bytes': freed_bytes}
+        return {
+            'deleted': True,
+            'transcript_archived': transcript_archived,
+            'freed_bytes': freed_bytes,
+        }
     finally:
         conn.close()
 
@@ -241,62 +290,69 @@ def purge_old_videos(before_date: str) -> dict:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT sv.youtube_video_id FROM source_videos sv "
-                "WHERE sv.published_at < %s "
-                "AND sv.status IN ('pending', 'failed', 'downloaded') "
-                "AND NOT EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = sv.id)",
+                'SELECT id, local_path, transcript_path FROM source_videos '
+                'WHERE published_at < %s ORDER BY published_at ASC, id ASC',
                 (before_date,),
             )
-            video_ids_to_purge = [row['youtube_video_id'] for row in cur.fetchall()]
+            historical_rows = cur.fetchall()
+        conn.close()
 
-        with conn.cursor() as cur:
-            cur.execute(
-                "DELETE FROM source_videos "
-                "WHERE published_at < %s "
-                "AND status IN ('pending', 'failed', 'downloaded') "
-                "AND NOT EXISTS (SELECT 1 FROM generated_clips gc WHERE gc.source_video_id = source_videos.id)",
-                (before_date,),
-            )
-            deleted_rows = cur.rowcount
-        conn.commit()
+        rows_with_local_artifacts = [
+            row for row in historical_rows if row.get('local_path') or row.get('transcript_path')
+        ]
 
-        if video_ids_to_purge:
-            try:
-                r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-                r.delete(*[f'video:{vid}' for vid in video_ids_to_purge])
-            except Exception:
-                pass
-
-        placeholders = ', '.join(['%s'] * len(_CLIP_STATUSES_NEED_RAW_FILE))
-        with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT sv.id, sv.local_path FROM source_videos sv "
-                f"WHERE sv.published_at < %s AND sv.local_path IS NOT NULL "
-                f"AND sv.status NOT IN ('downloading', 'cutting') "
-                f"AND NOT EXISTS ("
-                f"  SELECT 1 FROM generated_clips gc "
-                f"  WHERE gc.source_video_id = sv.id AND gc.status IN ({placeholders})"
-                f")",
-                (before_date, *_CLIP_STATUSES_NEED_RAW_FILE),
-            )
-            rows_with_file = cur.fetchall()
+        # Históricos sem raw também não devem voltar para a fila de download
+        # só porque a limpeza preservou o registro no banco.
+        state_conn = get_db_connection()
+        try:
+            with state_conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE source_videos SET status = 'failed' "
+                    'WHERE published_at < %s AND local_path IS NULL '
+                    "AND status IN ('pending', 'downloaded') "
+                    'AND NOT EXISTS (SELECT 1 FROM generated_clips gc '
+                    'WHERE gc.source_video_id = source_videos.id '
+                    "AND gc.status IN ('pending_cut', 'cutting'))",
+                    (before_date,),
+                )
+            state_conn.commit()
+        finally:
+            state_conn.close()
 
         freed_bytes = 0
-        for row in rows_with_file:
-            path = row['local_path']
-            if path and os.path.exists(path):
-                try:
-                    freed_bytes += os.path.getsize(path)
-                    os.remove(path)
-                except OSError:
-                    pass
-            with conn.cursor() as cur:
-                cur.execute("UPDATE source_videos SET local_path = NULL WHERE id = %s", (row['id'],))
-        conn.commit()
+        cleaned_videos = 0
+        transcripts_archived = 0
+        skipped_rows = 0
+        for row in rows_with_local_artifacts:
+            source_video_id = row['id']
+            try:
+                result = delete_source_video_file(int(source_video_id))
+            except RuntimeError as exc:
+                skipped_rows += 1
+                print(
+                    f'[CLEANUP] Vídeo antigo {source_video_id} preservado em disco por segurança: {exc}',
+                    flush=True,
+                )
+                continue
+            if result.get('deleted'):
+                cleaned_videos += 1
+                freed_bytes += int(result.get('freed_bytes') or 0)
+            if result.get('transcript_archived'):
+                transcripts_archived += 1
 
-        return {'deleted_rows': deleted_rows, 'freed_bytes': freed_bytes}
+        return {
+            'deleted_rows': 0,
+            'retained_rows': len(historical_rows),
+            'cleaned_videos': cleaned_videos,
+            'transcripts_archived': transcripts_archived,
+            'skipped_rows': skipped_rows,
+            'freed_bytes': freed_bytes,
+        }
     finally:
-        conn.close()
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 @app.post('/internal/purge-old-videos')
@@ -462,7 +518,9 @@ def _route_publish_now():
             conn = get_db_connection()
             r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
             published = publish_pending_clips(conn, r, bypass_window=True)
-            print(f'[INTERNAL_API] Publicação imediata finalizada: {published} clipe(s)', flush=True)
+            print(
+                f'[INTERNAL_API] Publicação imediata finalizada: {published} clipe(s)', flush=True
+            )
         except Exception as e:
             print(f'[INTERNAL_API] Erro durante publicação imediata: {e}', flush=True)
         finally:

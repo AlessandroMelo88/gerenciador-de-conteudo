@@ -9,15 +9,17 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 
-it('uploads a global intro to the media library', function () {
+it('uploads an intro to a destination channel media library', function () {
     Storage::fake('branding');
     $user = User::factory()->create();
+    $channel = DestinationChannel::factory()->create();
 
     actingAs($user)
         ->post('/painel/configuracoes/midia', [
             'kind' => 'intro',
             'name' => 'Intro principal',
             'file' => UploadedFile::fake()->create('intro.mp4', 512, 'video/mp4'),
+            'destination_channel_id' => $channel->getKey(),
             'format' => 'curto',
             'duration_seconds' => 4,
         ])
@@ -27,15 +29,25 @@ it('uploads a global intro to the media library', function () {
     expect($asset->kind)->toBe('intro')
         ->and($asset->format)->toBe('curto')
         ->and($asset->duration_seconds)->toBe(4)
-        ->and($asset->destination_channel_id)->toBeNull();
+        ->and($asset->destination_channel_id)->toBe($channel->getKey());
     Storage::disk('branding')->assertExists($asset->path);
 });
 
 it('exposes media readiness and destination scopes in settings', function () {
     $user = User::factory()->create();
     $channel = DestinationChannel::factory()->create(['name' => 'Canal Futebol']);
-    MediaAsset::create(['kind' => 'intro', 'name' => 'Intro', 'path' => 'media/intro/a.mp4']);
-    MediaAsset::create(['kind' => 'outro', 'name' => 'Outro', 'path' => 'media/outro/a.mp4']);
+    MediaAsset::create([
+        'kind' => 'intro',
+        'name' => 'Intro',
+        'path' => 'media/intro/a.mp4',
+        'destination_channel_id' => $channel->getKey(),
+    ]);
+    MediaAsset::create([
+        'kind' => 'outro',
+        'name' => 'Outro',
+        'path' => 'media/outro/a.mp4',
+        'destination_channel_id' => $channel->getKey(),
+    ]);
     MediaAsset::create([
         'kind' => 'music',
         'name' => 'Trilha',

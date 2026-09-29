@@ -11,14 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AppShell } from '@/layouts/app-shell';
 
 type SourceChannel = {
@@ -47,27 +40,27 @@ function NicheBadge({ niche }: { niche: string }) {
     const n = (niche ?? '').toLowerCase();
     if (n.includes('política') || n.includes('politica')) {
         return (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+            <span className="rounded-md border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-600 dark:text-purple-400">
                 🏛️ Política
             </span>
         );
     }
     if (n.includes('podcast')) {
         return (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
                 🎙️ Podcast
             </span>
         );
     }
     if (n === 'futebol') {
         return (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                 ⚽ Futebol
             </span>
         );
     }
     return (
-        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+        <span className="rounded-md border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold text-sky-600 dark:text-sky-400">
             {niche.replace(/[-_]/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) || 'Sem nicho'}
         </span>
     );
@@ -151,7 +144,7 @@ function CreateChannelDialog({ niches, promptProfiles = [] }: { niches: Niche[];
                     style={{ background: 'linear-gradient(160deg,#FF6A55,#E23C33)', color: '#fff' }}
                     className="shadow-sm hover:brightness-105"
                 >
-                    <Plus className="w-4 h-4 mr-1.5" /> Novo Canal Fonte
+                    <Plus className="mr-1.5 h-4 w-4" /> Novo Canal Fonte
                 </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
@@ -231,7 +224,7 @@ export default function SourceChannels() {
             {
                 preserveScroll: true,
                 onSuccess: () => toast.success('Status atualizado com sucesso'),
-            }
+            },
         );
     };
 
@@ -243,7 +236,7 @@ export default function SourceChannels() {
                 preserveScroll: true,
                 onSuccess: () => toast.success('Janela de busca atualizada'),
                 onError: () => toast.error('Não foi possível atualizar a janela de busca'),
-            }
+            },
         );
     };
 
@@ -288,7 +281,7 @@ export default function SourceChannels() {
                 <div className="flex flex-col gap-4">
                     {/* Subtabs de nicho + Toggle Cards/Lista + Busca */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl border border-border bg-card w-fit">
+                        <div className="flex w-fit flex-wrap items-center gap-2 rounded-2xl border border-border bg-card p-1.5">
                             <button
                                 type="button"
                                 onClick={() => setActiveTab('todos')}
@@ -299,7 +292,7 @@ export default function SourceChannels() {
                                 }`}
                             >
                                 <span>Todos</span>
-                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-mono">
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px]">
                                     {counts.todos}
                                 </span>
                             </button>
@@ -309,11 +302,11 @@ export default function SourceChannels() {
                                 className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                                     activeTab === 'futebol'
                                         ? 'bg-emerald-600 text-white shadow-sm'
-                                        : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                                        : 'text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400'
                                 }`}
                             >
                                 <span>⚽ Futebol</span>
-                                <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                <span className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 font-mono text-[10px]">
                                     {counts.futebol}
                                 </span>
                             </button>
@@ -323,11 +316,11 @@ export default function SourceChannels() {
                                 className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                                     activeTab === 'politica'
                                         ? 'bg-purple-600 text-white shadow-sm'
-                                        : 'text-purple-600 dark:text-purple-400 hover:bg-purple-500/10'
+                                        : 'text-purple-600 hover:bg-purple-500/10 dark:text-purple-400'
                                 }`}
                             >
                                 <span>🏛️ Política</span>
-                                <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                <span className="rounded-md bg-purple-500/20 px-1.5 py-0.5 font-mono text-[10px]">
                                     {counts.politica}
                                 </span>
                             </button>
@@ -338,11 +331,11 @@ export default function SourceChannels() {
                                     className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                                         activeTab === 'podcast'
                                             ? 'bg-amber-600 text-white shadow-sm'
-                                            : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
+                                            : 'text-amber-600 hover:bg-amber-500/10 dark:text-amber-400'
                                     }`}
                                 >
                                     <span>🎙️ Podcast</span>
-                                    <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono">
+                                    <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 font-mono text-[10px]">
                                         {counts.podcast}
                                     </span>
                                 </button>
@@ -350,11 +343,11 @@ export default function SourceChannels() {
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
+                            <div className="flex overflow-hidden rounded-lg border bg-card p-0.5">
                                 <button
                                     type="button"
                                     onClick={() => setViewMode('grid')}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                                         viewMode === 'grid'
                                             ? 'bg-primary text-primary-foreground shadow-sm'
                                             : 'text-muted-foreground hover:text-foreground'
@@ -366,7 +359,7 @@ export default function SourceChannels() {
                                 <button
                                     type="button"
                                     onClick={() => setViewMode('list')}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                                         viewMode === 'list'
                                             ? 'bg-primary text-primary-foreground shadow-sm'
                                             : 'text-muted-foreground hover:text-foreground'
@@ -378,22 +371,24 @@ export default function SourceChannels() {
                             </div>
 
                             <div className="relative">
-                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Buscar canal ou handle…"
-                                    className="h-10 w-[220px] pl-9 pr-3 rounded-xl text-xs bg-card"
+                                    className="h-10 w-[220px] rounded-xl bg-card pr-3 pl-9 text-xs"
                                 />
                             </div>
                         </div>
                     </div>
 
                     {viewMode === 'grid' ? (
-                        <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                             {filtered.map((channel) => {
                                 const isPol = (channel.targetNiche ?? '').toLowerCase().includes('politica');
-                                const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                                const bgGrad = isPol
+                                    ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)'
+                                    : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
                                 const initials = channel.channelName
                                     .split(' ')
                                     .map((w) => w[0])
@@ -403,27 +398,27 @@ export default function SourceChannels() {
                                 return (
                                     <div
                                         key={channel.id}
-                                        className="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 shadow-xs hover:border-primary/30 transition-all"
+                                        className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-xs transition-all hover:border-primary/30"
                                     >
                                         <div className="flex items-start gap-3">
                                             <span
-                                                className="w-11 h-11 rounded-xl grid place-items-center text-xs font-bold text-white shrink-0 shadow-sm"
+                                                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-xs font-bold text-white shadow-sm"
                                                 style={{ background: bgGrad }}
                                             >
                                                 {initials}
                                             </span>
                                             <div className="min-w-0 flex-1">
-                                                <div className="font-bold text-sm tracking-tight truncate text-foreground">
+                                                <div className="truncate text-sm font-bold tracking-tight text-foreground">
                                                     {channel.channelName}
                                                 </div>
-                                                <div className="font-mono text-[11px] text-muted-foreground truncate">
+                                                <div className="truncate font-mono text-[11px] text-muted-foreground">
                                                     {channel.channelHandle ?? '—'}
                                                 </div>
                                             </div>
                                             <NicheBadge niche={channel.targetNiche} />
                                         </div>
 
-                                        <div className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-muted/40 border border-border">
+                                        <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs">
                                             <span className="text-muted-foreground">Status no Robô:</span>
                                             <span className="font-semibold text-foreground">
                                                 {channel.active ? '🟢 Monitorando' : '⏸️ Pausado'}
@@ -447,7 +442,7 @@ export default function SourceChannels() {
                                             <InputPriorityControl channel={channel} />
                                         </div>
 
-                                        <div className="flex items-center gap-3 pt-2 border-t border-border/60">
+                                        <div className="flex items-center gap-3 border-t border-border/60 pt-2">
                                             <div className="flex items-center gap-2">
                                                 <Switch
                                                     checked={channel.active}
@@ -458,7 +453,9 @@ export default function SourceChannels() {
                                             <div className="flex items-center gap-2">
                                                 <Switch
                                                     checked={channel.blacklisted}
-                                                    onCheckedChange={() => toggle(channel.id, 'blacklisted', channel.blacklisted)}
+                                                    onCheckedChange={() =>
+                                                        toggle(channel.id, 'blacklisted', channel.blacklisted)
+                                                    }
                                                     className="data-[state=checked]:bg-destructive"
                                                 />
                                                 <span className="text-xs text-destructive">Bloquear</span>
@@ -467,10 +464,12 @@ export default function SourceChannels() {
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="h-8 px-2.5 text-xs text-primary border-primary/30 hover:bg-primary/10 gap-1.5"
+                                                className="h-8 gap-1.5 border-primary/30 px-2.5 text-xs text-primary hover:bg-primary/10"
                                                 onClick={() => {
                                                     const prompt = `Faça uma análise estratégica completa da estrutura de conteúdo do canal "${channel.channelName}" (${channel.channelHandle || 'YouTube'}) no nicho de ${channel.targetNiche}. Quais são as fórmulas de títulos, ganchos nos primeiros 3 segundos, formatos de corte e temas de maior engajamento para modelarmos no nosso canal?`;
-                                                    router.visit(`/painel/assistente?prompt=${encodeURIComponent(prompt)}`);
+                                                    router.visit(
+                                                        `/painel/assistente?prompt=${encodeURIComponent(prompt)}`,
+                                                    );
                                                 }}
                                                 title="Analisar Estrutura com IA"
                                             >
@@ -479,11 +478,11 @@ export default function SourceChannels() {
                                             <ConfirmButton
                                                 variant="destructive"
                                                 size="sm"
-                                                className="h-8 w-8 p-0 rounded-lg"
+                                                className="h-8 w-8 rounded-lg p-0"
                                                 description={`Remover o canal fonte "${channel.channelName}"?`}
                                                 onConfirm={() => destroy(channel.id)}
                                             >
-                                                <Trash2 className="w-3.5 h-3.5" />
+                                                <Trash2 className="h-3.5 w-3.5" />
                                             </ConfirmButton>
                                         </div>
                                     </div>
@@ -491,7 +490,7 @@ export default function SourceChannels() {
                             })}
                         </div>
                     ) : (
-                        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+                        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
                             <div className="overflow-x-auto">
                                 <Table className="w-full text-xs">
                                     <TableHeader className="bg-muted/40">
@@ -500,16 +499,24 @@ export default function SourceChannels() {
                                             <TableHead className="px-5 py-3 font-semibold">Nicho</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold">Busca</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold">Prioridade</TableHead>
-                                            {promptProfiles.length > 0 && <TableHead className="px-5 py-3 font-semibold">Perfil de prompt</TableHead>}
+                                            {promptProfiles.length > 0 && (
+                                                <TableHead className="px-5 py-3 font-semibold">
+                                                    Perfil de prompt
+                                                </TableHead>
+                                            )}
                                             <TableHead className="px-5 py-3 font-semibold">Ativo</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold">Blacklist</TableHead>
-                                            <TableHead className="px-5 py-3 font-semibold text-right">Ações</TableHead>
+                                            <TableHead className="px-5 py-3 text-right font-semibold">Ações</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {filtered.map((channel) => {
-                                            const isPol = (channel.targetNiche ?? '').toLowerCase().includes('politica');
-                                            const bgGrad = isPol ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)' : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
+                                            const isPol = (channel.targetNiche ?? '')
+                                                .toLowerCase()
+                                                .includes('politica');
+                                            const bgGrad = isPol
+                                                ? 'linear-gradient(150deg,#2b1d4a,#4c2a80)'
+                                                : 'linear-gradient(150deg,#0f3d2e,#0b5d43)';
                                             const initials = channel.channelName
                                                 .split(' ')
                                                 .map((w) => w[0])
@@ -521,16 +528,16 @@ export default function SourceChannels() {
                                                     <TableCell className="px-5 py-3">
                                                         <div className="flex items-center gap-3">
                                                             <span
-                                                                className="w-8 h-8 rounded-full grid place-items-center text-[11px] font-bold text-white shrink-0 shadow-sm"
+                                                                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white shadow-sm"
                                                                 style={{ background: bgGrad }}
                                                             >
                                                                 {initials}
                                                             </span>
                                                             <div className="min-w-0">
-                                                                <div className="font-semibold text-foreground truncate">
+                                                                <div className="truncate font-semibold text-foreground">
                                                                     {channel.channelName}
                                                                 </div>
-                                                                <div className="font-mono text-[11px] text-muted-foreground truncate">
+                                                                <div className="truncate font-mono text-[11px] text-muted-foreground">
                                                                     {channel.channelHandle ?? '—'}
                                                                 </div>
                                                             </div>
@@ -543,7 +550,9 @@ export default function SourceChannels() {
                                                         <select
                                                             aria-label={`Janela de busca de ${channel.channelName}`}
                                                             value={channel.freshnessDays ?? 1500}
-                                                            onChange={(event) => setFreshness(channel.id, event.target.value)}
+                                                            onChange={(event) =>
+                                                                setFreshness(channel.id, event.target.value)
+                                                            }
                                                             className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-foreground"
                                                         >
                                                             <option value={3}>3 dias</option>
@@ -557,7 +566,11 @@ export default function SourceChannels() {
                                                         <TableCell className="px-5 py-3">
                                                             <PromptProfileSelect
                                                                 profiles={promptProfiles}
-                                                                value={channel.promptProfileId ? String(channel.promptProfileId) : ''}
+                                                                value={
+                                                                    channel.promptProfileId
+                                                                        ? String(channel.promptProfileId)
+                                                                        : ''
+                                                                }
                                                                 niche={channel.targetNiche}
                                                                 onChange={(value) =>
                                                                     router.put(
@@ -572,7 +585,9 @@ export default function SourceChannels() {
                                                     <TableCell className="px-5 py-3">
                                                         <Switch
                                                             checked={channel.active}
-                                                            onCheckedChange={() => toggle(channel.id, 'active', channel.active)}
+                                                            onCheckedChange={() =>
+                                                                toggle(channel.id, 'active', channel.active)
+                                                            }
                                                         />
                                                     </TableCell>
                                                     <TableCell className="px-5 py-3">
@@ -589,10 +604,12 @@ export default function SourceChannels() {
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                className="h-8 px-2.5 text-xs text-primary border-primary/30 hover:bg-primary/10 gap-1"
+                                                                className="h-8 gap-1 border-primary/30 px-2.5 text-xs text-primary hover:bg-primary/10"
                                                                 onClick={() => {
                                                                     const prompt = `Faça uma análise estratégica completa da estrutura de conteúdo do canal "${channel.channelName}" (${channel.channelHandle || 'YouTube'}) no nicho de ${channel.targetNiche}. Quais são as fórmulas de títulos, ganchos nos primeiros 3 segundos, formatos de corte e temas de maior engajamento para modelarmos no nosso canal?`;
-                                                                    router.visit(`/painel/assistente?prompt=${encodeURIComponent(prompt)}`);
+                                                                    router.visit(
+                                                                        `/painel/assistente?prompt=${encodeURIComponent(prompt)}`,
+                                                                    );
                                                                 }}
                                                                 title="Analisar Estrutura com IA"
                                                             >
@@ -601,11 +618,11 @@ export default function SourceChannels() {
                                                             <ConfirmButton
                                                                 variant="destructive"
                                                                 size="sm"
-                                                                className="h-8 w-8 p-0 rounded-lg"
+                                                                className="h-8 w-8 rounded-lg p-0"
                                                                 description={`Remover o canal fonte "${channel.channelName}"?`}
                                                                 onConfirm={() => destroy(channel.id)}
                                                             >
-                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                                <Trash2 className="h-3.5 w-3.5" />
                                                             </ConfirmButton>
                                                         </div>
                                                     </TableCell>

@@ -44,16 +44,20 @@ A data e a janela usam `America/Sao_Paulo`. Contadores ficam no Redis e expiram 
 
 | Regra | Valor |
 |---|---:|
-| quota padrão total | 2/dia |
+| quota padrão total | 6/dia |
 | teto absoluto total | 6/dia/destino |
-| quota longa padrão no código | 2/dia, limitada pela quota total |
-| perfil Shorts deste deployment | `AUTO_INGEST_FORMAT=curto`, `MAX_UPLOADS_PER_DAY=6`, `MAX_LONGO_UPLOADS_PER_DAY=0`, `MIN_UPLOAD_INTERVAL_MINUTES=60` |
-| janela | 19:00 inclusive até 22:00 exclusivo |
+| quota longa padrão no código | 3/dia, limitada pela quota total |
+| quota de Shorts padrão | 3/dia, limitada pela quota total |
+| longos | 06h, 14h e 22h em `America/Sao_Paulo`, separados por oito horas |
+| Shorts | horários de pico 12h e 20h em `America/Sao_Paulo` |
+| máximo por horário | 1 publicação por canal em cada slot de formato |
+| `MIN_UPLOAD_INTERVAL_MINUTES` de exemplo | 60 minutos |
 | bypass | `UPLOAD_WINDOW_BYPASS=true` |
 
 Quando há um longo elegível aguardando, a quota reserva slots para ele. Shorts usam somente o
-saldo que não compromete essa reserva. Redis indisponível interrompe a publicação; não há fallback
-de quota para PostgreSQL.
+saldo que não compromete essa reserva. `MAX_UPLOADS_PER_DAY`, `MAX_LONGO_UPLOADS_PER_DAY` e
+`MAX_CURTO_UPLOADS_PER_DAY` podem ser alterados no `.env`. Redis indisponível interrompe a
+publicação; não há fallback de quota para PostgreSQL.
 
 ## Upload e finalização
 
@@ -96,8 +100,8 @@ selecionável.
 
 | Item | Valor |
 |---|---|
-| token por destino | `/app/youtube/token-<slug>.json` |
-| client secrets | `YOUTUBE_CLIENT_SECRETS`, padrão do Compose `/app/youtube/client_secret.json` |
+| token por destino | `${YOUTUBE_DIR}/token-<slug>.json` (no Docker, `/app/youtube/`) |
+| client secrets | `YOUTUBE_CLIENT_SECRETS`, padrão do Compose `${YOUTUBE_DIR}/client_secret.json` |
 | scopes | `youtube.upload` e `youtube.force-ssl` |
 | geração | `python -m src.youtube_oauth --channel <slug>` |
 

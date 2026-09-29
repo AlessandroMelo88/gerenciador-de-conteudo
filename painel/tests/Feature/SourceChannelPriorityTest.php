@@ -20,13 +20,26 @@ it('updates source input priority in the configured range', function () {
     expect($channel->refresh()->input_priority)->toBe(8);
 });
 
-it('rejects source input priorities outside the configured range', function () {
+it('accepts the lower source input priority boundary', function () {
     $user = User::factory()->create();
     $channel = SourceChannel::factory()->create();
 
     $this->actingAs($user)
-        ->put("/painel/canais-fonte/{$channel->id}", ['input_priority' => 11])
-        ->assertSessionHasErrors('input_priority');
+        ->put("/painel/canais-fonte/{$channel->id}", ['input_priority' => -10])
+        ->assertRedirect();
+
+    expect($channel->refresh()->input_priority)->toBe(-10);
+});
+
+it('rejects source input priorities outside the configured range', function () {
+    $user = User::factory()->create();
+    $channel = SourceChannel::factory()->create();
+
+    foreach ([11, -11] as $invalidPriority) {
+        $this->actingAs($user)
+            ->put("/painel/canais-fonte/{$channel->id}", ['input_priority' => $invalidPriority])
+            ->assertSessionHasErrors('input_priority');
+    }
 
     expect($channel->refresh()->input_priority)->toBe(0);
 });

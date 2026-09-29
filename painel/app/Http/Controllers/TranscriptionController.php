@@ -131,7 +131,7 @@ class TranscriptionController extends Controller
 
         $nome = (Str::slug((string) $job->title) ?: "transcricao-{$job->id}").".{$formato}";
 
-        return response()->streamDownload(fn () => print($conteudo), $nome, [
+        return response()->streamDownload(fn () => print ($conteudo), $nome, [
             'Content-Type' => 'text/plain; charset=UTF-8',
         ]);
     }

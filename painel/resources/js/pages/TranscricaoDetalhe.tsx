@@ -45,7 +45,12 @@ export default function TranscricaoDetalhe() {
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                         {job.platform && <Badge variant="secondary">{job.platform}</Badge>}
                         {formatarDuracao(job.duration_seconds) && <span>{formatarDuracao(job.duration_seconds)}</span>}
-                        <a href={job.source_url} target="_blank" rel="noreferrer noopener" className="truncate underline">
+                        <a
+                            href={job.source_url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="truncate underline"
+                        >
                             {job.source_url}
                         </a>
                     </div>
@@ -53,7 +58,9 @@ export default function TranscricaoDetalhe() {
                     <Card>
                         <CardContent className="grid gap-4 pt-6 leading-relaxed">
                             {paragrafos.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">Sem texto — a transcrição ainda não terminou ou falhou.</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Sem texto — a transcrição ainda não terminou ou falhou.
+                                </p>
                             ) : (
                                 paragrafos.map((p, i) => <p key={i}>{p}</p>)
                             )}

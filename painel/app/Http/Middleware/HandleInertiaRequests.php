@@ -2,7 +2,12 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\DestinationChannel;
+use App\Models\GeneratedClip;
+use App\Models\SourceVideo;
+use App\Support\Brand;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -37,7 +42,7 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            'brand' => \App\Support\Brand::resolve($request),
+            'brand' => Brand::resolve($request),
             'auth' => [
                 'user' => $request->user() ? [
                     'name' => $request->user()->name,
@@ -49,13 +54,13 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
             ],
             'workers' => [
-                'downloader' => \App\Models\SourceVideo::query()->where('status', 'downloading')->count() . '/' . \App\Models\SourceVideo::query()->whereNotNull('local_path')->count(),
-                'transcriber' => \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() > 0 ? \App\Models\SourceVideo::query()->where('status', 'transcribing')->count() . ' ativo' : 'ocioso',
-                'cutter' => \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() > 0 ? \App\Models\GeneratedClip::query()->where('status', 'cutting')->count() . ' cortando' : 'ocioso',
+                'downloader' => SourceVideo::query()->where('status', 'downloading')->count().'/'.SourceVideo::query()->whereNotNull('local_path')->count(),
+                'transcriber' => SourceVideo::query()->where('status', 'transcribing')->count() > 0 ? SourceVideo::query()->where('status', 'transcribing')->count().' ativo' : 'ocioso',
+                'cutter' => GeneratedClip::query()->where('status', 'cutting')->count() > 0 ? GeneratedClip::query()->where('status', 'cutting')->count().' cortando' : 'ocioso',
             ],
-            'destinationQuotas' => \App\Models\DestinationChannel::query()->where('active', true)->get()->map(function ($c) {
-                $today = \Illuminate\Support\Carbon::today('America/Sao_Paulo');
-                $count = \App\Models\GeneratedClip::query()
+            'destinationQuotas' => DestinationChannel::query()->where('active', true)->get()->map(function ($c) {
+                $today = Carbon::today('America/Sao_Paulo');
+                $count = GeneratedClip::query()
                     ->where('destination_channel_id', $c->id)
                     ->where('status', 'published')
                     ->whereDate('updated_at', $today)
