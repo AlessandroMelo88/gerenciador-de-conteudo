@@ -49,4 +49,6 @@ Contém as especificações operacionais e de engenharia de todos os componentes
 
 Contém análises, pesquisas de canais, dados de mineração e benchmarks de conteúdo:
 
+* [`Docs/estudos/RETENCAO-CORTES-EDIT-LABS.md`](estudos/RETENCAO-CORTES-EDIT-LABS.md) — Lições do vídeo "Edit Labs AI" sobre retenção em cortes: o que entrou no seletor e o que ficou de fora.
+* [`Docs/IDEIAS.md`](IDEIAS.md) — Ideias legais que ainda não são necessárias, para avaliar depois.
 * `Docs/estudos/mineracao_canis.xlxs` — Planilha com mapeamento, métricas e mineração de canais fonte e concorrentes no YouTube.
