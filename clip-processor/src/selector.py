@@ -90,28 +90,13 @@ SHORTFORM_CONTRACT_RULE = (
 )
 
 RETENTION_SHORTFORM_RULES = (
-    'CRITÉRIOS DE RETENÇÃO DO FORMATO CURTO — quem chega pelo feed não escolheu o vídeo e desliza em '
-    'menos de um segundo; além de completo, o trecho precisa se sustentar sozinho. '
-    'ABERTURA: a primeira frase já traz uma âncora (número, conflito, pergunta, resultado, afirmação '
-    'que contradiz a crença comum) e a proposta do trecho fica clara em até ~3 segundos. Rejeite início '
-    'que dependa de conteúdo anterior ("como eu falei", "isso", "ele", "aquilo" sem referente), '
-    'saudação, enrolação ou pausa. '
-    'PRIMEIRO VALOR: nos primeiros ~8 segundos o espectador recebe uma recompensa parcial (número, '
-    'mecanismo, comparação, prova ou virada); não escolha trecho que esconde a resposta até o fim se ela '
-    'poderia organizá-lo. '
-    'PROGRESSÃO: a cada 3 a 8 segundos entra algo novo; descarte trecho com repetição sem ganho ou '
-    'longos intervalos sem novidade. '
-    'PROMESSA PAGA: toda pergunta, tensão ou curiosidade aberta no começo é respondida dentro do trecho, '
-    'e o final soa como final (resposta, consequência, regra, punchline ou decisão). Suspense genérico '
-    '("você não vai acreditar") sem promessa específica reprova o candidato. Opinião só vale com razão, '
-    'consequência ou tensão. '
-    'BONS SINAIS: número com escala, contradição da crença comum, causalidade real ("isso só funciona '
-    'porque"), antes/depois, confissão específica, conflito, regra prática. '
-    'REPROVE o candidato se o assunto central não pode ser entendido sem o resto do vídeo, se a promessa '
-    'não é paga, se o fim corta a resolução ou se depende de gráfico/imagem que o áudio não sustenta. '
-    'O score reflete isso: nota alta exige abertura clara, primeiro valor e payoff; média boa não '
-    'compensa falha em clareza, payoff ou autossuficiência. Nunca crie corte só para completar a '
-    'cota: se nenhum candidato passar, retorne {"moments": []}. '
+    'CRITÉRIOS DE RETENÇÃO DO FORMATO CURTO — o espectador do feed não escolheu o vídeo e o trecho '
+    'precisa se sustentar sozinho. Rejeite início que dependa de conteúdo anterior ("como eu falei", '
+    '"isso", "ele", "aquilo" sem referente) e trecho cujo assunto central não se entende sem o resto '
+    'do vídeo. Toda pergunta ou tensão aberta no começo deve ser respondida dentro do trecho; suspense '
+    'genérico ("você não vai acreditar") sem promessa específica e opinião sem razão, consequência ou '
+    'tensão reprovam o candidato. Nunca crie corte só para completar a cota: se nenhum passar, retorne '
+    '{"moments": []}. '
 )
 
 SYSTEM_PROMPT = (

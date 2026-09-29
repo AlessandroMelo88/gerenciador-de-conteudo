@@ -122,11 +122,10 @@ natural e fechamento da ideia; se não confirmar sem atravessar lacuna ou public
 
 ### `RETENTION_SHORTFORM_RULES`
 
-Só formato curto (futebol/podcast, hacker-libertário, política, genérico e perfis do banco; o longo
-não recebe). Exige âncora na primeira frase e proposta em ~3 s, primeiro valor em ~8 s, novidade a cada
-3–8 s, promessa paga e final que soa como final. Reprova suspense genérico, opinião sem razão e trecho
-que depende de contexto ou imagem ausente. Zero cortes é resposta válida. Origem e backlog do que
-ainda não foi incorporado: [`Docs/estudos/RETENCAO-CORTES-EDIT-LABS.md`](../estudos/RETENCAO-CORTES-EDIT-LABS.md).
+Só formato curto (o longo não recebe). Rejeita início que depende de contexto anterior, assunto
+central incompreensível sem o resto do vídeo, promessa aberta e não paga, suspense genérico e opinião
+sem razão. Zero cortes é resposta válida. Origem: [`Docs/estudos/RETENCAO-CORTES-EDIT-LABS.md`](../estudos/RETENCAO-CORTES-EDIT-LABS.md);
+o que ficou de fora está em [`Docs/IDEIAS.md`](../IDEIAS.md).
 
 ## Prompts de seleção
 
