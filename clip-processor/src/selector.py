@@ -89,6 +89,31 @@ SHORTFORM_CONTRACT_RULE = (
     'completo. '
 )
 
+RETENTION_SHORTFORM_RULES = (
+    'CRITÉRIOS DE RETENÇÃO DO FORMATO CURTO — quem chega pelo feed não escolheu o vídeo e desliza em '
+    'menos de um segundo; além de completo, o trecho precisa se sustentar sozinho. '
+    'ABERTURA: a primeira frase já traz uma âncora (número, conflito, pergunta, resultado, afirmação '
+    'que contradiz a crença comum) e a proposta do trecho fica clara em até ~3 segundos. Rejeite início '
+    'que dependa de conteúdo anterior ("como eu falei", "isso", "ele", "aquilo" sem referente), '
+    'saudação, enrolação ou pausa. '
+    'PRIMEIRO VALOR: nos primeiros ~8 segundos o espectador recebe uma recompensa parcial (número, '
+    'mecanismo, comparação, prova ou virada); não escolha trecho que esconde a resposta até o fim se ela '
+    'poderia organizá-lo. '
+    'PROGRESSÃO: a cada 3 a 8 segundos entra algo novo; descarte trecho com repetição sem ganho ou '
+    'longos intervalos sem novidade. '
+    'PROMESSA PAGA: toda pergunta, tensão ou curiosidade aberta no começo é respondida dentro do trecho, '
+    'e o final soa como final (resposta, consequência, regra, punchline ou decisão). Suspense genérico '
+    '("você não vai acreditar") sem promessa específica reprova o candidato. Opinião só vale com razão, '
+    'consequência ou tensão. '
+    'BONS SINAIS: número com escala, contradição da crença comum, causalidade real ("isso só funciona '
+    'porque"), antes/depois, confissão específica, conflito, regra prática. '
+    'REPROVE o candidato se o assunto central não pode ser entendido sem o resto do vídeo, se a promessa '
+    'não é paga, se o fim corta a resolução ou se depende de gráfico/imagem que o áudio não sustenta. '
+    'O score reflete isso: nota alta exige abertura clara, primeiro valor e payoff; média boa não '
+    'compensa falha em clareza, payoff ou autossuficiência. Nunca crie corte só para completar a '
+    'cota: se nenhum candidato passar, retorne {"moments": []}. '
+)
+
 SYSTEM_PROMPT = (
     'Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos. '
     'Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, '
@@ -96,6 +121,7 @@ SYSTEM_PROMPT = (
     f'Se o vídeo tiver menos de {SHORTS_MIN_DURATION_SECONDS:.0f} segundos, '
     'selecione o vídeo completo e marque-o para descarte na validação técnica. '
     + CONTENT_SELECTION_RULES
+    + RETENTION_SHORTFORM_RULES
     + 'Para futebol: priorize análise tática, debate acalorado, revelação de bastidores e o COMENTÁRIO sobre um gol. '
     'Para podcasts: priorize discussão intensa, revelação importante, momento de conflito ou humor. '
     + FACT_CHECK_INSTRUCTION
@@ -141,6 +167,7 @@ HACKER_LIBERTARIO_PROMPT = (
     f'Se o vídeo tiver menos de {SHORTS_MIN_DURATION_SECONDS:.0f} segundos, '
     'selecione o vídeo completo e marque-o para descarte na validação técnica. '
     + CONTENT_SELECTION_RULES
+    + RETENTION_SHORTFORM_RULES
     + 'DIRETRIZES LIBERTÁRIAS E EDITORIAIS INEGOCIÁVEIS: '
     '1. O ESTADO NUNCA DEVE SER DEFENDIDO: rejeite qualquer trecho que defenda, elogie, justifique ou legitime o Estado, impostos, regulação estatal, censura ou coerção governamental. Trechos sobre regulação ou vigilância só são válidos se forem de denúncia crítica e apresentarem alternativas de defesa individual por meio de tecnologia e criptografia. '
     '2. ZERO MENÇÃO A POLÍTICOS E FUNCIONÁRIOS PÚBLICOS: nenhum político (de qualquer partido) ou funcionário público/agente estatal deve ser sequer mencionado pelo nome ou colocado em evidência. Se houver politicagem ou debate partidário, descarte imediatamente. O foco é 100% nas ideias, ferramentas, tecnologia, privacidade e liberdade individual. '
@@ -191,6 +218,7 @@ def _build_profile_selection_prompt(instruction: str, is_longo: bool) -> str:
         f'{instruction}\n'
         + CONTENT_SELECTION_RULES
         + (SHORTFORM_CONTRACT_RULE if not is_longo else '')
+        + (RETENTION_SHORTFORM_RULES if not is_longo else '')
         + FACT_CHECK_INSTRUCTION
         + DUPLICATE_AVOIDANCE_RULE
         + SELECTION_VALIDATION_RULES

@@ -120,6 +120,14 @@ sozinho, não é duplicidade. Se todos os candidatos estiverem bloqueados, retor
 Pede releitura até `end_time` e da continuação imediata. O modelo deve confirmar início
 natural e fechamento da ideia; se não confirmar sem atravessar lacuna ou publicidade, descarta.
 
+### `RETENTION_SHORTFORM_RULES`
+
+Só formato curto (futebol/podcast, hacker-libertário, política, genérico e perfis do banco; o longo
+não recebe). Exige âncora na primeira frase e proposta em ~3 s, primeiro valor em ~8 s, novidade a cada
+3–8 s, promessa paga e final que soa como final. Reprova suspense genérico, opinião sem razão e trecho
+que depende de contexto ou imagem ausente. Zero cortes é resposta válida. Origem e backlog do que
+ainda não foi incorporado: [`Docs/estudos/RETENCAO-CORTES-EDIT-LABS.md`](../estudos/RETENCAO-CORTES-EDIT-LABS.md).
+
 ## Prompts de seleção
 
 | Constante | Família/formato | Finalidade |

@@ -16,6 +16,7 @@ from src.selector import (
     HACKER_LIBERTARIO_LONG_PROMPT,
     HACKER_LIBERTARIO_PROMPT,
     LONG_SYSTEM_PROMPT,
+    RETENTION_SHORTFORM_RULES,
     LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS,
     MAX_REASON_CHARS,
     SYSTEM_PROMPT,
@@ -885,3 +886,19 @@ class TestInsertMomentsDestinationChannel:
         assert None in params, (
             f'destination_channel_id=None quando sem destino ativo. Params: {params}'
         )
+
+
+class TestRetentionRules:
+    def test_short_prompts_carry_retention_rules(self):
+        for niche in ('futebol', 'hacker-libertario', 'politica', 'outro-nicho'):
+            assert RETENTION_SHORTFORM_RULES in get_system_prompt('curto', niche)
+
+        profile = {'selection_short_prompt': 'PERFIL X'}
+        assert RETENTION_SHORTFORM_RULES in get_system_prompt('curto', 'futebol', profile)
+
+    def test_long_prompts_do_not_carry_shortform_retention_rules(self):
+        for niche in ('futebol', 'hacker-libertario', 'politica', 'outro-nicho'):
+            assert RETENTION_SHORTFORM_RULES not in get_system_prompt('longo', niche)
+
+    def test_retention_rules_allow_zero_moments(self):
+        assert '{"moments": []}' in RETENTION_SHORTFORM_RULES
