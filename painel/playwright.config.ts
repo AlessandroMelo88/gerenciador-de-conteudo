@@ -26,12 +26,18 @@ export default defineConfig({
             name: 'chromium',
             use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/user.json' },
             dependencies: ['setup'],
-            testIgnore: [/auth\.setup\.ts/, /login\.spec\.ts/, /public\.spec\.ts/, /mobile\.spec\.ts/],
+            testIgnore: [
+                /auth\.setup\.ts/,
+                /login\.spec\.ts/,
+                /public\.spec\.ts/,
+                /mobile\.spec\.ts/,
+                /security\.spec\.ts/,
+            ],
         },
         {
             name: 'anon',
             use: { ...devices['Desktop Chrome'] },
-            testMatch: [/login\.spec\.ts/, /public\.spec\.ts/],
+            testMatch: [/login\.spec\.ts/, /public\.spec\.ts/, /security\.spec\.ts/],
         },
         {
             name: 'mobile',
@@ -40,13 +46,29 @@ export default defineConfig({
             testMatch: /mobile\.spec\.ts/,
         },
     ],
-    webServer: process.env.E2E_BASE_URL
-        ? undefined
-        : {
-              command:
-                  'cd public && PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8099 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php',
-              url: `${baseURL}/login`,
-              reuseExistingServer: !process.env.CI,
-              timeout: 60_000,
-          },
+    // Clip-processor falso (e2e/support/mock-processor.mjs) + painel real apontando para ele.
+    // Com E2E_BASE_URL o painel já está de pé e só o mock é gerenciado aqui.
+    webServer: [
+        {
+            command: 'node e2e/support/mock-processor.mjs',
+            url: 'http://127.0.0.1:8098/health',
+            reuseExistingServer: !process.env.CI,
+            timeout: 15_000,
+        },
+        ...(process.env.E2E_BASE_URL
+            ? []
+            : [
+                  {
+                      command:
+                          'cd public && PHP_CLI_SERVER_WORKERS=4 php -d expose_php=0 -S 127.0.0.1:8099 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php',
+                      url: `${baseURL}/login`,
+                      reuseExistingServer: !process.env.CI,
+                      timeout: 60_000,
+                      env: {
+                          CLIP_PROCESSOR_INTERNAL_URL: 'http://127.0.0.1:8098',
+                          CLIP_PROCESSOR_INTERNAL_TOKEN: 'ci-token',
+                      },
+                  },
+              ]),
+    ],
 });

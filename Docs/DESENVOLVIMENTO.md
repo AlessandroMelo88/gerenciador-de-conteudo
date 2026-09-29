@@ -98,8 +98,11 @@ PHP:
 make test-php
 ~~~
 
-Frontend (Vitest) e E2E (Playwright, lento — cobre login, 12 telas, redirect `/o/{slug}`, segurança
-das rotas públicas e viewport mobile):
+Frontend (Vitest) e E2E (Playwright, lento, ~120 testes — login, 12 telas, fila de aprovação
+(aprovar/rejeitar/lote/reprocessar), vídeos e fila do processor, canais fonte/destino, ofertas do
+rascunho ao redirect rastreável, configurações, processar vídeo, transcrições, acesso anônimo e
+viewport mobile). O clip-processor é substituído por `e2e/support/mock-processor.mjs`, que grava as
+chamadas `/internal/*` para os testes conferirem; o painel é o real:
 
 ~~~bash
 cd painel
@@ -110,6 +113,9 @@ php artisan db:seed --class=E2ESeeder   # recusa rodar em produção
 npm run build && npm run e2e            # sobe `php -S` sozinho na :8099
 E2E_BASE_URL=http://host:porta npm run e2e   # ou aponta para um servidor já de pé
 ~~~
+
+Os testes consomem a massa do seeder (aprovam, rejeitam e apagam clips): **rode o `E2ESeeder` antes de
+cada execução local** para voltar ao cenário inicial. No CI o banco já nasce limpo.
 
 O painel usa PostgreSQL e as migrations do projeto. Rode testes somente contra banco local/
 descartável. A fila Laravel padrão é `database` e não deve apontar para produção.
