@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from os import PathLike
 from pathlib import Path
 
 
@@ -23,11 +24,11 @@ YOUTUBE_COOKIES_FILE = configured_path(
 )
 
 
-def resolve_stored_video_path(value: object) -> str | None:
+def resolve_stored_video_path(value: str | PathLike[str] | None) -> str | None:
     """Map paths saved by Docker workers to the configured host video directory."""
     if not value:
         return None
-    path = Path(os.fspath(value)).expanduser()
+    path = Path(value).expanduser()
     try:
         relative = path.relative_to('/app/videos')
     except ValueError:

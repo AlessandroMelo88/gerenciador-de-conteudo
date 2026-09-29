@@ -58,7 +58,10 @@ FRESHNESS_DAYS = int(os.environ.get('FRESHNESS_DAYS', 1500))
 # Teto de vagas da janela por canal de origem. Vazio = calculado a cada rodada
 # (janela do nicho ÷ canais de origem ativos), que é o que se quer no dia a dia:
 # canal novo entra e o teto de todo mundo se ajusta sozinho.
-DOWNLOAD_MAX_PER_SOURCE_CHANNEL = os.environ.get('DOWNLOAD_MAX_PER_SOURCE_CHANNEL') or None
+_DOWNLOAD_MAX_PER_SOURCE_CHANNEL = os.environ.get('DOWNLOAD_MAX_PER_SOURCE_CHANNEL')
+DOWNLOAD_MAX_PER_SOURCE_CHANNEL = (
+    int(_DOWNLOAD_MAX_PER_SOURCE_CHANNEL) if _DOWNLOAD_MAX_PER_SOURCE_CHANNEL else None
+)
 
 # Quantos candidatos buscar por vaga livre. O round-robin precisa de mais de um
 # canal na mão para intercalar; pedir só o déficit traria os N primeiros do
@@ -66,7 +69,7 @@ DOWNLOAD_MAX_PER_SOURCE_CHANNEL = os.environ.get('DOWNLOAD_MAX_PER_SOURCE_CHANNE
 CANDIDATES_PER_SLOT = int(os.environ.get('CANDIDATES_PER_SLOT', 5))
 
 
-def _niche_windows(db_conn) -> list:
+def _niche_windows(db_conn) -> list[tuple[str, int]]:
     """Teto da janela por nicho: DOWNLOAD_WINDOW_PER_CHANNEL × canais destino ativos.
 
     Futebol vem primeiro (prioridade de reposição). Nicho sem canal destino ativo
@@ -107,7 +110,7 @@ def _active_source_channels(db_conn, niche: str) -> int:
         return int(cur.fetchone()['c'])
 
 
-def _select_pending_videos(db_conn) -> list:
+def _select_pending_videos(db_conn) -> list[str]:
     """Seleciona vídeos pendentes pra repor a janela de download ativo por nicho.
 
     Para cada nicho com canal destino ativo (10 por canal): conta a ocupação atual
@@ -124,7 +127,7 @@ def _select_pending_videos(db_conn) -> list:
     """
     niche_windows = _niche_windows(db_conn)
 
-    result = []
+    result: list[str] = []
     for niche, window in niche_windows:
         with db_conn.cursor() as cur:
             cur.execute(

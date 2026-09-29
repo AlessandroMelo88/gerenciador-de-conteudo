@@ -17,7 +17,7 @@ import os
 import re
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from src.db import fetch_used_moments
 from src.fact_check_prompt import FACT_CHECK_INSTRUCTION, FAKE_NEWS_STATUSES
@@ -925,7 +925,7 @@ def _select_via_groq(
         {'role': 'user', 'content': transcript_text},
     ]
     response_format: ResponseFormatResponseFormatJsonObject = {'type': 'json_object'}
-    kwargs = {
+    kwargs: dict[str, Any] = {
         'model': GROQ_MODEL,
         'messages': messages,
         'response_format': response_format,

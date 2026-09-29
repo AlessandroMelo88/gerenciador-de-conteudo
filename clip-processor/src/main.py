@@ -6,7 +6,7 @@ import os
 import signal
 import threading
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from src import ttl_worker
 from src.db import (
@@ -71,7 +71,7 @@ else:
 try:
     import sentry_sdk
 except ImportError:
-    sentry_sdk = None
+    sentry_sdk = cast(Any, None)
 
 
 def pipeline_enabled() -> bool:

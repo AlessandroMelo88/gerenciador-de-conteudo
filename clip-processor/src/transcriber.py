@@ -495,7 +495,7 @@ def transcribe_video(video_id: str, video_path: str, groq_client=None, db_conn=N
                 f'dividido em {len(transcription_files)} partes'
             )
 
-        all_segments = []
+        all_segments: list[dict[str, float | str]] = []
         text_parts = []
         for index, transcription_file in enumerate(transcription_files):
             _log(

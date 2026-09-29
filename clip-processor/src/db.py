@@ -24,18 +24,19 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from typing import Any, cast
 
 try:
     import pymysql
     import pymysql.cursors
 except ImportError:
-    pymysql = None
+    pymysql = cast(Any, None)
 
 try:
     import psycopg2
     import psycopg2.extras
 except ImportError:
-    psycopg2 = None
+    psycopg2 = cast(Any, None)
 
 
 def _log(msg: str) -> None:
@@ -186,7 +187,7 @@ def get_db_connection():
         port = int(
             os.environ.get('POSTGRES_PORT')
             or os.environ.get('PGPORT')
-            or os.environ.get('DB_PORT', 5432)
+            or os.environ.get('DB_PORT', '5432')
         )
 
         raw_conn = psycopg2.connect(
@@ -222,7 +223,7 @@ def get_db_connection():
         connect_timeout=10,
         cursorclass=pymysql.cursors.DictCursor,
     )
-    conn._driver = 'mysql'
+    cast(Any, conn)._driver = 'mysql'
     _log(f'Conexão MySQL aberta: {user}@{host}:{port}/{database}')
     return conn
 
@@ -243,6 +244,7 @@ def update_status(conn, video_id, status, local_path=None, clear_local_path=Fals
         local_path: caminho local do arquivo (opcional, usado quando status='downloaded')
         clear_local_path: se True, seta local_path=NULL (ignora `local_path`)
     """
+    params: tuple[Any, ...]
     if clear_local_path:
         sql = 'UPDATE source_videos SET status=%s, local_path=NULL WHERE youtube_video_id=%s'
         params = (status, video_id)

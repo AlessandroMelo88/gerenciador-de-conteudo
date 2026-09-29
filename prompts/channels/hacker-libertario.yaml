@@ -1,3 +1,5 @@
+# yamllint disable rule:line-length
+# Instruções editoriais ficam em parágrafos literais para preservar o texto compilado.
 version: 1
 channel_id: hacker-libertario
 description: "Camada editorial do canal de destino Hacker Libertário."

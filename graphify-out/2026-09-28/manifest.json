@@ -10,8 +10,8 @@
     "semantic_hash": "04e15b41d644651e97d1d8a8a6cafab5"
   },
   "clip-processor/src/db.py": {
-    "mtime": 1790631136.3745713,
-    "ast_hash": "461b55d0b1384fac547847c13a1924ba",
+    "mtime": 1790639954.5328314,
+    "ast_hash": "bb30ffe8368df1321b28a16d4001f5ca",
     "semantic_hash": ""
   },
   "clip-processor/src/dedup.py": {
@@ -20,28 +20,28 @@
     "semantic_hash": ""
   },
   "clip-processor/src/downloader.py": {
-    "mtime": 1790637889.2978063,
-    "ast_hash": "bc7aeef6f098088c413000e4826e4b0a",
+    "mtime": 1790639954.533794,
+    "ast_hash": "f9914e61899e0d4b22ae3cd3bca3ba62",
     "semantic_hash": ""
   },
   "clip-processor/src/internal_api.py": {
-    "mtime": 1790639086.0879796,
-    "ast_hash": "56ef0b31b1bc50c1ed825a9182cba34b",
+    "mtime": 1790639954.5354588,
+    "ast_hash": "d43fed3c82df6daa2c720dc5f45a0ea4",
     "semantic_hash": ""
   },
   "clip-processor/src/main.py": {
-    "mtime": 1790634528.4349282,
-    "ast_hash": "23f0ced063e453b19d4a84013e3432ea",
+    "mtime": 1790639954.5349824,
+    "ast_hash": "f23dae179ecacb5fdca5c8b6c05ef392",
     "semantic_hash": ""
   },
   "clip-processor/src/metadata_generator.py": {
-    "mtime": 1790632609.716855,
-    "ast_hash": "62b1791c622a5cbe4b7fb14a5e2f0897",
+    "mtime": 1790639954.53564,
+    "ast_hash": "64ff563252aca98402edf31044a45df6",
     "semantic_hash": ""
   },
   "clip-processor/src/pipeline_runner.py": {
-    "mtime": 1790638709.2228658,
-    "ast_hash": "197acc03093d50750d3f9ada5cd7cdee",
+    "mtime": 1790639954.535548,
+    "ast_hash": "0400920554b5d305001daf8f4adb586d",
     "semantic_hash": ""
   },
   "clip-processor/src/processar.py": {
@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/publisher.py": {
-    "mtime": 1790637889.3055067,
-    "ast_hash": "9632ec3e17feb2018eea61cce0e7870e",
+    "mtime": 1790639954.5328605,
+    "ast_hash": "d845141dc2fdf38beecca25d2b345e66",
     "semantic_hash": ""
   },
   "clip-processor/src/quota_manager.py": {
@@ -60,18 +60,18 @@
     "semantic_hash": ""
   },
   "clip-processor/src/rejeitar.py": {
-    "mtime": 1790633492.551206,
-    "ast_hash": "7c744c5aadf47ccad6416071c2f50b23",
+    "mtime": 1790639954.5331516,
+    "ast_hash": "a3248c0fec574708fc4274e9bdb09eed",
     "semantic_hash": ""
   },
   "clip-processor/src/rss_poller.py": {
-    "mtime": 1790639086.0876338,
-    "ast_hash": "20113173c39e40380bd3cd2691e34d33",
+    "mtime": 1790639954.535333,
+    "ast_hash": "393f407b1cd1364ac5c87eb19a58f6c3",
     "semantic_hash": ""
   },
   "clip-processor/src/selector.py": {
-    "mtime": 1790635459.675764,
-    "ast_hash": "cea7fef2c49df313d85fd99eacb1e966",
+    "mtime": 1790639954.535986,
+    "ast_hash": "5fa14cbe1a5b3be0472e0a843691d57a",
     "semantic_hash": ""
   },
   "clip-processor/src/telegram_notifier.py": {
@@ -80,28 +80,28 @@
     "semantic_hash": ""
   },
   "clip-processor/src/transcriber.py": {
-    "mtime": 1790632763.543495,
-    "ast_hash": "b81aa56e09a0f1e180d241d2bb1b1639",
+    "mtime": 1790639954.5340836,
+    "ast_hash": "5eb35518b715e5d80a8485d17b2e20c0",
     "semantic_hash": ""
   },
   "clip-processor/src/ttl_worker.py": {
-    "mtime": 1790631136.3891015,
-    "ast_hash": "0a57361551309d4209bc32308fbc74e2",
+    "mtime": 1790639954.5338986,
+    "ast_hash": "0c732d21dfb9e6671ddb03ed7aa50da0",
     "semantic_hash": ""
   },
   "clip-processor/src/uploader.py": {
-    "mtime": 1790632780.0348504,
-    "ast_hash": "3608825612d8feaa99325a3c26362d9b",
+    "mtime": 1790639954.5352123,
+    "ast_hash": "08a5f8a7a9f9e050516df462043fb6cb",
     "semantic_hash": ""
   },
   "clip-processor/src/video_processor.py": {
-    "mtime": 1790639086.0879214,
-    "ast_hash": "cc0e26c980e8252365bb7c8cb794a181",
+    "mtime": 1790639954.5354545,
+    "ast_hash": "3c136b022cc681fa85312e6246592704",
     "semantic_hash": ""
   },
   "clip-processor/src/youtube_oauth.py": {
-    "mtime": 1790637889.3159363,
-    "ast_hash": "d8bb04c3055585fffbc29ce87fc0cf5e",
+    "mtime": 1790639954.532329,
+    "ast_hash": "fcc18d6beee395a693e11cac71db9592",
     "semantic_hash": ""
   },
   "clip-processor/tests/__init__.py": {
@@ -120,8 +120,8 @@
     "semantic_hash": "43cfdd6700539395c41fc9f97f4d986d"
   },
   "clip-processor/tests/test_db.py": {
-    "mtime": 1790637889.3190012,
-    "ast_hash": "a636c33d6765ba9a10687f3d9aa7a6bd",
+    "mtime": 1790639954.5323472,
+    "ast_hash": "f1b4cca5ce3c599c3ae36126196e3577",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_dedup.py": {
@@ -135,18 +135,18 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_internal_api.py": {
-    "mtime": 1790635249.2784252,
-    "ast_hash": "9d003ed3f63e2ffb0cac1e8277adb704",
+    "mtime": 1790639954.5323396,
+    "ast_hash": "8c41ff15e894185ea670893cfa6dfe2c",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_metadata_generator.py": {
-    "mtime": 1790631136.3968086,
-    "ast_hash": "2f77bd8f618449800e97eddd59737598",
+    "mtime": 1790639954.5337923,
+    "ast_hash": "a25bb62d55395678ad9b96b138b6bc4a",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_pipeline_runner.py": {
-    "mtime": 1790637889.3208668,
-    "ast_hash": "490e2431be6b0500631fd08142bb1e5c",
+    "mtime": 1790639954.535163,
+    "ast_hash": "64d533c7d95604d765affcb8305e1d47",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_processar.py": {
@@ -160,23 +160,23 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_quota_manager.py": {
-    "mtime": 1790636802.6600816,
-    "ast_hash": "85eff1d02811dd8dab190b983753758d",
+    "mtime": 1790639954.5327127,
+    "ast_hash": "4a3e84be61432ae9ec6f2c5e6e279124",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_rejeitar.py": {
-    "mtime": 1790631136.4006338,
-    "ast_hash": "ce826c5b4c6ecaa6b00a81222672e8e1",
+    "mtime": 1790639954.5334136,
+    "ast_hash": "f9a5150668914beeec63ee3885f12efb",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_rss_poller.py": {
-    "mtime": 1790631444.2803266,
-    "ast_hash": "a3502bc7e97ddccc3c2870d43c2bd2c1",
+    "mtime": 1790639954.5327208,
+    "ast_hash": "e7dbcfa2e091ce9252e898b311d17a85",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_selector.py": {
-    "mtime": 1790637889.3254125,
-    "ast_hash": "574fd8b6af842eca5fdda5a442578c2d",
+    "mtime": 1790639954.5328813,
+    "ast_hash": "f6a7482b195e7b5fb28fc70a2eff700d",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_telegram_notifier.py": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_uploader.py": {
-    "mtime": 1790631136.4039922,
-    "ast_hash": "f604555cc0a8be49d82f20b458a935f9",
+    "mtime": 1790639954.532718,
+    "ast_hash": "3ff965bd90143c5b55c5480c864b3c16",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_uploader_expired.py": {
@@ -250,8 +250,8 @@
     "semantic_hash": "25a307335c0719bc9a91b3f7babd186d"
   },
   "painel/app/Http/Controllers/DashboardController.php": {
-    "mtime": 1790634978.3473597,
-    "ast_hash": "06cc88e60ac20cca1a63fdf4960767c4",
+    "mtime": 1790639713.223171,
+    "ast_hash": "9a448448caae8e5800dd5ae226cfe404",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/DestinationChannelController.php": {
@@ -275,8 +275,8 @@
     "semantic_hash": "514fb5e68a73c36be934cc13ae449488"
   },
   "painel/app/Http/Controllers/SettingsController.php": {
-    "mtime": 1790635597.3518045,
-    "ast_hash": "03f373d0efdccbac2e1e371e8f58166c",
+    "mtime": 1790639431.2601278,
+    "ast_hash": "385f72f164dccb2fdfc86ff1ff629511",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/SourceChannelController.php": {
@@ -285,18 +285,18 @@
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/SourceVideoController.php": {
-    "mtime": 1790635307.0686517,
-    "ast_hash": "060bdb183da3c05d9889118e207ce47f",
+    "mtime": 1790639431.3851767,
+    "ast_hash": "74c0e42632fd74d1d259bb40ab06a69a",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/TelegramWebhookController.php": {
-    "mtime": 1790631136.5839293,
-    "ast_hash": "a2035a0ed8ed7e4076ee5d2bb98d259b",
+    "mtime": 1790639431.2985523,
+    "ast_hash": "d1621a6290248ba6a0afe99e120cb57a",
     "semantic_hash": ""
   },
   "painel/app/Http/Middleware/HandleInertiaRequests.php": {
-    "mtime": 1790631136.5858016,
-    "ast_hash": "35505d63fe90fdc098f3eb01862651be",
+    "mtime": 1790639431.0070937,
+    "ast_hash": "ad4b34ca355fe843c3ed494554ff824d",
     "semantic_hash": ""
   },
   "painel/app/Models/DestinationChannel.php": {
@@ -330,13 +330,13 @@
     "semantic_hash": "ca00ef9e587df52eeb3f687855f5c234"
   },
   "painel/app/Providers/AppServiceProvider.php": {
-    "mtime": 1790631136.5899158,
-    "ast_hash": "d9ae9af0a153c0818d40aa1507644f80",
+    "mtime": 1790639430.9778664,
+    "ast_hash": "959ad03fe6630a6b69708eacc66712ca",
     "semantic_hash": ""
   },
   "painel/app/Services/ClipProcessorClient.php": {
-    "mtime": 1790635343.775544,
-    "ast_hash": "c2b62fa5101518b936d84c79d81082a2",
+    "mtime": 1790639698.8734736,
+    "ast_hash": "f40f87d76ce8955c2d4ca373557d467f",
     "semantic_hash": ""
   },
   "painel/app/Services/TelegramHttpClientHandler.php": {
@@ -350,8 +350,8 @@
     "semantic_hash": "02de8a1985a6700491dfc7b6a8810043"
   },
   "painel/app/Telegram/Commands/AprovarCommand.php": {
-    "mtime": 1790631136.591719,
-    "ast_hash": "c335bbc5cfdd8b1a078c8cc571a8821e",
+    "mtime": 1790639431.3928685,
+    "ast_hash": "e97bd68daeed17b5c26ad14d08fc270d",
     "semantic_hash": ""
   },
   "painel/app/Telegram/Commands/ClipesCommand.php": {
@@ -815,8 +815,8 @@
     "semantic_hash": ""
   },
   "painel/routes/web.php": {
-    "mtime": 1790631136.625854,
-    "ast_hash": "1e9e6e7eab33591c0541770bf7d0a400",
+    "mtime": 1790639431.659641,
+    "ast_hash": "fa9fddea6f7ea2f8c0e8e784eb339162",
     "semantic_hash": ""
   },
   "painel/tests/Feature/AuthGuardTest.php": {
@@ -825,8 +825,8 @@
     "semantic_hash": "f3de41494782e2453a3faab1d768134f"
   },
   "painel/tests/Feature/ClipApprovalActionTest.php": {
-    "mtime": 1790631136.6270092,
-    "ast_hash": "70b9b9c8a8e5a0f9667e9ac8c5deb5d3",
+    "mtime": 1790639431.5928628,
+    "ast_hash": "2fe57fe34d88f13c120c80e8dc880fc1",
     "semantic_hash": ""
   },
   "painel/tests/Feature/CreatePainelUserCommandTest.php": {
@@ -845,8 +845,8 @@
     "semantic_hash": "e4eae302254063262ebdc2eb14356b63"
   },
   "painel/tests/Feature/PipelineEventTest.php": {
-    "mtime": 1790631136.6305969,
-    "ast_hash": "b829be00078af159ca2a26978643c8ac",
+    "mtime": 1790639431.5532198,
+    "ast_hash": "1e7aa1ef460e81c5dc7f297618e86792",
     "semantic_hash": ""
   },
   "painel/tests/Feature/ResetPainelPasswordCommandTest.php": {
@@ -1645,8 +1645,8 @@
     "semantic_hash": "9a2af4025e9cff0c29f3790a382dcb99"
   },
   "painel/app/Http/Controllers/TranscriptionController.php": {
-    "mtime": 1790631136.5849276,
-    "ast_hash": "0dd78c4a18616259502677a5558c6230",
+    "mtime": 1790639431.0806112,
+    "ast_hash": "831fe23ca40605e34bfc83ca5366b42e",
     "semantic_hash": ""
   },
   "painel/app/Models/TranscriptionJob.php": {
@@ -1995,8 +1995,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/media_composer.py": {
-    "mtime": 1790632964.041781,
-    "ast_hash": "ffa61e5b59bb7cfd688ea426ccd2bd2a",
+    "mtime": 1790639954.5359564,
+    "ast_hash": "d9d6199d82303f6a5ed4f572516852d3",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/MediaAssetController.php": {
@@ -2020,8 +2020,8 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_media_composer.py": {
-    "mtime": 1790614904.933278,
-    "ast_hash": "29e0189785ea42a12d950ec9f90cd0fd",
+    "mtime": 1790639954.5331929,
+    "ast_hash": "c0f81e37ebee613c7e45f0ff7e99263e",
     "semantic_hash": ""
   },
   "painel/tests/Feature/MediaAssetResourceTest.php": {
@@ -2245,8 +2245,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/fair_queue.py": {
-    "mtime": 1790631136.3762255,
-    "ast_hash": "226692de0f329209dad53eb9e229b731",
+    "mtime": 1790639954.5348816,
+    "ast_hash": "152c6f810e7a6bffadfbcfa31d8152f4",
     "semantic_hash": ""
   },
   "clip-processor/src/media_contract.py": {
@@ -2280,8 +2280,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/watchdog.py": {
-    "mtime": 1790639086.0873988,
-    "ast_hash": "d4c6aa1c2591fb35ded255f5d9fdaa79",
+    "mtime": 1790639954.533582,
+    "ast_hash": "cb3d541bb290a6d3f90f395dfaca3859",
     "semantic_hash": ""
   },
   "clip-processor/src/worker.py": {
@@ -2290,13 +2290,13 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_fair_queue.py": {
-    "mtime": 1790631136.393758,
-    "ast_hash": "84967b5efdf3b2a8dbbcf44878b49a40",
+    "mtime": 1790639954.5334811,
+    "ast_hash": "5a9a176410ff609e145f5f1b6e2c5d94",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_finalize_source_video.py": {
-    "mtime": 1790631136.394626,
-    "ast_hash": "d395ef286c4a3052d75d9c4eeca090f9",
+    "mtime": 1790639954.5334342,
+    "ast_hash": "14b39bd75488870c034e03619eebb00d",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_media_contract.py": {
@@ -2320,8 +2320,8 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_watchdog.py": {
-    "mtime": 1790637936.5269518,
-    "ast_hash": "fe3a67bc072ebdcfdd98f2d3d3523a74",
+    "mtime": 1790639954.5323615,
+    "ast_hash": "6d8b845a789ca41fc3845597d748bfee",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_worker.py": {
@@ -2345,8 +2345,8 @@
     "semantic_hash": ""
   },
   "painel/app/Console/Commands/BackupDatabaseCommand.php": {
-    "mtime": 1790631136.5762496,
-    "ast_hash": "8aaccfde061c25e4d7c015b89f775ac1",
+    "mtime": 1790639431.5288513,
+    "ast_hash": "d8b9cfee7ed85b2e51f05439569c2855",
     "semantic_hash": ""
   },
   "painel/app/Console/Commands/PublishOffersToTelegram.php": {
@@ -2355,8 +2355,8 @@
     "semantic_hash": ""
   },
   "painel/app/Console/Commands/RestoreDatabaseCommand.php": {
-    "mtime": 1790631136.5767815,
-    "ast_hash": "411192449cac9e6f4c13901784c8434f",
+    "mtime": 1790639431.4841118,
+    "ast_hash": "4773bffc645ddd42333a7fdb8ad6a92f",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/Api/OfferApiController.php": {
@@ -2365,8 +2365,8 @@
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/AssistantController.php": {
-    "mtime": 1790631136.577466,
-    "ast_hash": "0bd61969353653f26380b88831dc405f",
+    "mtime": 1790639431.0372732,
+    "ast_hash": "d83890bc290dcf7512f310627932c5f9",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/OfferController.php": {
@@ -2410,8 +2410,8 @@
     "semantic_hash": ""
   },
   "painel/app/Models/SystemSetting.php": {
-    "mtime": 1790631136.5889199,
-    "ast_hash": "442eea691fb84aa61b8056768664f7dd",
+    "mtime": 1790639430.9873853,
+    "ast_hash": "8b1a6c47000f1a61320d74fab2312b6c",
     "semantic_hash": ""
   },
   "painel/app/Services/OfferCopywriter.php": {
@@ -2440,8 +2440,8 @@
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_07_13_000000_create_clips_core_tables.php": {
-    "mtime": 1790631136.594531,
-    "ast_hash": "ca9e1243123ccfeb275ed1e3e1fa5ba1",
+    "mtime": 1790639430.967681,
+    "ast_hash": "ffa036f3d2c179e9598215b92a4be45d",
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_08_27_000000_create_prompt_profiles_table.php": {
@@ -2460,8 +2460,8 @@
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_09_11_133000_add_upload_error_to_generated_clips.php": {
-    "mtime": 1790631136.5952494,
-    "ast_hash": "87a0b05b81cbeb3134a00f4d1faf4bb5",
+    "mtime": 1790639430.9463148,
+    "ast_hash": "616365353a55e376a593011e3aa684cf",
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_09_15_000000_create_offers_and_offer_clicks_tables.php": {
