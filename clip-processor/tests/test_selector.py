@@ -241,7 +241,7 @@ class TestSelectMoments:
             assert 'timestamps' in normalized
             assert 'infira' in normalized
             assert 'posição fixa' in normalized
-            assert 'duração fixa' in normalized
+            assert '30 a 45 segundos' in normalized
             assert 'não atravesse essa lacuna' in normalized
             assert 'assunto completo' in normalized
             assert 'conclusão' in normalized
@@ -469,7 +469,9 @@ class TestSelectMoments:
         result = select_moments(transcript, anthropic_client=mock_anthropic)
 
         assert len(result) == 1
-        assert result[0]['end_time'] - result[0]['start_time'] == pytest.approx(34.96)
+        duration = result[0]['end_time'] - result[0]['start_time']
+        assert 30 <= duration <= 45
+        assert result[0]['end_time'] == pytest.approx(44.96)
 
     def test_shortform_keeps_exact_duration_after_boundary_adjustment(self, sample_video_id):
         """Uma frase vizinha pode ser ajustada, respeitando o teto de 45s."""

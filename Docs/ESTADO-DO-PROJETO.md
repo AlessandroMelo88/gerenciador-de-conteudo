@@ -4,8 +4,8 @@
 **Produção:** commit `3cc729b`, no ar em https://toolscut.alessandromelo.com.br
 
 **Integração em revisão:** `release/rico` já contém a `origin/master` atual. A PR #1 para `master`
-está aberta; as mudanças desta rodada ainda não foram publicadas em produção. Não houve deploy nem
-validação de postagem real nesta rodada.
+está aberta e atribuída ao Alessandro. A implementação desta rodada e os ajustes finais de CI estão
+na branch; não houve merge, deploy nem validação de postagem real nesta rodada.
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
 Ele resume e aponta; o detalhe fica nos arquivos citados.
@@ -137,6 +137,6 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Data | Rodada | Onde parou | Próximo passo combinado |
 |---|---|---|---|
 | 20/09/2026 | Criação deste checkpoint | Produção em `3cc729b`, saudável: 141 clips publicados, 16 na fila de aprovação, 18 vídeos na janela, 0 ofertas | Cadastrar a primeira oferta real de afiliado |
-| 28/09/2026 | Integração `release/rico` | `origin/master` incorporada; PR #1 aberta para revisão. Ajustes de frescor por fonte, retenção de transcrições, mídia por destino, horários de publicação e cron nativo ainda aguardam integração/deploy | Revisar e integrar a PR; configurar credenciais e confirmar a fila antes de ativar publicações |
+| 28/09/2026 | Integração `release/rico` | `origin/master` incorporada; PR #1 aberta e atribuída ao Alessandro. Frescor por canal, retenção das transcrições no banco, shorts de 30–45 s, Groq por padrão, horários de publicação, música só em longos com volume crescente e execução nativa via cron implementados na branch. Sem publicação real nem deploy | Revisar a CI e a PR; configurar credenciais e confirmar a fila antes de ativar publicações |
 | 18/09/2026 | Afiliados na master, modo manutenção, hotfix do Vite | Afiliados em produção com token configurado | Criar canais do Telegram |
 | 17/09/2026 | Migração para a VM A1 | Produção em PostgreSQL, disco dedicado | Encerrar a VM antiga depois do período de rollback |

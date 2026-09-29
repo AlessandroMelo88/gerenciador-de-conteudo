@@ -213,6 +213,7 @@ class TestMetadataGenerator:
         assert thumbnail_text in SAMPLE_CONTEXT['transcript_excerpt']
 
     def test_thumbnail_provider_failure_is_not_replaced_by_another_provider(self, monkeypatch):
+        monkeypatch.setenv('AI_PROVIDER', 'anthropic')
         monkeypatch.setenv('ANTHROPIC_API_KEY', 'configured')
         mock_claude = MagicMock(side_effect=RuntimeError('Claude indisponível'))
         mock_groq = MagicMock()

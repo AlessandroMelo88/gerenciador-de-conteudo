@@ -143,5 +143,6 @@ jobs:
       - run: pip install yamllint && yamllint -c .yamllint.yml .
       - name: docker compose config
         env:
+          POSTGRES_PASSWORD: ci
           CLIPS_DB_PASSWORD: ci
         run: cp .env.example .env && cp painel/.env.example painel/.env && docker compose config -q

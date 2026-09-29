@@ -140,8 +140,8 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_metadata_generator.py": {
-    "mtime": 1790639954.5337923,
-    "ast_hash": "a25bb62d55395678ad9b96b138b6bc4a",
+    "mtime": 1790641294.650178,
+    "ast_hash": "596e7f658b954a11d34a9199a1e32a15",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_pipeline_runner.py": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_quota_manager.py": {
-    "mtime": 1790639954.5327127,
-    "ast_hash": "4a3e84be61432ae9ec6f2c5e6e279124",
+    "mtime": 1790641346.994449,
+    "ast_hash": "608d2d83bda766c9902f994efed0dffb",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_rejeitar.py": {
@@ -170,13 +170,13 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_rss_poller.py": {
-    "mtime": 1790639954.5327208,
-    "ast_hash": "e7dbcfa2e091ce9252e898b311d17a85",
+    "mtime": 1790641294.6516333,
+    "ast_hash": "0bfbcffe93322ad0567128d5d3ef5f8d",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_selector.py": {
-    "mtime": 1790639954.5328813,
-    "ast_hash": "f6a7482b195e7b5fb28fc70a2eff700d",
+    "mtime": 1790641294.6525955,
+    "ast_hash": "4f1707536b8cf00c79ad2885b4ed4f25",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_telegram_notifier.py": {
@@ -205,8 +205,8 @@
     "semantic_hash": "78e868db81eb69ece569129377f49394"
   },
   "clip-processor/tests/test_video_processor.py": {
-    "mtime": 1790630475.7011073,
-    "ast_hash": "e8a448941530b4a78e79cdc129f37397",
+    "mtime": 1790641294.6533875,
+    "ast_hash": "a4e1a125047740891f4386c8b75f395a",
     "semantic_hash": ""
   },
   "manual-workflow/force-download.sh": {
@@ -875,8 +875,8 @@
     "semantic_hash": "2a90ee21e00ab7d2a9d1a9c9606158d7"
   },
   "painel/tests/TestCase.php": {
-    "mtime": 1790640665.11075,
-    "ast_hash": "3a84dfa5b7477f317b1fa7a23a5473dc",
+    "mtime": 1790641294.6488957,
+    "ast_hash": "a14ebb804f6453d4c7f21b74b1326900",
     "semantic_hash": ""
   },
   "painel/tests/Unit/DestinationChannelOauthStatusTest.php": {
@@ -1735,8 +1735,8 @@
     "semantic_hash": "535d22cbc95a7b13968d2cc297c370db"
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1790637586.8284135,
-    "ast_hash": "20d80adc5ffa4b93a1d202cbcf64766a",
+    "mtime": 1790641294.6477907,
+    "ast_hash": "062d3b5c81039b46d909645bce92cae6",
     "semantic_hash": ""
   },
   ".hadolint.yaml": {
@@ -2300,8 +2300,8 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_media_contract.py": {
-    "mtime": 1790614904.9334326,
-    "ast_hash": "fa7b850cdae442c95775e4584f5d134c",
+    "mtime": 1790641294.6496134,
+    "ast_hash": "bf1cea7ec35181da680d8b26709ad6df",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_prompt_profiles.py": {

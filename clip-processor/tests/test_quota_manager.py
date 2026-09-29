@@ -16,7 +16,13 @@ TZ_SP = ZoneInfo('America/Sao_Paulo')
 def make_redis(count=None):
     """Helper: mock Redis com contador configurável."""
     r = MagicMock()
-    r.get.return_value = str(count) if count is not None else None
+
+    def get(key):
+        if ':slot:' in key or key.endswith((':longo', ':last_upload_at')):
+            return None
+        return str(count) if count is not None else None
+
+    r.get.side_effect = get
     r.incr.return_value = (count or 0) + 1
     r.expire.return_value = True
     return r
@@ -135,7 +141,7 @@ class TestRecordUpload:
         r.incr.return_value = 1
         qm = QuotaManager(r, max_uploads_per_day=2)
         qm.record_upload(now=dt_sp(20, 0))
-        r.incr.assert_called_once()
+        assert r.incr.call_count == 2  # cota diária e slot horário
 
     def test_sets_ttl_on_first_upload(self):
         """Primeiro upload do dia deve definir TTL até meia-noite."""
@@ -144,10 +150,8 @@ class TestRecordUpload:
         qm = QuotaManager(r, max_uploads_per_day=2)
         qm.record_upload(now=dt_sp(20, 0))
         # TTL deve ser chamado
-        r.expire.assert_called_once()
-        # TTL deve ser positivo (segundos até meia-noite)
-        ttl_arg = r.expire.call_args[0][1]
-        assert ttl_arg > 0
+        assert r.expire.call_count == 2  # um TTL para cada chave recém-criada
+        assert all(call.args[1] > 0 for call in r.expire.call_args_list)
 
     def test_does_not_reset_ttl_on_second_upload(self):
         """Segundo upload não deve redefinir o TTL."""
@@ -254,7 +258,7 @@ class TestLongoReservation:
         """Com MAX=5 / LONGO=2 e 3 uploads, curto bloqueia se ainda há longo na fila."""
         r = MagicMock()
         # total=3, longo=0 → reserva 2 → teto curto = 3
-        r.get.side_effect = lambda key: '3' if not key.endswith(':longo') else '0'
+        r.get.side_effect = lambda key: '0' if ':slot:' in key or key.endswith(':longo') else '3'
         qm = QuotaManager(r, max_uploads_per_day=5, max_longo_per_day=2)
         assert qm.can_upload(now=dt_sp(20), format='curto', longo_waiting=True) is False
         assert qm.can_upload(now=dt_sp(14), format='longo', longo_waiting=True) is True
@@ -262,7 +266,7 @@ class TestLongoReservation:
     def test_curto_unblocked_when_no_longo_waiting(self):
         """Sem longo na fila, curto pode usar o restante da cota total."""
         r = MagicMock()
-        r.get.side_effect = lambda key: '3' if not key.endswith(':longo') else '0'
+        r.get.side_effect = lambda key: '0' if ':slot:' in key or key.endswith(':longo') else '3'
         qm = QuotaManager(r, max_uploads_per_day=5, max_longo_per_day=2)
         assert qm.can_upload(now=dt_sp(20), format='curto', longo_waiting=False) is True
 

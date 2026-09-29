@@ -31,7 +31,7 @@ def test_short_media_contract_accepts_vertical_30s_file(mocker, tmp_path):
 @pytest.mark.parametrize(
     ('duration', 'width', 'height', 'message'),
     [
-        (29.0, 1080, 1920, 'precisa ter 30s'),
+        (29.0, 1080, 1920, 'entre 30 e 45s'),
         (30.0, 1920, 1080, 'precisa ser vertical 9:16'),
     ],
 )

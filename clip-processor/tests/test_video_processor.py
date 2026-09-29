@@ -262,7 +262,7 @@ class TestVideoProcessor:
         mocker.patch('src.video_processor.os.rename')
 
         assert process_clip(mock_db_conn, 11) is True
-        assert mock_render.call_args.args[2] == 130.0
+        assert mock_render.call_args.args[2] == 140.0
 
     def test_process_short_skips_burn_when_source_already_has_subtitles(
         self, tmp_path, mock_db_conn, mocker
@@ -313,7 +313,7 @@ class TestVideoProcessor:
 
         assert process_clip(mock_db_conn, 12) is True
         mock_detect.assert_called_once_with(
-            '/app/videos/source.mp4', SAMPLE_TRANSCRIPT, 100.0, 130.0
+            '/app/videos/source.mp4', SAMPLE_TRANSCRIPT, 100.0, 140.0
         )
         mock_burn.assert_not_called()
         # A legenda oficial continua saindo: só o texto queimado é dispensado.

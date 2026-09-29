@@ -10,8 +10,8 @@
     "semantic_hash": "04e15b41d644651e97d1d8a8a6cafab5"
   },
   "clip-processor/src/db.py": {
-    "mtime": 1790639954.5328314,
-    "ast_hash": "bb30ffe8368df1321b28a16d4001f5ca",
+    "mtime": 1790640777.5544724,
+    "ast_hash": "06ac74f886d6ae920c0bdaa943385ddf",
     "semantic_hash": ""
   },
   "clip-processor/src/dedup.py": {
@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/main.py": {
-    "mtime": 1790639954.5349824,
-    "ast_hash": "f23dae179ecacb5fdca5c8b6c05ef392",
+    "mtime": 1790640665.1102917,
+    "ast_hash": "affbf3e9b70cd05b6faed8c377d965b9",
     "semantic_hash": ""
   },
   "clip-processor/src/metadata_generator.py": {
@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/pipeline_runner.py": {
-    "mtime": 1790639954.535548,
-    "ast_hash": "0400920554b5d305001daf8f4adb586d",
+    "mtime": 1790640665.109908,
+    "ast_hash": "59e648a529073d08beae2e433faa4951",
     "semantic_hash": ""
   },
   "clip-processor/src/processar.py": {
@@ -70,8 +70,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/selector.py": {
-    "mtime": 1790639954.535986,
-    "ast_hash": "5fa14cbe1a5b3be0472e0a843691d57a",
+    "mtime": 1790640665.1094677,
+    "ast_hash": "297272c115bd49a6442cc79feb910675",
     "semantic_hash": ""
   },
   "clip-processor/src/telegram_notifier.py": {
@@ -80,8 +80,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/transcriber.py": {
-    "mtime": 1790639954.5340836,
-    "ast_hash": "5eb35518b715e5d80a8485d17b2e20c0",
+    "mtime": 1790640665.1090155,
+    "ast_hash": "881156148f501e64560974b3b2b4cf82",
     "semantic_hash": ""
   },
   "clip-processor/src/ttl_worker.py": {
@@ -875,9 +875,9 @@
     "semantic_hash": "2a90ee21e00ab7d2a9d1a9c9606158d7"
   },
   "painel/tests/TestCase.php": {
-    "mtime": 1790614903.7673209,
-    "ast_hash": "12291bb064483025786b1f322f992313",
-    "semantic_hash": "12291bb064483025786b1f322f992313"
+    "mtime": 1790640665.11075,
+    "ast_hash": "3a84dfa5b7477f317b1fa7a23a5473dc",
+    "semantic_hash": ""
   },
   "painel/tests/Unit/DestinationChannelOauthStatusTest.php": {
     "mtime": 1787704535.6845603,
@@ -2255,8 +2255,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/paths.py": {
-    "mtime": 1790633447.5445044,
-    "ast_hash": "19cff060741a18a7a01e5cf54b793516",
+    "mtime": 1790640777.5562682,
+    "ast_hash": "111b1198472542e4aa2596d38a267ed5",
     "semantic_hash": ""
   },
   "clip-processor/src/prompt_profiles.py": {
@@ -3010,23 +3010,23 @@
     "semantic_hash": ""
   },
   "prompts/channels/hacker-libertario.yaml": {
-    "mtime": 1790632913.3643486,
-    "ast_hash": "17e9b9a7ad3ad75b165d41a571c6999e",
+    "mtime": 1790640702.8065033,
+    "ast_hash": "07dcaf297531fc8ba13efc369ff7a1e0",
     "semantic_hash": ""
   },
   "prompts/layers/general.yaml": {
-    "mtime": 1790632913.3647676,
-    "ast_hash": "0364b32e0fd81d2224171fef0ce5ae22",
+    "mtime": 1790640702.8058894,
+    "ast_hash": "9cbef7efce773c0990f72d77a03372b6",
     "semantic_hash": ""
   },
   "prompts/targets/youtube-long.yaml": {
-    "mtime": 1790632913.3650968,
-    "ast_hash": "386de9c234276e8b6b841e04d37004aa",
+    "mtime": 1790640702.8076026,
+    "ast_hash": "b45b52a170b5720537b1b7f8fd7e6f9b",
     "semantic_hash": ""
   },
   "prompts/targets/youtube-shorts.yaml": {
-    "mtime": 1790632913.365365,
-    "ast_hash": "d48f939a56175840a089d86eaa61c5e6",
+    "mtime": 1790640702.8069937,
+    "ast_hash": "0e7ff501f29ebc930c79f1fcc23bd2d4",
     "semantic_hash": ""
   },
   "template/cortes-da-politica/Logo Canal Futebol (offline).html": {

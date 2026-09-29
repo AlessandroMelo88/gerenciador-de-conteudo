@@ -198,6 +198,7 @@ class TestAIPipelineIntegration:
             {'youtube_video_id': 'vid001aaaaaa', 'local_path': '/app/videos/vid001aaaaaa.mp4'},
         ]
         self._make_downloaded_cursor(mock_db_conn, video_rows)
+        mocker.patch('src.rss_poller.os.path.exists', return_value=True)
 
         mocker.patch(
             'src.rss_poller.requests.get',
@@ -220,6 +221,7 @@ class TestAIPipelineIntegration:
             {'youtube_video_id': 'vid002bbbbbb', 'local_path': '/app/videos/vid002bbbbbb.mp4'},
         ]
         self._make_downloaded_cursor(mock_db_conn, video_rows)
+        mocker.patch('src.rss_poller.os.path.exists', return_value=True)
 
         mocker.patch(
             'src.rss_poller.requests.get',
