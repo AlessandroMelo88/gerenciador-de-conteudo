@@ -8,6 +8,7 @@ use App\Services\ClipProcessorClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -31,6 +32,8 @@ class SourceChannelController extends Controller
                 'targetNiche' => $c->target_niche,
                 'active' => $c->active,
                 'blacklisted' => $c->blacklisted,
+                'freshnessDays' => $c->freshness_days ?? SourceChannel::DEFAULT_FRESHNESS_DAYS,
+                'inputPriority' => (int) ($c->input_priority ?? 0),
                 'createdAt' => $c->created_at ? Carbon::parse($c->created_at)->diffForHumans() : null,
             ]),
             'niches' => Niche::query()->orderBy('label')->get(['slug', 'label']),
@@ -71,6 +74,13 @@ class SourceChannelController extends Controller
         $data = $request->validate([
             'blacklisted' => ['sometimes', 'boolean'],
             'active' => ['sometimes', 'boolean'],
+            'freshness_days' => ['sometimes', 'integer', Rule::in(SourceChannel::FRESHNESS_OPTIONS)],
+            'input_priority' => [
+                'sometimes',
+                'integer',
+                'min:'.SourceChannel::INPUT_PRIORITY_MIN,
+                'max:'.SourceChannel::INPUT_PRIORITY_MAX,
+            ],
         ]);
 
         $sourceChannel->update($data);

@@ -4,7 +4,7 @@ pipeline_runner.py — Uma execucao completa do pipeline.
 Usado pelo daemon e pelo workflow n8n.
 """
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import redis as redis_lib
@@ -111,7 +111,10 @@ def _select_pending_videos(db_conn) -> list:
     escolhe primeiro. Sem isso, um canal que publica 50 vídeos por dia toma a
     janela inteira e os outros nunca baixam. Nicho com a janela cheia não baixa nada.
     """
-    cutoff_date = (datetime.now(SAO_PAULO_TZ) - timedelta(days=FRESHNESS_DAYS)).date()
+    # Hoje (fuso de SP). O corte de frescor é calculado no SQL, por canal:
+    # `source_channels.freshness_days` manda; FRESHNESS_DAYS é só o fallback
+    # para vídeo sem canal-fonte.
+    today = datetime.now(SAO_PAULO_TZ).date()
 
     niche_windows = _niche_windows(db_conn)
 
@@ -150,18 +153,20 @@ def _select_pending_videos(db_conn) -> list:
 
         with db_conn.cursor() as cur:
             cur.execute(
-                "SELECT sv.youtube_video_id, sv.channel_id FROM source_videos sv "
+                "SELECT sv.youtube_video_id, sv.channel_id, "
+                "COALESCE(sc.input_priority, 0) AS input_priority "
+                "FROM source_videos sv "
                 "LEFT JOIN source_channels sc ON sc.id = sv.channel_id "
                 "WHERE sv.status = 'pending' AND sv.paused = FALSE "
                 "AND ("
                 "  (LOWER(COALESCE(sc.target_niche, 'futebol')) = %s) "
                 "  OR (%s = 'futebol' AND (sc.target_niche IS NULL OR sc.target_niche = ''))"
                 ") "
-                "AND DATE(sv.published_at) >= %s "
+                "AND DATE(sv.published_at) >= (%s::date - COALESCE(sc.freshness_days, %s)::int) "
                 "ORDER BY sv.priority DESC, "
                 "sv.queue_position IS NULL, sv.queue_position ASC, "
                 "sv.published_at DESC LIMIT %s",
-                (niche, niche, cutoff_date, deficit * CANDIDATES_PER_SLOT),
+                (niche, niche, today, FRESHNESS_DAYS, deficit * CANDIDATES_PER_SLOT),
             )
             candidates = [dict(row) for row in cur.fetchall()]
 

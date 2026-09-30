@@ -11,6 +11,9 @@ Exporta:
 - channel_cap(window, active_channels, override=None) -> int
 - fair_pick(candidates, occupancy, deficit, cap) -> list[dict]
 """
+
+from __future__ import annotations
+
 import math
 
 
@@ -41,21 +44,31 @@ def fair_pick(candidates: list[dict], occupancy: dict, deficit: int, cap: int) -
 
     `occupancy` é quantas vagas cada canal já ocupa agora; conta contra o `cap`
     e define quem começa a rodada: canal com menos vagas ocupadas vem primeiro,
-    que é o anti-fome. Empate mantém a ordem de chegada no SQL.
+    que é o anti-fome. No empate, `input_priority` maior começa; empate de
+    prioridade mantém a ordem de chegada no SQL. A prioridade muda a ordem, não
+    o teto nem a quantidade de vagas de cada canal.
 
     Vaga que sobra (canal sem mais candidatos) volta para quem ainda tem fila,
     respeitando o teto — janela ociosa não ajuda ninguém.
     """
     queues: dict = {}
     arrival: list = []
+    source_priorities: dict = {}
     for video in candidates:
         key = video.get('channel_id')
         if key not in queues:
             queues[key] = []
             arrival.append(key)
+            try:
+                source_priorities[key] = int(video.get('input_priority') or 0)
+            except (TypeError, ValueError):
+                source_priorities[key] = 0
         queues[key].append(video)
 
-    order = sorted(arrival, key=lambda k: (occupancy.get(k, 0), arrival.index(k)))
+    order = sorted(
+        arrival,
+        key=lambda k: (occupancy.get(k, 0), -source_priorities.get(k, 0), arrival.index(k)),
+    )
     taken: dict = {}
     picked: list[dict] = []
 
