@@ -83,17 +83,111 @@ class TestCleanReason:
 
         momentos = _parse_moments(bruto)
 
-        assert len(momentos[0]['reason']) == MAX_REASON_CHARS + 1
+        assert len(momentos[0]['reason']) <= MAX_REASON_CHARS
+        assert momentos[0]['reason'].endswith('Fake news: inconclusivo')
 
     def test_parse_moments_preenche_reason_ausente(self):
         bruto = json.dumps({'moments': [{'start_time': 0, 'end_time': 60, 'score': 9}]})
 
         momentos = _parse_moments(bruto)
 
-        assert momentos[0]['reason'] == ''
+        assert momentos[0]['reason'] == 'Fake news: inconclusivo'
 
 
 class TestSelectMoments:
+    def test_model_fact_check_claims_are_kept_inconclusive_without_source_search(self):
+        normalized = selector_module._normalize_fake_news_labels(
+            [
+                {
+                    'fake_news': 'positivo',
+                    'reason': 'A afirmação é falsa | Fake news: positivo',
+                }
+            ]
+        )
+
+        assert normalized[0]['fake_news'] == 'inconclusivo'
+        assert normalized[0]['reason'].endswith('Fake news: inconclusivo')
+
+    def test_longform_does_not_drop_a_coherent_segment_for_covering_65_percent(self):
+        candidate = {'start_time': 0.0, 'end_time': 700.0, 'score': 9, 'reason': 'Análise'}
+        segments = [{'start': 0.0, 'end': 1000.0, 'text': 'Análise completa do tema.'}]
+
+        result = selector_module._filter_sponsors_and_outros(
+            [candidate], segments, transcript_duration=1000.0, is_longo=True
+        )
+
+        assert result == [candidate]
+
+    def test_longform_still_rejects_the_entire_source_video(self):
+        candidate = {'start_time': 0.0, 'end_time': 1000.0, 'score': 9, 'reason': 'Análise'}
+        segments = [{'start': 0.0, 'end': 1000.0, 'text': 'Análise completa do tema.'}]
+
+        result = selector_module._filter_sponsors_and_outros(
+            [candidate], segments, transcript_duration=1000.0, is_longo=True
+        )
+
+        assert result == []
+
+    def test_long_transcript_selection_samples_late_content(self, monkeypatch):
+        captured = []
+        segments = [
+            {
+                'start': float(index * 60),
+                'end': float((index + 1) * 60),
+                'text': f'Segmento {index:03d} ' + ('contexto relevante ' * 20),
+            }
+            for index in range(40)
+        ]
+        segments[-1]['text'] = 'MARCADOR_DO_FIM ' + ('conteúdo final ' * 20)
+
+        def capture_window(transcript_text, system_prompt, *, max_tokens=None):
+            captured.append(transcript_text)
+            return []
+
+        monkeypatch.setattr(selector_module, '_select_via_groq', capture_window)
+
+        result = select_moments({'segments': segments}, fmt='curto', niche='tecnologia')
+
+        assert result == []
+        assert any('MARCADOR_DO_FIM' in window for window in captured)
+
+    def test_selection_discards_candidates_from_omitted_transcript_gaps(self, monkeypatch):
+        segments = [
+            {
+                'start': float(index * 60),
+                'end': float((index + 1) * 60),
+                'text': f'Segmento {index:03d} ' + ('contexto ' * 50),
+            }
+            for index in range(40)
+        ]
+        monkeypatch.setattr(
+            selector_module,
+            '_select_via_groq',
+            lambda *_args, **_kwargs: [
+                {'start_time': 600.0, 'end_time': 645.0, 'score': 9, 'reason': 'Fora da amostra'}
+            ],
+        )
+
+        result = select_moments({'segments': segments}, fmt='curto', niche='tecnologia')
+
+        assert result == []
+
+    @pytest.mark.parametrize('niche', ['tecnologia', 'tech', 'linux', 'ia', 'opensource'])
+    def test_generic_technology_niches_do_not_inherit_hacker_libertario_rules(self, niche):
+        prompt = get_system_prompt(fmt='curto', niche=niche)
+
+        assert 'Hacker Libertário' not in prompt
+        assert 'Visão Libertária' not in prompt
+
+    def test_hacker_selection_keeps_factual_and_search_terms_literal(self):
+        short_prompt = get_system_prompt(fmt='curto', niche='hacker-libertario')
+        long_prompt = get_system_prompt(fmt='longo', niche='hacker-libertario')
+
+        for prompt in (short_prompt, long_prompt):
+            assert 'Preserve nomes próprios' in prompt
+            assert 'Não troque esses termos por rótulos ideológicos' in prompt
+            assert 'BANIMENTO TOTAL DE "TRÁFICO"' not in prompt
+
     def test_groq_retries_without_structured_output_after_json_validation_error(self, monkeypatch):
         class FakeError(Exception):
             pass
@@ -250,10 +344,13 @@ class TestSelectMoments:
             assert 'não necessariamente frases completas' in normalized
             assert 'é diferente de você fazer' in normalized
             assert 'validação final obrigatória' in normalized
-            assert '65s' not in normalized
-            assert 'pesquise na internet' in normalized
+            assert '65%' not in normalized
+            if 'vídeos de 7 a 20 minutos' in normalized:
+                assert 'nenhuma porcentagem' in normalized
+            assert 'não dispõe de ferramenta de busca' in normalized
+            assert 'não pesquise' in normalized
             assert 'fake_news' in normalized
-            assert 'positivo' in normalized and 'negativo' in normalized
+            assert 'inconclusivo' in normalized
             assert 'anti-repetição' in normalized
             assert 'histórico de trechos já utilizados' in normalized
 
@@ -274,8 +371,8 @@ class TestSelectMoments:
         assert 'score' in first
         assert 'reason' in first
 
-    def test_fact_check_label_is_requested_and_preserved(self, sample_video_id):
-        """Fatos recebem instrução de pesquisa e o selo é mantido no motivo do clip."""
+    def test_fact_check_label_is_inconclusive_without_source_search(self, sample_video_id):
+        """Sem pesquisa de fontes, o modelo não pode classificar alegações como verdadeiras/falsas."""
         mock_anthropic = MagicMock()
         mock_response = MagicMock()
         mock_response.content = [
@@ -300,10 +397,9 @@ class TestSelectMoments:
         result = select_moments(SAMPLE_TRANSCRIPT, anthropic_client=mock_anthropic)
 
         system_prompt = mock_anthropic.messages.create.call_args.kwargs['system']
-        assert 'pesquise na internet' in system_prompt
-        assert 'positivo' in system_prompt and 'negativo' in system_prompt
-        assert result[0]['fake_news'] == 'positivo'
-        assert result[0]['reason'].endswith('Fake news: positivo')
+        assert 'não dispõe de ferramenta de busca' in system_prompt
+        assert result[0]['fake_news'] == 'inconclusivo'
+        assert result[0]['reason'].endswith('Fake news: inconclusivo')
 
     def test_transcript_formatted_with_timestamps(self, sample_video_id):
         """AI-02: O texto enviado ao Haiku inclui timestamps no formato [Ns-Ns] por segmento."""
@@ -681,6 +777,46 @@ class TestSelectMoments:
 
 
 class TestInsertMoments:
+    def test_selected_clip_persists_its_output_format(self, mock_db_conn):
+        moments = [{'start_time': 0.0, 'end_time': 600.0, 'score': 8, 'reason': 'Análise'}]
+
+        assert (
+            insert_selected_moments(
+                mock_db_conn,
+                source_video_id=1,
+                video_id='dQw4w9WgXcQ',
+                moments=moments,
+                format='longo',
+            )
+            == 1
+        )
+
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        insert_call = next(
+            call
+            for call in cursor.execute.call_args_list
+            if 'INSERT INTO generated_clips' in call.args[0]
+        )
+        assert 'format' in insert_call.args[0]
+        assert 'longo' in insert_call.args[1]
+
+    def test_longform_inserts_at_most_one_clip(self, mock_db_conn):
+        moments = [
+            {'start_time': 0.0, 'end_time': 600.0, 'score': 9, 'reason': 'Análise longa'},
+            {'start_time': 700.0, 'end_time': 1300.0, 'score': 8, 'reason': 'Outro assunto'},
+        ]
+
+        assert (
+            insert_selected_moments(
+                mock_db_conn,
+                source_video_id=1,
+                video_id='dQw4w9WgXcQ',
+                moments=moments,
+                format='longo',
+            )
+            == 1
+        )
+
     def test_score_7_inserted(self, mock_db_conn):
         """AI-03: Momento com score=7 é inserido em generated_clips com status pending_cut."""
         moments = [{'start_time': 0.0, 'end_time': 360.0, 'score': 7, 'reason': 'Bom momento'}]

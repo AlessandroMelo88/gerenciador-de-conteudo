@@ -85,6 +85,16 @@ class TestRecoverStuckDownloads:
         )
 
 
+class TestFetchUsedMomentsByFormat:
+    def test_reuses_only_intervals_for_the_same_output_format(self, mock_db_conn):
+        fetch_used_moments(mock_db_conn, source_video_id=7, format='longo')
+
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        sql, params = cursor.execute.call_args.args
+        assert 'gc.format' in sql
+        assert params == (7, 'longo')
+
+
 class TestRecoverStuckTranscribing:
     def test_recover_transcribing_com_e_sem_raw(self, mock_db_conn):
         """IA interrompida libera a fila ou termina honestamente sem o raw."""
@@ -192,6 +202,21 @@ class TestInsertVideo:
         assert video_id in params
         assert channel_id in params
         assert title in params
+
+    def test_insert_video_persists_multi_format_generation_flag(self, mock_db_conn):
+        insert_video(
+            mock_db_conn,
+            'dQw4w9WgXcQ',
+            1,
+            'Entrevista',
+            None,
+            generate_both_formats=True,
+        )
+
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        sql, params = cursor.execute.call_args.args
+        assert 'generate_both_formats' in sql
+        assert params[-1] is True
 
 
 class TestFetchUsedMoments:

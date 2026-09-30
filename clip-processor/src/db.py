@@ -261,7 +261,15 @@ def update_status(conn, video_id, status, local_path=None, clear_local_path=Fals
     _log(f'Status atualizado: video_id={video_id} → {status}')
 
 
-def insert_video(conn, video_id, channel_id, title, published_at, format='curto'):
+def insert_video(
+    conn,
+    video_id,
+    channel_id,
+    title,
+    published_at,
+    format='curto',
+    generate_both_formats=False,
+):
     """Insere um novo vídeo na tabela source_videos com status 'pending'.
 
     Usa INSERT IGNORE no MySQL ou ON CONFLICT DO NOTHING no PostgreSQL para ser idempotente.
@@ -272,23 +280,24 @@ def insert_video(conn, video_id, channel_id, title, published_at, format='curto'
         channel_id: FK para source_channels.id
         title: título do vídeo
         published_at: data/hora de publicação (string ISO 8601 ou datetime)
-        format: 'curto' ou 'longo' — decidido pelo poller com base na duração do vídeo fonte
+        format: formato legado usado por fluxos manuais que escolhem um único formato
+        generate_both_formats: se True, gera Shorts e, quando há duração suficiente, longo
     """
     driver = get_db_driver(conn)
     if driver == 'pgsql':
         sql = (
             'INSERT INTO source_videos '
-            '(youtube_video_id, channel_id, title, published_at, status, format) '
-            'VALUES (%s, %s, %s, %s, %s, %s) '
+            '(youtube_video_id, channel_id, title, published_at, status, format, generate_both_formats) '
+            'VALUES (%s, %s, %s, %s, %s, %s, %s) '
             'ON CONFLICT (youtube_video_id) DO NOTHING'
         )
     else:
         sql = (
             'INSERT IGNORE INTO source_videos '
-            '(youtube_video_id, channel_id, title, published_at, status, format) '
-            'VALUES (%s, %s, %s, %s, %s, %s)'
+            '(youtube_video_id, channel_id, title, published_at, status, format, generate_both_formats) '
+            'VALUES (%s, %s, %s, %s, %s, %s, %s)'
         )
-    params = (video_id, channel_id, title, published_at, 'pending', format)
+    params = (video_id, channel_id, title, published_at, 'pending', format, generate_both_formats)
 
     with conn.cursor() as cur:
         cur.execute(sql, params)
@@ -296,24 +305,41 @@ def insert_video(conn, video_id, channel_id, title, published_at, format='curto'
     _log(f'Vídeo inserido: {video_id} — "{title}"')
 
 
-def fetch_used_moments(conn, source_video_id: int) -> list[dict]:
+def fetch_used_moments(conn, source_video_id: int, format: str | None = None) -> list[dict]:
     """Busca os intervalos já registrados para um vídeo fonte.
 
     Inclui clips publicados, pendentes, rejeitados e falhos: qualquer linha
     com intervalo representa material que já foi usado ou reservado e não deve
-    ser escolhido de novo durante uma reexecução da seleção.
+    ser escolhido de novo durante uma reexecução da seleção. Quando `format` é
+    informado, o histórico é isolado por formato para permitir que Short e
+    longo reutilizem deliberadamente o mesmo trecho da fonte.
     """
-    sql = (
-        'SELECT start_time, end_time, status '
-        'FROM generated_clips '
-        'WHERE source_video_id = %s '
-        'AND start_time IS NOT NULL '
-        'AND end_time IS NOT NULL '
-        'ORDER BY start_time ASC, end_time ASC'
-    )
+    params: tuple[int | str, ...]
+    if format is None:
+        sql = (
+            'SELECT start_time, end_time, status '
+            'FROM generated_clips '
+            'WHERE source_video_id = %s '
+            'AND start_time IS NOT NULL '
+            'AND end_time IS NOT NULL '
+            'ORDER BY start_time ASC, end_time ASC'
+        )
+        params = (source_video_id,)
+    else:
+        sql = (
+            'SELECT gc.start_time, gc.end_time, gc.status '
+            'FROM generated_clips gc '
+            'JOIN source_videos sv ON sv.id = gc.source_video_id '
+            'WHERE gc.source_video_id = %s '
+            'AND COALESCE(gc.format, sv.format) = %s '
+            'AND gc.start_time IS NOT NULL '
+            'AND gc.end_time IS NOT NULL '
+            'ORDER BY gc.start_time ASC, gc.end_time ASC'
+        )
+        params = (source_video_id, format)
 
     with conn.cursor() as cur:
-        cur.execute(sql, (source_video_id,))
+        cur.execute(sql, params)
         return list(cur.fetchall() or [])
 
 

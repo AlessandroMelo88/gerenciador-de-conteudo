@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 from src.db import fetch_used_moments
-from src.fact_check_prompt import FACT_CHECK_INSTRUCTION, FAKE_NEWS_STATUSES
+from src.fact_check_prompt import FACT_CHECK_INSTRUCTION
 from src.media_contract import SHORTS_MAX_DURATION_SECONDS, SHORTS_MIN_DURATION_SECONDS
 from src.prompt_profiles import profile_prompt
 
@@ -99,12 +99,37 @@ RETENTION_SHORTFORM_RULES = (
     '{"moments": []}. '
 )
 
+RETENTION_LONGFORM_RULES = (
+    'CRITÉRIOS DE RETENÇÃO E INTEGRIDADE DO FORMATO LONGO (VÍDEOS DE 7 A 20 MINUTOS): '
+    '1. O pipeline cria um único corte contínuo e não intercala nem remove pausas internas. Escolha '
+    'uma fala naturalmente coesa e bem ritmada; descarte candidatos que só funcionariam após montar '
+    'trechos separados ou editar o interior do segmento. '
+    '2. ABERTURA LIMPA E AUTOSSUFICIENTE: O segmento DEVE começar com o sujeito e o tema claramente '
+    'introduzidos. REJEITE sumariamente qualquer início que comece no meio de uma oração subordinada '
+    'ou com conectivos órfãos ("e depois...", "mas de lá...", "de modo que...", "convence o teu...", '
+    '"o que para eles...", "eu não me aventurei nisso..."). Se o tema depende de introdução prévia, '
+    'posicione o start_time exatamente no início da fala que introduz o tópico. '
+    '3. PROIBIÇÃO ABSOLUTA DE PROPAGANDAS E JABÁS DE TERCEIROS: Se os primeiros 60 segundos ou os '
+    'últimos 60 segundos do trecho contiverem anúncios de patrocinadores, cupons de desconto, parcerias '
+    'comerciais (ex: AppMax, Nomad, High Globe, Hostinger, ContaDev, QuantaDev, etc.), '
+    'o start_time DEVE ser ajustado para IMEDIATAMENTE APÓS o término do anúncio, ou o trecho rejeitado. '
+    '4. FECHAMENTO CONCLUSIVO IMPECÁVEL (SEM CORTE DE FRASE NO MEIO): O trecho DEVE terminar em uma '
+    'conclusão natural, moral técnica ou fechamento completo de pensamento com pontuação final (. ! ?). '
+    'NUNCA termine em conectivo, conjunção ("e...", "ou...", "mas..."), reticências, nem oração aberta '
+    '("Ou será que...", "É diferente de você fazer,"). Nunca pare em uma pergunta retórica ou no ápice de ideia inacabada. '
+    '5. Escolha um recorte temático de um único segmento, sem estender para cobrir a fonte inteira. '
+    'Nenhuma porcentagem de duração comprova licença, transformação ou elegibilidade para monetização; '
+    'a transcrição não informa direitos de uso e você não deve inferi-los. '
+    '6. REMOÇÃO DE BORDÕES E OUTROS ALHEIOS: O end_time DEVE ser posicionado ANTES de despedidas pessoais '
+    'do criador original ("não esquece de se hidratar", "se inscreve no canal", menções a redes pessoais e links na descrição). '
+)
+
 SYSTEM_PROMPT = (
-    'Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos. '
+    'Você é um especialista em identificar momentos editoriais de alto potencial em vídeos de futebol e podcasts esportivos. '
     'Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, '
     f'com duração entre {SHORTS_MIN_DURATION_SECONDS:.0f} e {SHORTS_MAX_DURATION_SECONDS:.0f} segundos. '
     f'Se o vídeo tiver menos de {SHORTS_MIN_DURATION_SECONDS:.0f} segundos, '
-    'selecione o vídeo completo e marque-o para descarte na validação técnica. '
+    'retorne {"moments": []}; o schema não aceita uma marca de descarte. '
     + CONTENT_SELECTION_RULES
     + RETENTION_SHORTFORM_RULES
     + 'Para futebol: priorize análise tática, debate acalorado, revelação de bastidores e o COMENTÁRIO sobre um gol. '
@@ -113,7 +138,7 @@ SYSTEM_PROMPT = (
     + DUPLICATE_AVOIDANCE_RULE
     + SELECTION_VALIDATION_RULES
     + 'Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente '
-    '(10 = viral garantido, 1 = sem valor). '
+    '(10 = alta qualidade editorial, 1 = baixa qualidade; a nota não prevê visualizações, CTR ou recomendação). '
     'IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. '
     'Responda APENAS com JSON válido, sem texto adicional:\n'
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>", "fake_news": "<positivo|negativo|inconclusivo>"}]}'
@@ -134,6 +159,7 @@ LONG_SYSTEM_PROMPT = (
     'trecho curto — o segmento PRECISA ter pelo menos 420 segundos de duração '
     '(end_time - start_time >= 420). '
     + CONTENT_SELECTION_RULES
+    + RETENTION_LONGFORM_RULES
     + FACT_CHECK_INSTRUCTION
     + DUPLICATE_AVOIDANCE_RULE
     + SELECTION_VALIDATION_RULES
@@ -145,24 +171,25 @@ LONG_SYSTEM_PROMPT = (
 )
 
 HACKER_LIBERTARIO_PROMPT = (
-    'Você é um especialista em identificar momentos virais, insights profundos e explicações técnicas de alto impacto para o canal Hacker Libertário: '
+    'Você é um especialista em identificar momentos editoriais fortes, insights profundos e explicações técnicas de alto impacto para o canal Hacker Libertário: '
     'Inteligência Artificial (IA), Open Source, Linux, Programação, Segurança, Criptografia, Privacidade, Soberania Digital e Cultura Hacker Libertária. '
     'Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, '
     f'com duração entre {SHORTS_MIN_DURATION_SECONDS:.0f} e {SHORTS_MAX_DURATION_SECONDS:.0f} segundos. '
     f'Se o vídeo tiver menos de {SHORTS_MIN_DURATION_SECONDS:.0f} segundos, '
-    'selecione o vídeo completo e marque-o para descarte na validação técnica. '
+    'retorne {"moments": []}; o schema não aceita uma marca de descarte. '
     + CONTENT_SELECTION_RULES
     + RETENTION_SHORTFORM_RULES
-    + 'DIRETRIZES LIBERTÁRIAS E EDITORIAIS INEGOCIÁVEIS: '
-    '1. O ESTADO NUNCA DEVE SER DEFENDIDO: rejeite qualquer trecho que defenda, elogie, justifique ou legitime o Estado, impostos, regulação estatal, censura ou coerção governamental. Trechos sobre regulação ou vigilância só são válidos se forem de denúncia crítica e apresentarem alternativas de defesa individual por meio de tecnologia e criptografia. '
-    '2. ZERO MENÇÃO A POLÍTICOS E FUNCIONÁRIOS PÚBLICOS: nenhum político (de qualquer partido) ou funcionário público/agente estatal deve ser sequer mencionado pelo nome ou colocado em evidência. Se houver politicagem ou debate partidário, descarte imediatamente. O foco é 100% nas ideias, ferramentas, tecnologia, privacidade e liberdade individual. '
-    '3. GANCHO VIRAL IMEDIATO (0 A 3s): o corte deve começar no auge da afirmação de impacto ou pergunta provocativa; nunca comece com saudações, enrolação ou pausas. '
+    + 'LINHA EDITORIAL DO CANAL: priorize tecnologia, ferramentas, privacidade, Bitcoin, código e liberdade individual. '
+    'Use a perspectiva crítica e libertária quando ela estiver presente no trecho; não force uma conclusão política em uma explicação técnica. '
+    'Preserve nomes próprios, termos técnicos, categorias legais, citações e expressões de busca. Não troque esses termos por rótulos ideológicos nem infira fatos além da transcrição. '
+    'Descarte candidatos cujo assunto central seja politicagem sem relação direta com tecnologia. '
+    '4. GANCHO EDITORIAL IMEDIATO (0 A 3s): o corte deve começar no auge da afirmação de impacto ou pergunta provocativa; nunca comece com saudações, enrolação ou pausas. '
     'Priorize: explicações técnicas brilhantes, reflexões sobre soberania e privacidade digital, analogias marcantes sobre computação/IA e quebra de mitos. '
     + FACT_CHECK_INSTRUCTION
     + DUPLICATE_AVOIDANCE_RULE
     + SELECTION_VALIDATION_RULES
     + 'Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente '
-    '(10 = viral garantido, 1 = sem valor). '
+    '(10 = alta qualidade editorial, 1 = baixa qualidade; a nota não prevê visualizações, CTR ou recomendação). '
     'IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. '
     'Responda APENAS com JSON válido, sem texto adicional:\n'
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>", "fake_news": "<positivo|negativo|inconclusivo>"}]}'
@@ -173,13 +200,15 @@ HACKER_LIBERTARIO_LONG_PROMPT = (
     'para o canal Hacker Libertário sobre Tecnologia, Inteligência Artificial, Linux, Open Source, Cibersegurança ou Filosofia Hacker '
     'para virar um vídeo único no YouTube (não um short). '
     'Analise a transcrição e identifique O MELHOR segmento CONTÍNUO — não fragmente em vários '
-    f'pedaços — com duração entre {MIN_LONGFORM_SECONDS} e {MAX_LONGFORM_SECONDS} segundos. '
+    'pedaços — com duração entre {MIN_LONGFORM_SECONDS} e {MAX_LONGFORM_SECONDS} segundos. '
     'Priorize um raciocínio completo: uma explicação aprofundada de um conceito de IA/sistemas, '
     'uma reflexão densa sobre soberania tecnológica, ou um debate técnico do início ao fim. '
     + CONTENT_SELECTION_RULES
-    + 'DIRETRIZES LIBERTÁRIAS E EDITORIAIS INEGOCIÁVEIS: '
-    '1. O Estado nunca deve ser defendido nem legitimado em nenhuma regulação ou intervenção. '
-    '2. Nenhum político ou funcionário público deve ser mencionado pelo nome ou colocado em debate. O canal trata de tecnologia, ideias e liberdade individual, nunca de politicagem. '
+    + RETENTION_LONGFORM_RULES
+    + 'LINHA EDITORIAL DO CANAL: priorize tecnologia, ferramentas, privacidade, Bitcoin, código e liberdade individual. '
+    'Use a perspectiva crítica e libertária quando ela estiver presente no trecho; não force uma conclusão política em uma explicação técnica. '
+    'Preserve nomes próprios, termos técnicos, categorias legais, citações e expressões de busca. Não troque esses termos por rótulos ideológicos nem infira fatos além da transcrição. '
+    'Descarte candidatos cujo assunto central seja politicagem sem relação direta com tecnologia. '
     + FACT_CHECK_INSTRUCTION
     + DUPLICATE_AVOIDANCE_RULE
     + SELECTION_VALIDATION_RULES
@@ -197,13 +226,13 @@ def _build_profile_selection_prompt(instruction: str, is_longo: bool) -> str:
         '(10 = análise excelente pra virar vídeo, 1 = sem valor). '
         if is_longo
         else 'Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente '
-        '(10 = viral garantido, 1 = sem valor). '
+        '(10 = alta qualidade editorial, 1 = baixa qualidade; a nota não prevê visualizações, CTR ou recomendação). '
     )
     return (
         f'{instruction}\n'
         + CONTENT_SELECTION_RULES
         + (SHORTFORM_CONTRACT_RULE if not is_longo else '')
-        + (RETENTION_SHORTFORM_RULES if not is_longo else '')
+        + (RETENTION_SHORTFORM_RULES if not is_longo else RETENTION_LONGFORM_RULES)
         + FACT_CHECK_INSTRUCTION
         + DUPLICATE_AVOIDANCE_RULE
         + SELECTION_VALIDATION_RULES
@@ -215,9 +244,8 @@ def _build_profile_selection_prompt(instruction: str, is_longo: bool) -> str:
 
 
 POLITICA_SELECTION_INSTRUCTION = (
-    'Você é um especialista de elite em identificar os momentos de maior impacto, confrontos, quebras de narrativa e debates em vídeos e podcasts de POLÍTICA '
-    '(focado na fórmula de cortes virais de alta retenção de canais de política e debates eleitorais/sabatinas). '
-    'CRITÉRIOS DE CORTE VIRAL DE POLÍTICA: '
+    'Você é um especialista em identificar momentos de maior impacto, confrontos, quebras de narrativa e debates em vídeos e podcasts de POLÍTICA. '
+    'CRITÉRIOS EDITORIAIS DE POLÍTICA: '
     '1. GANCHO FORTE (0 a 5 segundos): O segmento deve começar exatamente no início de uma pergunta provocativa, uma declaração polêmica ou o início de uma refutação contundente. '
     '2. CONFLITO & REFUTAÇÃO ("Jantada"): Priorize momentos onde uma narrativa é desconstruída com fatos/lógica, contradições são expostas ou há embate direto com alta carga emocional. '
     '3. RACIOCÍNIO FECHADO: Começo, meio e desfecho claro do argumento. Termine logo após a conclusão impactante ou momento de choque, sem sobras.'
@@ -259,7 +287,7 @@ def get_system_prompt(
     if profile_instruction:
         return _build_profile_selection_prompt(profile_instruction, is_longo)
 
-    if niche in ('hacker-libertario', 'tecnologia', 'tech', 'linux', 'ia', 'opensource'):
+    if niche == 'hacker-libertario':
         return HACKER_LIBERTARIO_LONG_PROMPT if is_longo else HACKER_LIBERTARIO_PROMPT
     if niche in ('politica', 'cortes-da-politica', 'debates', 'eleicoes'):
         return POLITICA_LONG_SYSTEM_PROMPT if is_longo else POLITICA_SYSTEM_PROMPT
@@ -357,6 +385,21 @@ _INCOMPLETE_TRAILING_WORDS = frozenset(
         'minha',
         'seu',
         'sua',
+        'será',
+        'seria',
+        'for',
+        'fosse',
+        'quando',
+        'quanto',
+        'quantos',
+        'quantas',
+        'onde',
+        'aonde',
+        'donde',
+        'nem',
+        'tampouco',
+        'quer',
+        'seja',
     ]
 )
 
@@ -498,22 +541,121 @@ def _normalize_scores(moments: list[dict]) -> list[dict]:
 
 
 def _normalize_fake_news_labels(moments: list[dict]) -> list[dict]:
-    """Normaliza o rótulo do fact-check e preserva-o no motivo persistido."""
+    """Marca a análise como inconclusiva enquanto o pipeline não pesquisa fontes."""
     normalized = []
     for moment in moments:
         item = dict(moment)
-        status = str(item.get('fake_news') or '').strip().casefold()
-        if status not in FAKE_NEWS_STATUSES:
-            normalized.append(item)
-            continue
-
+        status = 'inconclusivo'
         item['fake_news'] = status
-        reason = str(item.get('reason') or '').strip()
+        reason = re.sub(
+            r'\s*[|.]?\s*fake news:\s*(?:positivo|negativo|inconclusivo)\s*$',
+            '',
+            str(item.get('reason') or ''),
+            flags=re.IGNORECASE,
+        ).strip()
         suffix = f'Fake news: {status}'
-        if 'fake news:' not in reason.casefold():
-            item['reason'] = f'{reason} | {suffix}' if reason else suffix
+        separator = ' | ' if reason else ''
+        available_chars = max(0, MAX_REASON_CHARS - len(separator) - len(suffix))
+        if len(reason) > available_chars:
+            reason = reason[: max(0, available_chars - 1)].rstrip() + '…'
+        item['reason'] = f'{reason}{separator}{suffix}'
         normalized.append(item)
     return normalized
+
+
+def _selection_transcript_windows(
+    segments: list[dict], *, max_chars: int, window_count: int
+) -> tuple[str, list[tuple[float, float]]]:
+    """Sample timestamped, contiguous windows across the source timeline."""
+    if not segments:
+        return '', []
+
+    lines = [
+        f'[{int(float(segment["start"]))}s-{int(float(segment["end"]))}s] {segment.get("text", "")}'
+        for segment in segments
+    ]
+    full_text = '\n'.join(lines)
+    duration = max(float(segment.get('end', 0) or 0) for segment in segments)
+    if len(full_text) <= max_chars or duration <= 0:
+        return full_text, [(float(segments[0].get('start', 0) or 0), duration)]
+
+    per_window_chars = max(1, (max_chars - (window_count - 1) * 45) // window_count)
+    windows: list[str] = []
+    intervals: list[tuple[float, float]] = []
+    for window_index in range(window_count):
+        window_start = duration * window_index / window_count
+        window_end = duration * (window_index + 1) / window_count
+        candidates = [
+            (segment, line)
+            for segment, line in zip(segments, lines, strict=True)
+            if float(segment.get('start', 0) or 0) >= window_start
+            and (
+                float(segment.get('start', 0) or 0) < window_end
+                or (
+                    window_index == window_count - 1
+                    and float(segment.get('start', 0) or 0) <= window_end
+                )
+            )
+        ]
+        if not candidates:
+            continue
+
+        midpoint = (window_start + window_end) / 2
+        if window_index == 0:
+            center = 0
+        elif window_index == window_count - 1:
+            center = len(candidates) - 1
+        else:
+            center = min(
+                range(len(candidates)),
+                key=lambda index: abs(float(candidates[index][0].get('start', 0) or 0) - midpoint),
+            )
+        center_size = len(candidates[center][1]) + 1
+        if center_size > per_window_chars:
+            continue
+
+        selected = [center]
+        selected_chars = center_size
+        left = center - 1
+        right = center + 1
+        left_open = left >= 0
+        right_open = right < len(candidates)
+        while left_open or right_open:
+            available = []
+            if left_open:
+                available.append(left)
+            if right_open:
+                available.append(right)
+            next_index = min(
+                available,
+                key=lambda index: abs(float(candidates[index][0].get('start', 0) or 0) - midpoint),
+            )
+            line_size = len(candidates[next_index][1]) + 1
+            if selected_chars + line_size <= per_window_chars:
+                selected.append(next_index)
+                selected_chars += line_size
+                if next_index == left:
+                    left -= 1
+                    left_open = left >= 0
+                else:
+                    right += 1
+                    right_open = right < len(candidates)
+            elif next_index == left:
+                left_open = False
+            else:
+                right_open = False
+
+        window_segments = [candidates[index] for index in sorted(selected)]
+        windows.append('\n'.join(line for _, line in window_segments))
+        intervals.append(
+            (
+                float(window_segments[0][0].get('start', 0) or 0),
+                float(window_segments[-1][0].get('end', 0) or 0),
+            )
+        )
+
+    marker = '\n[... trecho intermediário omitido ...]\n'
+    return marker.join(windows), intervals
 
 
 def _clean_boundary_text(text: str | None) -> str:
@@ -524,12 +666,19 @@ def _clean_boundary_text(text: str | None) -> str:
 
 
 def _has_terminal_punctuation(text: str | None) -> bool:
-    """Diz se o texto termina com pontuação que pode fechar uma frase."""
-    return bool(re.search(r'[.!?]$', _clean_boundary_text(text)))
+    """Diz se o texto termina com pontuação que fecha uma frase definitiva (. ! ?).
+
+    Reticências (...) indicam interrupção ou pensamento incompleto e não devem
+    ser tratadas como encerramento de frase.
+    """
+    clean = _clean_boundary_text(text)
+    if clean.endswith(('...', '…')):
+        return False
+    return bool(re.search(r'[.!?]$', clean))
 
 
 def _has_explicit_continuation(text: str | None) -> bool:
-    """Detecta vírgula/conector no fim que exige continuação da fala."""
+    """Detecta vírgula/conector/reticências no fim que exige continuação da fala."""
     normalized = _clean_boundary_text(text)
     if not normalized:
         return False
@@ -583,12 +732,23 @@ def _starts_like_continuation(text: str | None) -> bool:
     return word[0].islower() or word.casefold() in continuation_words
 
 
-def _needs_boundary_completion(text: str | None, next_text: str | None) -> bool:
+def _needs_boundary_completion(
+    text: str | None, next_text: str | None, gap_seconds: float = 0.0
+) -> bool:
     """Diz se a fala atual ainda depende do próximo bloco da transcrição."""
     if _has_explicit_continuation(text):
         return True
     if _has_terminal_punctuation(text):
-        return False
+        # Se tem pontuação terminal, mas a próxima frase começa explicitamente
+        # como continuação subordinada minúscula (ex: 'e que é a melhor...'),
+        # a oração ainda não foi finalizada.
+        return _starts_like_continuation(next_text) and not _clean_boundary_text(text).endswith(
+            ('!', '?')
+        )
+    # Sem pontuação terminal: se a pausa até o próximo bloco é pequena (< 1.5s),
+    # a frase com certeza continua no bloco seguinte!
+    if gap_seconds < 1.5:
+        return True
     return _starts_like_continuation(next_text)
 
 
@@ -608,9 +768,10 @@ def _extend_boundary_to_complete_thought(
     original_end = current_end
     for next_index in range(boundary_index + 1, len(segments)):
         next_start, next_end, next_text = segments[next_index]
-        if not _needs_boundary_completion(text, next_text):
+        gap = max(0.0, next_start - current_end)
+        if not _needs_boundary_completion(text, next_text, gap_seconds=gap):
             break
-        if next_start - current_end > MAX_BOUNDARY_COMPLETION_GAP_SECONDS:
+        if gap > MAX_BOUNDARY_COMPLETION_GAP_SECONDS:
             break
         if next_start - original_end > MAX_BOUNDARY_COMPLETION_SECONDS:
             break
@@ -618,7 +779,12 @@ def _extend_boundary_to_complete_thought(
         text = f'{text} {next_text}'.strip()
         current_end = max(current_end, next_end)
         following_text = segments[next_index + 1][2] if next_index + 1 < len(segments) else None
-        if not _needs_boundary_completion(text, following_text):
+        following_gap = (
+            max(0.0, segments[next_index + 1][0] - current_end)
+            if next_index + 1 < len(segments)
+            else 0.0
+        )
+        if not _needs_boundary_completion(text, following_text, gap_seconds=following_gap):
             break
 
     return current_end
@@ -627,15 +793,20 @@ def _extend_boundary_to_complete_thought(
 def complete_moment_boundaries(
     moments: list[dict], transcript_segments: list[dict] | None
 ) -> list[dict]:
-    """Completa limites das falas, sem parar numa oração aberta.
+    """Completa limites das falas, sem parar numa oração aberta e sem corte no meio de frases.
 
     Proteções implementadas:
-    - start_time: Se cair logo no início de um segmento (<= 3.0s), recua para o início exato da fala.
+    - start_time:
+      * Se cair dentro de um segmento de fala, alinha ao começo da fala para não cortar palavras.
+      * Se o segmento começar com oração subordinada/conectivo minúsculo ('e', 'que', etc.),
+        recua até o início da frase completa que introduz o assunto.
+      * Se cair num intervalo de silêncio, alinha ao início do próximo bloco de fala.
     - end_time:
       * Se cair muito no início de um novo segmento (ex: <= 2.5s), recua (snap back) para o fim do
         segmento anterior, evitando pegar apenas o começo de uma frase inacabada ("Apesar de...").
       * Se cair perto do fim de um segmento, avança até o fim daquele segmento.
-      * Se o bloco terminar com uma oração aberta, também inclui os blocos seguintes até a ideia fechar.
+      * Se o bloco terminar com uma oração aberta ou sem pontuação final, inclui os blocos
+        seguintes até a ideia fechar.
     """
     if not moments or not transcript_segments:
         return moments
@@ -666,14 +837,40 @@ def complete_moment_boundaries(
         new_start = start_time
         new_end = end_time
 
-        # Ajuste de início. Só recuamos quando a IA caiu perto do início do
-        # bloco; um recuo incondicional poderia incluir uma introdução inteira
-        # que o modelo deliberadamente deixou fora do corte.
-        for segment_start, segment_end, _ in segments:
+        # Ajuste de início
+        start_segment_index = None
+        for seg_idx, (segment_start, segment_end, _seg_text) in enumerate(segments):
             if segment_start <= start_time < segment_end:
                 if start_time - segment_start <= tolerance:
                     new_start = segment_start
+                    start_segment_index = seg_idx
+                elif segment_end - start_time <= 1.0 and seg_idx + 1 < len(segments):
+                    new_start = segments[seg_idx + 1][0]
+                    start_segment_index = seg_idx + 1
+                elif segment_end - segment_start <= 4.0:
+                    new_start = segment_start
+                    start_segment_index = seg_idx
                 break
+            elif (
+                seg_idx + 1 < len(segments) and segment_end < start_time < segments[seg_idx + 1][0]
+            ):
+                if abs(start_time - segment_end) <= 1.0:
+                    new_start = segment_end
+                elif abs(segments[seg_idx + 1][0] - start_time) <= 1.5:
+                    new_start = segments[seg_idx + 1][0]
+                    start_segment_index = seg_idx + 1
+                break
+
+        # Se o segmento de início começa com conectivo de continuação ("e", "que", "mas"...),
+        # recua até a frase anterior apenas se a distância for pequena (<= 4.0s)
+        if (
+            start_segment_index is not None
+            and start_segment_index > 0
+            and _starts_like_continuation(segments[start_segment_index][2])
+        ):
+            prev_start = segments[start_segment_index - 1][0]
+            if start_time - prev_start <= 4.0:
+                new_start = prev_start
 
         # Ajuste de fim
         end_segment_index = None
@@ -698,10 +895,6 @@ def complete_moment_boundaries(
                         new_end = prev_end
                         end_segment_index = seg_idx - 1
                     elif segment_end - segment_start <= MAX_ATOMIC_TRANSCRIPT_SEGMENT_SECONDS:
-                        # Quando o modelo encerra no meio de um bloco, o
-                        # limite seguro é o fim do bloco. Assim o clip nunca
-                        # corta a última frase apenas porque a IA arredondou
-                        # o timestamp.
                         new_end = segment_end
                         end_segment_index = seg_idx
                     break
@@ -1143,46 +1336,96 @@ def _clamp_moment_bounds(moments: list[dict], transcript_duration: float) -> lis
 
 
 def _snap_to_sentence_boundaries(
-    moments: list[dict], segments: list[dict], buffer_end: float = 1.0
+    moments: list[dict], segments: list[dict], buffer_end: float = 0.0
 ) -> list[dict]:
     """Ajusta os timestamps dos momentos para respeitar os finais reais de frases do Whisper.
 
     Evita cortes no meio de uma oração ou pensamento incompleto.
     """
-    if not segments or not moments:
+    return complete_moment_boundaries(moments, segments)
+
+
+SPONSOR_KEYWORDS_RE = re.compile(
+    r'\b(appmax|high\s*globe|nomad|quantadev|contadev|hostinger|cupom|taxa\s*zero)\b|'
+    r'link\s*(t[aá]|esta|est[aá])?\s*(aqui\s*)?na\s*descri[çc][ãa]o|'
+    r'abra\s*(a\s*)?sua\s*conta|desconto\s*de\s*\d+%',
+    re.IGNORECASE,
+)
+
+OUTRO_KEYWORDS_RE = re.compile(
+    r'n[ãa]o\s*esquece\s*de\s*se\s*hidratar|'
+    r'se\s*inscreve\s*no\s*canal|'
+    r'deixa\s*o\s*like|'
+    r'ativa\s*o\s*sininho|'
+    r'tamo\s*junto\s*forte\s*abra[çc]o|'
+    r'at[ée]\s*o\s*pr[óo]ximo\s*v[íi]deo|'
+    r'tchau\s*tchau',
+    re.IGNORECASE,
+)
+
+
+def _filter_sponsors_and_outros(
+    moments: list[dict],
+    segments: list[dict] | None,
+    transcript_duration: float,
+    is_longo: bool,
+) -> list[dict]:
+    """Remove anúncios e despedidas de borda; direitos de uso não são inferidos da duração."""
+    if not moments or not segments:
         return moments
 
-    snapped = []
-    for m in moments:
-        start_req = float(m['start_time'])
-        end_req = float(m['end_time'])
+    source_start = min(float(segment.get('start', 0) or 0) for segment in segments)
+    cleaned = []
+    for moment in moments:
+        m = dict(moment)
+        start = float(m.get('start_time', 0))
+        end = float(m.get('end_time', 0))
 
-        # Encontra o melhor início (apenas se houver fronteira próxima dentro de 3s)
-        best_start = start_req
+        # 1. Varredura de anúncios de patrocinadores nos primeiros 60s
         for seg in segments:
-            s_start = float(seg.get('start', 0))
-            s_end = float(seg.get('end', 0))
-            if s_start <= start_req <= s_end:
-                if abs(start_req - s_start) <= 3.0:
-                    best_start = s_start
-                break
+            seg_start = float(seg.get('start', 0))
+            seg_end = float(seg.get('end', 0))
+            text = str(seg.get('text', ''))
+            if start <= seg_start < start + 60.0 and SPONSOR_KEYWORDS_RE.search(text):
+                _log(
+                    f'[SELECTOR] Anúncio de patrocinador detectado no início ({seg_start:.1f}s): {text[:40]}... '
+                    f'Ajustando start de {start:.1f}s para {seg_end:.1f}s'
+                )
+                start = max(start, seg_end)
 
-        # Encontra o melhor fim (apenas se houver fronteira próxima dentro de 3s)
-        best_end = end_req
-        for seg in segments:
-            s_start = float(seg.get('start', 0))
-            s_end = float(seg.get('end', 0))
-            if s_start <= end_req <= s_end:
-                if abs(s_end - end_req) <= 3.0:
-                    best_end = s_end + buffer_end
-                break
+        # 2. Varredura de despedidas, outros e patrocinadores nos últimos 45s
+        for seg in reversed(segments):
+            seg_start = float(seg.get('start', 0))
+            seg_end = float(seg.get('end', 0))
+            text = str(seg.get('text', ''))
+            if end - 45.0 < seg_end <= end and (
+                OUTRO_KEYWORDS_RE.search(text) or SPONSOR_KEYWORDS_RE.search(text)
+            ):
+                _log(
+                    f'[SELECTOR] Outro/patrocínio detectado no encerramento ({seg_end:.1f}s): {text[:40]}... '
+                    f'Ajustando end de {end:.1f}s para {seg_start:.1f}s'
+                )
+                end = min(end, seg_start)
 
-        snapped_m = dict(m)
-        snapped_m['start_time'] = round(best_start, 2)
-        snapped_m['end_time'] = round(best_end, 2)
-        snapped.append(snapped_m)
+        if end <= start:
+            continue
 
-    return snapped
+        if is_longo and start <= source_start + 1.0 and end >= transcript_duration - 1.0:
+            _log('[SELECTOR] Segmento longo descartado: cobre a fonte inteira de ponta a ponta')
+            continue
+
+        min_dur = MIN_LONGFORM_SECONDS * 0.6 if is_longo else 15.0
+        if end - start < min_dur:
+            _log(
+                f'[SELECTOR] Trecho descartado após poda de merchan/outro (duração insuficiente: {end - start:.1f}s)'
+            )
+            continue
+
+        m['start_time'] = start
+        m['end_time'] = end
+        cleaned.append(m)
+
+    return cleaned
 
 
 def select_moments(
@@ -1214,35 +1457,26 @@ def select_moments(
     used_moments = used_moments or []
     segments = transcript.get('segments', [])
 
-    lines = []
     transcript_duration = 0.0
     for seg in segments:
-        start = float(seg['start'])
         end = float(seg['end'])
         if end > transcript_duration:
             transcript_duration = end
-        lines.append(f'[{int(start)}s-{int(end)}s] {seg["text"]}')
-    transcript_text = '\n'.join(lines)
 
-    MAX_CHARS = 10000 if is_longo else 8000
+    MAX_CHARS = 35000 if is_longo else 8000
     selector_max_tokens = (
         LONGFORM_SELECTOR_MAX_OUTPUT_TOKENS if is_longo else SELECTOR_MAX_OUTPUT_TOKENS
     )
 
-    if len(transcript_text) > MAX_CHARS:
-        if is_longo:
-            visible_lines: list[str] = []
-            visible_chars = 0
-            for line in transcript_text.splitlines():
-                line_size = len(line) + (1 if visible_lines else 0)
-                if visible_lines and visible_chars + line_size > MAX_CHARS:
-                    break
-                visible_lines.append(line)
-                visible_chars += line_size
-            transcript_text = '\n'.join(visible_lines)
-        else:
-            transcript_text = transcript_text[:MAX_CHARS]
-        _log(f'[SELECTOR] Transcrição truncada para {MAX_CHARS} chars (janela contínua)')
+    transcript_text, visible_intervals = _selection_transcript_windows(
+        segments,
+        max_chars=MAX_CHARS,
+        window_count=3 if is_longo else 4,
+    )
+    if '[... trecho intermediário omitido ...]' in transcript_text:
+        _log(
+            f'[SELECTOR] Seleção recebeu {len(visible_intervals)} janelas distribuídas pela transcrição'
+        )
 
     if not transcript_text.strip():
         _log('[SELECTOR] Transcrição vazia — sem momentos')
@@ -1256,6 +1490,10 @@ def select_moments(
         moments = _snap_to_sentence_boundaries(moments, segments)
         if is_longo:
             moments = expand_longform_context(moments, segments)
+        # Filtro ativo de anúncios de patrocinadores, despedidas e proporção de reupload
+        moments = _filter_sponsors_and_outros(
+            moments, segments, transcript_duration, is_longo=is_longo
+        )
         moments = _remove_repeated_moments(moments, used_moments)
         result = _remove_overlaps(moments, max_count=max_moments)
         if is_longo:
@@ -1266,11 +1504,19 @@ def select_moments(
             result = _clamp_moment_bounds(result, transcript_duration)
             result = _enforce_longform_duration(result, transcript_duration)
             result = complete_moment_boundaries(result, segments)
+            result = _snap_to_sentence_boundaries(result, segments)
             result = _remove_repeated_moments(result, used_moments)
         else:
             result = _filter_shortform_duration(result, transcript_duration)
             result = _remove_overlaps(result, max_count=max_moments)
-        return result
+        return [
+            moment
+            for moment in result
+            if any(
+                moment['start_time'] >= window_start and moment['end_time'] <= window_end
+                for window_start, window_end in visible_intervals
+            )
+        ]
 
     # Caminho de testes: cliente injetado diretamente
     if anthropic_client is not None:
@@ -1301,19 +1547,11 @@ def select_moments(
             )
         else:
             raise ValueError(f'AI_PROVIDER inválido: {provider!r}; use groq ou anthropic')
-        if not moments and is_longo and transcript_duration >= 420:
-            _log('[SELECTOR] Fallback longo ativado: usando bloco principal contínuo do vídeo')
-            start = 30.0 if transcript_duration > 600 else 10.0
-            end = min(transcript_duration - 10.0, start + 780.0)
-            if end - start >= 420:
-                moments = [
-                    {
-                        'start_time': start,
-                        'end_time': end,
-                        'score': 8,
-                        'reason': 'Recorte contínuo do tema principal do vídeo',
-                    }
-                ]
+        if not moments and is_longo:
+            _log(
+                '[SELECTOR] Nenhum momento longo válido retornado pela IA — evitando fallback cego para proteger qualidade'
+            )
+            return []
         return _finalize(moments)
     except Exception as e:
         _log(f'Erro ao selecionar momentos: {e}')
@@ -1364,21 +1602,31 @@ def _lookup_destination_channel_id(conn, source_video_id: int) -> int | None:
     return dest_row['id'] if dest_row else None
 
 
-def insert_selected_moments(conn, source_video_id: int, video_id: str, moments: list[dict]) -> int:
+def insert_selected_moments(
+    conn,
+    source_video_id: int,
+    video_id: str,
+    moments: list[dict],
+    format: str = 'curto',
+) -> int:
     """Filtra momentos com score >= 7 e insere em generated_clips.
+
+    `format` indica o formato de saída, separado do registro de fonte. Cada
+    longo aceita no máximo um segmento; cada Short aceita no máximo três.
 
     Returns:
         Número de momentos inseridos.
     """
     # Consulta novamente imediatamente antes do INSERT: a seleção pode ter
     # demorado enquanto outro worker registrava um clip para o mesmo vídeo.
-    used_moments = fetch_used_moments(conn, source_video_id)
+    used_moments = fetch_used_moments(conn, source_video_id, format=format)
     filtered = _remove_overlaps(_remove_repeated_moments(moments, used_moments))
     destination_channel_id = _lookup_destination_channel_id(conn, source_video_id)
 
     inserted = 0
+    max_clips = 1 if format == 'longo' else 3
     for moment in filtered:
-        if inserted >= 3:
+        if inserted >= max_clips:
             break
 
         score = moment['score']
@@ -1391,10 +1639,11 @@ def insert_selected_moments(conn, source_video_id: int, video_id: str, moments: 
         with conn.cursor() as cur:
             cur.execute(
                 'INSERT INTO generated_clips '
-                '(source_video_id, start_time, end_time, score, reason, status, destination_channel_id) '
-                'VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                '(source_video_id, format, start_time, end_time, score, reason, status, destination_channel_id) '
+                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
                 (
                     source_video_id,
+                    format,
                     moment['start_time'],
                     moment['end_time'],
                     score,
