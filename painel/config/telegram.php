@@ -6,6 +6,8 @@ return [
             'token'           => env('TELEGRAM_BOT_TOKEN'),
             'webhook_url'     => env('TELEGRAM_WEBHOOK_URL', 'https://alessandromelo.com.br/telegramcanal'),
             'chat_id_allowed' => env('TELEGRAM_CHAT_ID_ALLOWED', '5760918317'),
+            // Fail-closed: sem segredo configurado o webhook recusa tudo (401).
+            'webhook_secret'  => env('TELEGRAM_WEBHOOK_SECRET'),
             'commands'        => [
                 \App\Telegram\Commands\StatusCommand::class,
                 \App\Telegram\Commands\ClipesCommand::class,
