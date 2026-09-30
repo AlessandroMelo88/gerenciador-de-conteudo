@@ -281,7 +281,7 @@ def _transition_to_publishing(conn, clip_id: int) -> bool:
     """
     with conn.cursor() as cur:
         cur.execute(
-            "UPDATE generated_clips SET status='publishing' "
+            "UPDATE generated_clips SET status='publishing', updated_at=NOW() "
             'WHERE id=%s AND status=%s',
             (clip_id, _publishable_status()),
         )
