@@ -1,0 +1,14 @@
+# hadolint — lint dos Dockerfiles (Dockerfile.php, clip-processor, embedder, docker/postgres)
+# Só warning+ reprova; info/style (ex.: DL3015 --no-install-recommends) ficam como sugestão.
+failure-threshold: warning
+ignored:
+  - DL3008  # apt-get sem versão fixa: imagens base já são fixadas por tag
+  - DL3013  # pip install sem versão fixa: versões vêm de requirements.txt
+  - DL3042  # pip --no-cache-dir já é usado onde importa
+  - DL4006  # set -o pipefail: os RUN com pipe são de instalação única
+  # Achados herdados (30/09/2026) — corrigir ao mexer no Dockerfile e remover daqui:
+  - DL3025  # embedder/Dockerfile: CMD em formato shell
+  - DL3003  # docker/postgres/Dockerfile: cd em vez de WORKDIR
+  - DL3018  # docker/postgres/Dockerfile: apk add sem versão fixa
+trustedRegistries:
+  - docker.io

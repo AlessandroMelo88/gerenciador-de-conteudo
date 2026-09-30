@@ -113,7 +113,12 @@ export default function TranscricaoDetalhe() {
     useEffect(() => {
         if (focado === null || !refFocado.current) return;
         const reduzido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-        refFocado.current.scrollIntoView({ behavior: reduzido ? 'auto' : 'smooth', block: 'center' });
+        // Numa navegação do Inertia (clique no minuto do resultado), o Inertia zera a rolagem
+        // logo depois de montar a página e desfaz o scrollIntoView; por isso o pequeno atraso.
+        const espera = setTimeout(() => {
+            refFocado.current?.scrollIntoView({ behavior: reduzido ? 'auto' : 'smooth', block: 'center' });
+        }, 120);
+        return () => clearTimeout(espera);
     }, [focado]);
 
     return (

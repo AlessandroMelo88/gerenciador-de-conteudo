@@ -6,7 +6,7 @@ Após implementação: GREEN.
 """
 import json
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from src.selector import (
     select_moments,
     insert_selected_moments,
@@ -304,3 +304,79 @@ class TestInsertMomentsDestinationChannel:
         assert len(insert_calls) == 1
         params = insert_calls[0].args[1]
         assert None in params, f'destination_channel_id=None quando sem destino ativo. Params: {params}'
+
+
+# ---------------------------------------------------------------------------
+# Lote 5 (release/rico) — regras de fronteira/retenção no prompt e clamp de tempos
+# ---------------------------------------------------------------------------
+
+from src import selector as sel
+
+
+class TestPromptsDoSeletor:
+
+    @pytest.mark.parametrize('nome', [
+        'SYSTEM_PROMPT', 'LONG_SYSTEM_PROMPT', 'POLITICA_SYSTEM_PROMPT', 'POLITICA_LONG_SYSTEM_PROMPT',
+    ])
+    def test_todos_os_prompts_pedem_fechamento_de_frase_e_excluem_publicidade(self, nome):
+        prompt = getattr(sel, nome)
+        assert 'FECHAMENTO DE FRASE' in prompt
+        assert 'PUBLICIDADE' in prompt
+        # o contrato de saída (JSON com start_time/end_time em segundos) continua no fim
+        assert prompt.rstrip().endswith('"reason": "<string>"}]}')
+
+    @pytest.mark.parametrize('nome', ['SYSTEM_PROMPT', 'POLITICA_SYSTEM_PROMPT'])
+    def test_prompts_curtos_tem_criterios_de_retencao(self, nome):
+        prompt = getattr(sel, nome)
+        assert 'RETENÇÃO DO FORMATO CURTO' in prompt
+        assert 'RETENÇÃO DO FORMATO LONGO' not in prompt
+
+    @pytest.mark.parametrize('nome', ['LONG_SYSTEM_PROMPT', 'POLITICA_LONG_SYSTEM_PROMPT'])
+    def test_prompts_longos_tem_criterios_de_retencao(self, nome):
+        prompt = getattr(sel, nome)
+        assert 'RETENÇÃO DO FORMATO LONGO' in prompt
+        assert 'RETENÇÃO DO FORMATO CURTO' not in prompt
+
+    def test_prompt_enviado_ao_provider_inclui_as_regras(self):
+        client = MagicMock()
+        client.messages.create.return_value = MagicMock(
+            content=[MagicMock(text=json.dumps({'moments': SAMPLE_MOMENTS}))]
+        )
+        select_moments(SAMPLE_TRANSCRIPT, anthropic_client=client, fmt='curto')
+        assert 'FECHAMENTO DE FRASE' in client.messages.create.call_args.kwargs['system']
+
+
+class TestClampDeLimites:
+
+    def test_tempo_alem_do_fim_do_video_e_cortado(self):
+        out = sel._clamp_moment_bounds(
+            [{'start_time': 250.0, 'end_time': 900.0, 'score': 9, 'reason': 'x'}], 300.0
+        )
+        assert out[0]['end_time'] == 300.0
+        assert out[0]['start_time'] == 250.0
+
+    def test_tempo_negativo_vira_zero(self):
+        out = sel._clamp_moment_bounds([{'start_time': -5.0, 'end_time': 40.0}], 300.0)
+        assert out[0]['start_time'] == 0.0
+
+    def test_momento_totalmente_fora_colapsa_e_e_descartado_no_select(self):
+        client = MagicMock()
+        moments = [{'start_time': 400.0, 'end_time': 500.0, 'score': 9, 'reason': 'fora do vídeo'}]
+        client.messages.create.return_value = MagicMock(content=[MagicMock(text=json.dumps({'moments': moments}))])
+        assert select_moments(SAMPLE_TRANSCRIPT, anthropic_client=client, fmt='curto') == []
+
+    def test_sem_duracao_devolve_intacto(self):
+        moments = [{'start_time': 1.0, 'end_time': 2.0}]
+        assert sel._clamp_moment_bounds(moments, 0.0) == moments
+
+
+class TestFallbackGroq:
+
+    def test_sem_chave_anthropic_usa_groq(self, monkeypatch):
+        monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+        with patch.object(sel, '_select_via_groq', return_value=[
+            {'start_time': 100.0, 'end_time': 140.0, 'score': 9, 'reason': 'ok'}
+        ]) as groq:
+            out = select_moments(SAMPLE_TRANSCRIPT, fmt='curto')
+        groq.assert_called_once()
+        assert out and out[0]['start_time'] == 100.0

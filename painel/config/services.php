@@ -58,7 +58,7 @@ return [
         'token' => env('EMBEDDER_TOKEN'),
         'timeout' => (int) env('EMBEDDER_TIMEOUT', 3),
         // Piso de similaridade de cosseno no modo semântico (e5 dá scores altos; calibrar).
-        'min_similarity' => (float) env('EMBEDDER_MIN_SIMILARITY', 0.75),
+        'min_similarity' => (float) env('EMBEDDER_MIN_SIMILARITY', 0.83),
     ],
 
     // Worker local de afiliados empurra ofertas via POST /api/offers (Bearer).

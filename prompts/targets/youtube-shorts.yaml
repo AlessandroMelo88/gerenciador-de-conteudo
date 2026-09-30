@@ -1,0 +1,18 @@
+# yamllint disable rule:line-length
+# Instruções editoriais ficam em parágrafos literais para preservar o texto compilado.
+version: 1
+target:
+  id: youtube-shorts
+  label: "YouTube -> Shorts"
+  platform: youtube
+  format: curto
+stages:
+  selection:
+    instructions: |-
+      Formato de saída: Short vertical ou quadrado, com uma ideia completa e um gancho compreensível desde o início. Priorize cerca de 30 segundos e nunca ultrapasse o limite configurado. Se a fonte inteira tiver menos que a duração mínima, retorne uma lista vazia; não repita fala nem estique o vídeo artificialmente. Não sacrifique uma frase, explicação ou contexto essencial apenas para caber no limite. Retorne no máximo três momentos distintos, conforme o contrato de seleção ativo.
+  metadata:
+    instructions: |-
+      Otimize leitura em tela de celular. Use o assunto específico do Short no título e nas primeiras frases da descrição quando couber naturalmente. O título deve despertar curiosidade sem distorcer o trecho. Use no máximo três hashtags relevantes; não acrescente #Shorts automaticamente. Não prometa alcance, viralização ou recomendação.
+  thumbnail:
+    instructions: |-
+      Quando o formato informado for curto, prefira uma chamada literal de 2 a 6 palavras, fácil de ler em tela pequena. Preserve uma sequência contínua da transcrição.

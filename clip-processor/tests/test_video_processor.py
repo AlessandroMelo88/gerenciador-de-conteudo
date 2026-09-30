@@ -16,6 +16,13 @@ from src.video_processor import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _encadeamento_legado(monkeypatch):
+    # Estes testes cobrem o encadeamento de 3 passes (cut -> legenda -> watermark);
+    # o passe único do Short é coberto em test_video_render.py.
+    monkeypatch.setenv('SHORTS_SINGLE_PASS', '0')
+
+
 SAMPLE_TRANSCRIPT = {
     'video_id': 'vid001aaaaaa',
     'text': 'Texto completo',

@@ -1,0 +1,4 @@
+# Toolchain local para asdf. PHP não é fixado aqui de propósito: produção usa php:8.3
+# (Dockerfile.php) e o composer.lock é resolvido para 8.3 (config.platform.php).
+nodejs 22.23.2
+python 3.12.14

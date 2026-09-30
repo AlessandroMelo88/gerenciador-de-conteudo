@@ -1,0 +1,18 @@
+# yamllint disable rule:line-length
+# Instruções editoriais ficam em parágrafos literais para preservar o texto compilado.
+version: 1
+target:
+  id: youtube-long
+  label: "YouTube -> Vídeo longo"
+  platform: youtube
+  format: longo
+stages:
+  selection:
+    instructions: |-
+      Formato de saída: um único segmento horizontal e contínuo, com começo, desenvolvimento e conclusão. O pipeline não intercala segmentos nem remove pausas internas; escolha uma fala naturalmente coesa e bem ritmada, que funcione sem edição interna. Não escolha um trecho curto apenas para completar a duração. Jamais corte frases ou raciocínios pela metade. Prefira pelo menos oito minutos quando houver conteúdo com substância, dentro do limite técnico de duração configurado.
+  metadata:
+    instructions: |-
+      Apresente a tese, o assunto e o contexto do segmento contínuo selecionado; não descreva a fonte inteira quando o vídeo publicado contém apenas um recorte. Não use #Shorts nem tags de cortes. Coloque a expressão de busca específica do tema naturalmente no título e nas primeiras frases da descrição, sem repetição artificial. Mantenha a descrição abaixo de 3.500 caracteres. O vídeo só pode ter mid-roll se estiver monetizado e tiver pelo menos oito minutos; a presença ou posição de espaços de anúncio não garante que um anúncio será exibido.
+  thumbnail:
+    instructions: |-
+      Quando o formato informado for longo, prefira uma chamada literal curta que represente a tese ou revelação central do segmento completo e continue legível em uma composição horizontal.

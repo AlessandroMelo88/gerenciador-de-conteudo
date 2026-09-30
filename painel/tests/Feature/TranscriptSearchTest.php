@@ -266,7 +266,7 @@ it('híbrida combina texto e vetor por RRF', function () {
     fakeEmbedder(7);
     $job = jobBusca();
     $ambos = chunkBusca($job->id, 0, 'escala de tráfego pago com orçamento pequeno', 10.0, 7);
-    $soTexto = chunkBusca($job->id, 1, 'tráfego orgânico também funciona', 60.0, 8);
+    $soTexto = chunkBusca($job->id, 1, 'tráfego pago também funciona, mas é caro', 60.0, 8);
     $soVetor = chunkBusca($job->id, 2, 'conversa sem relação lexical', 110.0, 7);
 
     $r = buscar('q='.urlencode('tráfego pago').'&modo=hibrida')->assertOk();
@@ -278,6 +278,39 @@ it('híbrida combina texto e vetor por RRF', function () {
     // Os dois primeiros aparecem nas duas listas ou têm score RRF > 1/(60+1)
     expect($r->json('results.0.hits.0.score'))->toBeGreaterThan(1 / 61);
 })->skip(fn () => ! temColunaEmbedding(), 'sem coluna embedding (pgvector)');
+
+it('híbrida aplica o piso à parte vetorial: consulta sem relação não traz o acervo', function () {
+    fakeEmbedder(9);
+    $job = jobBusca();
+    chunkBusca($job->id, 0, 'conteúdo sobre culinária e receitas', 10.0, 1);
+    chunkBusca($job->id, 1, 'outro assunto qualquer', 50.0, 2);
+
+    buscar('q='.urlencode('xyzqwerty').'&modo=hibrida')->assertOk()
+        ->assertJsonPath('mode_used', 'hibrida')
+        ->assertJsonPath('results', []);
+})->skip(fn () => ! temColunaEmbedding(), 'sem coluna embedding (pgvector)');
+
+it('aula do YouTube abre o vídeo no minuto; as demais ficam no link interno', function () {
+    Http::fake();
+    $yt = TranscriptionJob::create([
+        'source_url' => 'https://www.youtube.com/watch?t=5&v=abc123', 'status' => 'done',
+        'title' => 'Aula YT', 'platform' => 'youtube',
+    ]);
+    $curto = TranscriptionJob::create([
+        'source_url' => 'https://youtu.be/xyz789', 'status' => 'done', 'title' => 'Curto', 'platform' => null,
+    ]);
+    $outro = jobBusca('Aula Vimeo');
+    chunkBusca($yt->id, 0, 'copywriting de alta conversão', 812.4);
+    chunkBusca($curto->id, 0, 'copywriting de alta conversão', 65.0);
+    chunkBusca($outro->id, 0, 'copywriting de alta conversão', 30.0);
+
+    $r = buscar('q=copywriting&modo=texto')->assertOk();
+
+    $links = collect($r->json('results'))->mapWithKeys(fn ($x) => [$x['job_id'] => $x['hits'][0]['link']]);
+    expect($links[$yt->id])->toBe('https://www.youtube.com/watch?v=abc123&t=812s')
+        ->and($links[$curto->id])->toBe('https://youtu.be/xyz789?t=65s')
+        ->and($links[$outro->id])->toBe("/painel/transcricoes/{$outro->id}?t=30&q=copywriting");
+});
 
 // --- detalhe, lista e comando ------------------------------------------------
 
@@ -296,17 +329,6 @@ it('detalhe recebe focus sanitizado a partir de ?t= e ?q=', function () {
     $this->actingAs($user)->get("/painel/transcricoes/{$job->id}")
         ->assertOk()
         ->assertInertia(fn ($p) => $p->where('focus.t', null)->where('focus.q', null));
-});
-
-it('lista filtra por título/URL e não varre mais o texto', function () {
-    $achada = jobBusca('Funil perpétuo');
-    $achada->update(['transcript_text' => 'conteúdo com palavra rara zebra']);
-
-    $user = User::factory()->create();
-    $this->actingAs($user)->get('/painel/transcricoes?q=perp')
-        ->assertInertia(fn ($p) => $p->where('jobs.data.0.id', $achada->id));
-    $this->actingAs($user)->get('/painel/transcricoes?q=zebra')
-        ->assertInertia(fn ($p) => $p->where('jobs.total', 0));
 });
 
 it('transcricoes:indexar --status conta jobs sem chunks e chunks sem vetor', function () {

@@ -86,14 +86,14 @@ export function ResultadoBusca({ resultado }: { resultado: BuscaResultado }) {
     const hits = resultado.hits.slice(0, 3);
 
     return (
-        <article className="grid gap-2 border-b pb-4 last:border-b-0 last:pb-0" aria-label={titulo}>
+        <article className="grid min-w-0 grid-cols-1 gap-2 border-b pb-4 last:border-b-0 last:pb-0" aria-label={titulo}>
             <div className="flex flex-wrap items-center gap-2">
                 <Link href={`/painel/transcricoes/${resultado.job_id}`} className="min-w-0 truncate font-medium hover:underline">
                     {titulo}
                 </Link>
                 {resultado.platform && <Badge variant="secondary">{resultado.platform}</Badge>}
             </div>
-            <ul className="grid gap-2">
+            <ul className="grid grid-cols-1 gap-2">
                 {hits.map((hit) => (
                     <li key={hit.chunk_id} className="flex items-start gap-3">
                         <LinkDoTrecho hit={hit} rotulo={titulo} />

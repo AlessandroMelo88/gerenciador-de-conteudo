@@ -54,7 +54,6 @@ type PageProps = {
     auth?: { user: { name: string; email: string } | null };
     flash?: { success: string | null; error: string | null };
     jobs?: Paginated<Job>;
-    busca?: string;
 };
 
 const STATUS_LABELS: Record<Status, string> = {
@@ -211,11 +210,11 @@ export default function TranscricaoLocal() {
                 </Card>
 
                 <Card className="max-w-3xl">
-                    <CardContent className="grid gap-4 pt-6">
+                    <CardContent className="grid grid-cols-1 gap-4 pt-6">
                         <BuscaTranscricoes>
                         {jobs.length === 0 && (
                             <p className="text-sm text-muted-foreground">
-                                {props.busca ? `Nada encontrado para "${props.busca}".` : 'Nenhuma transcrição ainda.'}
+                                Nenhuma transcrição ainda.
                             </p>
                         )}
 

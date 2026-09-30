@@ -33,7 +33,7 @@ class SourceVideoController extends Controller
     public function index(Request $request): Response
     {
         $tab = $request->query('tab', 'ativos');
-        $perPage = (int) $request->query('per_page', 20);
+        $perPage = min(max((int) $request->query('per_page', 20), 1), 100);
         $search = $request->query('search');
 
         $query = SourceVideo::query()
@@ -47,7 +47,8 @@ class SourceVideoController extends Controller
         match ($tab) {
             'falharam' => $query->where('status', 'failed'),
             'todos' => null,
-            default => $query->where('status', '!=', 'failed'),
+            // "Ativos" = o que ainda está em andamento; publicado é histórico (aba "Todos").
+            default => $query->whereNotIn('status', ['failed', 'published']),
         };
 
         if ($request->filled('status')) {

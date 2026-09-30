@@ -75,3 +75,5 @@ graphify-out/cost.json
 # (/mnt/videos/conteudo-cursos), servida só por rota autenticada.
 painel/public/conteudo-cursos/
 painel/storage/app/private/conteudo-cursos/
+.coverage
+htmlcov/

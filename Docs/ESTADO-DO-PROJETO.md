@@ -46,6 +46,7 @@ nova; o esforço agora é receita por afiliados e conteúdo próprio.
 | Migração para a VM A1 | `Docs/sistema/MIGRACAO-A1.md` |
 | Comandos de operação e destrave | `Docs/sistema/RUNBOOK.md` |
 | Regras destrutivas e armadilhas | `CLAUDE.md` |
+| Lint, testes locais e CI | `Docs/DESENVOLVIMENTO.md` (`make help`) |
 
 ## 2. Produção
 
@@ -105,7 +106,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Canais do Telegram e bot como admin | Fase 8 | Pendente do operador |
 | Domínio e logo da Umbrella | Fase 7 | Código pronto, falta DNS/certificado |
 | Busca vetorial nas transcrições | `feature/busca-vetorial` | Código pronto e testado em dev (pgvector 0.8, e5-small 384d, busca híbrida). **Não está em produção**: falta trocar a imagem do Postgres na A1 (runbook em `DEPLOY.md`), subir o `embedder`, backfill no Mac. Doc: `Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md` |
-| Integração da branch do Ricardo (`release/rico`) | Comparação 29/09 | Lotes 1–2 (webhook seguro, recovery de estados) em branches curtas; lotes 3–10 pendentes. Não trazer compose, `composer.lock`, docs nem defaults de publicação dele |
+| Integração da branch do Ricardo (`release/rico`) | Comparação 29/09 | Lotes 1–2 (webhook seguro, recovery de estados) na master; lotes 3 e 9 (CI/qualidade e ADR/CHANGELOG/DESENVOLVIMENTO) em `chore/ci-e-qualidade-rico` e `docs/adr-changelog-rico`, aguardando merge; lotes 4–8 e 10 pendentes. Não trazer compose, `composer.lock`, docs nem defaults de publicação dele |
 | Token do Telegram no histórico público (`.planning/.../09-01-PLAN.md`, commit `614092d`) | Comparação 29/09 | **Rotacionar no BotFather** (passo do operador), depois remover o arquivo |
 | Bug 11 — container não honra SIGTERM | `BUGS.md` | Aberto; gera estado preso a cada restart |
 | Bug 4 — `cutting` e `publishing` sem recuperação | `BUGS.md` | Parcial; `selecting` já tem |
@@ -132,6 +133,9 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 
 | Data | Rodada | Onde parou | Próximo passo combinado |
 |---|---|---|---|
+| 30/09/2026 | Validação visual da busca (`fix/busca-transcricoes-ui`) | 5 bugs de UI/backend corrigidos, piso de similaridade calibrado (0,83); branch pronta para merge, ainda fora de produção | Merge na master, depois o runbook de rollout (imagem do Postgres, embedder, backfill) |
+| 30/09/2026 | Lote 6 (prompts por perfil) do `release/rico` | Em `feature/prompts-por-perfil`, sem merge/deploy; sem canal versionado; migration pendente | Escrever `prompts/channels/mbl.yaml`, compilar `--apply`, ligar perfil no painel |
+| 30/09/2026 | Lotes 3 e 9 do Ricardo | CI, Makefile, pre-commit e configs de lint sem reformatar o código; ADRs renumerados (0002–0007, PostgreSQL 17), `Docs/DESENVOLVIMENTO.md`, `restore-postgres.sh`. Em branches, sem merge | Revisar, mesclar e ligar o `CI gate` na proteção da `master` |
 | 29/09/2026 | Busca vetorial + comparação com `release/rico` | Busca pronta em `feature/busca-vetorial`, fora de produção; lotes 1–2 do Ricardo em branches | Backup + trocar imagem do Postgres na A1, deploy, backfill; rotacionar token do Telegram |
 | 20/09/2026 | Criação deste checkpoint | Produção em `3cc729b`, saudável: 141 clips publicados, 16 na fila de aprovação, 18 vídeos na janela, 0 ofertas | Cadastrar a primeira oferta real de afiliado |
 | 18/09/2026 | Afiliados na master, modo manutenção, hotfix do Vite | Afiliados em produção com token configurado | Criar canais do Telegram |
