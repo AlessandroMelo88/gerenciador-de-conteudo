@@ -207,6 +207,7 @@ link}]}]}`. Tipos TS em `painel/resources/js/types/busca-transcricoes.ts`.
 | `EMBEDDER_URL` | painel (Laravel) | `http://embedder:8000` | endereço do sidecar |
 | `EMBEDDER_TOKEN` | painel **e** embedder (mesmo valor) | — | bearer do sidecar; só no `.env` do servidor (repo público) |
 | `EMBEDDER_TIMEOUT` | painel | `3` | segundos antes de degradar para texto |
+| `EMBEDDER_MIN_SIMILARITY` | painel | `0.83` | piso de similaridade de cosseno (Semântica e parte vetorial da Híbrida); ver calibração abaixo |
 | `EMBEDDING_MODEL` | embedder e indexador | `intfloat/multilingual-e5-small` | modelo; fixar |
 | `EMBEDDING_DIM` | embedder e indexador | `384` | tem de bater com `vector(384)` |
 | `TRANSCRICAO_INDEXAR` | Mac (worker) | `1` | liga/desliga o gancho de indexação |
@@ -281,3 +282,45 @@ docker compose stop embedder
 
 Pelo painel: buscar uma frase por sentido (modo Semântica) e uma palavra exata (Texto); clicar no
 minuto e conferir que o detalhe rola até o parágrafo.
+
+## Calibração do piso de similaridade (30/09/2026)
+
+Medida com o modelo **real** (`intfloat/multilingual-e5-small`, sidecar local) sobre 7 transcrições
+fictícias de temas diferentes (afiliados, futebol, bolo, política, treino, renda fixa, aula longa de
+gestão), 20 trechos. O e5 comprime os scores: tudo fica entre ~0,75 e ~0,90.
+
+| Tipo de consulta | Melhor score observado |
+|---|---|
+| Relevante, frase completa (ex.: "como saber se um produto vende" -> aula de afiliados) | 0,845 a 0,892 |
+| Relevante, uma palavra só ("futebol") | 0,835 |
+| Sem relação nenhuma (tempo, pneu, império romano, servidor linux, motor elétrico, bitcoin) | 0,812 a 0,824 |
+| Pior trecho **irrelevante** de uma consulta relevante | 0,79 a 0,82 |
+
+O padrão antigo (0,75) deixava passar tudo, então uma consulta sem sentido devolvia o acervo
+inteiro. **Valor recomendado: `EMBEDDER_MIN_SIMILARITY=0.83`** (já é o padrão em `config/services.php`).
+A margem é estreita (0,824 contra 0,835); com o acervo real (centenas de aulas) o teto do ruído tende
+a subir um pouco, então reveja depois do backfill: rode 10 consultas sem relação e 10 relevantes,
+veja o maior score de cada grupo e fique no meio. Muitos falsos "nada encontrado" -> baixe para
+0,81; muito ruído -> suba para 0,85. O piso vale para a Semântica e para a parte vetorial da
+Híbrida (antes a Híbrida não tinha piso).
+
+## Validação visual (30/09/2026) — o que mudou
+
+Rodada de validação no navegador (desktop 1366 e mobile 375) com o sidecar real e depois com ele
+derrubado (aviso de degradação). Correções:
+
+- **Mobile**: o card de resultados vazava para fora da tela (título sem quebra alargava a coluna do
+  grid); agora a coluna é `minmax(0,1fr)`.
+- **Detalhe**: ao chegar pelo clique no minuto (navegação do Inertia), o Inertia zerava a rolagem e
+  desfazia o `scrollIntoView`; a rolagem agora espera 120 ms e o parágrafo aparece centralizado.
+- **Carregando**: depois de uma busca sem resultado, a próxima ficava em branco até responder;
+  agora mostra "Buscando...".
+- **Híbrida sem piso**: aplicava o piso só na Semântica; agora também na parte vetorial.
+- **Link do YouTube**: o contrato dizia que o minuto abre o vídeo (`source_url` + `t=<seg>s`), mas o
+  endpoint devolvia sempre o link interno; corrigido (com teste).
+- Limpeza: `TranscriptionController::index` não recebe mais `q` nem devolve `busca` (a busca
+  pelo conteúdo é o endpoint `/painel/transcricoes/busca`).
+
+Limitações conhecidas: no modo Texto (e na degradação), uma pergunta em linguagem natural exige
+todas as palavras no mesmo trecho, então frases longas costumam dar "nada encontrado"; e no modo
+Semântica o trecho exibido é o começo do bloco encontrado, não a frase exata que casou.
