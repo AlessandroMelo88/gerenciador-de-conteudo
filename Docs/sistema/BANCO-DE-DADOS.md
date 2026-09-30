@@ -1,11 +1,14 @@
 # Banco de dados
 
-> Tipo: referência as-built · Atualizado: 2026-08-27
-> Banco: PostgreSQL 16 · nome padrão: `clips_automation`
+> Tipo: referência as-built · Atualizado: 2026-09-29
+> Cron nativo local do Hacker Libertário: PostgreSQL 18.3 (Homebrew), `clips_automation`.
+> Produção: PostgreSQL 17. Compose local: imagem declarada 17; container observado em 16.15.
 
-O painel e o `clip-processor` usam o mesmo PostgreSQL. O `panel-init` executa
-migrations antes de liberar PHP, worker e scheduler. A fila do pipeline é persistida no banco; Redis
-é auxiliar.
+Os ambientes são separados. Nesta máquina, o cron usa o worker Python nativo e conecta a
+`127.0.0.1:5432`; ele não usa o serviço PostgreSQL do Compose. A extensão `vector` não estava
+disponível na instância nativa verificada em 29/09/2026. A decisão e o trabalho pendente estão em
+[ADR-0007](../ADR/0007-postgresql-18-nativo-pgvector.md). O painel e os workers do Compose usam o
+serviço definido em `docker-compose.yml`; produção permanece na VM A1.
 
 ## Migrations
 
@@ -36,9 +39,9 @@ docker compose exec php php artisan migrate:status
 | Tabela | Chave/relacionamento | Campos operacionais |
 |---|---|---|
 | `source_channels` | `youtube_channel_id` único | nome, RSS, nicho, handle, ativo, blacklist |
-| `source_videos` | `youtube_video_id` único; pertence a source channel | título, publicação, status, formato, caminho raw, texto/dados da transcrição, prioridade, pausa, posição, frescor por canal-fonte |
+| `source_videos` | `youtube_video_id` único; pertence a source channel | título, publicação, status, formato manual legado, `generate_both_formats`, caminho raw, texto/dados da transcrição, prioridade, pausa, posição, frescor por canal-fonte |
 | `destination_channels` | `slug` e ID YouTube únicos | nome, nicho, crédito, ativo, flag OAuth |
-| `generated_clips` | pertence a source video; destino opcional | intervalo, score, motivo, metadata, paths, YouTube ID, quota/status |
+| `generated_clips` | pertence a source video; destino opcional | formato de saída (`curto`/`longo`), intervalo, score, motivo, metadata, paths, YouTube ID, quota/status |
 | `media_assets` | destino nullable para legado; `nullOnDelete` | intro/outro/music, formato, duração, volume, prioridade, ativo; novos envios exigem canal |
 | `niches` | `slug` único | label dos selects do painel |
 | `prompt_profiles` | `slug` único; referenciado pelos canais | nicho canônico, aliases, cinco prompts editoriais e ativo |

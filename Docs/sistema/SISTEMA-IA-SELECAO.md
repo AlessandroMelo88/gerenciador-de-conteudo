@@ -1,12 +1,17 @@
 # IA e catálogo de prompts
 
-> Tipo: referência as-built · Atualizado: 2026-08-27
+> Tipo: referência as-built · Atualizado: 2026-09-29
 > Fontes: `clip-processor/src/prompt_profiles.py`, `selector.py`,
 > `metadata_generator.py`, `video_processor.py` e migrations do painel
 
-O texto editorial específico vive em `prompt_profiles` no PostgreSQL. O painel associa um perfil
-ativo a cada canal-fonte e canal-destino. Regras de segurança, fact-check, contrato JSON,
-anti-repetição e pós-validação continuam no código e são aplicadas a todos os perfis.
+O texto editorial ativo vive em `prompt_profiles` no PostgreSQL. Os YAMLs versionados em `prompts/`
+são a fonte de edição; `ruby scripts/compile_prompt_profiles.rb` gera JSON e `php artisan prompts:sync`
+aplica esse JSON pelo slug. A migration inicial também importa os JSONs em instalações novas.
+Regras de segurança, contrato JSON, anti-repetição e pós-validação continuam no código.
+
+A seleção e a geração de metadata não têm ferramenta de busca web. O campo de checagem de fatos é
+sempre `inconclusivo`; o pipeline não confirma nem desmente alegações e remove blocos de `Fact Check`
+inventados pela IA. Para publicar correções factuais é preciso consultar fontes fora desse fluxo.
 
 Não há editor livre de prompts nem versionamento por usuário: novos perfis são adicionados por
 migration/seeder idempotente, revisados em código e associados aos canais no painel.
@@ -47,7 +52,7 @@ cria/atualiza três perfis idempotentes:
 > **Diretrizes Libertárias do Perfil `conteudo-inteligencia`:**
 > 1. **O Estado nunca deve ser defendido:** Rejeita qualquer defesa, elogio ou legitimação de tributação, regulação estatal, censura ou intervenção estatal. Trechos sobre regulação ou vigilância só são aceitos quando a abordagem for crítica e apontar soluções de defesa individual por meio de tecnologia e criptografia.
 > 2. **Zero menções a políticos ou funcionários públicos:** Proibição absoluta de citar nomes de políticos (de qualquer partido) ou burocratas/agentes estatais no título, descrição, tags ou recortes. O foco é 100% nas ideias, ferramentas, tecnologia, privacidade e liberdade individual.
-> 3. **Gancho viral imediato (0 a 3s):** O corte começa no auge da afirmação de impacto, eliminando saudações e pausas.
+> 3. **Gancho editorial imediato (0 a 3s):** O corte começa no auge da afirmação de impacto, eliminando saudações e pausas; isso orienta a edição e não prevê alcance.
 
 Cada perfil possui cinco campos de prompt: `selection_short_prompt`, `selection_long_prompt`,
 `metadata_short_prompt`, `metadata_long_prompt` e `thumbnail_prompt`. Para criar outro nicho em
@@ -65,7 +70,7 @@ Os textos editoriais passam a ter fonte versionada em YAML, sem mudar o contrato
 | canal | Identidade editorial e regras próprias, como as do Hacker Libertário |
 | alvo | Regras de formato, por exemplo YouTube -> Shorts e YouTube -> Vídeo longo |
 
-Os YAMLs ficam em prompts/layers/, prompts/channels/ e prompts/targets/. O comando ruby scripts/compile_prompt_profiles.rb gera um JSON por canal em prompts/compiled/, no formato compatível com as colunas de prompt_profiles. A geração não grava no banco: depois de revisão, o JSON pode ser incorporado a uma migration/seeder idempotente.
+Os YAMLs ficam em `prompts/layers/`, `prompts/channels/` e `prompts/targets/`. O comando `ruby scripts/compile_prompt_profiles.rb` gera um JSON por canal em `prompts/compiled/`, no formato compatível com as colunas de `prompt_profiles`. Para aplicar no banco local, execute `cd painel && php artisan prompts:sync`; no Docker, use `docker compose exec php php artisan prompts:sync`. O comando atualiza apenas os perfis por slug e mantém as associações de canais/fontes. A migration de sincronização também importa os JSONs compilados em instalações novas.
 
 O perfil conteudo-inteligencia representa o destino Hacker Libertário e pode ser associado às fontes que alimentam esse destino. Cada outro canal de destino pode ter arquivo de canal e JSON próprios. A tabela possui apenas um thumbnail_prompt; o compilador inclui as regras de thumbnails dos dois alvos nesse campo e o runtime recebe o formato como contexto.
 
@@ -93,9 +98,13 @@ thumbnail não possui fallback local.
 
 ### `CONTENT_SELECTION_RULES`
 
-Contrato editorial comum a todas as quatro seleções:
+Contrato editorial comum a todas as quatro seleções. O modelo recebe até 8.000 caracteres para
+Shorts, em quatro janelas temporais, e até 35.000 para vídeos longos, em três janelas. Quando há
+lacunas marcadas, o modelo não pode selecionar através delas e a validação final rejeita candidatos
+fora das janelas visíveis. Para transcrições menores, o modelo recebe o texto completo.
 
-- ler todos os segmentos temporizados antes de escolher;
+- ler todas as linhas temporizadas fornecidas antes de escolher; a amostra pode omitir intervalos,
+  que devem ser tratados como desconhecidos;
 - detectar semanticamente publicidade, patrocínio, merchandising, product placement, ofertas,
   cupons, códigos, CTAs, links e QR codes;
 - excluir o bloco comercial completo, incluindo transições, sem posição ou duração fixa;

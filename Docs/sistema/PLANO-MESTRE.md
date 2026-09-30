@@ -165,8 +165,10 @@ falado, e nenhum é canal de cortes:
 | Fred Caldeira | `@FredCaldeira` | longo (701–3903s) |
 | Desimpedidos | `@Desimpedidos` | misto (493–2077s) |
 
-PVC, Denílson e Charla entregam vídeo abaixo de `MIN_LONGFORM_SECONDS` (420s), então **mantêm a
-cadência de Shorts** do canal — os outros geram corte horizontal longo.
+PVC e Denílson entregam fontes abaixo do mínimo do longo e, portanto, continuam gerando Shorts.
+Charla e os demais canais geram Shorts de suas fontes e também um longo quando a transcrição contém
+um segmento contínuo de ao menos 420 segundos sem reaproveitar a fonte inteira. O mesmo vale para os
+canais com fontes longas.
 
 Reprovados na verificação: `@CortesdoCasimitoOFICIAL` e `@CasimiroMiguel` (o primeiro é canal de
 cortes, e o conteúdo recente dos dois é reação/variedades, não futebol); `@Pilhado` (é política);

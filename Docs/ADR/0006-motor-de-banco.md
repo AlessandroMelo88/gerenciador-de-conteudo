@@ -2,6 +2,10 @@
 
 **Status:** aceito · **Data:** 26/08/2026
 
+> **Nota posterior (29/09/2026):** este ADR registra a decisão do ambiente Compose na data em que
+> foi aceito. Ele não descreve o cron nativo local atual do Hacker Libertário (PostgreSQL 18.3) nem
+> a produção documentada em PostgreSQL 17. Para esses ambientes, consulte [ADR-0007](0007-postgresql-18-nativo-pgvector.md).
+
 ## Contexto
 
 O pipeline compartilhava o MySQL legado com o painel e dependia de SQL de bootstrap separado das

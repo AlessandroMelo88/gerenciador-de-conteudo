@@ -1,6 +1,6 @@
 # clip-processor
 
-> Tipo: referência as-built · Atualizado: 2026-09-02
+> Tipo: referência as-built · Atualizado: 2026-09-29
 > Código: `clip-processor/src`
 
 O processador é dividido por etapa no Compose. O container `clip-processor`
@@ -19,7 +19,7 @@ serve somente o sidecar HTTP autenticado; os serviços `clip-poller`,
 | `db.py` | conexão, status, inserção e recovery |
 | `downloader.py` | yt-dlp, retry, disk guard e parciais |
 | `transcriber.py` | legendas manuais PT-BR + Groq Whisper |
-| `selector.py` | seleção, duração, fact-check e anti-duplicidade |
+| `selector.py` | seleção por janelas temporais, duração, status factual inconclusivo e anti-duplicidade |
 | `video_processor.py` | corte, SRT, composição vertical, watermark e thumbnail |
 | `publisher.py` | roteamento, quota, upload e finalização |
 | `internal_api.py` | ponte HTTP do painel |
@@ -32,7 +32,7 @@ execução foi separado para que um render lento não segure download ou IA.
 ~~~text
 clip-poller       -> source_videos.pending
 clip-downloader  -> source_videos.downloaded
-clip-ai          -> transcribing/selecting -> generated_clips.pending_cut
+clip-ai          -> transcribing once, selecting curto + longo -> generated_clips.pending_cut
 clip-renderer    -> cutting -> generated_clips.pending
 clip-publisher   -> publishing -> published
 clip-maintenance -> recovery + TTL
@@ -48,6 +48,19 @@ atômica `pending_cut -> cutting` como segunda proteção contra duplicidade.
 - `PIPELINE_ENABLED=false` pausa todos os workers de negócio, mas mantém o
   sidecar e a manutenção disponíveis.
 - `FRESHNESS_DAYS=1500` é fallback; cada canal-fonte configura 3 ou 1500 dias no painel.
+- Uma entrada RSS vira uma fonte deduplicada, com `generate_both_formats=true`. A transcrição é
+  compartilhada; o seletor cria até três Shorts e tenta um vídeo longo contínuo de pelo menos 420 s
+  quando a transcrição tem material suficiente. Cada linha de `generated_clips` armazena seu formato,
+  usado pelo renderer, gerador de metadados, quota e publisher.
+- O processamento das seleções e dos renders segue as filas dos workers existentes; ambos os formatos
+  são gerados na mesma passagem da fonte, sem iniciar duas cópias da fonte ou transcrever duas vezes.
+- O gerador usa o assunto específico no título e no início da descrição, sem repetição artificial de
+  palavras-chave, hashtags genéricas ou promessa de viralização. Descrições ficam abaixo de 3.500
+  caracteres; caracteres ASCII rejeitados pela API são normalizados e o limite UTF-8 é verificado
+  na borda do upload (5.000 bytes, incluindo créditos). Tags respeitam o teto efetivo de 500
+  caracteres da API, incluindo espaços e separadores.
+- Metadados ajudam a relevância em busca, mas não garantem alcance. O repositório ainda não consulta
+  impressões, CTR ou retenção do YouTube Analytics para ajustar títulos, thumbnails ou seleção.
 - `AI_PROVIDER=groq` usa `GROQ_CHAT_MODEL=openai/gpt-oss-20b`; outro provider precisa ser configurado e ativado explicitamente.
 - Shorts duram de 30 a 45 segundos por padrão. `SHORTS_MAX_DURATION_SECONDS`
   permite configurar um teto maior para testes.

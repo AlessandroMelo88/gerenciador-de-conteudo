@@ -175,7 +175,7 @@ Um registro por combinação de formato e nicho. É o ponteiro estável para a v
 | Coluna | Tipo | Notas |
 |---|---|---|
 | `id` | `id()` | |
-| `format` | `enum('curto','longo')` | mesmo domínio de `source_videos.format` |
+| `format` | `enum('curto','longo')` | formato-alvo do prompt; feeds RSS podem produzir ambos na mesma fonte, e cada saída registra o formato em `generated_clips.format` |
 | `niche_id` | `foreignId nullable` → `niches.id`, `nullOnDelete()` | `NULL` = padrão global usado quando o nicho não tem prompt próprio |
 | `active_version_id` | `unsignedBigInteger nullable` | FK para `ai_prompt_versions` adicionada em **segunda migration** (dependência circular) com `nullOnDelete()` |
 | `timestamps` | | |

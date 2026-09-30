@@ -1,8 +1,9 @@
 # Plano de migração — Oracle Cloud (Always Free)
 
-> **Tipo:** plano futuro/histórico · **Status atual:** não iniciado. Este arquivo não descreve o
-> runtime atual: a operação documentada hoje usa Compose local/isolado e PostgreSQL 16. Consulte
-> [README.md](README.md) e [RUNBOOK.md](RUNBOOK.md) antes de executar qualquer procedimento.
+> **Tipo:** plano histórico · **Data original:** 13/08/2026. As referências deste plano a Compose e
+> PostgreSQL 16 são históricas, não descrevem o cron nativo atual. Em 29/09/2026, a produção está
+> documentada em PostgreSQL 17 e o cron local do Hacker Libertário usa PostgreSQL 18.3 (Homebrew).
+> Consulte [ESTADO-DO-PROJETO.md](../ESTADO-DO-PROJETO.md) e [ADR-0007](../ADR/0007-postgresql-18-nativo-pgvector.md).
 
 **Objetivo:** tirar o pipeline do SSD da máquina local e deixar na máquina só o código de desenvolvimento.
 **Restrição inegociável:** custo R$ 0. Nenhuma cobrança no cartão, em nenhum cenário.

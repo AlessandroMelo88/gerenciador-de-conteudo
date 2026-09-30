@@ -8,6 +8,13 @@ Fluxo de branch e deploy: [`../../DEPLOY.md`](../../DEPLOY.md).
 
 Última atualização: **15/09/2026** — fase A fechada e mesclada na `master` (merge `b2bf7d9`), **exceto o ciclo real (A6)**, que fica para o dia da migração da VM.
 
+## Nota posterior (29/09/2026)
+
+O registro acima descreve o ambiente local usado na fase A do plano. O cron nativo atual do
+Hacker Libertário conecta ao PostgreSQL 18.3 (Homebrew); a produção continua documentada em
+PostgreSQL 17. Essa diferença de ambiente não pede downgrade nem migração da produção para 18.
+Veja [ADR-0007](../ADR/0007-postgresql-18-nativo-pgvector.md) para a decisão de pgvector no cron.
+
 ---
 
 ## Decisões

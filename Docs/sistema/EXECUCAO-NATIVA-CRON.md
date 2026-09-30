@@ -4,6 +4,18 @@ Os workers do `clip-processor` podem rodar diretamente em Linux ou macOS, sem
 Docker. O host precisa ter Python 3.11+, FFmpeg/ffprobe, PostgreSQL com o schema
 do painel e Redis acessíveis. A aplicação web não precisa rodar no mesmo host.
 
+## Banco do cron do Hacker Libertário
+
+Na máquina verificada em 29/09/2026, o worker nativo conecta a `clips_automation` no PostgreSQL
+18.3 do Homebrew, em `127.0.0.1:5432`. Essa conexão foi confirmada pelo mesmo acesso configurado no
+`.env`; `pgvector` ainda não está instalado/disponível. PostgreSQL 18 é o alvo deste cron — não
+regredir para 17. A decisão registrada e as pendências estão em
+[ADR-0007](../ADR/0007-postgresql-18-nativo-pgvector.md).
+
+O PostgreSQL da produção e o serviço PostgreSQL do Compose são outros ambientes. A imagem do
+Compose declara PostgreSQL 17, enquanto o container observado nesta máquina estava em 16.15. Não
+trocar a imagem sobre o volume existente sem backup validado e migração de versão principal.
+
 ## Configuração
 
 1. Instale e inicie PostgreSQL e Redis no host. Configure a conexão com o banco
@@ -27,8 +39,9 @@ do painel e Redis acessíveis. A aplicação web não precisa rodar no mesmo hos
    clip-processor/.venv/bin/python scripts/install_native_cron.py
    ```
 
-O instalador agenda polling a cada 20 minutos, download/IA/render a cada 15,
-manutenção a cada 30 e a etapa de publicação a cada hora. A publicação só
+O instalador agenda polling a cada 2 horas; download, IA e render rodam uma vez
+por hora, nos minutos 15, 30 e 45; manutenção roda a cada 3 horas; publicação
+roda a cada hora. A publicação só
 acontece nos horários permitidos pela aplicação, em `America/Sao_Paulo`:
 
 - Vídeos longos: 06h, 14h e 22h, separados por oito horas.
@@ -41,6 +54,10 @@ Os horários e cotas podem ser alterados no `.env` (`LONG_UPLOAD_HOURS`,
 `MAX_CURTO_UPLOADS_PER_DAY` e `MAX_UPLOADS_PER_DAY`). Após mudar os horários,
 o cron pode continuar como está, pois chama a etapa de publicação de hora em
 hora e o worker aplica as novas janelas.
+
+A frequência de polling limita a rapidez com que novos vídeos entram no pipeline:
+com o valor atual, uma fonte pode esperar até duas horas para ser consultada.
+Considere esse intervalo como latência operacional, não como garantia de alcance.
 
 Cada etapa tem um lock local para impedir sobreposição no host e usa também o
 lock Redis existente. Logs ficam em `var/native-worker/logs/` e são rotacionados

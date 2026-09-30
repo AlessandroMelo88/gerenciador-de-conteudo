@@ -1,6 +1,6 @@
 # Expansão do Hacker Libertário
 
-> **Atualizado:** 2026-09-28
+> **Atualizado:** 2026-09-29
 > **Escopo:** expansão de fontes, estratégia de formatos e organização versionada dos prompts.
 
 ## Direção editorial
@@ -14,7 +14,7 @@ Vídeos monetizados com pelo menos 8 minutos podem habilitar mid-rolls, mas o Yo
 
 Os critérios publicados pelo YouTube classificam como Shorts vídeos quadrados ou verticais de até 3 minutos; a partir desses critérios, #Shorts não é requisito de classificação. O alvo editorial deste canal é bem menor (30–45 s); hashtags devem ser usadas apenas quando descreverem o tema, sem inserir #Shorts automaticamente. [Classificação de Shorts](https://support.google.com/youtube/answer/15424877?hl=pt-BR)
 
-**Limite do pipeline atual:** com AUTO_INGEST_FORMAT=auto, cada vídeo-fonte recebe um único formato: o poller escolhe longo a partir de 420 segundos de duração da fonte e curto abaixo disso. Ele não gera simultaneamente o vídeo longo completo e vários Shorts do mesmo material. O alvo de gerar os dois formatos está registrado como evolução do pipeline; este commit organiza os prompts e as fontes, sem afirmar que a geração dupla já está implementada.
+**Pipeline de formatos:** cada vídeo RSS é transcrito uma vez e alimenta até três Shorts e um vídeo longo na mesma execução. O longo só é tentado quando a transcrição permite selecionar um trecho contínuo de pelo menos 7 minutos sem usar a fonte inteira; fontes curtas continuam gerando Shorts. Cada clip persiste seu formato, então renderização, metadados, cotas e publicação aplicam o fluxo correto.
 
 ## Fontes adicionais ativadas
 
@@ -48,13 +48,11 @@ Arquivos:
 - [alvo YouTube -> Vídeo longo](../prompts/targets/youtube-long.yaml)
 - [JSON compilado para prompt_profiles](../prompts/compiled/conteudo-inteligencia.json)
 
-O perfil de destino tem o slug de banco existente conteudo-inteligencia, o nicho hacker-libertario e o nome editorial armazenado Conteúdo de Inteligência. No banco local, esse perfil está hoje associado ao destino Hacker Libertário e às fontes que o abastecem; não é um segundo canal público. A linha atual ainda carrega aliases genéricos herdados da migration. O JSON compilado deixa niche_aliases vazio, mas esse estreitamento só passa a valer depois que o payload for aplicado ao banco. Este conjunto de arquivos é exclusivo do destino Hacker Libertário. As fontes que alimentam esse destino usam a mesma camada editorial de destino; cada outro canal de destino deve receber seu próprio YAML, slug de perfil e JSON, mesmo que pertença ao mesmo nicho. Os aliases ficam vazios para não tornar este perfil automaticamente compatível com nichos de tecnologia genéricos.
+O perfil de destino usa o slug de banco `conteudo-inteligencia`, o nicho `hacker-libertario` e o nome editorial armazenado `Conteúdo de Inteligência`. Este conjunto de arquivos é exclusivo do destino Hacker Libertário. As fontes que alimentam esse destino usam a mesma camada editorial; cada outro canal de destino deve receber seu próprio YAML, slug de perfil e JSON, mesmo que pertença ao mesmo nicho. Os aliases ficam vazios para não aplicar automaticamente a identidade libertária a canais genéricos de tecnologia.
 
 O JSON respeita as colunas atuais de prompt_profiles: slug, name, niche, niche_aliases, active, as duas instruções de seleção, as duas instruções de metadata e thumbnail_prompt. A tabela tem apenas um campo de thumbnail; por isso, o compilador inclui nele as duas instruções condicionais de alvo e o runtime deve escolher a regra que corresponde ao formato informado.
 
-Para recompilar usando apenas Ruby e sua biblioteca YAML padrão, execute: ruby scripts/compile_prompt_profiles.rb
-
-O comando apenas gera os JSONs em prompts/compiled/; não grava no banco. Revise o JSON e aplique-o por uma migration/seeder idempotente quando decidir atualizar prompt_profiles. As regras técnicas compartilhadas que o worker acrescenta em runtime continuam obrigatórias e podem impor limites mais restritos que o alvo YAML. Hoje o worker aceita Shorts de 30 a 45 segundos por padrão. Para um teste ocasional mais longo, configure `SHORTS_MAX_DURATION_SECONDS` explicitamente.
+Para recompilar usando Ruby e sua biblioteca YAML padrão, execute `ruby scripts/compile_prompt_profiles.rb`; depois revise o JSON e sincronize o banco com `cd painel && php artisan prompts:sync` (ou `docker compose exec php php artisan prompts:sync`). A migration importa os JSONs em instalações novas. A sincronização atualiza os textos e aliases do perfil pelo slug; mudanças manuais nesses mesmos campos no banco serão substituídas pelo YAML compilado. As regras técnicas que o worker acrescenta em runtime continuam obrigatórias e podem impor limites mais restritos que o alvo YAML. Hoje o worker aceita Shorts de 30 a 45 segundos por padrão. Para um teste ocasional mais longo, configure `SHORTS_MAX_DURATION_SECONDS` explicitamente.
 
 ## Medição da estratégia
 

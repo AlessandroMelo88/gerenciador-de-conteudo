@@ -65,6 +65,11 @@ nova; o esforço agora é receita por afiliados e conteúdo próprio.
 
 A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 
+**Cron nativo local do Hacker Libertário (verificado em 29/09/2026):** o `crontab` executa o worker
+pela `.venv` do projeto e conecta a `clips_automation` no PostgreSQL 18.3 do Homebrew. `pgvector`
+ainda não está disponível nessa instância. Esse banco é separado do PostgreSQL 17 de produção e do
+serviço do Compose; veja [ADR-0007](ADR/0007-postgresql-18-nativo-pgvector.md).
+
 ## 3. Linha do tempo
 
 | Fase | Período | O que foi |

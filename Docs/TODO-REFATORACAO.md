@@ -143,7 +143,7 @@ Atalhos: [Python](#parte-1--clip-processor-python) · [PHP](#parte-2--painel-lar
 - **Esforço:** P/M · **Risco:** médio (muda o que passa pelo filtro). **Testar:** transcrição de 20 s com momento 0–20 → mantido; `score 6.9` descartado; longo com 1 momento de 300 s → esticado por `_enforce_longform_duration` (hoje sem teste).
 
 ### 17. **yt-dlp invocado de 3 jeitos diferentes; duas regex de video id**
-- `processar.fetch_metadata:67-85` (API Python, `skip_download`), `rss_poller._detect_format:54-70` (API Python, opções diferentes), `internal_api.resolve_channel:43-78` (`subprocess.run(['yt-dlp', ...])` + `json.loads`). Regex: `processar.YOUTUBE_URL_RE:31-34` e `rss_poller._extract_video_id:90`.
+- `processar.fetch_metadata:67-85` (API Python, `skip_download`), `internal_api.resolve_channel:43-78` (`subprocess.run(['yt-dlp', ...])` + `json.loads`). Regex: `processar.YOUTUBE_URL_RE:31-34` e `rss_poller._extract_video_id:90`. A consulta de duração do `_detect_format` foi removida ao fazer a ingestão gerar Shorts e longo na mesma fonte.
 - **Refatoração:** `ytdlp_client.py` com `extract_info(url, *, flat=False, playlist_items=None, timeout=30) -> dict` e `parse_video_id` único (o de `processar`); `resolve_channel` usa a API Python com `extract_flat` em vez de subprocess.
 - **Esforço:** M · **Risco:** baixo. **Testar:** os 3 conjuntos de testes existentes passam a mockar um único seam.
 

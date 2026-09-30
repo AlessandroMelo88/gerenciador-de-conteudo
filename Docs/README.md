@@ -50,5 +50,8 @@ Contém as especificações operacionais e de engenharia de todos os componentes
 Contém análises, pesquisas de canais, dados de mineração e benchmarks de conteúdo:
 
 * [`Docs/estudos/RETENCAO-CORTES-EDIT-LABS.md`](estudos/RETENCAO-CORTES-EDIT-LABS.md) — Lições do vídeo "Edit Labs AI" sobre retenção em cortes: o que entrou no seletor e o que ficou de fora.
+* [`Docs/estudos/BENCHMARK-PLAYSQUAD.md`](estudos/BENCHMARK-PLAYSQUAD.md) — Engenharia reversa, análise de features e testes com vídeos do projeto no PlaySquad.com.
 * [`Docs/IDEIAS.md`](IDEIAS.md) — Ideias legais que ainda não são necessárias, para avaliar depois.
+* [`Docs/TODO-PLAYSQUAD.md`](TODO-PLAYSQUAD.md) — Roadmap de tarefas práticas inspiradas no benchmark do PlaySquad (13 estilos de legendas, decupagem VAD, reframe 9:16, Kokoro TTS, monitor outlier).
 * `Docs/estudos/mineracao_canis.xlxs` — Planilha com mapeamento, métricas e mineração de canais fonte e concorrentes no YouTube.
+

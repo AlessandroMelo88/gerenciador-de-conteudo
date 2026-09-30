@@ -1,6 +1,6 @@
 # Download e descoberta
 
-> Tipo: referência as-built · Atualizado: 2026-08-26
+> Tipo: referência as-built · Atualizado: 2026-09-29
 > Fontes: `rss_poller.py`, `pipeline_runner.py`, `downloader.py`,
 > `dedup.py` e `processar.py`
 
@@ -13,11 +13,12 @@
 3. extrai o ID do vídeo;
 4. aplica dedup;
 5. bloqueia títulos com termos de apostas/cassino;
-6. consulta a duração via `yt-dlp`;
-7. insere o vídeo como `source_videos.status=pending`.
+6. insere uma única fonte com `source_videos.status=pending` e `generate_both_formats=true`.
 
-Falha em um canal é registrada e não interrompe os demais. Se a consulta de duração falhar, o formato
-assume `curto`.
+Não há consulta prévia de duração para escolher um único formato. O worker transcreve a fonte uma vez,
+seleciona até três Shorts e tenta também um longo se houver um trecho contínuo elegível de pelo menos
+420 s que não cubra a fonte inteira. Fontes curtas continuam elegíveis para Shorts. Falha em um canal
+é registrada e não interrompe os demais.
 
 ## Deduplicação
 
@@ -30,9 +31,10 @@ A fila continua sendo PostgreSQL.
 
 ## Formato e janela
 
-- `curto`: duração da fonte menor que 420 s;
-- `longo`: duração da fonte igual ou maior que 420 s;
-- janela padrão de download: 6 curtos e 4 longos;
+- RSS gera Shorts e, quando a transcrição comporta, também um vídeo longo da mesma fonte;
+- o formato de cada saída fica em `generated_clips.format`; `source_videos.format` continua
+  atendendo fluxos manuais de formato único e compatibilidade com registros antigos;
+- janela de download padrão: 10 fontes por canal de destino ativo do nicho (`DOWNLOAD_WINDOW_PER_CHANNEL`);
 - janela de frescor configurada por canal-fonte no painel: 3 ou 1500 dias;
 - `FRESHNESS_DAYS=1500` é somente o fallback para registros sem valor de canal;
 - registros sem `published_at` usam `created_at` para o filtro e a ordenação da janela;

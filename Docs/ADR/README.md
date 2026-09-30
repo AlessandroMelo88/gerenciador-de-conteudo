@@ -13,9 +13,11 @@ Decisões novas devem criar outro ADR; não reescreva o histórico para refletir
 | [0003](0003-fallback-de-ia-obrigatorio.md) | cascata de providers de IA | substituído; seleção, metadata e thumbnail têm regras próprias em [../SISTEMA-IA-SELECAO.md](../SISTEMA-IA-SELECAO.md) |
 | [0004](0004-schema-do-pipeline-fora-das-migrations.md) | schema fora das migrations Laravel | substituído pelo PostgreSQL e pelas migrations atuais |
 | [0005](0005-ferramentas-de-qualidade.md) | lint, formatação, tipos e CI | histórico; o contrato atual está em [../DESENVOLVIMENTO.md](../DESENVOLVIMENTO.md) |
-| [0006](0006-motor-de-banco.md) | PostgreSQL 16 como banco único | vigente |
+| [0006](0006-motor-de-banco.md) | PostgreSQL 16 como banco único | histórico; cron nativo local substituído por 0007 |
+| [0007](0007-postgresql-18-nativo-pgvector.md) | PostgreSQL 18 nativo e pgvector para o cron do Hacker Libertário | vigente no ambiente local; extensão pendente |
 
-Os números 0007 e 0008 não existem neste repositório e não devem ser referenciados como
-decisões válidas. A gestão atual do schema e os gates de qualidade estão nos documentos as-built.
+O ADR-0007 trata do cron nativo local; não altera a versão PostgreSQL 17 documentada para produção
+nem atualiza automaticamente o volume PostgreSQL separado do Compose. A gestão do schema e os gates
+de qualidade estão nos documentos as-built.
 
 Modelo: [_template.md](_template.md).

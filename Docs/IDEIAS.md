@@ -36,3 +36,25 @@ Síntese em [`estudos/RETENCAO-CORTES-EDIT-LABS.md`](estudos/RETENCAO-CORTES-EDI
 - **Portas de aprovação humana por etapa** (cortar → vertical → motion → B-roll → render). Hoje só
   aprovamos ou rejeitamos o clipe pronto na fila.
 - **Documento de estilo por canal** a partir de vídeos de referência, atualizado com erros e acertos.
+
+## Origem: Benchmark PlaySquad (PlaySquad.com) — 29/09/2026
+
+Síntese técnica detalhada em [`estudos/BENCHMARK-PLAYSQUAD.md`](estudos/BENCHMARK-PLAYSQUAD.md) e roadmap acionável em [`TODO-PLAYSQUAD.md`](TODO-PLAYSQUAD.md).
+
+### Legendas e Tipografia Cinética
+- **13 Presets Estilizados:** Hormozi (fundo neon na palavra ativa, peso 900), Karaokê contínuo via wipe de cor, Word-by-Word com slide vertical, Word Flash (1 palavra gigante no ritmo), Glitch cyberpunk com aberração cromática, Shake com micro-rotação em momentos de impacto, Pop-in com bounce elástico, Typewriter com cursor e Box sólido estilo sticker adesivo.
+- **Configuração de Legendas por Canal:** Suporte a seleção de fonte, cores (texto e highlight), número máximo de linhas (1 ou 2) e densidade de palavras por bloco (3 a 5 palavras).
+
+### Enquadramento e Ritmo
+- **Layouts de Reframe 9:16:** Modo `split` para podcasts (duas metades horizontais para oradores simultâneos), modo `react` (gameplay/vídeo em cima e facecam embaixo) e `single` com pan suave.
+- **Modos de Foco:** Active speaker detection (movimento de lábios sincronizado com áudio) e detecção de saliência visual.
+- **Decupagem de Silêncio com 3 Presets:** Suave (`padding: 120ms`, `min_silence: 500ms`), Padrão (`padding: 80ms`, `min_silence: 250ms`) e Agressiva (`padding: 40ms`, `min_silence: 150ms`). Algoritmo com união de intervalos (evita picotar falas próximas).
+
+### Áudio e Inteligência
+- **Kokoro TTS (82M params):** Execução 100% local em CPU/GPU (20x tempo real) para voiceover e narração sem custo de API externa.
+- **Speech Tags:** Suporte a tags expressivas (`[happy]`, `[whispering]`, `[shouting]`, `[laughing]`, `[break]`).
+- **Music Kit Generator:** Trilha sonora por gênero/humor com ducking dinâmico sob a voz (-14 dB).
+- **Monitor Outlier:** Detecção de vídeos de canais concorrentes com multiplicadores 3x–10x acima da média histórica.
+- **Thumb Analyzer com Hook Score:** Predição de CTR avaliando contraste, legibilidade mobile e expressão facial.
+- **Editor Local-First com IndexedDB:** Cache de vídeo no navegador para abertura de cortes em 0ms.
+
