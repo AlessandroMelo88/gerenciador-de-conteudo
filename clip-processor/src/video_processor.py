@@ -21,6 +21,8 @@ import subprocess
 from datetime import datetime
 
 from src.media_contract import MediaContractError, shorts_max_duration, validate_short_media
+from src.media_assets import resolve_media_assets
+from src.media_composer import compose_media
 from src.metadata_generator import generate_metadata, update_clip_metadata
 from src.prompt_profiles import load_profile_for_source_video
 from src.subtitle_detector import has_burned_subtitles
@@ -618,6 +620,47 @@ def overlay_watermark(input_path: str, watermark_path: str, output_path: str) ->
     return output_path
 
 
+def apply_channel_media(conn, clip: dict, clip_id: int, fmt: str, final_clip_path: str) -> bool:
+    """Aplica intro, encerramento e música do canal ao clip já renderizado.
+
+    Mídia por canal é um enfeite opcional: qualquer problema (asset sem arquivo,
+    tabela ausente, ffmpeg falhando) é registrado e o clip segue sem branding.
+    Nunca levanta exceção e nunca deixa `final_clip_path` corrompido — a
+    composição é gravada em arquivo temporário e só então substitui o original.
+
+    Devolve True se a mídia foi aplicada.
+    """
+    branded_path = os.path.join(CLIPS_DIR, f'{clip_id}_branded.mp4')
+    try:
+        assets = resolve_media_assets(
+            conn,
+            destination_channel_id=clip.get('destination_channel_id'),
+            video_format=fmt,
+            clip_id=clip_id,
+            channel_slug=clip.get('destination_channel_slug'),
+        )
+        if not assets:
+            return False
+
+        composed = compose_media(final_clip_path, branded_path, fmt, assets)
+        if composed == final_clip_path:
+            return False
+        if not os.path.isfile(composed) or os.path.getsize(composed) == 0:
+            raise RuntimeError('composição gerou arquivo vazio')
+
+        os.replace(composed, final_clip_path)
+        _log(f'Clip {clip_id}: mídia do canal aplicada ({", ".join(sorted(assets))})')
+        return True
+    except Exception as exc:
+        _log(f'Clip {clip_id}: mídia do canal não aplicada, seguindo sem ela — {exc}')
+        try:
+            if os.path.exists(branded_path):
+                os.remove(branded_path)
+        except OSError:
+            pass
+        return False
+
+
 def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
     """Processa um registro de generated_clips com status pending_cut.
 
@@ -712,6 +755,9 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
                 # Sem canal-destino ou vídeo longo: renomear arquivo legendado para path final
                 os.rename(subtitled_path, final_clip_path)
 
+        # Mídia por canal (intro/encerramento/música): opcional e à prova de falha.
+        apply_channel_media(conn, clip, clip_id, fmt, final_clip_path)
+
         clip_context = _build_clip_context(clip, transcript)
         clip_context['prompt_profile'] = load_profile_for_source_video(conn, clip.get('source_video_id'))
         metadata = generate_metadata(clip_context, anthropic_client=anthropic_client)
@@ -758,7 +804,7 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
     with conn.cursor() as cur:
         cur.execute(
             'SELECT '
-            'gc.id, gc.source_video_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
+            'gc.id, gc.source_video_id, gc.destination_channel_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
             'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path, sv.format, '
             'dc.slug AS destination_channel_slug, dc.name AS destination_channel_name, dc.niche AS destination_channel_niche, dc.template_config '
             'FROM generated_clips gc '

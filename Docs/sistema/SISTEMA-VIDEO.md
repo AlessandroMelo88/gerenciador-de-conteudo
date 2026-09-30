@@ -176,3 +176,12 @@ Créditos ao canal fonte são anexados **no momento da publicação**, não aqui
 clip (`pkill -f 'ffmpeg.*clips/<id>'`, [`:200`](../clip-processor/src/queue_controls.py#L200)) e
 devolve o clip de `cutting` para `pending_cut` ([`:82`](../clip-processor/src/queue_controls.py#L82)).
 Os intermediários do corte abortado **não** são limpos.
+
+---
+
+## Mídia por canal (30/09/2026)
+
+Depois do render final, vídeo longo pode ganhar intro, encerramento e música do canal (opcional; erro
+nunca derruba o corte). Artefato novo, temporário: `clips/<id>_branded.mp4`, que substitui
+`clips/<id>.mp4` se a composição der certo e é apagado se falhar. Detalhes em
+[`SISTEMA-MIDIA-POR-CANAL.md`](SISTEMA-MIDIA-POR-CANAL.md).
