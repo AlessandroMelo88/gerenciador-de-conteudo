@@ -10,7 +10,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from src.related_video import download_related_thumbnail, normalize_video_id
-from src.video_quality import AUDIO_ENCODER_OPTIONS, VIDEO_ENCODER_OPTIONS
+from src.video_quality import AUDIO_ENCODER_OPTIONS, VIDEO_ENCODER_OPTIONS, YOUTUBE_LOUDNORM_FILTER
 
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
 DEFAULT_STILL_DURATION_SECONDS = 3
@@ -253,6 +253,10 @@ def _concat_segments(segment_paths: Sequence[Path], list_path: Path, output_path
         current_audio = next_audio
         composed_duration += known_durations[index] - transition
 
+    # Aplica normalização padrão YouTube (-14 LUFS) no áudio mixado da composição
+    filters.append(f'[{current_audio}]{YOUTUBE_LOUDNORM_FILTER}[anorm]')
+    final_audio = 'anorm'
+
     command = ['ffmpeg', '-y']
     for path in segment_paths:
         command.extend(['-i', str(path)])
@@ -263,7 +267,7 @@ def _concat_segments(segment_paths: Sequence[Path], list_path: Path, output_path
             '-map',
             f'[{current_video}]',
             '-map',
-            f'[{current_audio}]',
+            f'[{final_audio}]',
             *VIDEO_ENCODER_OPTIONS,
             *AUDIO_ENCODER_OPTIONS,
             '-movflags',
@@ -396,7 +400,7 @@ def _mix_music(input_path: str, music_path: str, output_path: str, volume: float
                 f'[1:a]atrim=duration={music_duration:.3f},'
                 f"volume='{volume_expression}':eval=frame,"
                 f'asetpts=PTS-STARTPTS,adelay={delay_ms}|{delay_ms}[music];'
-                '[0:a][music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]'
+                f'[0:a][music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,{YOUTUBE_LOUDNORM_FILTER}[a]'
             ),
             '-map',
             '0:v:0',

@@ -65,6 +65,9 @@ FFMPEG_CRF = os.environ.get('FFMPEG_CRF', '14')
 
 VIDEO_ENCODER_OPTIONS = video_encoder_options()
 
+# Normalização de áudio para o padrão YouTube / EBU R128 (-14 LUFS, TP -1.5 dB, LRA 11)
+YOUTUBE_LOUDNORM_FILTER = 'loudnorm=I=-14:LRA=11:TP=-1.5'
+
 AUDIO_ENCODER_OPTIONS = (
     '-c:a',
     'aac',

@@ -24,6 +24,7 @@ import os
 import subprocess
 import tempfile
 from datetime import datetime
+from typing import Any
 
 from src.media_assets import resolve_media_assets
 from src.media_composer import compose_media, content_start_offset
@@ -32,13 +33,14 @@ from src.media_contract import (
     SHORTS_MAX_DURATION_SECONDS,
     SHORTS_MIN_DURATION_SECONDS,
 )
+from src.meme_editor import build_panico_face_bulge_filter, detect_meme_moments
 from src.metadata_generator import generate_metadata, generate_thumbnail_text, update_clip_metadata
 from src.paths import BRANDING_DIR, VIDEOS_DIR, resolve_stored_video_path
 from src.prompt_profiles import PROMPT_PROFILE_SQL_COLUMNS, profile_from_row, profile_matches_niche
 from src.related_video import related_video_from_clip
 from src.selector import complete_moment_boundaries, normalize_shortform_moment
 from src.subtitle_detector import has_burned_subtitles
-from src.video_quality import AUDIO_ENCODER_OPTIONS, VIDEO_ENCODER_OPTIONS
+from src.video_quality import AUDIO_ENCODER_OPTIONS, VIDEO_ENCODER_OPTIONS, YOUTUBE_LOUDNORM_FILTER
 
 CLIPS_DIR = os.path.join(VIDEOS_DIR, 'clips')
 THUMBNAILS_DIR = os.path.join(VIDEOS_DIR, 'thumbnails')
@@ -68,12 +70,40 @@ def _subtitle_filter(srt_path: str) -> str:
     )
 
 
+def _thumbnail_sample_time(
+    video_format: str,
+    media_assets: dict[str, Any] | None,
+    content_duration: float,
+) -> float:
+    """Sample an in-content frame, skipping the long-form intro when present."""
+    duration = max(0.0, float(content_duration))
+    if video_format == 'longo':
+        offset = content_start_offset(media_assets or {}, duration)
+        in_content_offset = min(2.0, duration / 2.0)
+        return offset + in_content_offset
+    return min(1.0, duration / 2.0)
+
+
+def _meme_effects_enabled(destination_channel_slug: str | None) -> bool:
+    configured = {
+        slug.strip()
+        for slug in os.environ.get('MEME_EFFECTS_CHANNELS', '').split(',')
+        if slug.strip()
+    }
+    return bool(destination_channel_slug and destination_channel_slug in configured)
+
+
 def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [VID] {msg}')
 
 
 def cut_clip(
-    source_path: str, start_time: float, end_time: float, output_path: str, fmt: str = 'curto'
+    source_path: str,
+    start_time: float,
+    end_time: float,
+    output_path: str,
+    fmt: str = 'curto',
+    meme_filter: str | None = None,
 ) -> str:
     """Corta um trecho do vídeo fonte.
 
@@ -82,15 +112,20 @@ def cut_clip(
     desfocada e escurecida preenchendo o fundo vertical.
     fmt='longo': mantém aspecto horizontal original, só normaliza a altura pra
     1080p — vídeo longo de 7-20min não faz sentido em formato vertical.
+    meme_filter: filtro FFmpeg opcional para efeitos cômicos/inchar a cara estilo Pânico na TV.
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     duration = max(float(end_time) - float(start_time), 1.0)
     fade_out_start = max(0.0, duration - 0.20)
     afade_filter = f'afade=t=in:ss=0:d=0.08,afade=t=out:st={fade_out_start:.2f}:d=0.20'
 
+    audio_filter = f'{YOUTUBE_LOUDNORM_FILTER},{afade_filter}'
     if fmt == 'longo':
-        video_args = ['-vf', 'scale=-2:1080,setsar=1']
-        audio_args = ['-af', afade_filter]
+        vf = 'scale=-2:1080,setsar=1'
+        if meme_filter:
+            vf = f'{vf},{meme_filter}'
+        video_args = ['-vf', vf]
+        audio_args = ['-af', audio_filter]
     else:
         video_args = [
             '-filter_complex',
@@ -100,7 +135,7 @@ def cut_clip(
             '-map',
             '0:a?',
         ]
-        audio_args = ['-af', afade_filter]
+        audio_args = ['-af', audio_filter]
     subprocess.run(
         [
             'ffmpeg',
@@ -133,6 +168,7 @@ def render_short_clip(
     output_path: str,
     subtitle_path: str | None = None,
     watermark_path: str | None = None,
+    meme_filter: str | None = None,
 ) -> str:
     """Renderiza um Short completo em uma única recodificação de vídeo.
 
@@ -155,6 +191,9 @@ def render_short_clip(
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     filter_graph = SHORTS_VERTICAL_FILTER.replace('[v]', '[short_base]')
     current_label = '[short_base]'
+    if meme_filter:
+        filter_graph += f';{current_label}{meme_filter}[short_meme]'
+        current_label = '[short_meme]'
     if subtitle_path:
         filter_graph += f';{current_label}{_subtitle_filter(subtitle_path)}[short_captioned]'
         current_label = '[short_captioned]'
@@ -175,7 +214,7 @@ def render_short_clip(
             _log(f'[WATERMARK] Arquivo não encontrado: {watermark_path} — pulo overlay')
 
     fade_out_start = max(0.0, render_duration - 0.20)
-    afade_filter = f'afade=t=in:ss=0:d=0.08,afade=t=out:st={fade_out_start:.2f}:d=0.20'
+    afade_filter = f'{YOUTUBE_LOUDNORM_FILTER},afade=t=in:ss=0:d=0.08,afade=t=out:st={fade_out_start:.2f}:d=0.20'
     command = [
         'ffmpeg',
         '-ss',
@@ -526,6 +565,26 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
         srt_path = os.path.join(CLIPS_DIR, f'{clip_id}.srt')
         final_clip_path = os.path.join(CLIPS_DIR, f'{clip_id}.mp4')
         thumbnail_path = os.path.join(THUMBNAILS_DIR, f'{clip_id}.jpg')
+
+        # Distorção cômica é opcional por canal para não alterar conteúdo técnico
+        # ou jornalístico por coincidência de palavras como "falhou" e "quebrou".
+        meme_events = (
+            detect_meme_moments(
+                transcript.get('segments', []),
+                clip['start_time'],
+                clip['end_time'],
+                max_effects=3 if video_format == 'curto' else 6,
+            )
+            if _meme_effects_enabled(clip.get('destination_channel_slug'))
+            else []
+        )
+        meme_filter = build_panico_face_bulge_filter(meme_events) if meme_events else None
+        if meme_filter:
+            keywords = [e['keyword'] for e in meme_events]
+            _log(
+                f'Clip {clip_id}: {len(meme_events)} momentos meme estilo Pânico na TV detectados {keywords}'
+            )
+
         if video_format == 'curto':
             # No Shorts a faixa acompanha o clip sem composição adicional e
             # também é queimada no quadro — exceto quando o próprio vídeo fonte
@@ -546,21 +605,29 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
                     BRANDING_DIR,
                     f'watermark-{clip["destination_channel_slug"]}.png',
                 )
+            short_kwargs: dict[str, Any] = {
+                'subtitle_path': None if source_has_burned_subtitles else srt_path,
+                'watermark_path': watermark_path,
+            }
+            if meme_filter:
+                short_kwargs['meme_filter'] = meme_filter
             render_short_clip(
                 clip['local_path'],
                 clip['start_time'],
                 clip['end_time'],
                 final_clip_path,
-                subtitle_path=None if source_has_burned_subtitles else srt_path,
-                watermark_path=watermark_path,
+                **short_kwargs,
             )
         else:
+            cut_kwargs: dict[str, Any] = {'fmt': video_format}
+            if meme_filter:
+                cut_kwargs['meme_filter'] = meme_filter
             cut_clip(
                 clip['local_path'],
                 clip['start_time'],
                 clip['end_time'],
                 raw_clip_path,
-                fmt=video_format,
+                **cut_kwargs,
             )
             _log('Clip longo: SRT será alinhado após a composição da intro')
             processed_clip_path = raw_clip_path
@@ -580,6 +647,7 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             else:
                 os.rename(processed_clip_path, final_clip_path)
 
+        media_assets: dict[str, Any] = {}
         if video_format == 'longo':
             # Assets do canal vêm de assets/channels/<canal>, incluindo a
             # música em audio/. O banco mantém assets legados já associados a
@@ -643,7 +711,12 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
         metadata = generate_metadata(clip_context, anthropic_client=anthropic_client)
         thumbnail_text = generate_thumbnail_text(clip_context, anthropic_client=anthropic_client)
 
-        extract_thumbnail(final_clip_path, thumbnail_path, at_seconds=1.0)
+        thumbnail_at = _thumbnail_sample_time(
+            video_format,
+            media_assets,
+            clip['end_time'] - clip['start_time'],
+        )
+        extract_thumbnail(final_clip_path, thumbnail_path, at_seconds=thumbnail_at)
         thumbnail_with_text_path = os.path.join(THUMBNAILS_DIR, f'{clip_id}_with_text.jpg')
         enriched_thumbnail_path = overlay_thumbnail_text(
             thumbnail_path,
@@ -679,7 +752,8 @@ def _fetch_clip(conn, clip_id: int) -> dict | None:
             'SELECT '
             'gc.id, gc.source_video_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
             'sv.youtube_video_id AS source_youtube_video_id, sv.title AS source_title, '
-            'sv.local_path, sv.transcript_path, sv.transcript_data, sv.format, '
+            'sv.local_path, sv.transcript_path, sv.transcript_data, '
+            'COALESCE(gc.format, sv.format) AS format, '
             'sc.target_niche AS source_niche, ' + PROMPT_PROFILE_SQL_COLUMNS + ', '
             'dc.id AS destination_channel_id, dc.slug AS destination_channel_slug, '
             'dc.niche AS destination_niche, '

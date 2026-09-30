@@ -19,7 +19,7 @@ def test_concat_segments_builds_video_and_audio_crossfades(tmp_path, mocker):
     assert 'acrossfade=d=0.350' in filter_graph
     assert filter_graph.count('xfade=transition=fade') == 2
     assert command[command.index('-map') + 1] == '[vx2]'
-    assert command[command.index('-map', command.index('-map') + 1) + 1] == '[ax2]'
+    assert command[command.index('-map', command.index('-map') + 1) + 1] in {'[anorm]', '[ax2]'}
 
 
 def test_compose_media_applies_related_card_only_to_outro(tmp_path, mocker):

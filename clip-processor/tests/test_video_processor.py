@@ -11,6 +11,9 @@ import pytest
 
 from src.video_processor import (
     _build_clip_context,
+    _fetch_clip,
+    _meme_effects_enabled,
+    _thumbnail_sample_time,
     burn_subtitles,
     cut_clip,
     extract_thumbnail,
@@ -31,6 +34,29 @@ SAMPLE_TRANSCRIPT = {
 
 
 class TestVideoProcessor:
+    def test_clip_render_queue_reads_format_from_clip_before_source(self, mock_db_conn):
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = {'id': 8, 'format': 'longo'}
+
+        clip = _fetch_clip(mock_db_conn, clip_id=8)
+
+        assert clip['format'] == 'longo'
+        query = cursor.execute.call_args.args[0]
+        assert 'COALESCE(gc.format, sv.format) AS format' in query
+
+    def test_meme_effects_are_disabled_unless_channel_is_explicitly_configured(self, monkeypatch):
+        monkeypatch.delenv('MEME_EFFECTS_CHANNELS', raising=False)
+        assert not _meme_effects_enabled('tecnologia')
+
+        monkeypatch.setenv('MEME_EFFECTS_CHANNELS', 'humor, meme-test')
+        assert _meme_effects_enabled('meme-test')
+        assert not _meme_effects_enabled('tecnologia')
+
+    def test_longform_thumbnail_skips_the_intro_and_samples_the_content(self, mocker):
+        mocker.patch('src.video_processor.content_start_offset', return_value=8.0)
+
+        assert _thumbnail_sample_time('longo', {'intro': {}}, 600.0) == 10.0
+
     def test_build_clip_context_keeps_matching_prompt_profile(self):
         context = _build_clip_context(
             {
@@ -675,3 +701,73 @@ class TestProcessClipWithWatermark:
         assert result is True
         mock_render.assert_called_once()
         assert mock_render.call_args.kwargs['watermark_path'] is None
+
+
+class TestProcessClipWithMemeEffects:
+    def test_process_clip_applies_panico_face_bulge_on_comedic_trigger(
+        self, tmp_path, mock_db_conn, mocker, monkeypatch
+    ):
+        monkeypatch.setenv('MEME_EFFECTS_CHANNELS', 'meme-test')
+        transcript_path = tmp_path / 'transcript.json'
+        transcript_path.write_text(
+            json.dumps(
+                {
+                    'segments': [
+                        {
+                            'start': 100.0,
+                            'end': 105.0,
+                            'text': 'Isso que aconteceu foi bizarro demais!',
+                        },
+                        {'start': 105.0, 'end': 130.0, 'text': 'Conclusão da explicação.'},
+                    ]
+                }
+            ),
+            encoding='utf-8',
+        )
+        clip_row = {
+            'id': 22,
+            'source_video_id': 1,
+            'youtube_video_id': 'vid001aaaaaa',
+            'source_title': 'Moment com meme',
+            'local_path': '/app/videos/source.mp4',
+            'transcript_path': str(transcript_path),
+            'start_time': 100.0,
+            'end_time': 130.0,
+            'score': 9,
+            'reason': 'Momento bizarro',
+            'format': 'curto',
+            'destination_channel_slug': 'meme-test',
+        }
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = clip_row
+
+        mocker.patch('src.video_processor.generate_srt', return_value='/app/clips/22.srt')
+        mocker.patch('src.video_processor.has_burned_subtitles', return_value=False)
+        mocker.patch(
+            'src.video_processor.burn_subtitles', return_value='/app/clips/22_subtitled.mp4'
+        )
+        mock_render = mocker.patch(
+            'src.video_processor.render_short_clip', return_value='/app/clips/22.mp4'
+        )
+        mocker.patch('src.video_processor.extract_thumbnail', return_value='/app/thumbnails/22.jpg')
+        mocker.patch(
+            'src.video_processor.generate_metadata',
+            return_value={'title': 'Titulo', 'description': 'Desc', 'tags': []},
+        )
+        mocker.patch('src.video_processor.generate_thumbnail_text', return_value='Momento bizarro')
+        mocker.patch(
+            'src.video_processor.overlay_thumbnail_text',
+            side_effect=lambda input_path, text, output_path: input_path,
+        )
+        mocker.patch('src.video_processor.os.replace')
+        mocker.patch('src.video_processor.update_clip_metadata')
+
+        result = process_clip(mock_db_conn, 22)
+
+        assert result is True
+        mock_render.assert_called_once()
+        meme_filter = mock_render.call_args.kwargs.get('meme_filter')
+        assert meme_filter is not None
+        assert 'lenscorrection=' in meme_filter
+        assert 'k1=-0.50' in meme_filter
+        assert 'eq=saturation=' in meme_filter
