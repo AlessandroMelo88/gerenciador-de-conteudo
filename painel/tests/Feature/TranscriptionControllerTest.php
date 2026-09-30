@@ -41,16 +41,16 @@ it('recusa o que não é URL', function () {
         ->assertSessionHasErrors('url');
 });
 
-it('busca pelo texto da transcrição, sem diferenciar maiúscula', function () {
-    transcricaoPronta(['title' => 'Aula A', 'transcript_text' => 'fala sobre COPYWRITING persuasivo']);
-    transcricaoPronta(['title' => 'Aula B', 'transcript_text' => 'fala sobre tráfego pago']);
+it('filtra a lista pelo título, sem diferenciar maiúscula (o conteúdo é da busca por trechos)', function () {
+    transcricaoPronta(['title' => 'Aula A COPYWRITING', 'transcript_text' => 'fala sobre persuasão']);
+    transcricaoPronta(['title' => 'Aula B', 'transcript_text' => 'fala sobre copywriting e tráfego pago']);
 
     $this->actingAs(User::factory()->create())
         ->get('/painel/transcricoes?q=copywriting')
         ->assertInertia(fn ($page) => $page
             ->component('TranscricaoLocal')
             ->has('jobs.data', 1)
-            ->where('jobs.data.0.title', 'Aula A'));
+            ->where('jobs.data.0.title', 'Aula A COPYWRITING'));
 });
 
 it('a lista não carrega o texto inteiro, só um trecho', function () {
