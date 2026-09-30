@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DestinationChannel extends Model
 {
@@ -29,6 +30,12 @@ class DestinationChannel extends Model
         'oauth_expired_flag' => 'bool',
         'template_config' => 'array',
     ];
+
+    /** @return HasMany<MediaAsset, $this> */
+    public function mediaAssets(): HasMany
+    {
+        return $this->hasMany(MediaAsset::class, 'destination_channel_id');
+    }
 
     public static function defaultTemplateConfig(string $name, ?string $niche): array
     {
