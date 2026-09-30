@@ -23,27 +23,20 @@ class TranscriptionController extends Controller
     /** Status que o worker do Mac ainda vai tocar — os únicos que dá para pausar. */
     private const EM_ANDAMENTO = ['pending', 'downloading', 'transcribing'];
 
-    public function index(Request $request): Response
+    public function index(): Response
     {
-        $busca = trim((string) $request->query('q', ''));
-
         $jobs = TranscriptionJob::query()
             // Lista leve: o texto inteiro pode ter centenas de KB por linha.
             ->select(['id', 'source_url', 'title', 'platform', 'duration_seconds', 'status',
                 'progress_percent', 'srt_path', 'media_path', 'media_bytes', 'error_message', 'created_at'])
             ->selectRaw('SUBSTRING(transcript_text, 1, 300) AS excerpt')
-            // Só título/URL: varrer transcript_text (longText) a cada busca era lento e sem ranking.
-            // A busca pelo conteúdo é /painel/transcricoes/busca (transcript_chunks).
-            ->when($busca !== '', fn ($q) => $q->where(fn ($w) => $w
-                ->whereLike('title', "%{$busca}%")
-                ->orWhereLike('source_url', "%{$busca}%")))
+            // A busca (título e conteúdo) é /painel/transcricoes/busca (transcript_chunks).
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
 
         return Inertia::render('TranscricaoLocal', [
             'jobs' => $jobs,
-            'busca' => $busca,
         ]);
     }
 
