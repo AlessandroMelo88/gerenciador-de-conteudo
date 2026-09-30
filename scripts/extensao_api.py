@@ -9,6 +9,11 @@ da aba e a sessão do site dessa aba; aqui:
 2. o link entra na fila `transcription_jobs` no banco;
 3. o laço do worker é acordado, para não esperar o intervalo de 60 s.
 
+Player HLS (Hotmart): a extensão também manda `media_url` (o .m3u8 que o player pediu),
+`media_referer` e `title`. O endereço é assinado, então NÃO vai ao banco: fica no
+`~/.config/canaldecortes/media-urls.json` (0600), como o cookies.txt, e o worker baixa
+só o áudio a partir dele.
+
 A sessão nunca sai do Mac: nem para o servidor, nem para o repositório.
 
 Qualquer página aberta no Chrome consegue fazer requisição para 127.0.0.1. Quem
@@ -19,6 +24,7 @@ import importlib.util
 import json
 import os
 import tempfile
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -31,6 +37,13 @@ PORT = int(os.environ.get('TRANSCRICAO_EXTENSAO_PORT', 8765))
 HEADER = '# Netscape HTTP Cookie File\n'
 
 # Sufixos de dois níveis mais comuns; o resto usa os dois últimos rótulos.
+# Hosts aceitos para o endereço da mídia (sufixo). TRANSCRICAO_MEDIA_HOSTS=a.com,b.com soma
+# outros; o resto é recusado com 400 — a API não vira proxy para baixar qualquer coisa.
+MEDIA_HOSTS_PADRAO = ('hotmart.com',)
+MEDIA_URL_MAX = 4000
+MEDIA_REFERER_MAX = 1000
+TITLE_MAX = 500
+
 _SEGUNDO_NIVEL = {'com', 'net', 'org', 'gov', 'edu', 'co'}
 
 
@@ -89,11 +102,43 @@ def merge_cookies(cookies_file: Path, site: str, cookies: list[dict]) -> None:
         raise
 
 
+def media_hosts() -> tuple[str, ...]:
+    extras = tuple(h.strip().lower().lstrip('.') for h in
+                   (os.environ.get('TRANSCRICAO_MEDIA_HOSTS') or '').split(',') if h.strip())
+    return MEDIA_HOSTS_PADRAO + extras
+
+
+def _host_permitido(url: str) -> bool:
+    try:
+        parts = urllib.parse.urlsplit(url)
+        host = (parts.hostname or '').lower()
+    except ValueError:
+        return False
+    return (parts.scheme == 'https' and not parts.username and not parts.password
+            and any(host == h or host.endswith('.' + h) for h in media_hosts()))
+
+
+def validar_media(media_url, media_referer, title) -> tuple[dict | None, str | None]:
+    """(campos limpos, None) ou (None, motivo). Sem media_url, nada a validar."""
+    if media_url in (None, ''):
+        return None, None
+    if not isinstance(media_url, str) or len(media_url) > MEDIA_URL_MAX:
+        return None, 'Endereço de mídia inválido.'
+    if not _host_permitido(media_url) or '.m3u8' not in urllib.parse.urlsplit(media_url).path:
+        return None, 'Endereço de mídia não permitido (só playlist .m3u8 https de hosts liberados).'
+    referer = media_referer or ''
+    if not isinstance(referer, str) or len(referer) > MEDIA_REFERER_MAX or (referer and not _host_permitido(referer)):
+        return None, 'Referer de mídia não permitido.'
+    titulo = ''.join(c for c in str(title or '') if c.isprintable()).strip()[:TITLE_MAX]
+    return {'media_url': media_url, 'referer': referer, 'title': titulo}, None
+
+
 def _origem_permitida(origin: str | None) -> bool:
     return bool(origin) and origin.startswith('chrome-extension://')
 
 
-def handle_transcrever(body: bytes, origin: str | None, run_sql, cookies_file: Path, wake) -> tuple[int, dict]:
+def handle_transcrever(body: bytes, origin: str | None, run_sql, cookies_file: Path, wake,
+                       media_file: Path | None = None) -> tuple[int, dict]:
     """Regra do POST /transcrever, sem HTTP — é o que os testes exercitam."""
     if not _origem_permitida(origin):
         return 403, {'ok': False, 'erro': 'Só a extensão pode chamar esta API.'}
@@ -101,21 +146,34 @@ def handle_transcrever(body: bytes, origin: str | None, run_sql, cookies_file: P
         dados = json.loads(body)
         url = str(dados['url']).strip()
         cookies = list(dados.get('cookies') or [])
+        media, erro_media = validar_media(dados.get('media_url'), dados.get('media_referer'),
+                                          dados.get('title'))
     except (ValueError, KeyError, TypeError):
         return 400, {'ok': False, 'erro': 'Pedido inválido.'}
     if not url.startswith(('http://', 'https://')) or len(url) > 500:
         return 400, {'ok': False, 'erro': 'Link inválido.'}
 
+    if erro_media:
+        return 400, {'ok': False, 'erro': erro_media}
+    titulo = ''.join(c for c in str(dados.get('title') or '') if c.isprintable()).strip()[:TITLE_MAX]
+
     host = url.split('://', 1)[1].split('/', 1)[0].split(':', 1)[0]
     merge_cookies(cookies_file, registrable_domain(host), cookies)
 
+    colunas, valores = 'source_url', _tw.dollar_quote(url)
+    if titulo:
+        colunas, valores = colunas + ', title', valores + ', ' + _tw.dollar_quote(titulo)
     resposta = (run_sql(
-        "INSERT INTO transcription_jobs (source_url, status, progress_percent, created_at, updated_at) "
-        f"VALUES ({_tw.dollar_quote(url)}, 'pending', 0, NOW(), NOW()) RETURNING id;"
+        f"INSERT INTO transcription_jobs ({colunas}, status, progress_percent, created_at, updated_at) "
+        f"VALUES ({valores}, 'pending', 0, NOW(), NOW()) RETURNING id;"
     ) or '').strip()
     job_id = resposta.splitlines()[0] if resposta else ''
     if not job_id.isdigit():
         return 502, {'ok': False, 'erro': 'Não consegui falar com o banco no servidor.'}
+
+    if media:
+        # Só depois do job existir; antes do wake(), para o worker já encontrar o endereço.
+        _tw.save_media_entry(url, media['media_url'], media['referer'], media['title'], path=media_file)
 
     wake()
     return 200, {'ok': True, 'job_id': int(job_id)}

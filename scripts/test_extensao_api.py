@@ -189,3 +189,93 @@ class TestServidor:
                 assert json.loads(resp.read()) == {'ok': True}
         finally:
             servidor.server_close()
+
+
+M3U8 = 'https://cf-embed.play.hotmart.com/vod/a/hls/playlist.m3u8?get_qualities=1&hdntl=segredo'
+REFERER = 'https://cf-embed.play.hotmart.com/embed/?v=abc'
+AULA = 'https://hotmart.com/pt-BR/club/formula-youtube/products/8093188/content/V4VKj9GVe2'
+
+
+class TestValidarMedia:
+    def test_sem_media_url_nao_ha_o_que_validar(self):
+        assert api.validar_media(None, None, 'x') == (None, None)
+
+    def test_aceita_host_do_hotmart(self):
+        ok, erro = api.validar_media(M3U8, REFERER, 'Aula 1')
+
+        assert erro is None and ok == {'media_url': M3U8, 'referer': REFERER, 'title': 'Aula 1'}
+
+    @pytest.mark.parametrize('url', [
+        'http://cf-embed.play.hotmart.com/a/playlist.m3u8',       # não é https
+        'https://evil.com/playlist.m3u8',                          # host fora da lista
+        'https://fakehotmart.com/playlist.m3u8',                   # sufixo parecido
+        'https://hotmart.com.evil.com/playlist.m3u8',
+        'https://user:pw@play.hotmart.com/playlist.m3u8',          # credencial embutida
+        'https://play.hotmart.com/video.mp4',                      # não é playlist
+        'file:///etc/passwd',
+        'https://play.hotmart.com/' + 'a' * 5000 + '.m3u8',        # grande demais
+    ])
+    def test_recusa_o_resto(self, url):
+        assert api.validar_media(url, REFERER, '')[1]
+
+    def test_referer_de_outro_host_e_recusado(self):
+        assert api.validar_media(M3U8, 'https://evil.com/', '')[1]
+
+    def test_lista_de_hosts_configuravel(self, monkeypatch):
+        monkeypatch.setenv('TRANSCRICAO_MEDIA_HOSTS', 'cdn.exemplo.com.br, outro.com')
+
+        ok, erro = api.validar_media('https://x.cdn.exemplo.com.br/a/playlist.m3u8', '', '')
+
+        assert erro is None and ok
+        assert api.validar_media('https://x.hotmart.com/playlist.m3u8', '', '')[1] is None
+
+    def test_titulo_limpo_e_limitado(self):
+        ok, _ = api.validar_media(M3U8, '', 'Aula\x00 1\n' + 'x' * 900)
+
+        assert '\x00' not in ok['title'] and '\n' not in ok['title'] and len(ok['title']) <= 500
+
+
+class TestPedidoComMidia:
+    def _handle(self, tmp_path, **extra):
+        sqls = []
+        corpo = {'url': AULA, 'cookies': [_cookie(domain='.hotmart.com')], 'title': 'Aula 3 | Hotmart', **extra}
+        status, resposta = api.handle_transcrever(
+            body=json.dumps(corpo).encode(), origin=ORIGEM_EXTENSAO,
+            run_sql=lambda q: sqls.append(q) or '42', cookies_file=tmp_path / 'cookies.txt',
+            wake=lambda: None, media_file=tmp_path / 'media-urls.json')
+        return status, resposta, sqls
+
+    def test_grava_endereco_local_0600_e_nunca_no_banco(self, tmp_path):
+        status, resposta, sqls = self._handle(tmp_path, media_url=M3U8, media_referer=REFERER)
+
+        assert status == 200 and resposta == {'ok': True, 'job_id': 42}
+        arq = tmp_path / 'media-urls.json'
+        assert oct(arq.stat().st_mode & 0o777) == '0o600'
+        entrada = list(json.loads(arq.read_text()).values())[0]
+        assert entrada['media_url'] == M3U8 and entrada['referer'] == REFERER
+        assert entrada['title'] == 'Aula 3 | Hotmart' and entrada['timestamp'] > 0
+        assert 'segredo' not in ''.join(sqls) and 'm3u8' not in ''.join(sqls)
+
+    def test_titulo_entra_no_insert_do_job(self, tmp_path):
+        _, _, sqls = self._handle(tmp_path, media_url=M3U8, media_referer=REFERER)
+
+        assert 'source_url, title, status' in sqls[0] and 'Aula 3 | Hotmart' in sqls[0]
+
+    def test_host_nao_permitido_e_400_sem_efeito_colateral(self, tmp_path):
+        status, resposta, sqls = self._handle(tmp_path, media_url='https://evil.com/playlist.m3u8')
+
+        assert status == 400 and resposta['ok'] is False and sqls == []
+        assert not (tmp_path / 'media-urls.json').exists() and not (tmp_path / 'cookies.txt').exists()
+
+    def test_sem_media_url_o_fluxo_antigo_nao_grava_arquivo_de_midia(self, tmp_path):
+        status, _, sqls = self._handle(tmp_path)
+
+        assert status == 200 and not (tmp_path / 'media-urls.json').exists()
+
+    def test_banco_fora_do_ar_nao_deixa_endereco_guardado(self, tmp_path):
+        status, _ = api.handle_transcrever(
+            body=json.dumps({'url': AULA, 'cookies': [], 'media_url': M3U8}).encode(), origin=ORIGEM_EXTENSAO,
+            run_sql=lambda q: '', cookies_file=tmp_path / 'c.txt', wake=lambda: None,
+            media_file=tmp_path / 'media-urls.json')
+
+        assert status == 502 and not (tmp_path / 'media-urls.json').exists()
