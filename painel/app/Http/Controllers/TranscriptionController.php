@@ -32,10 +32,11 @@ class TranscriptionController extends Controller
             ->select(['id', 'source_url', 'title', 'platform', 'duration_seconds', 'status',
                 'progress_percent', 'srt_path', 'media_path', 'media_bytes', 'error_message', 'created_at'])
             ->selectRaw('SUBSTRING(transcript_text, 1, 300) AS excerpt')
+            // Só título/URL: varrer transcript_text (longText) a cada busca era lento e sem ranking.
+            // A busca pelo conteúdo é /painel/transcricoes/busca (transcript_chunks).
             ->when($busca !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->whereLike('title', "%{$busca}%")
-                ->orWhereLike('source_url', "%{$busca}%")
-                ->orWhereLike('transcript_text', "%{$busca}%")))
+                ->orWhereLike('source_url', "%{$busca}%")))
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
@@ -46,12 +47,31 @@ class TranscriptionController extends Controller
         ]);
     }
 
-    public function show(TranscriptionJob $job): Response
+    public function show(Request $request, TranscriptionJob $job): Response
     {
         return Inertia::render('TranscricaoDetalhe', [
             'job' => $job->only(['id', 'source_url', 'title', 'platform', 'duration_seconds',
                 'status', 'transcript_text', 'media_path', 'media_bytes', 'created_at']),
+            // Vem do link de um resultado da busca: ?t=<segundos>&q=<texto>.
+            'focus' => $this->focus($request),
         ]);
+    }
+
+    /** @return array{t: int|null, q: string|null} */
+    private function focus(Request $request): array
+    {
+        $t = $request->query('t');
+        $q = $request->query('q');
+
+        $segundos = is_string($t) && preg_match('/^\d{1,7}(\.\d+)?$/', $t) ? (int) floor((float) $t) : null;
+
+        $texto = null;
+        if (is_string($q)) {
+            $limpo = trim((string) preg_replace('/[\x00-\x1F\x7F]+/u', ' ', strip_tags($q)));
+            $texto = $limpo !== '' ? mb_substr($limpo, 0, 200) : null;
+        }
+
+        return ['t' => $segundos, 'q' => $texto];
     }
 
     public function store(Request $request): RedirectResponse

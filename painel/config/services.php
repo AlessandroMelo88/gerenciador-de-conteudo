@@ -52,6 +52,15 @@ return [
         'model' => env('GROQ_MODEL', 'openai/gpt-oss-120b'),
     ],
 
+    // Sidecar de embeddings da busca vetorial nas transcrições. Falhou = busca degrada para texto.
+    'embedder' => [
+        'url' => env('EMBEDDER_URL', 'http://embedder:8000'),
+        'token' => env('EMBEDDER_TOKEN'),
+        'timeout' => (int) env('EMBEDDER_TIMEOUT', 3),
+        // Piso de similaridade de cosseno no modo semântico (e5 dá scores altos; calibrar).
+        'min_similarity' => (float) env('EMBEDDER_MIN_SIMILARITY', 0.75),
+    ],
+
     // Worker local de afiliados empurra ofertas via POST /api/offers (Bearer).
     // Vazio = API responde 503 (fail-closed).
     'affiliate' => [

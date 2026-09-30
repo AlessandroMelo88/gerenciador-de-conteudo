@@ -16,6 +16,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SourceVideoController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\TranscriptionController;
+use App\Http\Controllers\TranscriptionSearchController;
 use App\Http\Controllers\UsefulLinksController;
 use App\Models\GeneratedClip;
 use Illuminate\Support\Facades\Route;
@@ -102,6 +103,8 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/painel/transcricoes', [TranscriptionController::class, 'index'])->name('transcriptions.index');
     Route::post('/painel/transcricoes', [TranscriptionController::class, 'store']);
+    // Antes de /{job}: senão "busca" seria tratado como id de transcrição.
+    Route::get('/painel/transcricoes/busca', [TranscriptionSearchController::class, 'search'])->name('transcriptions.search');
     Route::get('/painel/transcricoes/{job}', [TranscriptionController::class, 'show'])->name('transcriptions.show');
     Route::post('/painel/transcricoes/{job}/pausar', [TranscriptionController::class, 'pause'])->name('transcriptions.pause');
     Route::post('/painel/transcricoes/{job}/retomar', [TranscriptionController::class, 'resume'])->name('transcriptions.resume');
