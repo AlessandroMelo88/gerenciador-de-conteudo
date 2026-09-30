@@ -20,8 +20,10 @@ RUN pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2" \
  && pip install -r requirements.txt
 
 # Modelo baixado no build: o container nunca depende da internet para subir.
+# cache_folder = o mesmo que embed_lib.py usa em execução (EMBEDDING_CACHE). Sem isso o modelo
+# ia para /opt/hf-cache/hub e o runtime, offline, procurava em /opt/hf-cache e dava 503.
 RUN python -c "import os; from sentence_transformers import SentenceTransformer; \
-SentenceTransformer(os.environ['EMBEDDING_MODEL'], revision=os.environ['EMBEDDING_REVISION'], device='cpu')"
+SentenceTransformer(os.environ['EMBEDDING_MODEL'], revision=os.environ['EMBEDDING_REVISION'], device='cpu', cache_folder=os.environ['EMBEDDING_CACHE'])"
 ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 
 COPY embed_lib.py app.py ./
