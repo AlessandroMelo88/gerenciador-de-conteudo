@@ -18,6 +18,8 @@ import json
 import os
 from datetime import datetime
 
+from src.prompt_profiles import apply_profile_layer
+
 
 # Regras portadas de release/rico (lote 5), enxutas: valem para todos os nichos e formatos.
 BOUNDARY_RULES = (
@@ -406,7 +408,8 @@ def _snap_to_sentence_boundaries(moments: list[dict], segments: list[dict], buff
     return snapped
 
 
-def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', niche: str = 'futebol') -> list[dict]:
+def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', niche: str = 'futebol',
+                   prompt_profile: dict | None = None) -> list[dict]:
     """Analisa transcrição e retorna momentos selecionados via IA.
 
     Args:
@@ -414,6 +417,7 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', 
         anthropic_client: cliente Anthropic injetado para testes (None = modo produção)
         fmt: 'curto' (vários momentos de 30s-3min, padrão) ou 'longo' (1 segmento contínuo)
         niche: 'futebol' ou 'politica' para guiar os critérios de corte do LLM
+        prompt_profile: perfil de prompt opcional do canal-fonte (src.prompt_profiles); None = prompts padrão
 
     Returns:
         Lista de dicts com {'start_time', 'end_time', 'score', 'reason'}, sem overlap.
@@ -425,6 +429,8 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', 
         system_prompt = POLITICA_LONG_SYSTEM_PROMPT if is_longo else POLITICA_SYSTEM_PROMPT
     else:
         system_prompt = LONG_SYSTEM_PROMPT if is_longo else SYSTEM_PROMPT
+    system_prompt = apply_profile_layer(
+        system_prompt, prompt_profile, 'selection_long_prompt' if is_longo else 'selection_short_prompt')
 
     max_moments = 1 if is_longo else 3
     segments = transcript.get('segments', [])

@@ -17,6 +17,8 @@ import re
 import unicodedata
 from datetime import datetime
 
+from src.prompt_profiles import apply_profile_layer
+
 TITLE_MAX_CHARS = 100
 MAX_GENERATED_DESCRIPTION_CHARS = 3500
 MAX_GENERATED_DESCRIPTION_BYTES = 4500
@@ -35,7 +37,6 @@ METADATA_EDITORIAL_INSTRUCTION = (
     'use esse espaço para a revelação, o conflito ou a pergunta que faz a pessoa querer assistir. '
     'Não inclua linha de créditos (o sistema a acrescenta) e nunca escreva dois sinais "@" seguidos.'
 )
-
 
 SYSTEM_PROMPT = (
     "Você é especialista em SEO para YouTube Shorts no nicho de futebol brasileiro. "
@@ -227,7 +228,9 @@ def _build_prompt(clip_context: dict) -> str:
 
 def _resolve_system_prompt(clip_context: dict) -> str:
     niche = (clip_context or {}).get('niche', '').lower()
-    return POLITICA_METADATA_PROMPT if niche == 'politica' else SYSTEM_PROMPT
+    base = POLITICA_METADATA_PROMPT if niche == 'politica' else SYSTEM_PROMPT
+    field = 'metadata_long_prompt' if (clip_context or {}).get('format') == 'longo' else 'metadata_short_prompt'
+    return apply_profile_layer(base, (clip_context or {}).get('prompt_profile'), field)
 
 
 def _generate_via_anthropic(clip_context: dict, anthropic_client) -> dict:

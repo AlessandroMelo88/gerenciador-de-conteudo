@@ -591,3 +591,48 @@ Sem banco novo, sem edição.
   (`ai_selection_runs` já registra a versão por run), mas com o volume atual de vídeos por dia não
   há amostra para concluir nada.
 - Escolha de provider/modelo pelo painel.
+
+---
+
+## 9. Perfis de prompt por camadas (lote 6 do `release/rico`, 30/09/2026)
+
+Complemento ao modelo acima: prompts editoriais por **camadas de YAML** versionadas no git, compiladas
+em linhas da tabela `prompt_profiles`. Convive com o restante — **perfil é opcional em toda a cadeia**.
+
+**Camadas** (`prompts/`):
+
+| Arquivo | O que define |
+|---|---|
+| `layers/general.yaml` | Regras editoriais de todo canal (evidência na transcrição, sem inventar fato, SEO, thumbnail literal) |
+| `targets/youtube-shorts.yaml`, `targets/youtube-long.yaml` | Regras do formato (curto x longo) para seleção, metadata e thumbnail |
+| `channels/<canal>.yaml` | Regras do canal: `profile` (slug, nome, nicho, aliases), `targets`, `stages`. **Nenhum canal versionado ainda**; modelo em `channels/_exemplo.yaml.example` |
+
+**Compilar:** `python3 scripts/compile_prompt_profiles.py [--channel ID] [--apply]` (precisa de PyYAML,
+já em `clip-processor/requirements.txt`). Escreve `prompts/compiled/<slug>.json`; `--apply` faz upsert
+em `prompt_profiles` usando o `.env` do clip-processor. YAML inválido ou canal sem os dois formatos
+termina com erro legível e não grava nada. (O `.rb` do Ricardo foi reescrito em Python: o projeto não
+tem Ruby.)
+
+**Banco:** migration `2026_09_30_000000_create_prompt_profiles_table.php` cria `prompt_profiles` (vazia,
+sem seeds) e `source_channels.prompt_profile_id` (nullable, `ON DELETE SET NULL`). O cadastro de fonte
+**não exige** perfil.
+
+**Leitura pelo clip-processor** (`clip-processor/src/prompt_profiles.py`):
+
+- `load_profile_for_source_video(conn, id)` faz JOIN `source_videos → source_channels → prompt_profiles`
+  (só perfil `active`). Retorna `None` para: canal sem perfil, perfil inativo, tabela/coluna inexistente
+  (migration não rodada) ou qualquer erro de banco — nesse caso faz `rollback()` (transação PostgreSQL
+  abortada) e o pipeline segue.
+- `apply_profile_layer(prompt_base, perfil, campo)` **acrescenta** o texto do perfil ao final do prompt-base
+  (`SYSTEM_PROMPT`/`LONG_SYSTEM_PROMPT`/`POLITICA_*`); o prompt-base continua dono do contrato de saída.
+  Sem perfil ou campo vazio, devolve o prompt-base intacto = comportamento anterior.
+- Ganchos: `select_moments(..., prompt_profile=None)` (campos `selection_short/long_prompt`, escolhido por
+  `fmt`), `metadata_generator._resolve_system_prompt` (`metadata_short/long_prompt` via
+  `clip_context['prompt_profile']`, preenchido em `video_processor`). A camada entra no `system_prompt`
+  compartilhado, então vale igual no caminho Anthropic e no **fallback Groq**.
+- `thumbnail_prompt` é gravado mas ainda **sem consumidor** (a capa hoje usa o título do clip).
+
+**Fora deste lote (decisão):** canal "Hacker Libertário" (yaml, JSON compilado, seeds, logo) — não é do
+dono do projeto; `DestinationChannelController`/`PromptProfile.php`/`prompt-profile-select.tsx` (seleção
+de perfil no painel) e coluna em `destination_channels` — entram numa rodada de painel; semear perfil da MBL
+depende de o texto editorial ser escrito em `prompts/channels/mbl.yaml`.
