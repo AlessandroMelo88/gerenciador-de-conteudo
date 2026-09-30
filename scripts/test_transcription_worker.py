@@ -3,6 +3,7 @@
 Rodar: python3 -m pytest scripts/test_transcription_worker.py -q
 """
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,12 @@ _spec = importlib.util.spec_from_file_location(
 )
 tw = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(tw)
+
+
+@pytest.fixture(autouse=True)
+def _sem_indexador_real(monkeypatch):
+    """Os testes nunca chamam o indexador real (modelo/rede): ligado só nos testes que injetam um."""
+    monkeypatch.setenv('TRANSCRICAO_INDEXAR', '0')
 
 
 def _seg(start, end, text):
@@ -446,3 +453,92 @@ class TestArquivoDaAula:
         self._roda(remote, tmp_path, guardar=None)
 
         assert 'media_path = NULL' in remote.stdin_sql[-1]
+
+
+class TestIndexacaoDaBusca:
+    def _roda(self, remote, tmp_path, **overrides):
+        return TestProcessaUmJob()._roda(remote, tmp_path, **overrides)
+
+    def test_indexa_depois_de_gravar_o_done_com_os_segmentos(self, tmp_path):
+        remote = FakeRemote(claim_row='7\thttps://x')
+        chamadas = []
+
+        def indexar(job_id, segments, run_sql_stdin):
+            # o `done` já foi gravado quando a indexação roda
+            chamadas.append((job_id, segments, len(remote.stdin_sql), run_sql_stdin))
+            return 3
+
+        self._roda(remote, tmp_path, indexar=indexar)
+
+        [(job_id, segments, gravacoes, run_stdin)] = chamadas
+        assert job_id == 7
+        assert segments == [_seg(0, 2, 'Olá turma.')]
+        assert gravacoes == 1 and "status = 'done'" in remote.stdin_sql[0]
+        assert run_stdin == remote.sql_stdin
+
+    def test_falha_na_indexacao_nao_derruba_o_job(self, tmp_path, capsys):
+        remote = FakeRemote(claim_row='7\thttps://x')
+
+        def quebra(job_id, segments, run_sql_stdin):
+            raise RuntimeError('embedder fora do ar')
+
+        assert self._roda(remote, tmp_path, indexar=quebra) is True
+
+        assert len(remote.stdin_sql) == 1  # nenhum `failed` por cima do `done`
+        assert "status = 'done'" in remote.stdin_sql[0]
+        assert 'indexação falhou' in capsys.readouterr().out
+
+    def test_job_falho_nao_indexa(self, tmp_path):
+        remote = FakeRemote(claim_row='8\thttps://x')
+        chamadas = []
+
+        def quebra(url, workdir, on_progress=None):
+            raise RuntimeError('ERROR: Unsupported URL')
+
+        self._roda(remote, tmp_path, download=quebra, indexar=lambda *a: chamadas.append(a))
+
+        assert chamadas == []
+
+    def test_desligado_por_padrao_de_teste_nao_chama_o_indexador_real(self, tmp_path):
+        remote = FakeRemote(claim_row='7\thttps://x')
+
+        self._roda(remote, tmp_path)  # indexar=None + TRANSCRICAO_INDEXAR=0
+
+        assert len(remote.stdin_sql) == 1
+
+    def test_ligado_usa_o_indexador_padrao(self, tmp_path, monkeypatch):
+        monkeypatch.setenv('TRANSCRICAO_INDEXAR', '1')
+        chamadas = []
+        monkeypatch.setattr(tw, 'indexar_padrao', lambda *a: chamadas.append(a) or 1)
+        remote = FakeRemote(claim_row='7\thttps://x')
+
+        self._roda(remote, tmp_path)
+
+        assert [c[0] for c in chamadas] == [7]
+
+    @pytest.mark.parametrize('valor,esperado', [
+        ('1', True), ('true', True), ('', True), ('0', False), ('false', False),
+        ('OFF', False), ('no', False),
+    ])
+    def test_flag_transcricao_indexar(self, monkeypatch, tmp_path, valor, esperado):
+        monkeypatch.setenv('TRANSCRICAO_INDEXAR', valor)
+
+        assert tw.indexar_ligado(tmp_path / 'sem.env') is esperado
+
+    def test_default_ligado_sem_a_variavel(self, monkeypatch, tmp_path):
+        monkeypatch.delenv('TRANSCRICAO_INDEXAR')
+
+        assert tw.indexar_ligado(tmp_path / 'sem.env') is True
+
+    def test_indexador_real_grava_chunks_sem_vetor_quando_o_embed_falha(self, tmp_path, monkeypatch):
+        """Ponta a ponta com o módulo de verdade: sem sentence-transformers/modelo, o job
+        termina `done` e os chunks entram sem embedding."""
+        monkeypatch.setenv('TRANSCRICAO_INDEXAR', '1')
+        monkeypatch.setitem(sys.modules, 'sentence_transformers', None)  # import falha, sem rede
+        remote = FakeRemote(claim_row='7\thttps://x')
+
+        self._roda(remote, tmp_path)
+
+        assert "status = 'done'" in remote.stdin_sql[0]
+        assert 'INSERT INTO transcript_chunks' in remote.stdin_sql[-1]
+        assert '::vector' not in remote.stdin_sql[-1]

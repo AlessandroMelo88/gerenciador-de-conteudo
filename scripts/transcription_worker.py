@@ -161,6 +161,37 @@ def guardar_aula_ligado(env_file: Path = PROJECT_ENV) -> bool:
     return read_env('TRANSCRICAO_GUARDAR_AULA', env_file) == '1'
 
 
+def indexar_ligado(env_file: Path = PROJECT_ENV) -> bool:
+    """TRANSCRICAO_INDEXAR: indexa a transcrição para a busca (default ligado).
+    Só 0/false/no/off desligam."""
+    value = (read_env('TRANSCRICAO_INDEXAR', env_file) or '1').strip().lower()
+    return value not in ('0', 'false', 'no', 'off')
+
+
+def indexar_padrao(job_id: int, segments: list[dict], run_sql_stdin) -> int:
+    """Indexador real (scripts/transcript_indexer.py), carregado só na hora de usar."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        'transcript_indexer', Path(__file__).resolve().parent / 'transcript_indexer.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.index_job(job_id, segments, run_sql_stdin)
+
+
+def _indexar_sem_derrubar(job_id: int, segments: list[dict], run_sql_stdin, indexar) -> None:
+    """A transcrição já está `done` no banco: indexar é bônus. Qualquer falha vira aviso
+    no log e o `--backfill` do indexador recupera depois; nunca muda o estado do job."""
+    try:
+        if indexar is None:
+            if not indexar_ligado():
+                return
+            indexar = indexar_padrao
+        n = indexar(job_id, segments, run_sql_stdin)
+        print(f'[transcricao] job {job_id}: {n} chunks indexados', flush=True)
+    except Exception as e:
+        print(f'[transcricao] AVISO: job {job_id} concluído, mas a indexação falhou: {e}', flush=True)
+
+
 # ---------------------------------------------------------------- etapas reais
 
 def yt_dlp_args(url: str, template, cookies_file: Path = COOKIES_FILE,
@@ -386,12 +417,16 @@ def _failed_sql(job_id: int, message: str) -> str:
 
 def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
                     download=download_media, split=split_audio, transcribe=groq_transcribe,
-                    guardar=None) -> bool:
+                    guardar=None, indexar=None) -> bool:
     """Processa no máximo um job. Devolve True se pegou algum (concluído, falho ou parado).
 
     Barra de progresso: 5 → 30 % no download (real, do yt-dlp), 30 → 95 % na
     transcrição (por pedaço), 95 % enquanto guarda o arquivo da aula, 100 % ao gravar. Cada aviso também é a checagem de
     pausa: se o painel pausou ou apagou, o job para ali sem gravar nada.
+
+    Depois de gravar o `done`, indexa a transcrição para a busca (TRANSCRICAO_INDEXAR, default 1).
+    `indexar(job_id, segments, run_sql_stdin)` é injetável; None usa o indexador real, se ligado.
+    Falha de indexação nunca derruba o job.
     """
     run_sql(RELEASE_STUCK_SQL)
     row = (run_sql(CLAIM_SQL) or '').strip()
@@ -435,6 +470,7 @@ def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
 
         run_sql_stdin(_done_sql(job_id, info, segments_to_text(segments), segments_to_srt(segments),
                                 media_path, media_bytes, aviso))
+        _indexar_sem_derrubar(job_id, segments, run_sql_stdin, indexar)
     except Cancelado:
         pass  # pausado ou apagado no painel: o estado já é o que o operador escolheu
     except Exception as e:  # qualquer falha vira mensagem legível na tela, nunca job preso
