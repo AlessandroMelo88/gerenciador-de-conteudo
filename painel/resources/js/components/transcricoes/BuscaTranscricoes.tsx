@@ -30,7 +30,7 @@ export function BuscaTranscricoes({ children }: { children: React.ReactNode }) {
 
     return (
         <>
-            <div className="grid gap-2">
+            <div className="grid grid-cols-1 gap-2">
                 <div className="flex flex-col gap-2 sm:flex-row">
                     <div className="relative flex-1">
                         <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -65,7 +65,7 @@ export function BuscaTranscricoes({ children }: { children: React.ReactNode }) {
             {!ativa && children}
 
             {ativa && (
-                <div className="grid gap-4" aria-busy={carregando}>
+                <div className="grid grid-cols-1 gap-4" aria-busy={carregando}>
                     <p className="sr-only" role="status" aria-live="polite">
                         {carregando ? 'Buscando...' : resposta ? `${resposta.results.length} transcrições encontradas.` : ''}
                     </p>
@@ -80,7 +80,7 @@ export function BuscaTranscricoes({ children }: { children: React.ReactNode }) {
                         </div>
                     )}
 
-                    {carregando && !resposta && (
+                    {carregando && (!resposta || resposta.results.length === 0) && (
                         <p className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Loader2Icon className="size-4 animate-spin" aria-hidden /> Buscando...
                         </p>
@@ -103,7 +103,7 @@ export function BuscaTranscricoes({ children }: { children: React.ReactNode }) {
                     )}
 
                     {resposta && resposta.results.length > 0 && (
-                        <div className={carregando ? 'grid gap-4 opacity-60 transition-opacity' : 'grid gap-4'}>
+                        <div className={carregando ? 'grid grid-cols-1 gap-4 opacity-60 transition-opacity' : 'grid grid-cols-1 gap-4'}>
                             {resposta.results.map((r) => (
                                 <ResultadoBusca key={r.job_id} resultado={r} />
                             ))}
