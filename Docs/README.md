@@ -30,7 +30,8 @@ Contém as especificações operacionais e de engenharia de todos os componentes
 * [`Docs/sistema/SISTEMA-PUBLICACAO.md`](sistema/SISTEMA-PUBLICACAO.md) — Publicação no YouTube, controle de cotas, canais destino e round-robin.
 * [`Docs/sistema/SISTEMA-TRANSCRICAO.md`](sistema/SISTEMA-TRANSCRICAO.md) — Transcrição via Groq Whisper API e Transcrição Local com whisper.cpp.
 * [`Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md`](sistema/SISTEMA-BUSCA-TRANSCRICOES.md) — Busca por texto, semântica e híbrida nas transcrições (pgvector, embedder, RRF): guia do usuário em linguagem simples, arquitetura, runbook de rollout e como reindexar.
-* [`Docs/adr/`](adr/README.md) — ADRs; [0001](adr/0001-busca-vetorial-nas-transcricoes.md) registra a decisão da busca vetorial.
+* [`Docs/adr/`](adr/README.md) — ADRs 0001 a 0007 (busca vetorial, fila, fallback de IA, PostgreSQL 17, gates de qualidade).
+* [`Docs/DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md) — Como rodar lint, testes (pytest, Pest, oxlint) e o CI; o que reprova e o que é só informativo.
 * [`Docs/sistema/SISTEMA-SIDECAR.md`](sistema/SISTEMA-SIDECAR.md) — API interna HTTP na porta 8090 para comunicação com o painel.
 * [`Docs/sistema/PIPELINE-E-SCHEDULER.md`](sistema/PIPELINE-E-SCHEDULER.md) — Agendamento de rotinas do daemon e cron jobs.
 * [`Docs/sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md`](sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md) — Observabilidade em três camadas: Better Stack (uptime/heartbeats), Sentry (crashes), Watchdog proativo (auto-cura de deadlocks e clipes fantasmas) e alertas via Telegram e Email.

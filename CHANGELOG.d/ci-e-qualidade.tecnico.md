@@ -1,0 +1,1 @@
+**CI e gates de qualidade** — workflow `CI` (só valida, sem deploy nem segredo), `Makefile` (`make lint|test-python|test-php|ci`) e `.pre-commit-config.yaml`; ruff (erros reais), Pint nos arquivos alterados, PHPStan nível 5 com baseline, oxlint, shellcheck, hadolint e yamllint; mypy e `tsc` informativos. Nenhum arquivo legado foi reformatado
