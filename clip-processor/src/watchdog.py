@@ -3,7 +3,7 @@ watchdog.py — Monitor inteligente de integridade do pipeline e detector de dea
 
 Executado a cada 30 minutos pelo scheduler do daemon.
 Regras de Verificação:
-  1. check_download_window_health: Detecta se a janela de download está 7/7 ocupada sem nenhum avanço >2h.
+  1. check_download_window_health: Detecta janela de download cheia sem avanço >2h (se a causa é clip aguardando aprovação, é aviso informativo 1x/dia, não alerta crítico).
   2. check_ghost_clips: Detecta clipes em 'approved' ou 'pending_cut' sem arquivo .mp4 físico no disco e aplica auto-cura.
   3. check_approval_queue_activity: Detecta fila de aprovação zerada por mais de 6h em horário útil.
   4. check_youtube_tokens: Valida tokens OAuth dos canais destino antes da janela nobre de postagem.
@@ -14,7 +14,7 @@ Exporta:
 """
 import os
 import shutil
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from src.telegram_notifier import notify
@@ -28,6 +28,9 @@ WINDOW_STUCK_HOURS = 2
 APPROVAL_IDLE_HOURS = 6
 MIN_FREE_DISK_GB = 5.0
 MAX_DISK_PERCENT = 85.0
+# Janela cheia por clips aguardando aprovação é proposital (protege o disco): o aviso
+# informativo sai no máximo uma vez por dia. Em memória; reinício do processo reseta.
+_ultimo_aviso_aprovacao: 'date | None' = None
 
 
 def _horas_atras(horas: int) -> datetime:
@@ -151,6 +154,23 @@ def check_ghost_clips(conn) -> int:
     return curated_count
 
 
+def _avisar_janela_aguardando_aprovacao(occupied: int, max_slots: int, waiting: int) -> None:
+    """Aviso informativo (no máximo 1 por dia) de que a janela está cheia esperando o operador."""
+    global _ultimo_aviso_aprovacao
+    hoje = datetime.now(SAO_PAULO_TZ).date()
+    _log(f'Janela cheia ({occupied}/{max_slots}) aguardando aprovação de {waiting} clip(s): esperado, sem alerta crítico.')
+    if _ultimo_aviso_aprovacao == hoje:
+        return
+    _ultimo_aviso_aprovacao = hoje
+    notify('watchdog_alert', {
+        'type': 'download_window_waiting_approval',
+        'occupied': occupied,
+        'max_slots': max_slots,
+        'waiting': waiting,
+        'message': f'ℹ️ Janela de download cheia ({occupied}/{max_slots}): {waiting} clip(s) aguardam sua aprovação ou rejeição. Os downloads seguem pausados até você decidir (teto de disco).',
+    })
+
+
 def check_download_window_health(conn) -> bool:
     """Verifica se a janela de 7 vagas está 100% cheia e estagnada há mais de WINDOW_STUCK_HOURS."""
     with conn.cursor() as cur:
@@ -182,6 +202,15 @@ def check_download_window_health(conn) -> bool:
         active_recent = int(cur.fetchone().get('active_recent') or 0)
 
     if active_recent == 0:
+        # Janela cheia e parada porque o operador ainda não aprovou/rejeitou os clips:
+        # é o comportamento desejado (teto de disco), não um travamento.
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) AS waiting FROM generated_clips WHERE status = 'pending'")
+            waiting = int(cur.fetchone().get('waiting') or 0)
+        if waiting > 0:
+            _avisar_janela_aguardando_aprovacao(occupied, max_slots, waiting)
+            return True
+
         _log(f'DEADLOCK DETECTADO: Janela de download cheia ({occupied}/{max_slots}) sem atividade há >{WINDOW_STUCK_HOURS}h!')
         notify('watchdog_alert', {
             'type': 'download_window_deadlock',

@@ -107,6 +107,7 @@ class TestCheckDownloadWindowHealth:
         cursor.fetchone.side_effect = [
             {'occupied': 16},
             {'active_recent': 0},
+            {'waiting': 0},
         ]
 
         with patch('src.watchdog.notify') as mock_notify:
@@ -116,6 +117,36 @@ class TestCheckDownloadWindowHealth:
             args, kwargs = mock_notify.call_args
             assert args[0] == 'watchdog_alert'
             assert args[1]['type'] == 'download_window_deadlock'
+
+    def test_window_full_waiting_approval_is_not_deadlock(self, mock_db_conn):
+        import src.watchdog as wd
+        wd._ultimo_aviso_aprovacao = None
+        cursor = mock_db_conn.cursor.return_value
+        # janela cheia, parada, mas há clips esperando o operador: não é deadlock
+        cursor.fetchone.side_effect = [
+            {'occupied': 16},
+            {'active_recent': 0},
+            {'waiting': 22},
+        ]
+
+        with patch('src.watchdog.notify') as mock_notify:
+            healthy = check_download_window_health(mock_db_conn)
+            assert healthy is True
+            assert mock_notify.call_count == 1
+            assert mock_notify.call_args[0][1]['type'] == 'download_window_waiting_approval'
+            assert mock_notify.call_args[0][1]['waiting'] == 22
+
+    def test_waiting_approval_notice_once_per_day(self, mock_db_conn):
+        import src.watchdog as wd
+        wd._ultimo_aviso_aprovacao = None
+        cursor = mock_db_conn.cursor.return_value
+        respostas = [{'occupied': 16}, {'active_recent': 0}, {'waiting': 5}]
+        cursor.fetchone.side_effect = respostas + respostas
+
+        with patch('src.watchdog.notify') as mock_notify:
+            assert check_download_window_health(mock_db_conn) is True
+            assert check_download_window_health(mock_db_conn) is True
+            assert mock_notify.call_count == 1  # o segundo ciclo do mesmo dia não repete
 
     def test_window_full_but_active(self, mock_db_conn):
         cursor = mock_db_conn.cursor.return_value
