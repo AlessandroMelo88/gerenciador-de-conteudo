@@ -221,6 +221,60 @@ Testes: `scripts/test_transcription_worker.py`, `scripts/test_local_download_wor
 
 ---
 
+### Aulas em player HLS (Hotmart) — só o áudio, via extensão (30/09/2026)
+
+**Problema.** `hotmart.com/pt-BR/club/.../content/<id>` falhava com `ERROR: Unsupported URL`: o
+`yt-dlp` não tem extrator do Hotmart e a página é SPA (o vídeo só existe depois do JavaScript), então
+o extrator genérico não acha nada. O player é um iframe `embed/?v=<id>` que pede `playlist.m3u8`
+(master) e `video.m3u8` — HLS sem DRM aparente.
+
+**Solução.** A extensão observa o que o player pede e entrega o `.m3u8` ao worker:
+
+```
+player (iframe) ──playlist.m3u8──> Chrome
+   └ background.js (webRequest, só observa) guarda por aba: m3u8 + Referer
+popup "Transcrever" ──url, cookies, title, media_url, media_referer──> API local 127.0.0.1:8765
+   ├ media_url/referer/title → ~/.config/canaldecortes/media-urls.json (0600, Mac)   ← NÃO vai ao banco
+   └ url (+ title)           → transcription_jobs (servidor)
+worker: há entrada para o source_url? → yt-dlp no m3u8 (-x mp3) → (falhou) ffmpeg -vn → pedaços de 20 min → Groq
+```
+
+- **Validação na API** (`validar_media`, `scripts/extensao_api.py`): https, sem credencial na URL,
+  caminho terminando em `.m3u8`, até 4000 caracteres, host `hotmart.com` ou subdomínio. Outros hosts:
+  `TRANSCRICAO_MEDIA_HOSTS=cdn.exemplo.com,outro.com` (soma ao padrão). O resto volta `400`, sem
+  gravar cookie nem criar job. O `referer` segue a mesma regra de host; o `Origin` enviado ao
+  yt-dlp/ffmpeg é derivado dele.
+- **Endereço assinado = senha por algumas horas.** Fica só em `media-urls.json` (dict por
+  `source_url` normalizada: `media_url`, `referer`, `title`, `timestamp`), mesma filosofia do
+  `cookies.txt`; caminho alternativo em `TRANSCRICAO_MEDIA_URLS`. Entradas com mais de 24 h são
+  descartadas ao gravar e ao consultar. O worker apaga a entrada ao fim do job (concluído, falho ou
+  cancelado). Sem migration; o `title` da aba entra no `INSERT` do job (coluna `title` já existia) e
+  prevalece sobre o nome do arquivo no fim do job.
+- **Download** (`download_hls_audio`, `scripts/transcription_worker.py`): `yt-dlp -f ba/b -x
+  --audio-format mp3 --add-header Referer:… --add-header Origin:…`, mantendo `generic:impersonate` e
+  `--cookies`. Se falhar, cai para `ffmpeg -headers … -i <m3u8> -vn`. A partir daí é o fluxo de
+  sempre (pedaços de 20 min, Groq, áudio apagado depois de transcrever). Com
+  `TRANSCRICAO_GUARDAR_AULA=1`, aulas HLS **não** guardam arquivo (só áudio).
+- **DRM.** Se o erro indicar Widevine/PlayReady/FairPlay, SAMPLE-AES, `skd://` ou similar, o job falha
+  na hora com “Esta aula tem DRM … não dá para baixar o áudio”. Não há plano B e **nunca** se tenta
+  contornar DRM. AES-128 padrão o yt-dlp/ffmpeg resolvem sozinhos.
+- **Sem entrada** para o `source_url` o comportamento é o de sempre (yt-dlp na página).
+- **Mensagem de erro.** `Unsupported URL` em `hotmart.com` (quando não houve captura) mostra: “Use a
+  extensão na página da aula (dê play e clique em Transcrever): o yt-dlp não lê a área de membros
+  do Hotmart”.
+- **Se o link do vídeo expirou** (HTTP 401/403/410) a mensagem de falha pede para dar play de novo e
+  clicar outra vez.
+
+Para o dono: depois de atualizar o código, **reiniciar o worker**
+(`launchctl kickstart -k gui/$(id -u)/com.canaldecortes.downloader`) e **recarregar a extensão** em
+`chrome://extensions` (ver `extensao-chrome/README.md`). Testes: `scripts/test_extensao_api.py`,
+`scripts/test_transcription_worker.py`, `extensao-chrome/captura.test.js` (`node --test`).
+
+> **Não testado contra o Hotmart real** (sem Chrome/login aqui): o host exato do embed/CDN, se
+> existe DRM nessa aula, e se a CDN aceita o pedido só com Referer/Origin (sem os cookies do
+> player). Se o embed usar domínio fora de `*.hotmart.com`, ajustar `host_permissions`/`urls` do
+> `background.js`, `SUFIXOS_PLAYER` em `captura.js` e `TRANSCRICAO_MEDIA_HOSTS`.
+
 ## Transcrição Local — whisper.cpp (desativada em 17/09/2026)
 
 **Nada mais chama este caminho**: o painel parou de usar `POST /internal/transcribe`. O código e o
