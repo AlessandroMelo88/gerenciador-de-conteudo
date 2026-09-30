@@ -3,6 +3,7 @@ video_processor.py — Corte, legendas, thumbnail e processamento de clips.
 
 Exporta:
   - cut_clip(source_path, start_time, end_time, output_path) -> str
+  - render_short_clip(source_path, start_time, end_time, output_path, ...) -> str
   - generate_srt(transcript, start_time, end_time, srt_path) -> str
   - burn_subtitles(input_clip_path, srt_path, output_path) -> str
   - extract_thumbnail(clip_path, thumbnail_path, at_seconds=None) -> str
@@ -19,7 +20,14 @@ import os
 import subprocess
 from datetime import datetime
 
+from src.media_contract import MediaContractError, shorts_max_duration, validate_short_media
 from src.metadata_generator import generate_metadata, update_clip_metadata
+from src.subtitle_detector import has_burned_subtitles
+from src.video_quality import (
+    audio_encoder_options,
+    dynamic_audio_filter,
+    video_encoder_options,
+)
 
 
 VIDEOS_DIR = '/app/videos'
@@ -159,17 +167,90 @@ def cut_clip(
         ]
         filter_args = ['-vf', video_filter]
 
+    audio_filter = dynamic_audio_filter(duration)
     subprocess.run(
         [
             'ffmpeg',
-            '-threads', '1',
             *input_args,
             *filter_args,
-            '-c:v', 'libx264',
-            '-preset', 'ultrafast',
-            '-crf', '24',
-            '-c:a', 'aac',
-            '-b:a', '128k',
+            *video_encoder_options(),
+            *audio_encoder_options(),
+            *(['-af', audio_filter] if audio_filter else []),
+            '-movflags', '+faststart',
+            output_path,
+            '-y',
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return output_path
+
+
+SHORTS_VERTICAL_FILTER = (
+    'scale=1080:1920:force_original_aspect_ratio=increase,'
+    'crop=1080:1920,'
+    'setsar=1'
+)
+
+
+def single_pass_enabled() -> bool:
+    """Corte + legenda + watermark do Short em uma única recodificação (padrão).
+
+    ``SHORTS_SINGLE_PASS=0`` volta ao encadeamento antigo de 3 passes.
+    """
+    return os.environ.get('SHORTS_SINGLE_PASS', '1').strip().lower() not in {'0', 'false', 'no', 'off'}
+
+
+def render_short_clip(
+    source_path: str,
+    start_time: float,
+    end_time: float,
+    output_path: str,
+    subtitle_path: str | None = None,
+    watermark_path: str | None = None,
+    template_config: dict | None = None,
+) -> str:
+    """Renderiza um Short 1080x1920 em UMA recodificação de vídeo.
+
+    Enquadramento vertical + legenda queimada + watermark no mesmo filtergraph:
+    cada passe extra do encadeamento antigo (cut -> burn -> watermark) reencodava o
+    vídeo e perdia qualidade, além de custar CPU. Duração: a do momento escolhido
+    pelo selector, limitada por ``SHORTS_MAX_DURATION_SECONDS`` (padrão 180 s).
+    """
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    duration = max(float(end_time) - float(start_time), 0.1)
+    max_duration = shorts_max_duration()
+    if duration > max_duration:
+        _log(f'Aviso: Short de {duration:.1f}s excede o teto de {max_duration:.0f}s. Limitando.')
+        duration = max_duration
+    end_time = float(start_time) + duration
+
+    graph = f'[0:v]{SHORTS_VERTICAL_FILTER}[short_base]'
+    label = '[short_base]'
+    if subtitle_path:
+        graph += f';{label}{_subtitle_filter(subtitle_path, "curto", template_config)}[short_cap]'
+        label = '[short_cap]'
+
+    wm = watermark_path if watermark_path and os.path.exists(watermark_path) else None
+    input_args = ['-ss', str(start_time), '-to', str(end_time), '-i', source_path]
+    if wm:
+        graph += f';{label}[1:v]overlay=W-w-20:20[short_out]'
+        label = '[short_out]'
+        input_args += ['-i', wm]
+    elif watermark_path:
+        _log(f'[WATERMARK] Arquivo não encontrado: {watermark_path} — pulo overlay')
+
+    audio_filter = dynamic_audio_filter(duration)
+    subprocess.run(
+        [
+            'ffmpeg',
+            *input_args,
+            '-filter_complex', graph,
+            '-map', label,
+            '-map', '0:a?',
+            *video_encoder_options(),
+            *audio_encoder_options(),
+            *(['-af', audio_filter] if audio_filter else []),
             '-movflags', '+faststart',
             output_path,
             '-y',
@@ -207,9 +288,8 @@ def generate_srt(transcript: dict, start_time: float, end_time: float, srt_path:
     return srt_path
 
 
-def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str, fmt: str = 'curto', template_config: dict | None = None) -> str:
-    """Queima legendas SRT no clip usando FFmpeg."""
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+def _subtitle_filter(srt_path: str, fmt: str = 'curto', template_config: dict | None = None) -> str:
+    """Filtro `subtitles=` com o estilo do canal (cor vinda do template_config)."""
     cfg = template_config or {}
     color_hex = str(cfg.get('subtitleColor', '#facc15')).lower()
     if color_hex == '#ffffff':
@@ -221,7 +301,7 @@ def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str, fmt: s
         primary_color = '&H0015CCFA'
 
     if fmt == 'longo':
-        subtitle_filter = (
+        return (
             f"subtitles={srt_path}:"
             "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=30,"
             "PlayResX=1920,PlayResY=1080,"
@@ -229,25 +309,27 @@ def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str, fmt: s
             "BackColour=&H60000000,"
             "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=190'"
         )
-    else:
-        subtitle_filter = (
-            f"subtitles={srt_path}:"
-            "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=38,"
-            "PlayResX=1080,PlayResY=1920,"
-            f"PrimaryColour={primary_color},OutlineColour=&H00000000,"
-            "BackColour=&H60000000,"
-            "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=200'"
-        )
+    return (
+        f"subtitles={srt_path}:"
+        "force_style='Fontname=DejaVu Sans,Bold=1,Fontsize=38,"
+        "PlayResX=1080,PlayResY=1920,"
+        f"PrimaryColour={primary_color},OutlineColour=&H00000000,"
+        "BackColour=&H60000000,"
+        "BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=200'"
+    )
+
+
+def burn_subtitles(input_clip_path: str, srt_path: str, output_path: str, fmt: str = 'curto', template_config: dict | None = None) -> str:
+    """Queima legendas SRT no clip usando FFmpeg."""
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    subtitle_filter = _subtitle_filter(srt_path, fmt, template_config)
 
     subprocess.run(
         [
             'ffmpeg',
-            '-threads', '1',
             '-i', input_clip_path,
             '-vf', subtitle_filter,
-            '-c:v', 'libx264',
-            '-preset', 'ultrafast',
-            '-crf', '24',
+            *video_encoder_options(),
             '-c:a', 'copy',
             output_path,
             '-y',
@@ -524,9 +606,7 @@ def overlay_watermark(input_path: str, watermark_path: str, output_path: str) ->
             '-i', input_path,        # [0] = clip vídeo
             '-i', watermark_path,    # [1] = PNG watermark
             '-filter_complex', 'overlay=W-w-20:20',  # canto sup direito, margem 20px
-            '-c:v', 'libx264',
-            '-preset', 'veryfast',
-            '-crf', '23',
+            *video_encoder_options(),
             '-c:a', 'copy',
             output_path,
             '-y',
@@ -581,33 +661,55 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
 
         bg_path = resolve_background_path(slug=slug, niche=niche) if fmt == 'longo' else None
 
-        cut_clip(
-            clip['local_path'],
-            clip['start_time'],
-            clip['end_time'],
-            raw_clip_path,
-            fmt=fmt,
-            template_config=merged_cfg,
-            background_path=bg_path,
-        )
-        generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
-        burn_subtitles(raw_clip_path, srt_path, subtitled_path, fmt=fmt, template_config=merged_cfg)
+        watermark_path = f'/app/branding/watermark-{slug}.png' if slug and fmt != 'longo' else None
 
-        # Aplicar watermark se canal-destino tem slug configurado e formato curto (vídeo longo já tem branding integrado na moldura)
-        if slug and fmt != 'longo':
-            watermark_path = f'/app/branding/watermark-{slug}.png'
-            # overlay_watermark retorna subtitled_path se arquivo de watermark não existir (graceful)
-            result_path = overlay_watermark(subtitled_path, watermark_path, final_clip_path)
-            if result_path == subtitled_path:
-                # Watermark ausente: renomear para path final
-                os.rename(subtitled_path, final_clip_path)
-            else:
-                # Watermark aplicado: remover intermediário
-                if os.path.exists(subtitled_path):
-                    os.remove(subtitled_path)
+        if fmt != 'longo' and single_pass_enabled():
+            # Passe único: enquadra, queima legenda e aplica watermark numa só recodificação.
+            generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
+            subtitle_path = srt_path
+            if has_burned_subtitles(clip['local_path'], transcript, clip['start_time'], clip['end_time']):
+                _log(f'Clip {clip_id}: fonte já tem legenda queimada — não queimo a nossa')
+                subtitle_path = None
+            render_short_clip(
+                clip['local_path'],
+                clip['start_time'],
+                clip['end_time'],
+                final_clip_path,
+                subtitle_path=subtitle_path,
+                watermark_path=watermark_path,
+                template_config=merged_cfg,
+            )
+            try:
+                validate_short_media(final_clip_path)
+            except MediaContractError as err:
+                raise RuntimeError(f'Short fora do contrato técnico: {err}') from err
         else:
-            # Sem canal-destino ou vídeo longo: renomear arquivo legendado para path final
-            os.rename(subtitled_path, final_clip_path)
+            cut_clip(
+                clip['local_path'],
+                clip['start_time'],
+                clip['end_time'],
+                raw_clip_path,
+                fmt=fmt,
+                template_config=merged_cfg,
+                background_path=bg_path,
+            )
+            generate_srt(transcript, clip['start_time'], clip['end_time'], srt_path)
+            burn_subtitles(raw_clip_path, srt_path, subtitled_path, fmt=fmt, template_config=merged_cfg)
+
+            # Aplicar watermark se canal-destino tem slug configurado e formato curto (vídeo longo já tem branding integrado na moldura)
+            if watermark_path:
+                # overlay_watermark retorna subtitled_path se arquivo de watermark não existir (graceful)
+                result_path = overlay_watermark(subtitled_path, watermark_path, final_clip_path)
+                if result_path == subtitled_path:
+                    # Watermark ausente: renomear para path final
+                    os.rename(subtitled_path, final_clip_path)
+                else:
+                    # Watermark aplicado: remover intermediário
+                    if os.path.exists(subtitled_path):
+                        os.remove(subtitled_path)
+            else:
+                # Sem canal-destino ou vídeo longo: renomear arquivo legendado para path final
+                os.rename(subtitled_path, final_clip_path)
 
         metadata = generate_metadata(_build_clip_context(clip, transcript), anthropic_client=anthropic_client)
         update_clip_metadata(conn, clip_id, metadata)
