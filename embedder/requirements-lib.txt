@@ -1,0 +1,6 @@
+# Só para o Mac indexar (worker de transcrição), sem servidor web. Python 3.12.
+sentence-transformers==6.1.0
+transformers==5.17.0
+huggingface-hub==1.33.0
+numpy==2.5.3
+torch>=2.2
