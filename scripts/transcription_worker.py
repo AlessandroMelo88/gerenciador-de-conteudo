@@ -30,7 +30,10 @@ import secrets
 import shutil
 import subprocess
 import tempfile
+import threading
+import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
@@ -68,7 +71,20 @@ COOKIES_FILE = Path(os.environ.get(
     'TRANSCRICAO_COOKIES', '~/.config/canaldecortes/cookies.txt',
 )).expanduser()
 
+# Aulas em player HLS (Hotmart e similares): a página é SPA e o yt-dlp não acha o
+# vídeo. A extensão captura o endereço do .m3u8 que o player pede e manda para a API
+# local, que o guarda aqui. O endereço é ASSINADO (vale como senha por algumas horas):
+# fica só neste arquivo 0600 do Mac — nunca no banco, no servidor ou no repositório.
+MEDIA_URLS_FILE = Path(os.environ.get(
+    'TRANSCRICAO_MEDIA_URLS', '~/.config/canaldecortes/media-urls.json',
+)).expanduser()
+MEDIA_URLS_TTL_SECONDS = 24 * 3600
+_media_lock = threading.Lock()  # API (thread do servidor) e worker mexem no mesmo arquivo
+
 PROGRESS_MARK = '[progresso]'
+
+HOTMART_UNSUPPORTED = ('Use a extensão na página da aula (dê play e clique em Transcrever): '
+                       'o yt-dlp não lê a área de membros do Hotmart')
 
 _LOGIN_HINTS = ('logged-in', 'login', 'sign in', 'log in', 'cookies', 'members only',
                 'registered users', 'http error 401', 'http error 403')
@@ -192,6 +208,73 @@ def _indexar_sem_derrubar(job_id: int, segments: list[dict], run_sql_stdin, inde
         print(f'[transcricao] AVISO: job {job_id} concluído, mas a indexação falhou: {e}', flush=True)
 
 
+# ---------------------------------------------------------------- endereços de mídia (HLS)
+
+def normalize_source_url(url: str) -> str:
+    """Chave do arquivo de endereços: esquema e host em minúsculas, sem fragmento."""
+    parts = urllib.parse.urlsplit(url.strip())
+    return urllib.parse.urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path,
+                                    parts.query, ''))
+
+
+def _read_media_entries(path: Path) -> dict:
+    try:
+        data = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _write_media_entries(path: Path, entries: dict) -> None:
+    """Temporário + rename, com 0600: nunca um arquivo pela metade nem legível por outros."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix='.media-urls-')
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, 'w') as f:
+            json.dump(entries, f)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
+def _drop_expired(entries: dict, now: float, ttl: int = MEDIA_URLS_TTL_SECONDS) -> dict:
+    return {k: v for k, v in entries.items()
+            if isinstance(v, dict) and now - float(v.get('timestamp') or 0) <= ttl}
+
+
+def save_media_entry(source_url: str, media_url: str, referer: str = '', title: str = '',
+                     path: Path | None = None, now: float | None = None) -> None:
+    """Guarda o endereço do m3u8 da aula e, de passagem, limpa as entradas com mais de 24 h."""
+    path = Path(path or MEDIA_URLS_FILE)
+    now = time.time() if now is None else now
+    with _media_lock:
+        entries = _drop_expired(_read_media_entries(path), now)
+        entries[normalize_source_url(source_url)] = {
+            'media_url': media_url, 'referer': referer, 'title': title, 'timestamp': now}
+        _write_media_entries(path, entries)
+
+
+def lookup_media_entry(source_url: str, path: Path | None = None,
+                       now: float | None = None) -> dict | None:
+    """Entrada do link da aula, se existir e não tiver vencido (24 h)."""
+    now = time.time() if now is None else now
+    with _media_lock:
+        entries = _drop_expired(_read_media_entries(Path(path or MEDIA_URLS_FILE)), now)
+    entry = entries.get(normalize_source_url(source_url))
+    return entry if entry and entry.get('media_url') else None
+
+
+def forget_media_entry(source_url: str, path: Path | None = None) -> None:
+    path = Path(path or MEDIA_URLS_FILE)
+    with _media_lock:
+        entries = _read_media_entries(path)
+        if entries.pop(normalize_source_url(source_url), None) is not None:
+            _write_media_entries(path, entries)
+
+
 # ---------------------------------------------------------------- etapas reais
 
 def yt_dlp_args(url: str, template, cookies_file: Path = COOKIES_FILE,
@@ -227,6 +310,8 @@ def parse_progress(line: str) -> float | None:
 def explain_error(message: str, cookies_file: Path = COOKIES_FILE) -> str:
     """Erro de login vira instrução do que fazer; qualquer outro passa intacto."""
     lower = message.lower()
+    if 'unsupported url' in lower and 'hotmart.com' in lower:
+        return f'{HOTMART_UNSUPPORTED}\n\n({message})'
     if not any(hint in lower for hint in _LOGIN_HINTS):
         return message
     if Path(cookies_file).is_file():
@@ -245,14 +330,10 @@ def _arquivo_baixado(workdir: Path) -> Path | None:
     return None
 
 
-def download_media(url: str, workdir: Path, on_progress=None, video: bool = False) -> tuple[Path, dict]:
-    """Baixa a aula e os metadados. Levanta RuntimeError com a mensagem do yt-dlp.
-
-    `on_progress(percent)` recebe o avanço do download; se ele levantar (job pausado
-    ou apagado), o yt-dlp é encerrado na hora.
-    """
-    proc = subprocess.Popen(yt_dlp_args(url, workdir / 'aula.%(ext)s', video=video), stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE, text=True, errors='replace')
+def _rodar_yt_dlp(args: list[str], on_progress=None) -> tuple[int, str]:
+    """Executa o yt-dlp repassando o progresso. Devolve (código de saída, stderr)."""
+    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, errors='replace')
     try:
         for line in proc.stdout:
             percent = parse_progress(line.strip())
@@ -264,8 +345,18 @@ def download_media(url: str, workdir: Path, on_progress=None, video: bool = Fals
         if proc.poll() is None:
             proc.kill()
             proc.wait()
+    return proc.returncode, stderr
 
-    if proc.returncode != 0:
+
+def download_media(url: str, workdir: Path, on_progress=None, video: bool = False) -> tuple[Path, dict]:
+    """Baixa a aula e os metadados. Levanta RuntimeError com a mensagem do yt-dlp.
+
+    `on_progress(percent)` recebe o avanço do download; se ele levantar (job pausado
+    ou apagado), o yt-dlp é encerrado na hora.
+    """
+    returncode, stderr = _rodar_yt_dlp(yt_dlp_args(url, workdir / 'aula.%(ext)s', video=video), on_progress)
+
+    if returncode != 0:
         erro = [l for l in stderr.splitlines() if 'ERROR' in l] or stderr.splitlines()[-1:]
         raise RuntimeError(explain_error((erro[-1] if erro else 'yt-dlp falhou sem mensagem')[:500]))
 
@@ -275,6 +366,118 @@ def download_media(url: str, workdir: Path, on_progress=None, video: bool = Fals
     if not media:
         raise RuntimeError('yt-dlp terminou sem gerar o arquivo da aula')
     return media, info
+
+
+# ---------------------------------------------------------------- áudio de player HLS
+
+DRM_MESSAGE = ('Esta aula tem DRM (Widevine/PlayReady/FairPlay ou criptografia que não seja a '
+               'AES-128 padrão) e não dá para baixar o áudio. O Canal de Cortes não tenta '
+               'contornar DRM: transcreva a aula por outro meio.')
+_DRM_MARKERS = ('drm', 'widevine', 'playready', 'fairplay', 'sample-aes', 'sample_aes', 'skd://',
+                'streamingkeydelivery', 'edef8ba9', 'cenc', 'encryption method')
+_EXPIRED_MARKERS = ('http error 401', 'http error 403', 'http error 410', 'server returned 401',
+                    'server returned 403', 'server returned 410')
+
+
+def tem_drm(stderr: str) -> bool:
+    lower = stderr.lower()
+    return any(m in lower for m in _DRM_MARKERS)
+
+
+def _origin_of(referer: str) -> str:
+    parts = urllib.parse.urlsplit(referer or '')
+    return f'{parts.scheme}://{parts.netloc}' if parts.scheme and parts.netloc else ''
+
+
+def hls_headers(entry: dict) -> list[tuple[str, str]]:
+    """Referer e Origin que o player mandou ao pedir o m3u8 (a CDN confere)."""
+    referer = entry.get('referer') or ''
+    headers = []
+    if referer:
+        headers.append(('Referer', referer))
+        if _origin_of(referer):
+            headers.append(('Origin', _origin_of(referer)))
+    return headers
+
+
+def yt_dlp_hls_args(entry: dict, template, cookies_file: Path = COOKIES_FILE) -> list[str]:
+    """yt-dlp sobre o m3u8 capturado: só o áudio (mp3), com os cabeçalhos do player.
+    Mantém impersonate e cookies do fluxo normal."""
+    args = ['yt-dlp', '--no-update', '--no-playlist', '--newline',
+            '--progress', '--progress-template', f'download:{PROGRESS_MARK} %(progress._percent_str)s',
+            '--write-info-json', '--extractor-args', 'generic:impersonate', '-o', str(template),
+            '-f', 'ba/b', '-x', '--audio-format', 'mp3']
+    for name, value in hls_headers(entry):
+        args += ['--add-header', f'{name}:{value}']
+    if Path(cookies_file).is_file():
+        args += ['--cookies', str(cookies_file)]
+    return args + [entry['media_url']]
+
+
+def ffmpeg_hls_args(entry: dict, out: Path) -> list[str]:
+    """Plano B: o ffmpeg lê o m3u8 direto (AES-128 padrão ele resolve sozinho)."""
+    args = ['ffmpeg', '-v', 'error', '-y']
+    headers = ''.join(f'{n}: {v}\r\n' for n, v in hls_headers(entry))
+    if headers:
+        args += ['-headers', headers]
+    return args + ['-i', entry['media_url'], '-vn', '-ac', '1', '-ar', '16000', '-b:a', '32k', str(out)]
+
+
+def _rodar_ffmpeg(args: list[str]) -> tuple[int, str]:
+    res = subprocess.run(args, capture_output=True, text=True, errors='replace', timeout=3600)
+    return res.returncode, res.stderr
+
+
+def _erro_hls(stderr: str) -> str:
+    linhas = [l for l in stderr.splitlines() if 'error' in l.lower()] or stderr.splitlines()
+    msg = (linhas[-1] if linhas else 'sem mensagem')[:300]
+    if any(m in stderr.lower() for m in _EXPIRED_MARKERS):
+        msg += (' — o endereço do vídeo provavelmente expirou ou foi recusado; '
+                'dê play na aula de novo e clique em Transcrever outra vez.')
+    return msg
+
+
+def _hls_info(entry: dict, workdir: Path) -> dict:
+    """Metadados: o título da aba (da extensão) vale mais que o nome do arquivo .m3u8."""
+    info_files = list(workdir.glob('aula*.info.json'))
+    try:
+        info = json.loads(info_files[0].read_text()) if info_files else {}
+    except ValueError:
+        info = {}
+    if entry.get('title'):
+        info['title'] = entry['title']
+    host = urllib.parse.urlsplit(entry.get('referer') or entry.get('media_url') or '').hostname or ''
+    if host == 'hotmart.com' or host.endswith('.hotmart.com'):
+        info['extractor_key'] = 'Hotmart'
+    return info
+
+
+def download_hls_audio(entry: dict, workdir: Path, on_progress=None,
+                       run_yt_dlp=_rodar_yt_dlp, run_ffmpeg=_rodar_ffmpeg,
+                       cookies_file: Path = COOKIES_FILE) -> tuple[Path, dict]:
+    """Baixa SÓ O ÁUDIO do m3u8 capturado pela extensão: yt-dlp e, se falhar, ffmpeg.
+
+    DRM nunca é contornado: se o erro indica DRM ou criptografia que não é AES-128
+    padrão, falha na hora com mensagem clara, sem tentar o plano B.
+    """
+    args = yt_dlp_hls_args(entry, workdir / 'aula.%(ext)s', cookies_file)
+    code, stderr = run_yt_dlp(args, on_progress)
+    if code == 0:
+        media = _arquivo_baixado(workdir)
+        if media:
+            return media, _hls_info(entry, workdir)
+        stderr = stderr or 'yt-dlp terminou sem gerar o arquivo'
+    if tem_drm(stderr):
+        raise RuntimeError(DRM_MESSAGE)
+
+    out = workdir / 'aula.mp3'
+    code2, stderr2 = run_ffmpeg(ffmpeg_hls_args(entry, out))
+    if code2 == 0 and out.is_file():
+        return out, _hls_info(entry, workdir)
+    if tem_drm(stderr2):
+        raise RuntimeError(DRM_MESSAGE)
+    raise RuntimeError(f'Não consegui baixar o áudio da aula. yt-dlp: {_erro_hls(stderr)} | '
+                       f'ffmpeg: {_erro_hls(stderr2)}')
 
 
 def guardar_aula(job_id: int, media: Path, local_root: Path = LOCAL_CURSOS_DIR,
@@ -417,7 +620,8 @@ def _failed_sql(job_id: int, message: str) -> str:
 
 def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
                     download=download_media, split=split_audio, transcribe=groq_transcribe,
-                    guardar=None, indexar=None) -> bool:
+                    guardar=None, indexar=None,
+                    download_hls=download_hls_audio, media_lookup=None, media_forget=None) -> bool:
     """Processa no máximo um job. Devolve True se pegou algum (concluído, falho ou parado).
 
     Barra de progresso: 5 → 30 % no download (real, do yt-dlp), 30 → 95 % na
@@ -427,7 +631,12 @@ def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
     Depois de gravar o `done`, indexa a transcrição para a busca (TRANSCRICAO_INDEXAR, default 1).
     `indexar(job_id, segments, run_sql_stdin)` é injetável; None usa o indexador real, se ligado.
     Falha de indexação nunca derruba o job.
+
+    Se a extensão deixou o endereço do m3u8 da aula (`media-urls.json`), o áudio sai
+    dele (`download_hls`) em vez do yt-dlp na página; a entrada é apagada ao fim do job.
     """
+    media_lookup = media_lookup or lookup_media_entry
+    media_forget = media_forget or forget_media_entry
     run_sql(RELEASE_STUCK_SQL)
     row = (run_sql(CLAIM_SQL) or '').strip()
     if not row:
@@ -448,8 +657,15 @@ def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
 
     workdir = Path(tempfile.mkdtemp(prefix=f'transcricao_{job_id}_', dir=workdir_root))
     try:
-        media, info = download(url, workdir,
-                               on_progress=lambda p: avisa('downloading', 5 + p * 25 / 100))
+        def progresso(p):
+            avisa('downloading', 5 + p * 25 / 100)
+
+        entry = media_lookup(url)
+        if entry:
+            media, info = download_hls(entry, workdir, on_progress=progresso)
+            guardar = None  # só o áudio: não há arquivo de aula para guardar
+        else:
+            media, info = download(url, workdir, on_progress=progresso)
         avisa('transcribing', 30, forcar=True)
 
         chunks = split(media, workdir)
@@ -477,4 +693,8 @@ def process_one_job(run_sql, run_sql_stdin, workdir_root: Path | None = None,
         run_sql_stdin(_failed_sql(job_id, str(e) or e.__class__.__name__))
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
+        try:
+            media_forget(url)  # endereço assinado não sobra no disco depois do job
+        except Exception as e:
+            print(f'[transcricao] AVISO: não consegui apagar o endereço local do job {job_id}: {e}', flush=True)
     return True

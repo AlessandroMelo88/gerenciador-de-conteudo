@@ -21,6 +21,12 @@ def _sem_indexador_real(monkeypatch):
     monkeypatch.setenv('TRANSCRICAO_INDEXAR', '0')
 
 
+@pytest.fixture(autouse=True)
+def _sem_media_urls_real(monkeypatch, tmp_path_factory):
+    """Nenhum teste lê ou grava o ~/.config/canaldecortes/media-urls.json de verdade."""
+    monkeypatch.setattr(tw, 'MEDIA_URLS_FILE', tmp_path_factory.mktemp('cfg') / 'media-urls.json')
+
+
 def _seg(start, end, text):
     return {'start': start, 'end': end, 'text': text}
 
@@ -542,3 +548,194 @@ class TestIndexacaoDaBusca:
         assert "status = 'done'" in remote.stdin_sql[0]
         assert 'INSERT INTO transcript_chunks' in remote.stdin_sql[-1]
         assert '::vector' not in remote.stdin_sql[-1]
+
+
+ENTRY = {'media_url': 'https://cf-embed.play.hotmart.com/vod/a/hls/playlist.m3u8?get_qualities=1&x=1',
+         'referer': 'https://cf-embed.play.hotmart.com/embed/?v=abc', 'title': 'Aula 3 - Hooks'}
+AULA = 'https://hotmart.com/pt-BR/club/formula-youtube/products/8093188/content/V4VKj9GVe2'
+
+
+class TestEnderecosDeMidia:
+    def test_grava_fechado_so_para_o_dono_e_acha_pela_url_normalizada(self, tmp_path):
+        arq = tmp_path / 'sub' / 'media-urls.json'
+
+        tw.save_media_entry(AULA, ENTRY['media_url'], ENTRY['referer'], ENTRY['title'], path=arq)
+
+        assert oct(arq.stat().st_mode & 0o777) == '0o600'
+        achou = tw.lookup_media_entry(AULA.replace('https://hotmart.com', 'HTTPS://HotMart.com') + '#t=3', path=arq)
+        assert achou['media_url'] == ENTRY['media_url'] and achou['title'] == 'Aula 3 - Hooks'
+
+    def test_entrada_com_mais_de_24h_some_ao_procurar_e_ao_gravar(self, tmp_path):
+        arq = tmp_path / 'm.json'
+        tw.save_media_entry('https://hotmart.com/velha', 'https://a.hotmart.com/p.m3u8', path=arq, now=1000.0)
+
+        assert tw.lookup_media_entry('https://hotmart.com/velha', path=arq, now=1000.0 + 24 * 3600 + 1) is None
+        tw.save_media_entry('https://hotmart.com/nova', 'https://a.hotmart.com/q.m3u8', path=arq,
+                            now=1000.0 + 24 * 3600 + 1)
+        assert 'velha' not in arq.read_text() and 'nova' in arq.read_text()
+
+    def test_esquecer_remove_so_aquela_entrada(self, tmp_path):
+        arq = tmp_path / 'm.json'
+        tw.save_media_entry('https://hotmart.com/a', 'https://a.hotmart.com/1.m3u8', path=arq)
+        tw.save_media_entry('https://hotmart.com/b', 'https://a.hotmart.com/2.m3u8', path=arq)
+
+        tw.forget_media_entry('https://hotmart.com/a', path=arq)
+
+        assert tw.lookup_media_entry('https://hotmart.com/a', path=arq) is None
+        assert tw.lookup_media_entry('https://hotmart.com/b', path=arq) is not None
+
+    def test_arquivo_ausente_ou_corrompido_nao_quebra(self, tmp_path):
+        arq = tmp_path / 'm.json'
+        assert tw.lookup_media_entry('https://x.com/a', path=arq) is None
+        arq.write_text('{lixo')
+        assert tw.lookup_media_entry('https://x.com/a', path=arq) is None
+
+
+class TestArgumentosHls:
+    def test_yt_dlp_so_audio_com_referer_origin_e_opcoes_atuais(self, tmp_path):
+        cookies = tmp_path / 'c.txt'
+        cookies.write_text('x')
+
+        args = tw.yt_dlp_hls_args(ENTRY, tmp_path / 'aula.%(ext)s', cookies_file=cookies)
+
+        assert args[-1] == ENTRY['media_url']
+        assert args[args.index('-f') + 1] == 'ba/b'
+        assert '-x' in args and args[args.index('--audio-format') + 1] == 'mp3'
+        headers = [args[i + 1] for i, a in enumerate(args) if a == '--add-header']
+        assert 'Referer:https://cf-embed.play.hotmart.com/embed/?v=abc' in headers
+        assert 'Origin:https://cf-embed.play.hotmart.com' in headers
+        assert args[args.index('--extractor-args') + 1] == 'generic:impersonate'
+        assert args[args.index('--cookies') + 1] == str(cookies)
+        assert '--cookies-from-browser' not in args
+
+    def test_sem_referer_nao_manda_cabecalho_vazio(self, tmp_path):
+        args = tw.yt_dlp_hls_args({'media_url': ENTRY['media_url'], 'referer': ''}, tmp_path / 'a',
+                                  cookies_file=tmp_path / 'n')
+
+        assert '--add-header' not in args and '--cookies' not in args
+
+    def test_ffmpeg_leva_os_cabecalhos_e_so_audio(self, tmp_path):
+        args = tw.ffmpeg_hls_args(ENTRY, tmp_path / 'aula.mp3')
+
+        assert args[args.index('-headers') + 1] == (
+            'Referer: https://cf-embed.play.hotmart.com/embed/?v=abc\r\n'
+            'Origin: https://cf-embed.play.hotmart.com\r\n')
+        assert args[args.index('-i') + 1] == ENTRY['media_url'] and '-vn' in args
+
+
+class TestDownloadHls:
+    def _run_ok(self, workdir):
+        def run(args, on_progress=None):
+            (workdir / 'aula.mp3').write_bytes(b'mp3')
+            return 0, ''
+        return run
+
+    def test_yt_dlp_ok_devolve_audio_e_titulo_da_aba(self, tmp_path):
+        media, info = tw.download_hls_audio(ENTRY, tmp_path, run_yt_dlp=self._run_ok(tmp_path),
+                                            run_ffmpeg=lambda a: pytest.fail('não devia cair no ffmpeg'),
+                                            cookies_file=tmp_path / 'n')
+
+        assert media == tmp_path / 'aula.mp3'
+        assert info['title'] == 'Aula 3 - Hooks' and info['extractor_key'] == 'Hotmart'
+
+    def test_cai_para_ffmpeg_quando_o_yt_dlp_falha(self, tmp_path):
+        chamadas = []
+
+        def ffmpeg(args):
+            chamadas.append(args)
+            (tmp_path / 'aula.mp3').write_bytes(b'mp3')
+            return 0, ''
+
+        media, _ = tw.download_hls_audio(ENTRY, tmp_path, run_yt_dlp=lambda a, p=None: (1, 'ERROR: boom'),
+                                         run_ffmpeg=ffmpeg, cookies_file=tmp_path / 'n')
+
+        assert media.name == 'aula.mp3' and len(chamadas) == 1
+
+    @pytest.mark.parametrize('stderr', [
+        'ERROR: [generic] This video is DRM protected',
+        'ERROR: unsupported encryption method SAMPLE-AES',
+        'Unable to open key file skd://abc',
+        'Widevine PSSH found',
+    ])
+    def test_drm_falha_clara_e_nao_tenta_ffmpeg(self, tmp_path, stderr):
+        with pytest.raises(RuntimeError) as e:
+            tw.download_hls_audio(ENTRY, tmp_path, run_yt_dlp=lambda a, p=None: (1, stderr),
+                                  run_ffmpeg=lambda a: pytest.fail('nunca tentar contornar DRM'),
+                                  cookies_file=tmp_path / 'n')
+
+        assert 'DRM' in str(e.value) and 'não dá para baixar' in str(e.value)
+
+    def test_drm_detectado_so_no_ffmpeg_tambem_e_claro(self, tmp_path):
+        with pytest.raises(RuntimeError) as e:
+            tw.download_hls_audio(ENTRY, tmp_path, run_yt_dlp=lambda a, p=None: (1, 'ERROR: x'),
+                                  run_ffmpeg=lambda a: (1, 'Invalid data; skd:// key'), cookies_file=tmp_path / 'n')
+
+        assert 'DRM' in str(e.value)
+
+    def test_falha_nos_dois_junta_os_motivos_e_avisa_de_link_expirado(self, tmp_path):
+        with pytest.raises(RuntimeError) as e:
+            tw.download_hls_audio(ENTRY, tmp_path,
+                                  run_yt_dlp=lambda a, p=None: (1, 'ERROR: HTTP Error 403: Forbidden'),
+                                  run_ffmpeg=lambda a: (1, 'Server returned 403 Forbidden'), cookies_file=tmp_path / 'n')
+
+        assert 'expirou' in str(e.value) and 'ffmpeg' in str(e.value)
+
+
+class TestJobComMidiaDaExtensao:
+    def _roda(self, remote, tmp_path, **kw):
+        return tw.process_one_job(
+            run_sql=remote.sql, run_sql_stdin=remote.sql_stdin, workdir_root=tmp_path,
+            split=lambda audio, workdir: [(0.0, workdir / 'p0.mp3')],
+            transcribe=lambda chunk: [_seg(0, 2, 'Olá turma.')], **kw)
+
+    def test_com_entrada_baixa_so_o_audio_do_m3u8_e_apaga_a_entrada(self, tmp_path):
+        remote = FakeRemote(claim_row=f'11\t{AULA}')
+        tw.save_media_entry(AULA, ENTRY['media_url'], ENTRY['referer'], ENTRY['title'])
+        usado = {}
+
+        def hls(entry, workdir, on_progress=None):
+            usado['entry'] = entry
+            return workdir / 'aula.mp3', {'title': entry['title'], 'extractor_key': 'Hotmart'}
+
+        self._roda(remote, tmp_path, download=lambda *a, **k: pytest.fail('caminho antigo não devia rodar'),
+                   download_hls=hls)
+
+        assert usado['entry']['media_url'] == ENTRY['media_url']
+        final = remote.stdin_sql[-1]
+        assert "status = 'done'" in final and 'Aula 3 - Hooks' in final
+        assert tw.lookup_media_entry(AULA) is None, 'endereço assinado não pode sobrar no disco'
+        assert ENTRY['media_url'] not in ''.join(remote.queries + remote.stdin_sql), 'nunca vai ao banco'
+        assert list(tmp_path.iterdir()) == []
+
+    def test_falha_de_drm_vira_failed_e_tambem_apaga_a_entrada(self, tmp_path):
+        remote = FakeRemote(claim_row=f'12\t{AULA}')
+        tw.save_media_entry(AULA, ENTRY['media_url'], ENTRY['referer'])
+
+        def hls(entry, workdir, on_progress=None):
+            raise RuntimeError(tw.DRM_MESSAGE)
+
+        self._roda(remote, tmp_path, download_hls=hls)
+
+        assert "status = 'failed'" in remote.stdin_sql[-1] and 'DRM' in remote.stdin_sql[-1]
+        assert tw.lookup_media_entry(AULA) is None
+
+    def test_sem_entrada_o_caminho_antigo_fica_intacto(self, tmp_path):
+        remote = FakeRemote(claim_row='13\thttps://vimeo.com/123')
+        chamou = []
+
+        def antigo(url, workdir, on_progress=None):
+            chamou.append(url)
+            return workdir / 'a.m4a', {'title': 'Aula 1', 'extractor_key': 'Vimeo'}
+
+        self._roda(remote, tmp_path, download=antigo,
+                   download_hls=lambda *a, **k: pytest.fail('sem entrada não usa HLS'))
+
+        assert chamou == ['https://vimeo.com/123'] and "status = 'done'" in remote.stdin_sql[-1]
+
+
+class TestErroHotmart:
+    def test_unsupported_url_do_hotmart_manda_usar_a_extensao(self):
+        msg = tw.explain_error(f'ERROR: Unsupported URL: {AULA}')
+
+        assert msg.startswith('Use a extensão na página da aula (dê play e clique em Transcrever): '
+                              'o yt-dlp não lê a área de membros do Hotmart')
