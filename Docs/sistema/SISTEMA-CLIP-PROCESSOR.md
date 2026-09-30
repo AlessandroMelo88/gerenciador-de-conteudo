@@ -66,7 +66,7 @@ lendo. **Conferir a data da imagem antes de investigar qualquer bug** —
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `video_processor.py` | FFmpeg. `cut_clip` (curto = crop 1080x1920; longo = `scale=-2:1080`), `generate_srt`, `burn_subtitles`, `overlay_watermark`, `extract_thumbnail`, e o orquestrador `process_clip` |
+| `video_processor.py` | FFmpeg. `cut_clip` (curto = crop 1080x1920; longo = `scale=-2:1080`), `generate_srt`, `burn_subtitles`, `overlay_watermark`, `extract_thumbnail`, e o orquestrador `process_clip`. Desde o Lote 7 há também `render_short_clip` (Short em passe único) e, ao lado dele, `video_quality.py` (modos de render), `media_contract.py` (contrato técnico do Short) e `subtitle_detector.py` (opt-in) — ver [seção Render](#render-de-qualidade-modos-de-encode-e-shorts-em-passe-único-lote-7) |
 
 ### Publicação — [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md)
 
@@ -172,3 +172,81 @@ sidecar (`flask`), o que faz teste falhar por ambiente e não por código. Ver b
 ```bash
 docker exec clip-processor python -m pytest tests/ -q
 ```
+
+---
+
+## Render de qualidade, modos de encode e Shorts em passe único (Lote 7)
+
+Portado seletivamente de `origin/release/rico` (feature `feature/render-qualidade-e-shorts`), sem o
+`ruff format` do lote e sem trazer o que não é render (mídia por canal, meme editor, `worker.py`).
+
+### O que mudou
+
+| Peça | Comportamento |
+|---|---|
+| `video_quality.py` | Modos de encode escolhidos por `VIDEO_RENDER_MODE`, lidos **a cada chamada** (sem rebuild): `padrao` (default), `economia`, `quality`, `ultra` |
+| `render_short_clip` | Short `curto` em **uma** recodificação: enquadra 1080x1920 (crop central, como antes) + legenda queimada + watermark no mesmo filtergraph. Antes eram 3 encodes (`cut_clip` → `burn_subtitles` → `overlay_watermark`), cada um perdendo qualidade |
+| Áudio dinâmico | `loudnorm=I=-14:LRA=11:TP=-1.5` + fade in 80 ms / fade out 200 ms em `cut_clip` e `render_short_clip`. `AUDIO_LOUDNORM=0` desliga |
+| `media_contract.py` | Depois do render, o Short precisa ser 9:16 e ter duração entre 5 s e o teto. Falhou → clip `failed` com `upload_error` |
+| `subtitle_detector.py` | **Opt-in** (`BURNED_SUBTITLE_DETECTION=true`): OCR do rodapé do vídeo-fonte; se ele já traz legenda queimada que repete a fala, não queimamos a nossa por cima. Exige `tesseract-ocr-por` (agora no Dockerfile) |
+
+Vídeo `longo` continua no caminho antigo (`cut_clip` com template/fundo + `burn_subtitles` + watermark
+condicional). `SHORTS_SINGLE_PASS=0` volta o `curto` ao encadeamento de 3 passes.
+
+### Modos de render (`VIDEO_RENDER_MODE`)
+
+| Modo | x264 | Áudio | Uso |
+|---|---|---|---|
+| `padrao` (**default**, aliases `legacy`) | `ultrafast`, CRF 24, 1 thread | AAC 128k | O que a master já rodava; é o que a A1 (2 OCPU) sustenta |
+| `economia` (`fast`) | `veryfast`, CRF 16, 2 threads | AAC 320k | Meio-termo opt-in |
+| `quality` (`maximo`) | `slow`, CRF 14, 2 threads | AAC 320k | Qualidade máxima da rico; **opt-in** |
+| `ultra` | `ultrafast`, CRF 18, 2 threads | AAC 320k | Rápido com CRF melhor |
+
+Todos usam `-profile:v high -level 4.2 -pix_fmt yuv420p`. Ajuste fino sobrescreve o modo:
+`FFMPEG_PRESET`, `FFMPEG_CRF`, `FFMPEG_THREADS`. As variáveis **não** estão no `docker-compose.yml` (a
+raiz é compartilhada); para ligar na A1, incluí-las no `environment` do `clip-processor` quando for
+decidido.
+
+### Medição (corte de 30 s, fonte sintética 1920x1080 30 fps, legenda + watermark)
+
+> **Medido em Mac (Apple Silicon) / Docker Desktop, limitado a `--cpus=2`, imagem `wordpress-clip-processor`
+> arm64. NÃO foi medido na A1.** A máquina tinha outros containers ativos, então os números têm ruído
+> (a repetição do mesmo caso variou até ~2x). A Neoverse N1 da A1 é bem mais lenta que um núcleo M-series:
+> use os números como **razão** entre modos, não como tempo absoluto. Falta repetir na A1.
+
+| Caso | Tempo (s) | Tamanho |
+|---|---|---|
+| 3 passes, `padrao` (encadeamento antigo) | 40,1 / 33,4 | 20,9 MB |
+| **Passe único, `padrao`** | **24,1 / 12,8** | 22,4 MB |
+| Passe único, `economia` (veryfast CRF 16) | 59,4 | 16,5 MB |
+| Passe único, `quality` (slow CRF 14) | 88,5 | 19,7 MB |
+
+Leitura: o passe único **reduz** o CPU do default (1 encode em vez de 3, ~2x mais rápido aqui);
+`economia` custa ~2,5–4x o `padrao` e `quality` ~4–7x. Por isso o default fica em `padrao` e
+qualidade máxima é opt-in até haver medição na A1 (render de 30 s hoje cabe folgado no intervalo do
+ciclo; o gargalo seria empilhar clips com `quality` em 2 OCPU).
+
+Descoberta na medição: `overlay=...:format=auto` com `format=rgba` no PNG do watermark fazia o Short
+levar ~70–90 s; o `overlay=W-w-20:20` simples (o mesmo do `overlay_watermark` antigo) é o usado.
+
+### Duração do Short: reconciliação com a regra da master
+
+A rico exige **30–45 s** rígidos (`SHORTS_MIN/MAX_DURATION_SECONDS`) e recusa render fora disso.
+A master tem regra editorial diferente, que **foi mantida**: o `selector` descarta momento < 15 s,
+estica 15–30 s até 30 s (quando a transcrição permite) e limita a 180 s. Decisão de 30/09/2026:
+
+- A política (15 / 30 / 180) continua **só no `selector`**; o render não a reimpõe.
+- `media_contract` valida apenas o técnico: 9:16, piso absoluto de 5 s (o `selector` aceita clip curto
+  quando a transcrição inteira é menor que 30 s) e teto = `SHORTS_MAX_DURATION_SECONDS` (default 180).
+- Quem quiser a regra da rico: `SHORTS_MAX_DURATION_SECONDS=45` — o render corta o excedente e o
+  contrato passa a rejeitar acima de 45 s. Não é o default.
+- Preservados: 1 clip por corte, janela de 10 vídeos por canal, raw só apagado pelo sidecar, recoveries.
+
+### O que ficou de fora do lote
+
+- **Stage workers (`worker.py`)**: dependem de `poll_sources_only`, `process_downloaded_videos` e
+  `process_pending_clips` públicos no `rss_poller`, que a master não tem, e o APScheduler do `main.py`
+  já agenda essas etapas — subir os dois duplicaria o agendamento. Fica para um lote próprio de refactor.
+- Enquadramento com fundo desfocado da rico (`SHORTS_VERTICAL_FILTER` blur): muda o visual dos Shorts;
+  a master segue com crop central.
+- `paths.py` (resolução de paths para workers nativos), `media_composer`/`meme_editor` (Lote 8).

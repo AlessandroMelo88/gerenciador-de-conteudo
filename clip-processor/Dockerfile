@@ -2,6 +2,9 @@ FROM python:3.12-slim
 
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    fonts-dejavu-core \
+    tesseract-ocr \
+    tesseract-ocr-por \
     git \
     build-essential \
     cmake \
