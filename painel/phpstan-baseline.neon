@@ -1,0 +1,631 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Cannot call method toIso8601String\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/Api/OfferApiController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Pagination\\AbstractPaginator\<int,App\\Models\\Offer\>\:\:through\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Api/OfferApiController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$destinationChannel\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/AssistantController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$sourceVideo\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/AssistantController.php
+
+		-
+			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
+			identifier: larastan.noEnvCallsOutsideOfConfig
+			count: 1
+			path: app/Http/Controllers/AssistantController.php
+
+		-
+			message: '#^Relation ''destinationChannel'' is not found in App\\Models\\GeneratedClip model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/AssistantController.php
+
+		-
+			message: '#^Relation ''sourceVideo'' is not found in App\\Models\\GeneratedClip model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/AssistantController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$destinationChannel\.$#'
+			identifier: property.notFound
+			count: 5
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$sourceVideo\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$generatedClips\.$#'
+			identifier: property.notFound
+			count: 6
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$sourceChannel\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
+			identifier: larastan.noEnvCallsOutsideOfConfig
+			count: 2
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,App\\Models\\SourceVideo\>\:\:sortBy\(\) expects array\<array\{string, ''asc''\|''desc''\|SortDirection\}\|\(callable\(App\\Models\\SourceVideo, App\\Models\\SourceVideo\)\: mixed\)\|\(callable\(App\\Models\\SourceVideo, int\)\: mixed\)\|string\>\|\(callable\(App\\Models\\SourceVideo, int\)\: mixed\)\|int\|string, array\{array\{Closure\(App\\Models\\SourceVideo\)\: \(0\|1\), ''asc''\}, array\{Closure\(App\\Models\\SourceVideo\)\: \(0\|1\), ''asc''\}, array\{Closure\(App\\Models\\SourceVideo\)\: int, ''asc''\}, array\{Closure\(App\\Models\\SourceVideo\)\: int, ''asc''\}, array\{Closure\(App\\Models\\SourceVideo\)\: mixed, ''asc''\}, array\{Closure\(App\\Models\\SourceVideo\)\: \(Carbon\\Carbon\|null\), ''asc''\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Relation ''destinationChannel'' is not found in App\\Models\\GeneratedClip model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Relation ''generatedClips'' is not found in App\\Models\\SourceVideo model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Relation ''sourceChannel'' is not found in App\\Models\\SourceVideo model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Relation ''sourceVideo'' is not found in App\\Models\\GeneratedClip model\.$#'
+			identifier: larastan.relationExistence
+			count: 5
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>channel_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>format" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>niche" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>target_niche" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Cannot call method diffForHumans\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Http/Controllers/OfferController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Offer\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/OfferController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\OfferClick\:\:\$clicks\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/OfferPerformanceController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\OfferClick\:\:\$last_click_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/OfferPerformanceController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\OfferClick\:\:\$visitors\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/OfferPerformanceController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\ConnectionInterface\:\:getDriverName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/OfferPerformanceController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$em_andamento_count\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$generatedClips\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$publicados_count\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$sourceChannel\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SourceVideo\:\:\$total_clips_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Relation ''generatedClips'' is not found in App\\Models\\SourceVideo model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Relation ''sourceChannel'' is not found in App\\Models\\SourceVideo model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/SourceVideoController.php
+
+		-
+			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
+			identifier: larastan.noEnvCallsOutsideOfConfig
+			count: 1
+			path: app/Http/Controllers/TelegramWebhookController.php
+
+		-
+			message: '#^Method Redis\:\:set\(\) invoked with 5 parameters, 2\-3 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: app/Http/Controllers/TelegramWebhookController.php
+
+		-
+			message: '#^Parameter \#3 \$options of method Redis\:\:set\(\) expects array\|int, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/TelegramWebhookController.php
+
+		-
+			message: '#^Parameter \#1 \$array \(list\<int\>\) of array_values is already a list, call has no effect\.$#'
+			identifier: arrayValues.list
+			count: 1
+			path: app/Services/ClipProcessorClient.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>textContent" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/OfferCopywriter.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Illuminate\\Console\\Command\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: database/seeders/BaselineSeeder.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Illuminate\\Console\\Command\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: database/seeders/SourceChannelsSeeder.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/AuthGuardTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:post\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/AuthGuardTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Feature/BrandThemeTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 10
+			path: tests/Feature/ClipApprovalActionTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 8
+			path: tests/Feature/ClipApprovalActionTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 7
+			path: tests/Feature/ClipApprovalActionTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:mock\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/ClipApprovalActionTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:artisan\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/CreatePainelUserCommandTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/DestinationChannelResourceTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$template_config\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/DestinationChannelResourceTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Feature/DestinationChannelResourceTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/InertiaDashboardTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/InertiaDashboardTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/MaintenanceModeTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:postJson\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/MaintenanceModeTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$external_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/OfferApiTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/OfferApiTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$network\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/OfferApiTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/OfferApiTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/OfferApiTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:getJson\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Feature/OfferApiTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: tests/Feature/OfferCopyGenerationTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:post\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/OfferCopyGenerationTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$approved_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: tests/Feature/OfferPanelTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 8
+			path: tests/Feature/OfferPanelTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/OfferPanelTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/OfferPanelTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 8
+			path: tests/Feature/OfferPanelTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:delete\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/OfferPanelTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/OfferPanelTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:post\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/OfferPanelTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:put\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/OfferPanelTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: tests/Feature/OfferPerformanceTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/OfferPerformanceTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/OfferPerformanceTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/OfferPerformanceTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:travelTo\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/OfferPerformanceTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\|Pest\\Support\\HigherOrderTapProxy\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/OfferPerformanceTest.php
+
+		-
+			message: '#^Parameter \#1 \$offer of function insertClick expects App\\Models\\Offer, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 6
+			path: tests/Feature/OfferPerformanceTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$clicks_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/OfferRedirectTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 4
+			path: tests/Feature/OfferRedirectTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 4
+			path: tests/Feature/OfferRedirectTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Feature/OfferRedirectTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:withServerVariables\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/OfferRedirectTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/OfferTelegramPublishTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$telegram_posted_at\.$#'
+			identifier: property.notFound
+			count: 7
+			path: tests/Feature/OfferTelegramPublishTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:artisan\(\)\.$#'
+			identifier: method.notFound
+			count: 10
+			path: tests/Feature/OfferTelegramPublishTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:postJson\(\)\.$#'
+			identifier: method.notFound
+			count: 9
+			path: tests/Feature/PipelineEventTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:artisan\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/ResetPainelPasswordCommandTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$blacklisted\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/SourceChannelResourceTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: tests/Feature/SourceChannelResourceTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: tests/Feature/SourceChannelResourceTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 4
+			path: tests/Feature/TelegramCommandsTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: tests/Feature/TelegramCommandsTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:postJson\(\)\.$#'
+			identifier: method.notFound
+			count: 7
+			path: tests/Feature/TelegramCommandsTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:postJson\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Feature/TelegramWebhookTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: tests/Feature/TranscriptSearchTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:artisan\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/TranscriptSearchTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/TranscriptSearchTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\|Pest\\Support\\HigherOrderTapProxy\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/TranscriptSearchTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 18
+			path: tests/Feature/TranscriptionControllerTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:delete\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/TranscriptionControllerTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 4
+			path: tests/Feature/TranscriptionControllerTest.php
+
+		-
+			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with true will always evaluate to true\.$#'
+			identifier: method.alreadyNarrowedType
+			count: 1
+			path: tests/Unit/ExampleTest.php

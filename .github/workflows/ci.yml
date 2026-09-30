@@ -1,0 +1,182 @@
+# CI — só valida. Não faz deploy, não usa segredo: o deploy é manual (./deploy.sh, ver DEPLOY.md).
+# Espelha `make ci` mais os testes PHP (que exigem PostgreSQL). Detalhes: Docs/DESENVOLVIMENTO.md
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: clip-processor · ruff + pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clip-processor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: clip-processor/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      # mypy ainda tem erros herdados (ver pyproject.toml): informativo, não reprova.
+      - run: mypy
+        continue-on-error: true
+      - run: pytest -q -p no:cacheprovider --cov --cov-report=term
+
+  affiliate-worker:
+    name: affiliate-worker · pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: affiliate-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: affiliate-worker/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: pytest -q -p no:cacheprovider --cov=. --cov-fail-under=85
+
+  php-static:
+    name: painel · pint (arquivos alterados) + phpstan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: painel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, intl, bcmath, pdo_pgsql, redis, zip
+          coverage: none
+          tools: composer:v2
+      - uses: actions/cache@v4
+        with:
+          path: painel/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('painel/composer.lock') }}
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      # O código legado não está no estilo Pint: só exigimos dos arquivos que o PR toca.
+      - run: vendor/bin/pint --test --diff=origin/master
+      - run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress --error-format=github
+
+  php-tests:
+    name: painel · pest (postgres 17 + pgvector)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: painel
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: clips_automation
+          POSTGRES_USER: clips_user
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -h 127.0.0.1 -U clips_user -d clips_automation"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s --health-timeout=3s --health-retries=20
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      DB_DATABASE: clips_automation
+      DB_USERNAME: clips_user
+      DB_PASSWORD: ci-only-password
+      REDIS_HOST: 127.0.0.1
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      CLIP_PROCESSOR_INTERNAL_TOKEN: ci-token
+      TELEGRAM_BOT_TOKEN: ci-fake-token
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, intl, bcmath, pdo_pgsql, redis, zip
+          coverage: none
+          tools: composer:v2
+      - uses: actions/cache@v4
+        with:
+          path: painel/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('painel/composer.lock') }}
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate --force
+      # O schema dos testes vem das migrations (os testes não usam RefreshDatabase).
+      - run: php artisan migrate --force --no-interaction
+      - run: php artisan test
+
+  frontend:
+    name: painel · oxlint + tsc + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: painel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: painel/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      # tsc ainda tem erros herdados (27 em 30/09/2026): informativo, não reprova.
+      - run: npm run typecheck
+        continue-on-error: true
+      - run: npm run build
+
+  infra:
+    name: infra · shellcheck + hadolint + yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -y -q shellcheck
+      # -S error: os avisos herdados (SC2034, SC2155) ficam para uma limpeza futura.
+      - run: shellcheck -S error scripts/*.sh manual-workflow/*.sh
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+          config: .hadolint.yaml
+      - run: pip install yamllint && yamllint -c .yamllint.yml .
+
+  # Portão único para branch protection: exigir só "CI gate" garante que todos os jobs acima passaram.
+  gate:
+    name: CI gate
+    if: always()
+    needs: [python, affiliate-worker, php-static, php-tests, frontend, infra]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Todos os jobs precisam ter passado
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "resultados: $RESULTS"
+          for r in $RESULTS; do
+            [ "$r" = "success" ] || { echo "job falhou/cancelado/pulado: $r"; exit 1; }
+          done
