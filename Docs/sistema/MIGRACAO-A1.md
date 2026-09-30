@@ -97,6 +97,14 @@ Contagem final idêntica: 1 usuário, 3 nichos, 33 canais fonte, 3 destinos, 1.5
 - O log `Clip N pulado: status mudou durante seleção` é normal com aprovação manual: o publisher
   lista clips `pending` junto com `approved` e pula os `pending`. Já aparecia 1.458 vezes na Micro.
 
+## Busca vetorial: Postgres com pgvector (29/09/2026)
+
+O serviço `postgres` passa a usar imagem própria (`docker/postgres/Dockerfile`: `postgres:17-alpine`
++ pgvector `v0.8.0`), com `mem_limit: 2g`, e ganha o sidecar `embedder` (1 GB). Mesma base alpine e
+mesmo volume `postgres_data`, sem `pg_upgrade`. A troca é manual e deliberada (o deploy comum faz
+`--no-recreate`): runbook em `DEPLOY.md`, seção "Postgres com pgvector". Isso soma ~1 GB de RAM ao que
+a A1 já usa.
+
 ## O que falta
 
 - [ ] **Cloudflare:** registro A de `toolscut` → `129.80.236.185`
