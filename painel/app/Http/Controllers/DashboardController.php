@@ -129,7 +129,7 @@ class DashboardController extends Controller
                 return [
                     'id' => $video->id,
                     'title' => $video->title,
-                    'format' => $video->format,
+                    'format' => $video->generate_both_formats ? 'ambos' : $video->format,
                     'status' => $video->status,
                     'progress' => $progress,
                     'paused' => (bool) $video->paused,
@@ -189,13 +189,25 @@ class DashboardController extends Controller
         $publishedCurto = GeneratedClip::query()
             ->where('status', 'published')
             ->where('updated_at', '>=', $since)
-            ->whereHas('sourceVideo', fn ($q) => $q->where('format', 'curto'))
+            ->where(function ($query) {
+                $query->where('format', 'curto')
+                    ->orWhere(function ($legacy) {
+                        $legacy->whereNull('format')
+                            ->whereHas('sourceVideo', fn ($source) => $source->where('format', 'curto'));
+                    });
+            })
             ->count();
 
         $publishedLongo = GeneratedClip::query()
             ->where('status', 'published')
             ->where('updated_at', '>=', $since)
-            ->whereHas('sourceVideo', fn ($q) => $q->where('format', 'longo'))
+            ->where(function ($query) {
+                $query->where('format', 'longo')
+                    ->orWhere(function ($legacy) {
+                        $legacy->whereNull('format')
+                            ->whereHas('sourceVideo', fn ($source) => $source->where('format', 'longo'));
+                    });
+            })
             ->count();
 
         $publishedTotal = $publishedCurto + $publishedLongo;
@@ -210,8 +222,8 @@ class DashboardController extends Controller
             'publishedCurto' => $publishedCurto,
             'publishedLongo' => $publishedLongo,
             'approvalRate' => $approvalRate,
-            'backlogCurto' => SourceVideo::query()->where('status', 'pending')->where(fn ($q) => $q->where('format', 'curto')->orWhereNull('format'))->count(),
-            'backlogLongo' => SourceVideo::query()->where('status', 'pending')->where('format', 'longo')->count(),
+            'backlogCurto' => SourceVideo::query()->where('status', 'pending')->where(fn ($q) => $q->where('format', 'curto')->orWhereNull('format')->orWhere('generate_both_formats', true))->count(),
+            'backlogLongo' => SourceVideo::query()->where('status', 'pending')->where(fn ($q) => $q->where('format', 'longo')->orWhere('generate_both_formats', true))->count(),
         ];
     }
 
@@ -243,7 +255,7 @@ class DashboardController extends Controller
                 'endTime' => $clip->end_time,
                 'sourceVideoTitle' => $clip->sourceVideo?->title,
                 'sourceChannelName' => $clip->sourceVideo?->sourceChannel?->channel_name,
-                'format' => $clip->sourceVideo?->format ?? 'curto',
+                'format' => $clip->format ?? $clip->sourceVideo?->format ?? 'curto',
                 'destinationChannelName' => $clip->destinationChannel?->name,
                 'destinationChannelSlug' => $clip->destinationChannel?->slug,
                 'niche' => $clip->destinationChannel->niche ?? $clip->sourceVideo->sourceChannel->target_niche ?? 'futebol',

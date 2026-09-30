@@ -10,6 +10,8 @@ return new class extends Migration
      *
      * O `enum()` da migration original vira coisas diferentes em cada banco: CHECK
      * constraint no PostgreSQL e ENUM nativo no MySQL. Por isso SQL por driver.
+     * SQLite mantém seu CHECK da migration original; a migration posterior converte
+     * a coluna para string para permitir `paused` sem reconstruções por valor.
      */
     private const ANTES = ['pending', 'downloading', 'transcribing', 'done', 'failed'];
 

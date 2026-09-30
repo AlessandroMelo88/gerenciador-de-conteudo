@@ -52,7 +52,7 @@ export type PipelineOverview = {
 export type ActiveWindowVideo = {
     id: number;
     title: string;
-    format: ClipFormat;
+    format: ClipFormat | 'ambos';
     status: string;
     progress: number;
     paused: boolean;

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DestinationChannel;
 use App\Models\GeneratedClip;
 use App\Models\SourceVideo;
 use App\Services\ClipProcessorClient;
@@ -147,17 +148,24 @@ class SourceVideoController extends Controller
             });
 
         $total = (clone $base)->count();
-        $curtoCount = (clone $base)->where('format', 'curto')->count();
-        $longoCount = (clone $base)->where('format', 'longo')->count();
-        $processingCount = SourceVideo::whereIn('status', ['downloading', 'transcribing', 'selecting', 'cutting'])->count();
+        $curtoCount = (clone $base)
+            ->where(fn ($q) => $q->where('format', 'curto')->orWhere('generate_both_formats', true))
+            ->count();
+        $longoCount = (clone $base)
+            ->where(fn ($q) => $q->where('format', 'longo')->orWhere('generate_both_formats', true))
+            ->count();
+        $processingCount = SourceVideo::whereIn(
+            'status',
+            ['downloading', 'downloaded', 'transcribing', 'selecting', 'cutting', 'publishing']
+        )->count();
+        $cap = DestinationChannel::query()->where('active', true)->count()
+            * max(0, (int) config('pipeline.download_window_per_channel', 10));
 
         return [
             'total' => $total,
-            'cap' => 10,
+            'cap' => $cap,
             'curtoCount' => $curtoCount,
-            'curtoCap' => 6,
             'longoCount' => $longoCount,
-            'longoCap' => 4,
             'processingCount' => $processingCount,
         ];
     }

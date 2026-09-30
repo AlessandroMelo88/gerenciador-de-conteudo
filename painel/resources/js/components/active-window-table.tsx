@@ -113,6 +113,13 @@ function NicheBadge({ niche, channelName }: { niche?: string | null; channelName
 }
 
 function FormatBadge({ format }: { format?: string | null }) {
+    if (format === 'ambos') {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[11px] font-bold text-sky-600 dark:text-sky-400">
+                📱 + ▭ Ambos
+            </span>
+        );
+    }
     const isLongo = format === 'longo';
     if (isLongo) {
         return (
@@ -482,8 +489,8 @@ function VideoTable({
 
 export function ActiveWindowTable({ videos }: { videos: ActiveWindowVideo[] }) {
     const { selected, toggle, toggleAll, clear } = useSelection(videos);
-    const curtoCount = videos.filter((v) => v.format === 'curto').length;
-    const longoCount = videos.filter((v) => v.format === 'longo').length;
+    const curtoCount = videos.filter((v) => v.format === 'curto' || v.format === 'ambos').length;
+    const longoCount = videos.filter((v) => v.format === 'longo' || v.format === 'ambos').length;
     const processing = useMemo(() => videos.filter((v) => v.processing && !v.paused), [videos]);
     const idle = useMemo(() => videos.filter((v) => !v.processing || v.paused), [videos]);
     const deletableIds = useMemo(() => videos.filter((v) => v.canDelete).map((v) => v.id), [videos]);

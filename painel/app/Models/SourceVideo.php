@@ -25,6 +25,7 @@ class SourceVideo extends Model
         'transcript_data',
         'transcript_text',
         'format',
+        'generate_both_formats',
         'priority',
         'paused',
         'queue_position',
@@ -33,6 +34,7 @@ class SourceVideo extends Model
     protected $casts = [
         'published_at' => 'datetime',
         'paused' => 'boolean',
+        'generate_both_formats' => 'boolean',
         'priority' => 'integer',
         'queue_position' => 'integer',
         'transcript_data' => 'array',
@@ -48,5 +50,11 @@ class SourceVideo extends Model
     public function generatedClips(): HasMany
     {
         return $this->hasMany(GeneratedClip::class, 'source_video_id');
+    }
+
+    /** @return HasMany<SourceVideoTopic, $this> */
+    public function topics(): HasMany
+    {
+        return $this->hasMany(SourceVideoTopic::class, 'source_video_id')->orderBy('position');
     }
 }

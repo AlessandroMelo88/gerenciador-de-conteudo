@@ -1,0 +1,1 @@
+**Shorts e longo da mesma fonte** — cada vídeo ingerido gera Shorts e, havendo trecho contínuo de pelo menos 7 minutos, também um vídeo longo; o formato passa a ser gravado em `generated_clips.format` (histórico, cota, publicação e painel usam o formato do clip) e a janela de download é `DOWNLOAD_WINDOW_PER_CHANNEL` por canal

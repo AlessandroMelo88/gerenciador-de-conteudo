@@ -14,6 +14,8 @@ return [
 
     'max_uploads_per_day' => min(max((int) env('MAX_UPLOADS_PER_DAY', 6), 0), 6),
 
+    'download_window_per_channel' => max(0, (int) env('DOWNLOAD_WINDOW_PER_CHANNEL', 10)),
+
     'manual_approval_required' => filter_var(
         env('MANUAL_APPROVAL_REQUIRED', false),
         FILTER_VALIDATE_BOOLEAN,

@@ -16,6 +16,7 @@ class GeneratedClip extends Model
 
     protected $fillable = [
         'source_video_id',
+        'format',
         'destination_channel_id',
         'clip_path',
         'thumbnail_path',

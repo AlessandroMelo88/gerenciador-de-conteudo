@@ -16,9 +16,7 @@ export type DownloadWindowMetrics = {
     total: number;
     cap: number;
     curtoCount: number;
-    curtoCap: number;
     longoCount: number;
-    longoCap: number;
     processingCount: number;
 };
 
@@ -109,9 +107,9 @@ export function VideoSummaryCards({
                 <CardContent className="pt-0">
                     <p className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
                         <LayersIcon className="h-3 w-3 text-muted-foreground/70" />
-                        curto {downloadWindow.curtoCount}/{downloadWindow.curtoCap}
+                        Saídas previstas: Shorts {downloadWindow.curtoCount}
                         <span className="mx-1.5 text-border">·</span>
-                        longo {downloadWindow.longoCount}/{downloadWindow.longoCap}
+                        Longos {downloadWindow.longoCount}
                     </p>
                 </CardContent>
             </Card>
