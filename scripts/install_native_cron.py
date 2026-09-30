@@ -20,13 +20,12 @@ def _worker_lines() -> list[str]:
     root_q, python_q, runner_q = map(shlex.quote, (str(ROOT), str(python), str(runner)))
     lines = []
     for stage, schedule in (
-        ('poll', '*/20 * * * *'),
-        ('download', '*/15 * * * *'),
-        ('ai', '*/15 * * * *'),
-        ('render', '*/15 * * * *'),
-        ('maintenance', '*/30 * * * *'),
-        # The publisher checks São Paulo time and permits long videos at 06/14/22,
-        # Shorts at 12/20, with a maximum of one upload per channel in each slot.
+        ('poll', '0 */2 * * *'),         # a cada 2 horas (reduz 6x de 20min)
+        ('download', '15 * * * *'),      # 1x por hora no minuto 15 (reduz 4x de 15min)
+        ('ai', '30 * * * *'),            # 1x por hora no minuto 30 (reduz 4x de 15min)
+        ('render', '45 * * * *'),        # 1x por hora no minuto 45 (reduz 4x de 15min)
+        ('maintenance', '5 */3 * * *'),  # a cada 3 horas (reduz 6x de 30min)
+        # O publisher roda a cada hora e respeita as janelas de pico (SHORTS_PEAK_HOURS / LONG_UPLOAD_HOURS)
         ('publish', '0 * * * *'),
     ):
         lines.append(f'{schedule} cd {root_q} && {python_q} {runner_q} --stage {stage}')
