@@ -241,6 +241,18 @@ Guard `web` (session, driver `database`), único guard — não há Sanctum/API.
 
 **Sem cobertura:** `SettingsController`, `ProcessVideoController`, `SourceVideoController` (o mais complexo depois do Dashboard), `NicheController` e a rota `clips.preview`. Nenhum teste de frontend.
 
+### Busca nas transcrições (as-built em desenvolvimento, `feature/busca-vetorial`)
+
+Transcrições são cortadas em trechos (`transcript_chunks`, ~1.000 caracteres, com `start_seconds`) no
+**worker do Mac**, que grava texto e vetor no PostgreSQL da A1 (`pgvector`, HNSW cosseno; FTS com a
+config `pt_unaccent`). A consulta vai de `GET /painel/transcricoes/busca` (JSON, modos
+`hibrida|semantica|texto`, fusão RRF) ao Laravel, que pede o vetor da pergunta ao sidecar `embedder`
+(`intfloat/multilingual-e5-small`, 384d, rede `internal`, bearer `EMBEDDER_TOKEN`). Se o embedder falha
+ou estoura `EMBEDDER_TIMEOUT`, a busca **degrada para texto** (`degraded: true`); não há troca de
+provedor porque vetores de modelos diferentes não se misturam. Postgres de produção passa a usar imagem
+própria (alpine 17 + pgvector). Detalhes: [`Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md`](Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md);
+decisão: [`Docs/adr/0001-busca-vetorial-nas-transcricoes.md`](Docs/adr/0001-busca-vetorial-nas-transcricoes.md).
+
 ---
 
 ## 8. Configuração
@@ -259,6 +271,9 @@ O compose lê o `.env` da **raiz `wordpress/`**. O `canaldecortes/.env.example` 
 | `YOUTUBE_PRIVACY_STATUS` | `privacyStatus` do upload (default `private`) |
 | `CLIP_PENDING_TTL_HOURS` / `CLIP_PENDING_WARN_HOURS` | TTL de auto-rejeição (48h/24h) |
 | `LARAVEL_NOTIFY_URL` / `LARAVEL_HOST_HEADER` | Endpoint de eventos e Host para o roteamento nginx |
+| `EMBEDDER_URL` / `EMBEDDER_TOKEN` / `EMBEDDER_TIMEOUT` | Sidecar de embeddings da busca nas transcrições (token igual nos dois lados; timeout em segundos antes de degradar para texto) |
+| `EMBEDDING_MODEL` / `EMBEDDING_DIM` | Modelo (`intfloat/multilingual-e5-small`) e dimensão (384) do embedder e do indexador |
+| `TRANSCRICAO_INDEXAR` | Mac: `1` liga a indexação de chunks ao concluir uma transcrição |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID_ALLOWED` | Bot; vivem no `painel/.env`, não no compose |
 
 ---
