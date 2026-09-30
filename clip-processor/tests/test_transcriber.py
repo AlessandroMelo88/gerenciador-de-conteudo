@@ -22,6 +22,17 @@ def no_network_caption_lookup(monkeypatch):
     monkeypatch.setattr('src.transcriber._download_youtube_transcript', lambda _video_id: None)
 
 
+def _seed_source_video_for_transcript_save(conn):
+    """Simula a fonte existente e o UPDATE afetando uma linha, como no PostgreSQL."""
+    with conn.cursor() as cursor:
+        cursor.fetchone.return_value = {
+            'id': 1,
+            'transcript_data': None,
+            'transcript_text': None,
+        }
+        cursor.rowcount = 1
+
+
 class TestTranscribeVideo:
     def test_parse_youtube_timedtext_returns_timestamped_segments(self):
         payload = """<?xml version="1.0" encoding="utf-8" ?>
@@ -207,7 +218,10 @@ Segundo trecho
         assert options_seen[0]['writeautomaticsub'] is False
         assert len(options_seen) == 1
 
-    def test_transcription_returns_segments(self, mock_db_conn, sample_video_id, tmp_path):
+    @pytest.mark.parametrize('transcription_prompt', [None, 'Hacker Libertário, Linux'])
+    def test_transcription_returns_segments(
+        self, mock_db_conn, sample_video_id, tmp_path, transcription_prompt
+    ):
         """AI-01: Groq Whisper retorna dict com texto e lista de segmentos com start/end/text."""
         # Criar arquivo MP4 falso pequeno (<25MB) para não acionar extração de áudio
         video_path = str(tmp_path / f'{sample_video_id}.mp4')
@@ -226,7 +240,12 @@ Segundo trecho
             segments=[mock_seg],
         )
 
-        result = transcribe_video(sample_video_id, video_path, groq_client=mock_groq)
+        result = transcribe_video(
+            sample_video_id,
+            video_path,
+            groq_client=mock_groq,
+            prompt=transcription_prompt,
+        )
 
         assert result is not None
         assert result['video_id'] == sample_video_id
@@ -235,9 +254,14 @@ Segundo trecho
         assert result['segments'][0]['start'] == 0.0
         assert result['segments'][0]['end'] == 5.5
         assert 'Vini' in result['segments'][0]['text']
+        assert (
+            mock_groq.audio.transcriptions.create.call_args.kwargs.get('prompt')
+            == transcription_prompt
+        )
 
     def test_transcript_saved_to_disk(self, mock_db_conn, sample_video_id, tmp_path):
         """AI-01: save_transcript() cria arquivo {video_id}_transcript.json em disco."""
+        _seed_source_video_for_transcript_save(mock_db_conn)
         transcript = {
             'video_id': sample_video_id,
             'text': 'Texto completo',
@@ -257,6 +281,7 @@ Segundo trecho
 
     def test_transcript_path_updated_in_db(self, mock_db_conn, sample_video_id, tmp_path):
         """AI-01: save_transcript() atualiza transcript_path em source_videos no banco."""
+        _seed_source_video_for_transcript_save(mock_db_conn)
         transcript = {
             'video_id': sample_video_id,
             'text': 'Texto',

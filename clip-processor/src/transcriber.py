@@ -2,7 +2,7 @@
 transcriber.py — Legendas do YouTube com fallback para Groq Whisper API.
 
 Exporta:
-  - transcribe_video(video_id, video_path, groq_client=None, db_conn=None) -> dict | None
+  - transcribe_video(video_id, video_path, groq_client=None, db_conn=None, prompt=None) -> dict | None
   - save_transcript(conn, video_id, transcript) -> str
 
 Convenções:
@@ -53,6 +53,12 @@ _VTT_TIMING_RE = re.compile(
     r'(?P<end>(?:\d{1,2}:)?\d{1,2}:\d{2}[.,]\d{3})(?:\s|$)'
 )
 _VTT_TAG_RE = re.compile(r'<[^>]*>')
+
+WHISPER_TECH_PROMPT = (
+    'Tecnologia, Inteligência Artificial, LLMs, Machine Learning, Qwen 2.5, Claude Code, '
+    'METR, Mano Deyvin, Lucas Montano, Gabriel Fróes, Vanessa Weber, Código Fonte TV, '
+    'Hacker Libertário, SaaS, API, Docker, Linux, Git, Python, Prompt, Benchmark, Open Source.'
+)
 
 
 class TranscriptSegment(TypedDict):
@@ -215,24 +221,30 @@ def _caption_language_rank(language_code: str) -> int | None:
     return None
 
 
-def _youtube_caption_tracks(player_response: dict) -> list[dict]:
-    """Seleciona somente faixas pt publicadas/manualizadas.
+def _youtube_caption_tracks(player_response: dict, allow_automatic: bool = False) -> list[dict]:
+    """Seleciona faixas pt publicadas/manualizadas (e automáticas se explicitamente permitido).
 
-    Faixas ``kind=asr`` são a transcrição automática do vídeo-fonte. Usá-las
-    como base cria um efeito cascata: um erro do ASR do youtuber vira texto
-    queimado e também legenda oficial no vídeo de destino. Quando não existe
-    uma faixa manual, ``transcribe_video`` usa o Whisper/Groq como fallback.
+    Prioriza faixas manuais enviadas pelo criador. Se allow_automatic=True e não houver
+    faixas manuais, aproveita a legenda oficial da plataforma para economizar recursos
+    de transcrição.
     """
     captions = player_response.get('captions', {}).get('playerCaptionsTracklistRenderer', {})
     manual: list[tuple[int, dict]] = []
+    auto: list[tuple[int, dict]] = []
     for track in captions.get('captionTracks', []):
         rank = _caption_language_rank(track.get('languageCode', ''))
         if rank is None or not track.get('baseUrl'):
             continue
         if track.get('kind') != 'asr':
             manual.append((rank, track))
+        elif allow_automatic:
+            auto.append((rank + 100, track))
 
-    return [track for _rank, track in sorted(manual, key=lambda item: item[0])]
+    tracks = sorted(manual, key=lambda item: item[0])
+    if not tracks and allow_automatic:
+        tracks = sorted(auto, key=lambda item: item[0])
+
+    return [track for _rank, track in tracks]
 
 
 def _fetch_youtube_player_response(video_id: str, api_key: str) -> dict:
@@ -277,7 +289,9 @@ def _fetch_youtube_page_api_key(video_id: str) -> str:
     return match.group(1)
 
 
-def _download_youtube_player_transcript(video_id: str) -> dict | None:
+def _download_youtube_player_transcript(
+    video_id: str, allow_automatic: bool = False
+) -> dict | None:
     """Obtém a faixa de legenda pelo player oficial, sem baixar a mídia."""
     try:
         try:
@@ -289,7 +303,7 @@ def _download_youtube_player_transcript(video_id: str) -> dict | None:
             player_response = _fetch_youtube_player_response(video_id, api_key)
             _log(f'Player do YouTube renovado pela página para {video_id}: {first_exc}')
 
-        tracks = _youtube_caption_tracks(player_response)
+        tracks = _youtube_caption_tracks(player_response, allow_automatic=allow_automatic)
         for track in tracks:
             try:
                 caption_request = Request(
@@ -361,11 +375,30 @@ def _download_youtube_caption(video_id: str, automatic: bool) -> dict | None:
     return None
 
 
+USE_YOUTUBE_AUTO_CAPTIONS = os.environ.get(
+    'USE_YOUTUBE_AUTO_CAPTIONS', 'false'
+).strip().lower() in ('1', 'true', 'yes')
+
+
 def _download_youtube_transcript(video_id: str) -> dict | None:
-    """Busca legenda manual e nunca herda a legenda automática do vídeo-fonte."""
-    return _download_youtube_player_transcript(video_id) or _download_youtube_caption(
-        video_id, automatic=False
-    )
+    """Busca legenda oficial do YouTube (manual prioritária, ou automática da plataforma) para evitar gastar recursos."""
+    manual = _download_youtube_player_transcript(
+        video_id, allow_automatic=False
+    ) or _download_youtube_caption(video_id, automatic=False)
+    if manual is not None:
+        return manual
+
+    if USE_YOUTUBE_AUTO_CAPTIONS:
+        auto = _download_youtube_player_transcript(
+            video_id, allow_automatic=True
+        ) or _download_youtube_caption(video_id, automatic=True)
+        if auto is not None:
+            _log(
+                f'Aproveitando legenda oficial da plataforma para {video_id} (economia de recursos)'
+            )
+            return auto
+
+    return None
 
 
 def _prepare_audio(video_path: str) -> tuple[str, bool]:
@@ -446,7 +479,13 @@ def _split_audio(audio_path: str, video_id: str) -> tuple[list[str], str | None]
         raise
 
 
-def transcribe_video(video_id: str, video_path: str, groq_client=None, db_conn=None) -> dict | None:
+def transcribe_video(
+    video_id: str,
+    video_path: str,
+    groq_client=None,
+    db_conn=None,
+    prompt: str | None = None,
+) -> dict | None:
     """Obtém a transcrição do YouTube e usa Groq Whisper apenas como fallback.
 
     Args:
@@ -454,6 +493,7 @@ def transcribe_video(video_id: str, video_path: str, groq_client=None, db_conn=N
         video_path: caminho absoluto do arquivo .mp4 em /app/videos/
         groq_client: cliente Groq (None = produção, injetado = testes)
         db_conn: conexão PostgreSQL (None = não atualiza status; passar conn para atualizar)
+        prompt: termos contextuais específicos para transcrição, somente quando o perfil for compatível
 
     Returns:
         dict com {'video_id', 'text', 'segments'} ou None em caso de falha
@@ -506,14 +546,21 @@ def transcribe_video(video_id: str, video_path: str, groq_client=None, db_conn=N
                     else ''
                 )
             )
+
+            transcription_options = {
+                'model': 'whisper-large-v3-turbo',
+                'response_format': 'verbose_json',
+                'timestamp_granularities': ['segment'],
+                'language': 'pt',
+                'temperature': 0.0,
+            }
+            if prompt:
+                transcription_options['prompt'] = prompt
+
             with open(transcription_file, 'rb') as f:
                 result = groq_client.audio.transcriptions.create(
                     file=f,
-                    model='whisper-large-v3-turbo',
-                    response_format='verbose_json',
-                    timestamp_granularities=['segment'],
-                    language='pt',
-                    temperature=0.0,
+                    **transcription_options,
                 )
 
             offset = index * TRANSCRIPTION_CHUNK_SECONDS if len(transcription_files) > 1 else 0
@@ -551,7 +598,7 @@ def transcribe_video(video_id: str, video_path: str, groq_client=None, db_conn=N
 
 
 def save_transcript(conn, video_id: str, transcript: dict) -> str:
-    """Salva JSON de transcrição em disco e atualiza transcript_path no banco.
+    """Persiste a transcrição integral no banco e atualiza o sidecar atomicamente.
 
     Args:
         conn: conexão PostgreSQL ativa (quem chama é responsável por fechar)
@@ -562,25 +609,92 @@ def save_transcript(conn, video_id: str, transcript: dict) -> str:
         Caminho absoluto do arquivo JSON salvo
     """
     transcript_path = os.path.join(VIDEOS_DIR, f'{video_id}_transcript.json')
-
-    with open(transcript_path, 'w', encoding='utf-8') as f:
-        json.dump(transcript, f, ensure_ascii=False, indent=2)
-
-    _log(f'Transcrição salva em disco: {transcript_path}')
-
     transcript_json = json.dumps(transcript, ensure_ascii=False)
     transcript_text = str(transcript.get('text') or '')
     transcript_column = (
         'transcript_data=%s::json' if get_db_driver(conn) == 'pgsql' else 'transcript_data=%s'
     )
-    with conn.cursor() as cur:
-        cur.execute(
-            f'UPDATE source_videos SET transcript_path=%s, {transcript_column}, transcript_text=%s '
-            'WHERE youtube_video_id=%s',
-            (transcript_path, transcript_json, transcript_text, video_id),
-        )
 
-    conn.commit()
-    _log(f'Transcrição arquivada no banco para {video_id}')
+    os.makedirs(VIDEOS_DIR, exist_ok=True)
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode='w',
+            encoding='utf-8',
+            dir=VIDEOS_DIR,
+            prefix=f'.{video_id}_transcript.',
+            suffix='.tmp',
+            delete=False,
+        ) as temp_file:
+            temp_path = temp_file.name
+            json.dump(transcript, temp_file, ensure_ascii=False, indent=2)
+
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT id, transcript_data, transcript_text FROM source_videos '
+                'WHERE youtube_video_id=%s',
+                (video_id,),
+            )
+            existing = cur.fetchone()
+
+        transcript_changed = existing is None
+        if existing is not None:
+            existing_data = existing.get('transcript_data')
+            if isinstance(existing_data, str):
+                try:
+                    existing_data = json.loads(existing_data)
+                except json.JSONDecodeError:
+                    pass
+            transcript_changed = (
+                existing_data != transcript
+                or str(existing.get('transcript_text') or '') != transcript_text
+            )
+
+        with conn.cursor() as cur:
+            if transcript_changed and existing is not None:
+                cur.execute(
+                    'DELETE FROM source_video_topics WHERE source_video_id=%s',
+                    (existing['id'],),
+                )
+                cur.execute(
+                    f'UPDATE source_videos SET transcript_path=%s, {transcript_column}, '
+                    'transcript_text=%s, topic_segmentation_status=%s, '
+                    'topic_segmentation_error=NULL WHERE youtube_video_id=%s',
+                    (transcript_path, transcript_json, transcript_text, 'pending', video_id),
+                )
+            else:
+                cur.execute(
+                    f'UPDATE source_videos SET transcript_path=%s, {transcript_column}, '
+                    'transcript_text=%s WHERE youtube_video_id=%s',
+                    (transcript_path, transcript_json, transcript_text, video_id),
+                )
+            if cur.rowcount != 1:
+                raise LookupError(f'Vídeo {video_id} não encontrado para salvar a transcrição')
+
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+
+    try:
+        os.replace(temp_path, transcript_path)
+        temp_path = None
+        _log(f'Transcrição completa salva em disco: {transcript_path}')
+    except OSError as exc:
+        _log(
+            f'Transcrição integral arquivada no banco para {video_id}, '
+            f'mas o sidecar não pôde ser atualizado: {exc}'
+        )
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError as exc:
+                _log(f'Arquivo temporário de transcrição não pôde ser removido: {exc}')
+
+    _log(f'Transcrição integral arquivada no banco para {video_id}')
 
     return transcript_path
