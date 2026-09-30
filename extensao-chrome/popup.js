@@ -36,7 +36,21 @@ async function macLigado() {
   }
 }
 
-async function enviar(url) {
+// Captura do player HLS feita pelo background.js (só existe no Hotmart e similares).
+async function capturaDaAba(aba) {
+  const chave = Captura.chaveDaAba(aba.id);
+  const r = await chrome.storage.session.get(chave);
+  return r[chave] || null;
+}
+
+// Fora do Hotmart a extensão não tem acesso prévio ao site: pede na hora do clique
+// (precisa do gesto do usuário). Se já foi concedido, resolve sem perguntar de novo.
+async function garanteAcessoAoSite(site) {
+  if (Captura.hostPermitido(`https://${site}/`)) return true;
+  return chrome.permissions.request({ origins: [`*://*.${site}/*`] });
+}
+
+async function enviar(url, aba, captura) {
   const site = siteDaAula(new URL(url).hostname);
   const cookies = (await chrome.cookies.getAll({ domain: site })).map((c) => ({
     domain: c.domain,
@@ -52,7 +66,12 @@ async function enviar(url) {
   const resp = await fetch(`${API}/transcrever`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url, cookies }),
+    body: JSON.stringify({
+      url,
+      cookies,
+      title: aba.title || '',
+      ...(captura ? { media_url: captura.media_url, media_referer: captura.media_referer } : {}),
+    }),
   });
   return { status: resp.status, dados: await resp.json() };
 }
@@ -76,9 +95,21 @@ async function enviar(url) {
 
   $('enviar').addEventListener('click', async () => {
     $('enviar').disabled = true;
-    mostra('resultado', 'Enviando…');
     try {
-      const { dados } = await enviar(url);
+      // Primeiro await do clique: o pedido de permissão exige o gesto do usuário.
+      if (!(await garanteAcessoAoSite(siteDaAula(new URL(url).hostname)))) {
+        mostra('resultado', 'Sem permissão para ler a sessão deste site. Clique de novo e aceite.', 'erro');
+        $('enviar').disabled = false;
+        return;
+      }
+      const captura = await capturaDaAba(aba);
+      if (Captura.exigeCaptura(url) && !captura) {
+        mostra('resultado', 'Dê play no vídeo por 2 segundos e clique de novo.', 'erro');
+        $('enviar').disabled = false;
+        return;
+      }
+      mostra('resultado', 'Enviando…');
+      const { dados } = await enviar(url, aba, captura);
       if (dados.ok) {
         mostra('resultado', `Na fila (#${dados.job_id}). Acompanhe em Transcrições.`, 'ok');
       } else {

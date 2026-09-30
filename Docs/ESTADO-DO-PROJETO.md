@@ -108,6 +108,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Busca vetorial nas transcrições | `master` | Código na `master`, validado no navegador com o modelo real (`EMBEDDER_MIN_SIMILARITY=0.83`). **Não está em produção**: falta trocar a imagem do Postgres na A1 (runbook em `DEPLOY.md`), deploy, subir o `embedder` e backfill no Mac. Doc: `Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md` |
 | Integração da branch do Ricardo (`release/rico`) | 30/09 | Lotes 1–9 na `master` local (webhook Telegram, recovery, frescor/prioridade, mídia por canal, seletor/metadata/transcrição, prompts por perfil, render/Shorts, CI, ADR/CHANGELOG). Ficaram de fora: Hacker Libertário (não é do dono), stage workers, captions via API interna, seletor com janelas distribuídas, painel de perfis por canal destino. Não trazer compose, `composer.lock`, docs nem defaults de publicação dele |
 | Token do Telegram no histórico público (`.planning/.../09-01-PLAN.md`, commit `614092d`) | Comparação 29/09 | **Rotacionar no BotFather** (passo do operador), depois remover o arquivo |
+| Transcrição de aula Hotmart (HLS, só áudio) | 30/09 | Código em `feature/transcricao-audio-hls-extensao`, sem merge/deploy e **sem teste real no Hotmart**. Falta: recarregar a extensão (v1.1.0), reiniciar o worker e testar numa aula (ver `Docs/sistema/SISTEMA-TRANSCRICAO.md`) |
 | Bug 11 — container não honra SIGTERM | `BUGS.md` | Aberto; gera estado preso a cada restart |
 | Bug 4 — `cutting` e `publishing` sem recuperação | `BUGS.md` | Parcial; `selecting` já tem |
 | Bug 17 — vaga presa por clip aguardando aprovação | `BUGS.md` | Parcial; caso "todos rejeitados" resolvido |
@@ -133,6 +134,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 
 | Data | Rodada | Onde parou | Próximo passo combinado |
 |---|---|---|---|
+| 30/09/2026 | Áudio HLS do Hotmart via extensão (`feature/transcricao-audio-hls-extensao`) | Extensão captura o m3u8, API local guarda em `media-urls.json` (0600), worker baixa só o áudio; testes unitários passam, nada validado no Hotmart real | Dono recarrega a extensão, reinicia o worker e testa uma aula; depois merge |
 | 30/09/2026 | Validação visual da busca (`fix/busca-transcricoes-ui`) | 5 bugs de UI/backend corrigidos, piso de similaridade calibrado (0,83); branch pronta para merge, ainda fora de produção | Merge na master, depois o runbook de rollout (imagem do Postgres, embedder, backfill) |
 | 30/09/2026 | Lote 6 (prompts por perfil) do `release/rico` | Em `feature/prompts-por-perfil`, sem merge/deploy; sem canal versionado; migration pendente | Escrever `prompts/channels/mbl.yaml`, compilar `--apply`, ligar perfil no painel |
 | 30/09/2026 | Lotes 3 e 9 do Ricardo | CI, Makefile, pre-commit e configs de lint sem reformatar o código; ADRs renumerados (0002–0007, PostgreSQL 17), `Docs/DESENVOLVIMENTO.md`, `restore-postgres.sh`. Em branches, sem merge | Revisar, mesclar e ligar o `CI gate` na proteção da `master` |
