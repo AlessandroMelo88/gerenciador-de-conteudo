@@ -1,7 +1,7 @@
 # Estado do projeto — leia primeiro
 
-**Última atualização:** 29/09/2026
-**Produção:** commit `3cc729b`, no ar em https://toolscut.alessandromelo.com.br
+**Última atualização:** 30/09/2026
+**Produção:** commit `ace7714`, no ar em https://toolscut.alessandromelo.com.br
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
 Ele resume e aponta; o detalhe fica nos arquivos citados.
@@ -105,8 +105,8 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Nenhuma oferta de afiliado cadastrada | Fase 6 | Sistema no ar, 0 ofertas, token já configurado |
 | Canais do Telegram e bot como admin | Fase 8 | Pendente do operador |
 | Domínio e logo da Umbrella | Fase 7 | Código pronto, falta DNS/certificado |
-| Busca vetorial nas transcrições | `master` | Código na `master`, validado no navegador com o modelo real (`EMBEDDER_MIN_SIMILARITY=0.83`). **Não está em produção**: falta trocar a imagem do Postgres na A1 (runbook em `DEPLOY.md`), deploy, subir o `embedder` e backfill no Mac. Doc: `Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md` |
-| Integração da branch do Ricardo (`release/rico`) | 30/09 | Lotes 1–9 na `master` local (webhook Telegram, recovery, frescor/prioridade, mídia por canal, seletor/metadata/transcrição, prompts por perfil, render/Shorts, CI, ADR/CHANGELOG). Ficaram de fora: Hacker Libertário (não é do dono), stage workers, captions via API interna, seletor com janelas distribuídas, painel de perfis por canal destino. Não trazer compose, `composer.lock`, docs nem defaults de publicação dele |
+| Busca vetorial nas transcrições | 30/09 | **No ar.** Postgres com pgvector 0.8 (imagem própria sobre alpine), `embedder` saudável (e5-small, 384d), 2 transcrições / 41 trechos indexados. Transcrições novas só ganham vetor se o worker do Mac rodar com o venv `~/.config/canaldecortes/venv-busca` (hoje o launchd usa o python3 do Homebrew, sem o modelo: entram só por texto; rodar `backfill.sh` ou apontar o launchd para o venv). Doc: `Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md` |
+| Integração da branch do Ricardo (`release/rico`) | 30/09 | Lotes 1–9 na `master` e em produção. Fora: Hacker Libertário (não é do dono), stage workers, captions via API interna, seletor com janelas distribuídas, painel de perfis por canal destino. PR #1 dele ainda aberta no GitHub (responder/fechar). Não trazer compose, `composer.lock`, docs nem defaults de publicação dele |
 | Token do Telegram no histórico público (`.planning/.../09-01-PLAN.md`, commit `614092d`) | Comparação 29/09 | **Rotacionar no BotFather** (passo do operador), depois remover o arquivo |
 | Transcrição de aula Hotmart (HLS, só áudio) | 30/09 | Código em `feature/transcricao-audio-hls-extensao`, sem merge/deploy e **sem teste real no Hotmart**. Falta: recarregar a extensão (v1.1.0), reiniciar o worker e testar numa aula (ver `Docs/sistema/SISTEMA-TRANSCRICAO.md`) |
 | Bug 11 — container não honra SIGTERM | `BUGS.md` | Aberto; gera estado preso a cada restart |
@@ -138,6 +138,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | 30/09/2026 | Validação visual da busca (`fix/busca-transcricoes-ui`) | 5 bugs de UI/backend corrigidos, piso de similaridade calibrado (0,83); branch pronta para merge, ainda fora de produção | Merge na master, depois o runbook de rollout (imagem do Postgres, embedder, backfill) |
 | 30/09/2026 | Lote 6 (prompts por perfil) do `release/rico` | Em `feature/prompts-por-perfil`, sem merge/deploy; sem canal versionado; migration pendente | Escrever `prompts/channels/mbl.yaml`, compilar `--apply`, ligar perfil no painel |
 | 30/09/2026 | Lotes 3 e 9 do Ricardo | CI, Makefile, pre-commit e configs de lint sem reformatar o código; ADRs renumerados (0002–0007, PostgreSQL 17), `Docs/DESENVOLVIMENTO.md`, `restore-postgres.sh`. Em branches, sem merge | Revisar, mesclar e ligar o `CI gate` na proteção da `master` |
+| 30/09/2026 | Produção em `ace7714`: pgvector, embedder, lotes 1–9 do Ricardo, watchdog sem falso deadlock (janela cheia por aprovação é proposital), transcrição Hotmart só áudio (extensão 1.1.0, **não testada no Chrome**) | Token do Telegram rotacionado e webhook com segredo | Testar a extensão numa aula real; ligar o worker do Mac ao venv da busca; responder a PR #1 |
 | 29/09/2026 | Busca vetorial + comparação com `release/rico` | Busca pronta em `feature/busca-vetorial`, fora de produção; lotes 1–2 do Ricardo em branches | Backup + trocar imagem do Postgres na A1, deploy, backfill; rotacionar token do Telegram |
 | 20/09/2026 | Criação deste checkpoint | Produção em `3cc729b`, saudável: 141 clips publicados, 16 na fila de aprovação, 18 vídeos na janela, 0 ofertas | Cadastrar a primeira oferta real de afiliado |
 | 18/09/2026 | Afiliados na master, modo manutenção, hotfix do Vite | Afiliados em produção com token configurado | Criar canais do Telegram |
