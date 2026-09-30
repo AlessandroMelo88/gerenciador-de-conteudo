@@ -205,6 +205,20 @@ rsync -rlzOv \
     "$PROJECT_DIR/Dockerfile.php" \
     "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/"
 
+# Contextos de build referenciados pelo compose (imagem do Postgres com pgvector e o
+# sidecar de embeddings). Sem eles no servidor o `docker compose up -d` falha ao construir.
+ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "mkdir -p $REMOTE_DIR/docker/postgres $REMOTE_DIR/embedder"
+rsync -rlzOv --delete \
+    --no-perms --no-owner --no-group \
+    --exclude '__pycache__' --exclude '.pytest_cache' --exclude 'tests/' \
+    -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
+    "$PROJECT_DIR/docker/postgres/" "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/docker/postgres/"
+rsync -rlzOv --delete \
+    --no-perms --no-owner --no-group \
+    --exclude '__pycache__' --exclude '.pytest_cache' --exclude 'tests/' \
+    -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
+    "$PROJECT_DIR/embedder/" "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/embedder/"
+
 # 4. Comandos no servidor
 echo -e "\n${CLR_YELLOW}[3/4] Aplicando atualizações no servidor...${CLR_RESET}"
 

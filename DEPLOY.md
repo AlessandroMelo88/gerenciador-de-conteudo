@@ -61,6 +61,80 @@ Se você adicionou novas dependências no `requirements.txt` do Python ou novos 
 
 ---
 
+## 🧭 Postgres com pgvector — troca da imagem (busca vetorial, 29/09/2026)
+
+A busca semântica nas transcrições precisa da extensão `vector`. O serviço `postgres` do
+`docker-compose.yml` passou a usar uma imagem própria (`docker/postgres/Dockerfile`:
+`postgres:17-alpine` + pgvector `v0.8.0` compilado). Mesma base alpine, mesmo volume, mesma
+collation — o volume `postgres_data` abre sem `pg_upgrade`.
+
+**O deploy comum NÃO troca a imagem** (ele faz `up -d --no-recreate`). Faça esta troca à mão,
+**antes** do deploy do código que traz as migrations (com a imagem antiga, a migration falha em
+produção de propósito, com a mensagem "Extensão pgvector indisponível").
+
+> ⛔ **NUNCA** `docker compose down -v` nem `docker volume rm`: o volume `postgres_data` **é** o banco.
+> Recriar só o serviço `postgres` preserva o volume.
+
+> ⚠️ **O `deploy.sh` só envia `docker-compose.yml` e `Dockerfile.php`** — não envia
+> `docker/postgres/` nem `embedder/`, que o compose agora precisa para o `build:`. Sem esses
+> diretórios no servidor, o `docker compose up -d` do deploy falha ao tentar construir o
+> `embedder`. Enquanto o `deploy.sh` não aprender a enviá-los, faça o passo 0 abaixo.
+
+No Mac, na raiz do projeto (passo 0):
+
+```bash
+rsync -rlz --no-perms --no-owner --no-group -e "ssh -i ~/.ssh/oracle-a1-2026-09-16.key" \
+  docker/postgres/ ubuntu@129.80.236.185:/home/ubuntu/canaldecortes/docker/postgres/
+rsync -rlz --no-perms --no-owner --no-group -e "ssh -i ~/.ssh/oracle-a1-2026-09-16.key" \
+  --exclude '__pycache__' --exclude '.venv' embedder/ ubuntu@129.80.236.185:/home/ubuntu/canaldecortes/embedder/
+rsync -z -e "ssh -i ~/.ssh/oracle-a1-2026-09-16.key" \
+  docker-compose.yml ubuntu@129.80.236.185:/home/ubuntu/canaldecortes/
+```
+
+Na A1, dentro de `/home/ubuntu/canaldecortes`, nesta ordem:
+
+```bash
+# 1. dump manual em formato custom (não confiar só no dump diário das 06:15 UTC)
+docker exec postgres pg_dump -U clips_user -d clips_automation -Fc \
+  > /mnt/videos/backups/pre-pgvector-$(date +%F).dump
+ls -lh /mnt/videos/backups/pre-pgvector-*.dump          # tamanho > 0; copie para o Mac (scp)
+
+# 2. tag de backup do commit em produção (no Mac): git tag backup/pre-pgvector-AAAAMMDD && git push origin --tags
+
+# 3. pausar quem escreve no banco
+docker compose stop clip-processor
+docker compose exec -T php php /var/www/html/painel/artisan down   # painel em manutenção
+
+# 4. construir a imagem (compila o pgvector, ~2 min na A1) e recriar SÓ o postgres
+docker compose build postgres
+docker compose up -d --no-deps postgres
+docker compose ps postgres                              # aguarde "healthy"
+
+# 5. conferir que a extensão existe e que o banco abriu
+docker exec postgres psql -U clips_user -d clips_automation \
+  -c "SELECT name, default_version FROM pg_available_extensions WHERE name='vector'" \
+  -c "SELECT count(*) FROM transcription_jobs"
+
+# 6. religar
+docker compose up -d clip-processor
+docker compose exec -T php php /var/www/html/painel/artisan up
+docker compose ps && docker compose logs --tail=30 postgres clip-processor
+```
+
+Indisponibilidade esperada: menos de 1 minuto (o reinício do Postgres). Se o Postgres não
+subir, `docker compose logs postgres` primeiro; restauração do dump só em último caso
+(`pg_restore -Fc --clean --if-exists -U clips_user -d clips_automation`).
+
+Depois disso: `./deploy.sh` (roda as migrations `CREATE EXTENSION`, tabela e índices), defina
+`EMBEDDER_TOKEN` no `.env` do servidor (nunca no git) e suba o sidecar com
+`docker compose up -d embedder`. O Postgres passa a ter `mem_limit: 2g` e
+`maintenance_work_mem=256MB` (o índice HNSW é construído em memória).
+
+Dev local: `scripts/dev-pgvector.sh` sobe um Postgres com pgvector na porta 5433, sem tocar no
+Postgres compartilhado do `../docker-compose.yml`.
+
+---
+
 ## 🔧 Modo manutenção durante o deploy (18/09/2026)
 
 Do rsync até o restart do `php`, o painel fica em `artisan down`: quem abrir vê **"Atualizando o

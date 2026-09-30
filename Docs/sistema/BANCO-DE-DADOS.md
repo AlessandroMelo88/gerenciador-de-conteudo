@@ -185,6 +185,14 @@ com esse valor.
 
 ---
 
+### `transcript_chunks` (busca nas transcrições, somente PostgreSQL)
+
+Trechos das transcrições (`transcription_jobs`) com texto, tempo, `embedding vector(384)` e
+`search_vector` gerado (`pt_unaccent`). FK `job_id` com `ON DELETE CASCADE`; `UNIQUE (job_id, chunk_index)`;
+índices GIN (texto), HNSW (vetor) e GIN trigram. Exige as extensões `vector`, `pg_trgm` e `unaccent`;
+em MySQL e no Postgres sem pgvector a migration pula o que não existe. Detalhes e colunas em
+[`SISTEMA-BUSCA-TRANSCRICOES.md`](SISTEMA-BUSCA-TRANSCRICOES.md#banco).
+
 ## Integridade referencial
 
 **Nenhuma FK tem `ON DELETE CASCADE`.** Consequências:

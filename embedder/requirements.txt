@@ -1,0 +1,9 @@
+# Sidecar (imagem Docker). Versões fixadas e testadas em Python 3.12: o vetor depende delas.
+# torch vem do índice CPU no Dockerfile (wheel sem CUDA, arm64 e amd64).
+fastapi==0.142.1
+uvicorn==0.54.0
+pydantic==2.13.5
+numpy==2.5.3
+sentence-transformers==6.1.0
+transformers==5.17.0
+huggingface-hub==1.33.0

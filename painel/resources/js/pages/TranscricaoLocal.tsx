@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { DownloadIcon, PauseIcon, PlayIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import { BuscaTranscricoes } from '@/components/transcricoes/BuscaTranscricoes';
 import { AppShell } from '@/layouts/app-shell';
 
 type Status = 'pending' | 'downloading' | 'transcribing' | 'paused' | 'done' | 'failed';
@@ -156,7 +157,6 @@ export default function TranscricaoLocal() {
     const { auth, flash } = props;
     const jobs = props.jobs?.data ?? [];
     const pagina = props.jobs;
-    const [busca, setBusca] = useState(props.busca ?? '');
     const { data, setData, post, processing, reset, errors } = useForm({ url: '' });
 
     useEffect(() => {
@@ -174,11 +174,6 @@ export default function TranscricaoLocal() {
     function enviar(e: React.FormEvent) {
         e.preventDefault();
         post('/painel/transcricoes', { preserveScroll: true, onSuccess: () => reset('url') });
-    }
-
-    function buscar(e: React.FormEvent) {
-        e.preventDefault();
-        router.get('/painel/transcricoes', busca ? { q: busca } : {}, { preserveState: true, replace: true });
     }
 
     return (
@@ -217,18 +212,7 @@ export default function TranscricaoLocal() {
 
                 <Card className="max-w-3xl">
                     <CardContent className="grid gap-4 pt-6">
-                        <form onSubmit={buscar} className="flex gap-2">
-                            <Input
-                                type="search"
-                                placeholder="Buscar no título ou no que foi dito..."
-                                value={busca}
-                                onChange={(e) => setBusca(e.target.value)}
-                            />
-                            <Button type="submit" variant="outline">
-                                Buscar
-                            </Button>
-                        </form>
-
+                        <BuscaTranscricoes>
                         {jobs.length === 0 && (
                             <p className="text-sm text-muted-foreground">
                                 {props.busca ? `Nada encontrado para "${props.busca}".` : 'Nenhuma transcrição ainda.'}
@@ -301,6 +285,7 @@ export default function TranscricaoLocal() {
                                 </div>
                             </div>
                         )}
+                        </BuscaTranscricoes>
                     </CardContent>
                 </Card>
             </AppShell>

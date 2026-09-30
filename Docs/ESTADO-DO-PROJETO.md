@@ -1,6 +1,6 @@
 # Estado do projeto — leia primeiro
 
-**Última atualização:** 20/09/2026
+**Última atualização:** 29/09/2026
 **Produção:** commit `3cc729b`, no ar em https://toolscut.alessandromelo.com.br
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
@@ -104,6 +104,9 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Nenhuma oferta de afiliado cadastrada | Fase 6 | Sistema no ar, 0 ofertas, token já configurado |
 | Canais do Telegram e bot como admin | Fase 8 | Pendente do operador |
 | Domínio e logo da Umbrella | Fase 7 | Código pronto, falta DNS/certificado |
+| Busca vetorial nas transcrições | `feature/busca-vetorial` | Código pronto e testado em dev (pgvector 0.8, e5-small 384d, busca híbrida). **Não está em produção**: falta trocar a imagem do Postgres na A1 (runbook em `DEPLOY.md`), subir o `embedder`, backfill no Mac. Doc: `Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md` |
+| Integração da branch do Ricardo (`release/rico`) | Comparação 29/09 | Lotes 1–2 (webhook seguro, recovery de estados) em branches curtas; lotes 3–10 pendentes. Não trazer compose, `composer.lock`, docs nem defaults de publicação dele |
+| Token do Telegram no histórico público (`.planning/.../09-01-PLAN.md`, commit `614092d`) | Comparação 29/09 | **Rotacionar no BotFather** (passo do operador), depois remover o arquivo |
 | Bug 11 — container não honra SIGTERM | `BUGS.md` | Aberto; gera estado preso a cada restart |
 | Bug 4 — `cutting` e `publishing` sem recuperação | `BUGS.md` | Parcial; `selecting` já tem |
 | Bug 17 — vaga presa por clip aguardando aprovação | `BUGS.md` | Parcial; caso "todos rejeitados" resolvido |
@@ -129,6 +132,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 
 | Data | Rodada | Onde parou | Próximo passo combinado |
 |---|---|---|---|
+| 29/09/2026 | Busca vetorial + comparação com `release/rico` | Busca pronta em `feature/busca-vetorial`, fora de produção; lotes 1–2 do Ricardo em branches | Backup + trocar imagem do Postgres na A1, deploy, backfill; rotacionar token do Telegram |
 | 20/09/2026 | Criação deste checkpoint | Produção em `3cc729b`, saudável: 141 clips publicados, 16 na fila de aprovação, 18 vídeos na janela, 0 ofertas | Cadastrar a primeira oferta real de afiliado |
 | 18/09/2026 | Afiliados na master, modo manutenção, hotfix do Vite | Afiliados em produção com token configurado | Criar canais do Telegram |
 | 17/09/2026 | Migração para a VM A1 | Produção em PostgreSQL, disco dedicado | Encerrar a VM antiga depois do período de rollback |

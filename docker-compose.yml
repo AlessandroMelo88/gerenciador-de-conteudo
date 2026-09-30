@@ -41,10 +41,16 @@ services:
       - postgres
 
   postgres:
-    image: postgres:17-alpine
+    # Imagem própria: postgres:17-alpine + pgvector (docker/postgres/Dockerfile).
+    # Trocar a imagem NÃO acontece no deploy comum (up -d --no-recreate); siga o
+    # runbook do DEPLOY.md. Nunca `down -v`: o volume postgres_data é o banco.
+    build: ./docker/postgres
+    image: canaldecortes-postgres:pg17-vector
     container_name: postgres
     restart: always
-    mem_limit: 1g
+    # 2g: o índice HNSW do pgvector é construído em memória (maintenance_work_mem).
+    mem_limit: 2g
+    command: ['postgres', '-c', 'maintenance_work_mem=256MB']
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-clips_automation}
       POSTGRES_USER: ${POSTGRES_USER:-clips_user}
@@ -56,6 +62,29 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
+
+  # Sidecar de embeddings da busca semântica nas transcrições. Só rede interna
+  # (sem porta publicada); o painel chama http://embedder:8000 com Bearer token.
+  embedder:
+    build: ./embedder
+    container_name: embedder
+    restart: unless-stopped
+    mem_limit: 1g
+    environment:
+      # Sem valor default seguro: defina no .env do servidor (o embedder deve recusar
+      # subir/atender com token vazio). Não é `:?` para não derrubar todo `docker
+      # compose` (inclusive o deploy) antes de o token existir.
+      EMBEDDER_TOKEN: ${EMBEDDER_TOKEN:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-intfloat/multilingual-e5-small}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-384}
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     networks:
       - internal
 
