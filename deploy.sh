@@ -188,6 +188,12 @@ rsync -rlzOv --delete \
     -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
     "$PROJECT_DIR/clip-processor/src/" "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/clip-processor/src/"
 
+# Perfis de prompt compilados: a migration de sync lê ../prompts/compiled dentro do container php
+rsync -rlzOv --delete \
+    --no-perms --no-owner --no-group \
+    -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
+    "$PROJECT_DIR/prompts/" "$SERVER_USER@$SERVER_IP:$REMOTE_DIR/prompts/"
+
 # Branding e assets visuais — a pasta no servidor é do www-data (o painel grava
 # watermark/background nela), então o rsync roda com sudo e devolve o dono.
 rsync -rlzOv \
@@ -223,13 +229,17 @@ else
         
         # Garante containers ativos com os volumes corretos
         docker compose up -d --no-recreate </dev/null
+        # O compose rsyncado pode ter novos volumes (ex.: ./prompts): --no-recreate não os
+        # aplica, então recria só o php (sem tocar nas dependências).
+        docker compose up -d --no-deps php </dev/null
+        # Limpa caches e roda migrations no container PHP ANTES de reiniciar o clip-processor:
+        # o código novo consulta colunas/tabelas criadas por elas (generated_clips.format etc.).
+        docker compose exec -T php php /var/www/html/painel/artisan optimize:clear </dev/null
+        docker compose exec -T php php /var/www/html/painel/artisan migrate --force </dev/null
         # Reinicia o clip-processor para carregar novo código Python instantaneamente (1s).
         # Container pausado (docker pause) não aceita restart.
         docker unpause clip-processor </dev/null 2>/dev/null || true
         docker compose restart clip-processor </dev/null
-        # Limpa caches e roda migrations no container PHP
-        docker compose exec -T php php /var/www/html/painel/artisan optimize:clear </dev/null
-        docker compose exec -T php php /var/www/html/painel/artisan migrate --force </dev/null
         # Reinicia o PHP-FPM para zerar opcache (1s)
         docker compose restart php </dev/null
 EOF

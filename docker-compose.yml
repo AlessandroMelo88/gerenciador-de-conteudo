@@ -25,9 +25,13 @@ services:
     command: php-fpm
     volumes:
       - ./painel:/var/www/html/painel
+      - ./prompts:/var/www/html/prompts:ro
       - ./youtube:/var/www/html/youtube
       - ./branding:/var/www/html/painel/storage/app/branding
-      - ${VIDEOS_DIR:-/mnt/videos/videos}:/var/www/html/painel/storage/app/clips-videos:ro
+      - type: bind
+        source: ${VIDEOS_DIR:-/mnt/videos/videos}
+        target: /var/www/html/painel/storage/app/clips-videos
+        read_only: true
       # Arquivo da aula das transcrições (worker do Mac grava por rsync). Leitura e
       # escrita: o painel apaga o arquivo junto com a transcrição.
       - ${CURSOS_DIR:-/mnt/videos/conteudo-cursos}:/var/www/html/painel/storage/app/private/conteudo-cursos
@@ -41,6 +45,8 @@ services:
       - postgres
 
   postgres:
+    # Banco da stack em containers; o cron local do Hacker Libertário usa PostgreSQL 18 nativo.
+    # Migrar o volume `postgres_data` antes de trocar a versão principal desta imagem.
     image: postgres:17-alpine
     container_name: postgres
     restart: always
@@ -97,7 +103,10 @@ services:
       - LONG_UPLOAD_HOURS=${LONG_UPLOAD_HOURS:-6,14,22}
       - SHORTS_PEAK_HOURS=${SHORTS_PEAK_HOURS:-12,20}
       - FRESHNESS_DAYS=${FRESHNESS_DAYS:-1500}
+      - DOWNLOAD_WINDOW_PER_CHANNEL=${DOWNLOAD_WINDOW_PER_CHANNEL:-10}
       - SHORTS_MAX_DURATION_SECONDS=${SHORTS_MAX_DURATION_SECONDS:-45}
+      - USE_YOUTUBE_AUTO_CAPTIONS=${USE_YOUTUBE_AUTO_CAPTIONS:-false}
+      - MEME_EFFECTS_CHANNELS=${MEME_EFFECTS_CHANNELS:-}
       - MIN_UPLOAD_INTERVAL_MINUTES=${MIN_UPLOAD_INTERVAL_MINUTES:-60}
       - YOUTUBE_CLIENT_SECRETS=/app/youtube/client_secret.json
       - UPLOAD_WINDOW_BYPASS=${UPLOAD_WINDOW_BYPASS:-false}
@@ -111,7 +120,9 @@ services:
       - LARAVEL_HOST_HEADER=${LARAVEL_HOST_HEADER:-toolscut.alessandromelo.com.br}
     volumes:
       - ./youtube:/app/youtube
-      - ${VIDEOS_DIR:-/mnt/videos/videos}:/app/videos
+      - type: bind
+        source: ${VIDEOS_DIR:-/mnt/videos/videos}
+        target: /app/videos
       - ./assets:/app/assets:ro
       - ./branding:/app/branding:ro
       - ./clip-processor/src:/app/src
