@@ -82,10 +82,7 @@ PROMPT,
                 'slug' => 'conteudo-inteligencia',
                 'name' => 'Conteúdo de Inteligência',
                 'niche' => 'hacker-libertario',
-                'niche_aliases' => json_encode(
-                    ['conteudo-inteligencia', 'tecnologia', 'tech', 'linux', 'ia', 'opensource'],
-                    JSON_UNESCAPED_UNICODE
-                ),
+                'niche_aliases' => json_encode(['conteudo-inteligencia'], JSON_UNESCAPED_UNICODE),
                 'selection_short_prompt' => <<<'PROMPT'
 Você é um especialista em identificar momentos virais, insights profundos e explicações técnicas de alto impacto para o canal Hacker Libertário: Inteligência Artificial, tecnologia, Open Source, Linux, programação, segurança, criptografia, privacidade, soberania digital e cultura hacker libertária. Analise a transcrição e identifique os melhores segmentos para criar clips CURTOS com duração EXATA de 30 segundos (end_time - start_time = 30). DIRETRIZES LIBERTÁRIAS INEGOCIÁVEIS: 1. O ESTADO NUNCA DEVE SER DEFENDIDO: rejeite qualquer trecho que elogie, justifique ou legitime o Estado, impostos, regulação estatal ou censura. Trechos sobre regulação ou vigilância só são válidos se forem de denúncia crítica e apresentarem alternativas de defesa individual por meio de tecnologia e criptografia. 2. ZERO MENÇÃO A POLÍTICOS E FUNCIONÁRIOS PÚBLICOS: nenhum político ou funcionário público/agente estatal deve ser sequer mencionado ou colocado em evidência. Se houver partidarismo ou politicagem, descarte imediatamente. O foco é 100% nas ideias, ferramentas, soberania e liberdade individual. 3. GANCHO VIRAL IMEDIATO (0 A 3s): o corte deve começar no auge da afirmação de impacto, sem cumprimentos, pausas ou enrolações. Priorize explicações técnicas brilhantes, reflexões sobre soberania/privacidade digital, analogias marcantes sobre computação ou IA e quebra de mitos.
 PROMPT,
@@ -180,7 +177,7 @@ PROMPT,
                 ->whereNull('prompt_profile_id')
                 ->whereIn(
                     'target_niche',
-                    ['conteudo-inteligencia', 'hacker-libertario', 'tecnologia', 'tech', 'linux', 'ia', 'opensource']
+                    ['conteudo-inteligencia', 'hacker-libertario']
                 )
                 ->update(['prompt_profile_id' => $inteligenciaId]);
         }
@@ -204,7 +201,7 @@ PROMPT,
                 ->whereNull('prompt_profile_id')
                 ->whereIn(
                     'niche',
-                    ['conteudo-inteligencia', 'hacker-libertario', 'tecnologia', 'tech', 'linux', 'ia', 'opensource']
+                    ['conteudo-inteligencia', 'hacker-libertario']
                 )
                 ->update(['prompt_profile_id' => $inteligenciaId]);
         }

@@ -13,10 +13,7 @@ it('does not resolve a profile from another niche', function () {
     expect(PromptProfile::resolveId($technologyProfileId, 'futebol'))->toBeNull();
 });
 
-it('resolves a profile through its niche alias', function () {
-    $profileId = PromptProfile::query()
-        ->where('slug', 'conteudo-inteligencia')
-        ->value('id');
-
-    expect(PromptProfile::resolveId(null, 'tecnologia'))->toBe($profileId);
+it('does not apply the Hacker Libertario profile to generic technology niches', function () {
+    expect(PromptProfile::resolveId(null, 'tecnologia'))->toBeNull();
+    expect(PromptProfile::resolveId(null, 'linux'))->toBeNull();
 });

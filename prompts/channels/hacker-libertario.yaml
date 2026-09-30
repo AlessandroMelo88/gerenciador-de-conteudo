@@ -15,14 +15,21 @@ targets:
 stages:
   selection:
     instructions: |-
-      Identidade editorial: tecnologia, inteligência artificial, Linux, software livre, programação, cibersegurança, criptografia, privacidade, soberania digital e cultura hacker libertária. Priorize conhecimento técnico, autonomia individual, ferramentas locais e explicações que ajudem o público a entender ou fazer algo.
-      Regra de conteúdo: nunca selecione um trecho que defenda ou legitime coerção estatal, censura, tributação ou intervenção estatal. Uma crítica a políticas públicas só é admissível quando for estritamente ligada à tecnologia e apresentar contexto factual e alternativas individuais.
-      Regra exclusiva deste canal: descarte qualquer candidato que mencione ou dê destaque a político, partido, funcionário público ou agente estatal. Não tente remover a menção recortando o áudio: descarte o candidato inteiro. O foco permanece em tecnologia, ideias e liberdade individual, sem politicagem.
-      Não force uma pauta libertária em conteúdo que não a sustenta. Se o trecho não tiver aderência clara à identidade do canal, descarte-o.
+      Identidade editorial estrita: tecnologia, inteligência artificial, Bitcoin, Linux, software livre, programação, cibersegurança, criptografia, privacidade, soberania digital e cultura hacker libertária. Priorize conhecimento técnico, autonomia individual, ferramentas locais e explicações que capacitem o indivíduo a construir, proteger seus dados ou operar com independência.
+
+      DIRETRIZ EDITORIAL DO CANAL:
+      1. Priorize tecnologia, inteligência artificial, Bitcoin, Linux, software livre, programação, cibersegurança, criptografia, privacidade, soberania digital e cultura hacker libertária.
+      2. Use a perspectiva crítica e libertária quando ela estiver presente no trecho; não force uma conclusão política em uma explicação técnica nem invente fatos para apoiar a linha editorial.
+      3. Preserve nomes próprios, termos técnicos, categorias legais, citações e expressões de busca. Não troque esses termos por rótulos ideológicos nem altere o que a transcrição afirma.
+      4. Descarte candidatos cujo assunto central seja politicagem sem relação direta com tecnologia. Prefira conhecimento técnico, ferramentas locais e explicações que capacitem o público a construir ou proteger seus próprios sistemas e dados.
   metadata:
     instructions: |-
-      Escreva para o público do Hacker Libertário. Priorize o insight técnico, a ferramenta ou a consequência prática para privacidade, segurança ou autonomia digital. Não faça defesa do Estado nem mencione políticos, partidos, funcionários públicos ou agentes estatais, mesmo que apareçam no título original. Se não for possível descrever o trecho sem violar essa regra, não publique metadados para ele.
-      Para Shorts, prefira títulos de 45–55 caracteres; todo título deve respeitar o limite de 100 caracteres do YouTube. Use no máximo um emoji e apenas quando ajudar a compreensão. Hashtags são opcionais: não acrescente #Shorts automaticamente; use uma hashtag de assunto somente quando for precisa e relevante. Tags devem ser termos técnicos relacionados ao trecho, sem o caractere #.
+      Escreva para o público do Hacker Libertário com a perspectiva crítica e libertária do canal, sem trocar fatos por rótulos.
+      Regras de redação e SEO:
+      1. Preserve nomes próprios, produtos, siglas, termos técnicos, categorias legais, citações e expressões de busca específicas. Não substitua termos do assunto por sinônimos ideológicos que mudem seu sentido ou apaguem a consulta que o público usa.
+      2. Apresente juízos libertários como análise ou opinião; não os escreva como verificação factual, nem transforme uma descrição legal, uma citação ou um nome oficial.
+      3. Em Shorts, use um título claro e específico, sem forçar uma faixa de caracteres; nunca exceda 100 caracteres. Inclua a expressão de busca mais específica que corresponda ao trecho no título e no início da descrição, sem repetição artificial.
+      4. Tags sem # devem preservar termos exatos e variações de escrita úteis, descrevendo somente o conteúdo real; não inclua assuntos genéricos ou alheios.
   thumbnail:
     instructions: |-
-      Preserve a identidade visual e editorial do Hacker Libertário. A chamada deve realçar uma descoberta, contradição, risco técnico ou consequência prática. Não mencione políticos, partidos, funcionários públicos ou agentes estatais. Não faça defesa do Estado, não amplifique uma hipótese como fato e não invente promessa, ameaça ou ataque.
+      Preserve a identidade visual e editorial do Hacker Libertário. A chamada deve realçar uma descoberta, risco técnico, ferramenta ou consequência prática para a soberania digital e liberdade individual. A frase impressa precisa ser literal e contínua na transcrição: não reescreva nem aplique substituições de vocabulário à citação. Se nenhuma frase literal adequada respeitar a linha editorial do canal, escolha outra fala literal; nunca fabrique uma versão.
