@@ -1,0 +1,24 @@
+# Modelo de canal. Copie para prompts/channels/<canal>.yaml (sem o sufixo .example)
+# e rode: python3 scripts/compile_prompt_profiles.py
+# Arquivos *.yaml.example são ignorados pelo compilador.
+version: 1
+channel_id: exemplo
+profile:
+  slug: exemplo
+  name: "Canal de Exemplo"
+  niche: exemplo            # casa com source_channels.target_niche
+  niche_aliases: []
+  active: true
+targets:                    # o canal precisa dos dois formatos
+  - youtube-shorts
+  - youtube-long
+stages:
+  selection:
+    instructions: |-
+      Regras editoriais do canal para escolher trechos.
+  metadata:
+    instructions: |-
+      Tom, público e vocabulário de título/descrição/tags do canal.
+  thumbnail:
+    instructions: |-
+      Regras de chamada de capa do canal.
