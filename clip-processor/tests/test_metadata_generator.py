@@ -118,3 +118,119 @@ class TestAppendCredits:
 
         result = append_credits('Descrição', 'Créditos: @{channel_handle}', '')
         assert result == 'Descrição'
+
+
+# ---------------------------------------------------------------------------
+# Lote 5 (release/rico) — títulos editoriais, JSON tolerante, tags e créditos
+# ---------------------------------------------------------------------------
+
+import pytest
+from unittest.mock import patch
+
+from src import metadata_generator as mg
+
+
+def _anthropic_returning(payload):
+    client = MagicMock()
+    text = payload if isinstance(payload, str) else json.dumps(payload)
+    client.messages.create.return_value = MagicMock(content=[MagicMock(text=text)])
+    return client
+
+
+GOOD = {
+    'title': 'Por que o VAR mudou tudo no clássico',
+    'description': 'Análise do lance que decidiu o jogo.',
+    'tags': ['futebol', 'var'],
+}
+
+
+class TestTituloEditorial:
+
+    @pytest.mark.parametrize('titulo', [
+        'Vídeo longo sobre o clássico',
+        'Shorts: o lance que ninguém viu',
+        'Corte do debate mais quente',
+        'O gol aos 30s que decidiu',
+    ])
+    def test_rotulo_generico_e_rejeitado_no_modo_estrito(self, titulo):
+        with pytest.raises(ValueError):
+            mg._normalize_metadata({**GOOD, 'title': titulo}, SAMPLE_CONTEXT, strict=True)
+
+    def test_titulo_igual_ao_original_e_rejeitado_no_modo_estrito(self):
+        with pytest.raises(ValueError):
+            mg._normalize_metadata(
+                {**GOOD, 'title': 'DEBATE quente depois do clássico!'}, SAMPLE_CONTEXT, strict=True
+            )
+
+    def test_campos_vazios_sao_rejeitados_no_modo_estrito(self):
+        for campo in ('title', 'description', 'tags'):
+            with pytest.raises(ValueError):
+                mg._normalize_metadata({**GOOD, campo: ''}, SAMPLE_CONTEXT, strict=True)
+
+    def test_modo_padrao_nao_rejeita_rotulo(self):
+        """update_clip_metadata e o fallback final nunca podem travar o pipeline."""
+        out = mg._normalize_metadata({**GOOD, 'title': 'Shorts do jogo'}, SAMPLE_CONTEXT)
+        assert out['title'] == 'Shorts do jogo'
+
+    def test_titulo_com_rotulo_da_anthropic_cai_para_groq(self):
+        anthropic = _anthropic_returning({**GOOD, 'title': 'Vídeo longo do clássico'})
+        with patch.object(mg, '_generate_via_groq', return_value=GOOD) as groq:
+            out = generate_metadata(SAMPLE_CONTEXT, anthropic_client=anthropic)
+        groq.assert_called_once()
+        assert out['title'] == GOOD['title']
+
+    def test_ordem_anthropic_groq_titulo_bruto(self):
+        """Se as duas IAs falham, o título bruto do vídeo é o último recurso (regra do CLAUDE.md)."""
+        anthropic = MagicMock()
+        anthropic.messages.create.side_effect = RuntimeError('sem chave')
+        with patch.object(mg, '_generate_via_groq', side_effect=RuntimeError('groq fora')):
+            out = generate_metadata(SAMPLE_CONTEXT, anthropic_client=anthropic)
+        assert out['title'] == SAMPLE_CONTEXT['source_title']
+        assert out['tags']
+
+    def test_titulo_longo_corta_em_palavra(self):
+        titulo = ' '.join(['palavra'] * 30)
+        out = mg._normalize_metadata({**GOOD, 'title': titulo})
+        assert len(out['title']) <= 100
+        assert out['title'].endswith('palavra')
+
+    def test_prompts_de_sistema_pedem_titulo_sem_rotulo(self):
+        assert 'rótulos' in mg.SYSTEM_PROMPT
+        assert 'rótulos' in mg.POLITICA_METADATA_PROMPT
+
+
+class TestSaidaDaIa:
+
+    def test_json_em_cerca_markdown_e_aceito(self):
+        raw = '```json\n' + json.dumps(GOOD) + '\n```'
+        out = generate_metadata(SAMPLE_CONTEXT, anthropic_client=_anthropic_returning(raw))
+        assert out['title'] == GOOD['title']
+
+    def test_json_com_texto_ao_redor(self):
+        assert mg._safe_json_loads('Claro! ' + json.dumps(GOOD) + ' pronto.') == GOOD
+        assert mg._safe_json_loads('') == {}
+        assert mg._safe_json_loads('sem json') == {}
+
+    def test_tags_deduplicadas_sem_hashtag(self):
+        out = mg._normalize_metadata({**GOOD, 'tags': ['#Futebol', 'futebol', 'VAR', ' var ', '']})
+        assert out['tags'] == ['Futebol', 'VAR']
+
+    def test_tags_em_string(self):
+        assert mg._normalize_tags('a, b, A') == ['a', 'b']
+
+    def test_descricao_enorme_e_truncada_em_bytes(self):
+        out = mg._normalize_metadata({**GOOD, 'description': 'Frase com acentuação. ' * 400})
+        assert len(out['description'].encode('utf-8')) <= mg.MAX_GENERATED_DESCRIPTION_BYTES
+
+
+class TestCreditos:
+
+    def test_arroba_duplicada_e_colapsada(self):
+        out = mg.append_credits('Desc', 'Créditos: @{channel_handle}', '@sportv')
+        assert out == 'Desc\n\nCréditos: @sportv'
+
+    def test_descricao_e_encurtada_para_caber_os_creditos(self):
+        longa = 'Palavra ' * 700
+        out = mg.append_credits(longa, 'Créditos: @{channel_handle}', 'canal')
+        assert out.endswith('Créditos: @canal')
+        assert len(out.encode('utf-8')) <= mg.YOUTUBE_DESCRIPTION_MAX_BYTES
