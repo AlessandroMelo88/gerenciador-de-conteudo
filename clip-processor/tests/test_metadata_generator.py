@@ -10,15 +10,20 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.metadata_generator import (
+    MAX_GENERATED_DESCRIPTION_CHARS,
     _build_prompt,
     _build_thumbnail_prompt,
+    _ensure_fake_news_verdict,
     _get_thumbnail_system_prompt,
     _normalize_metadata,
+    _normalize_thumbnail_text,
+    _truncate_description,
     append_credits,
     generate_metadata,
     generate_thumbnail_text,
     update_clip_metadata,
 )
+from src.metadata_safety import validate_youtube_metadata
 
 SAMPLE_CONTEXT = {
     'source_title': 'Debate quente depois do clássico',
@@ -31,6 +36,156 @@ SAMPLE_CONTEXT = {
 
 
 class TestMetadataGenerator:
+    def test_description_budget_preserves_opening_and_paragraph_structure(self):
+        description = _truncate_description('Resumo inicial.\n\n' + ('conteúdo técnico ' * 300))
+
+        assert len(description) <= MAX_GENERATED_DESCRIPTION_CHARS
+        assert description.startswith('Resumo inicial.\n\n')
+        assert description.endswith('…')
+
+    def test_description_budget_respects_youtube_utf8_byte_limit(self):
+        description = _truncate_description('á🙂' * 2500)
+
+        assert len(description.encode('utf-8')) <= 5000
+
+    def test_tags_stay_within_youtube_effective_character_budget(self):
+        metadata = _normalize_metadata(
+            {
+                'title': 'Como proteger a privacidade digital',
+                'description': 'Veja como proteger a privacidade digital.',
+                'tags': [f'privacidade digital {index}' for index in range(80)],
+            },
+            SAMPLE_CONTEXT,
+        )
+        tags = metadata['tags']
+        effective_length = sum(
+            len(tag) + (2 if any(char.isspace() for char in tag) else 0) for tag in tags
+        ) + max(len(tags) - 1, 0)
+
+        assert effective_length <= 500
+
+    def test_generated_metadata_replaces_youtube_unsupported_angle_brackets(self):
+        metadata = _normalize_metadata(
+            {
+                'title': 'Como usar <vector> no C++',
+                'description': 'A comparação x < 5 e y > 3 aparece no trecho.',
+                'tags': ['C++', 'vector'],
+            },
+            SAMPLE_CONTEXT,
+        )
+
+        assert metadata['title'] == 'Como usar ‹vector› no C++'
+        assert '<' not in metadata['description']
+        assert '>' not in metadata['description']
+        assert 'x ‹ 5 e y › 3' in metadata['description']
+
+    def test_metadata_validator_rejects_unsupported_angle_brackets(self):
+        with pytest.raises(ValueError, match='caracteres < e >'):
+            validate_youtube_metadata(title='Título < inválido')
+
+    def test_appended_credits_keep_description_within_youtube_byte_limit(self):
+        description = append_credits(
+            'á🙂' * 2500,
+            'Créditos: @{channel_handle}',
+            'canal',
+        )
+
+        assert len(description.encode('utf-8')) <= 5000
+
+    @pytest.mark.parametrize('niche', ['tecnologia', 'tech', 'linux', 'ia', 'opensource'])
+    def test_generic_technology_channels_do_not_get_hacker_libertario_positioning(self, niche):
+        prompt = _build_prompt({**SAMPLE_CONTEXT, 'niche': niche})
+
+        assert 'Hacker Libertário' not in prompt
+        assert 'Visão Libertária' not in prompt
+
+    def test_channel_id_does_not_trigger_libertarian_vocabulary_rewriting(self):
+        metadata = _normalize_metadata(
+            {
+                'title': 'O Estado e a tecnologia',
+                'description': 'Resumo sobre o Estado e a tecnologia.',
+                'tags': ['tecnologia'],
+            },
+            {**SAMPLE_CONTEXT, 'niche': 'tecnologia', 'destination_channel_id': 3},
+        )
+
+        assert metadata['title'] == 'O Estado e a tecnologia'
+
+    def test_libertarian_editorial_style_preserves_search_terms_and_tags(self):
+        metadata = _normalize_metadata(
+            {
+                'title': 'Imposto de Renda: como funciona a faixa de isenção?',
+                'description': 'Imposto de Renda e IRPF: entenda a faixa de isenção.',
+                'tags': ['Imposto de Renda', 'IRPF', 'Receita Federal'],
+            },
+            {**SAMPLE_CONTEXT, 'niche': 'hacker-libertario'},
+        )
+
+        assert metadata['title'] == 'Imposto de Renda: como funciona a faixa de isenção?'
+        assert metadata['description'].startswith('Imposto de Renda e IRPF')
+        assert metadata['tags'] == ['Imposto de Renda', 'IRPF', 'Receita Federal']
+
+    def test_libertarian_channel_does_not_rewrite_literal_thumbnail_quote(self):
+        quote = 'O Estado explicou o tema no vídeo.'
+        context = {
+            **SAMPLE_CONTEXT,
+            'niche': 'hacker-libertario',
+            'transcript_excerpt': quote,
+        }
+
+        assert _normalize_thumbnail_text(quote, context) == quote
+
+    def test_positive_fake_news_label_never_adds_an_empty_fact_check(self):
+        description = _ensure_fake_news_verdict('Resumo neutro.', {'reason': 'Fake news: positivo'})
+
+        assert description == 'Resumo neutro.'
+
+    @pytest.mark.parametrize(
+        ('field', 'value'),
+        [
+            ('title', 'Bacharelado de Porra Nenhuma'),
+            ('description', 'A explicação termina com porra nenhuma.'),
+            ('tags', ['tecnologia', 'porra']),
+        ],
+    )
+    def test_strong_profanity_is_blocked_globally_in_metadata(self, field, value):
+        metadata = {
+            'title': 'O valor do bacharelado genérico',
+            'description': 'Uma crítica ao diploma genérico.',
+            'tags': ['educação', 'universidade'],
+        }
+        metadata[field] = value
+
+        with pytest.raises(ValueError, match='linguagem vulgar forte'):
+            _normalize_metadata(metadata, SAMPLE_CONTEXT)
+
+    def test_global_metadata_rule_survives_a_database_channel_profile(self):
+        prompt = _build_prompt(
+            {
+                **SAMPLE_CONTEXT,
+                'prompt_profile': {
+                    'metadata_short_prompt': 'Use citações fortes do transcript sem alterar nada.'
+                },
+            }
+        )
+
+        assert 'Regra global do YouTube, obrigatória para todos os canais e formatos' in prompt
+        assert 'não use palavrões ou linguagem obscena forte no título' in prompt
+        assert 'Não use os caracteres ASCII < e >' in prompt
+        assert 'Use citações fortes do transcript sem alterar nada.' in prompt
+
+    def test_thumbnail_profanity_falls_back_to_a_clean_literal_phrase(self):
+        context = {
+            **SAMPLE_CONTEXT,
+            'transcript_excerpt': (
+                'Bacharelado de porra nenhuma? O que vale esse diploma genérico?'
+            ),
+        }
+
+        result = _normalize_thumbnail_text('Bacharelado de porra nenhuma', context)
+
+        assert result == 'O que vale esse diploma genérico?'
+
     def test_database_profile_replaces_legacy_metadata_identity(self):
         prompt = _build_prompt(
             {
@@ -70,7 +225,9 @@ class TestMetadataGenerator:
         prompt = _build_prompt({**SAMPLE_CONTEXT, 'niche': 'hacker-libertario'})
 
         assert 'Hacker Libertário' in prompt
-        assert 'palavra-chave principal' in prompt
+        assert 'expressão de busca específica' in prompt
+        assert 'Preserve nomes próprios' in prompt
+        assert 'BANIMENTO TOTAL DE "TRÁFICO"' not in prompt
         assert 'no máximo 3 hashtags relevantes' in prompt
         assert 'Linux' in prompt
 
@@ -313,7 +470,7 @@ class TestMetadataGenerator:
         assert kwargs['model'] == 'claude-haiku-4-5'
         assert 'output_config' in kwargs
 
-    def test_fact_check_instruction_is_sent_in_system_and_user_prompts(self):
+    def test_fact_check_prompts_do_not_claim_search_without_a_search_tool(self):
         mock_anthropic = MagicMock()
         response = MagicMock()
         response.content = [
@@ -332,11 +489,11 @@ class TestMetadataGenerator:
         generate_metadata(SAMPLE_CONTEXT, anthropic_client=mock_anthropic)
 
         kwargs = mock_anthropic.messages.create.call_args.kwargs
-        assert 'pesquise na internet' in kwargs['system']
-        assert 'Verificação de fake news' in kwargs['system']
-        assert 'pesquise na internet' in kwargs['messages'][0]['content']
+        assert 'não recebeu resultados de busca' in kwargs['system']
+        assert 'não recebeu resultados de busca' in kwargs['messages'][0]['content']
+        assert 'não acrescente um bloco "Fact Check"' in kwargs['system']
 
-    def test_positive_selection_fact_check_is_carried_to_description(self):
+    def test_unverified_positive_selection_does_not_add_a_fake_fact_check(self):
         mock_anthropic = MagicMock()
         response = MagicMock()
         response.content = [
@@ -357,8 +514,8 @@ class TestMetadataGenerator:
             anthropic_client=mock_anthropic,
         )
 
-        assert metadata['description'].endswith('Fact Check: E os fatos reais.')
-        assert metadata['description'] == 'Descricao factual\n\nFact Check: E os fatos reais.'
+        assert metadata['description'] == 'Descricao factual'
+        assert 'Fact Check' not in metadata['description']
 
     def test_negative_selection_fact_check_is_not_added_to_description(self):
         mock_anthropic = MagicMock()

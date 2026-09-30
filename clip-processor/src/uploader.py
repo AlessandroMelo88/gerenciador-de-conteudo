@@ -16,6 +16,13 @@ from typing import Any
 
 from src.db import get_db_connection as db_connect
 from src.media_contract import validate_short_media
+from src.metadata_safety import (
+    YOUTUBE_DESCRIPTION_MAX_BYTES,
+    YOUTUBE_TAGS_MAX_CHARS,
+    sanitize_youtube_text,
+    validate_youtube_metadata,
+    youtube_tags_character_count,
+)
 from src.paths import YOUTUBE_DIR
 
 DEFAULT_TOKEN_FILE = os.path.join(YOUTUBE_DIR, 'token-futebol-em-cortes.json')
@@ -201,12 +208,18 @@ class YouTubeUploader:
                 f'Falha ao finalizar publicação do vídeo {video_id}: {exc}',
             ) from exc
 
-        # Mantém a compatibilidade do fluxo existente: falhas que não sejam
-        # 403 na thumbnail continuam sendo propagadas ao chamador. Legenda e
-        # processamento, que podem deixar um upload parcial, já foram
-        # concluídos acima com retomada idempotente.
+        # A API pode falhar aqui depois de criar o vídeo. Preserve o ID para a
+        # próxima tentativa retomar o mesmo upload sem inserir uma duplicata.
         if thumbnail_path:
-            self._upload_thumbnail(service, video_id, thumbnail_path)
+            try:
+                self._upload_thumbnail(service, video_id, thumbnail_path)
+            except PostUploadError:
+                raise
+            except Exception as exc:
+                raise PostUploadError(
+                    video_id,
+                    f'Vídeo {video_id} foi criado, mas a thumbnail falhou: {exc}',
+                ) from exc
 
         return video_id
 
@@ -488,11 +501,20 @@ class YouTubeUploader:
     def _build_video_body(self, clip: dict, privacy_status: str | None = None) -> dict:
         if privacy_status is None:
             privacy_status = self._privacy_status()
+        desc = sanitize_youtube_text(clip.get('description')).strip()
+        if len(desc.encode('utf-8')) > YOUTUBE_DESCRIPTION_MAX_BYTES:
+            raise ValueError(
+                'Metadado bloqueado: descrição excede o limite de '
+                f'{YOUTUBE_DESCRIPTION_MAX_BYTES} bytes do YouTube.'
+            )
+        title = sanitize_youtube_text(clip.get('title'))[:100]
+        tags = self._parse_tags(clip.get('tags'))
+        validate_youtube_metadata(title=title, description=desc, tags=tags)
         return {
             'snippet': {
-                'title': str(clip.get('title'))[:100],
-                'description': str(clip.get('description') or ''),
-                'tags': self._parse_tags(clip.get('tags')),
+                'title': title,
+                'description': desc,
+                'tags': tags,
                 'categoryId': self._resolve_category_id(clip),
             },
             'status': {
@@ -508,14 +530,13 @@ class YouTubeUploader:
             raw_tags = [tag.strip() for tag in tags.split(',') if tag.strip()]
         else:
             raw_tags = [str(tag).strip() for tag in tags if str(tag).strip()]
-        valid_tags = []
-        total_len = 0
+        valid_tags: list[str] = []
         for tag in raw_tags:
             cleaned = tag.replace('<', '').replace('>', '').strip()
             if not cleaned:
                 continue
-            if total_len + len(cleaned) + 1 > 400:
+            candidate_tags = [*valid_tags, cleaned]
+            if youtube_tags_character_count(candidate_tags) > YOUTUBE_TAGS_MAX_CHARS:
                 break
             valid_tags.append(cleaned)
-            total_len += len(cleaned) + 1
         return valid_tags

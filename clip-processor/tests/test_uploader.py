@@ -52,6 +52,51 @@ def make_uploader(token_file='/fake/token.json', video_id='yt_test_abc123'):
 
 
 class TestUploadClip:
+    def test_video_body_sanitizes_youtube_unsupported_angle_brackets(self):
+        uploader, _ = make_uploader()
+
+        body = uploader._build_video_body(
+            {
+                'title': 'Como usar <vector> no C++',
+                'description': 'A comparação x < 5 aparece no trecho.',
+                'tags': ['C++', 'vector'],
+            }
+        )
+
+        assert body['snippet']['title'] == 'Como usar ‹vector› no C++'
+        assert '<' not in body['snippet']['description']
+        assert '>' not in body['snippet']['description']
+
+    def test_video_body_blocks_descriptions_over_youtube_utf8_byte_limit(self):
+        uploader, _ = make_uploader()
+
+        with pytest.raises(ValueError, match='5000 bytes'):
+            uploader._build_video_body(
+                {
+                    'title': 'Privacidade digital',
+                    'description': 'é' * 2501,
+                    'tags': ['privacidade'],
+                }
+            )
+
+    def test_upload_blocks_profanity_in_manual_metadata_before_youtube_api(self, tmp_path):
+        clip_file = tmp_path / 'clip.mp4'
+        clip_file.write_bytes(b'fake_mp4')
+        uploader, yt = make_uploader()
+
+        with patch('src.uploader.MediaFileUpload'):
+            with pytest.raises(ValueError, match='linguagem vulgar forte'):
+                uploader.upload_clip(
+                    {
+                        'clip_path': str(clip_file),
+                        'title': 'Diploma genérico sem palavrão',
+                        'description': 'Resumo do corte.',
+                        'tags': 'educação, p0rr4',
+                    }
+                )
+
+        yt.videos.return_value.insert.assert_not_called()
+
     def test_short_media_contract_runs_before_youtube_upload(self, tmp_path, monkeypatch):
         """Um arquivo fora do contrato é bloqueado antes de criar vídeo no YouTube."""
         clip_file = tmp_path / 'clip.mp4'
@@ -397,8 +442,10 @@ class TestUploadClip:
 
         assert result == 'thumb_fail_vid'
 
-    def test_thumbnail_non_permission_failure_propagates(self, tmp_path):
-        """Erros de thumbnail que não sejam permissão continuam visíveis."""
+    def test_thumbnail_non_permission_failure_preserves_video_id_for_idempotent_retry(
+        self, tmp_path
+    ):
+        """Falha depois do insert mantém o ID para a retentativa não duplicar vídeo."""
         import googleapiclient.errors
 
         clip_file = tmp_path / 'clip.mp4'
@@ -418,7 +465,7 @@ class TestUploadClip:
         uploader._load_credentials = lambda: MagicMock(expired=False)
 
         with patch('src.uploader.MediaFileUpload'):
-            with pytest.raises(googleapiclient.errors.HttpError):
+            with pytest.raises(PostUploadError) as error:
                 uploader.upload_clip(
                     {
                         'clip_path': str(clip_file),
@@ -426,6 +473,25 @@ class TestUploadClip:
                         'thumbnail_path': str(thumb_file),
                     }
                 )
+
+        assert error.value.video_id == 'thumb_bad_request_vid'
+
+    def test_description_over_youtube_limit_is_rejected_before_insert(self, tmp_path):
+        clip_file = tmp_path / 'clip.mp4'
+        clip_file.write_bytes(b'fake_mp4')
+        yt = make_youtube_mock('description_vid')
+        uploader = YouTubeUploader(token_file='/fake/token.json', service=yt)
+
+        with pytest.raises(ValueError, match='descrição excede o limite'):
+            uploader.upload_clip(
+                {
+                    'clip_path': str(clip_file),
+                    'title': 'Título claro',
+                    'description': 'x' * 5001,
+                }
+            )
+
+        yt.videos.return_value.insert.assert_not_called()
 
     def test_tags_string_is_parsed_as_list(self, tmp_path):
         """Tags em formato string separado por vírgula devem virar lista."""

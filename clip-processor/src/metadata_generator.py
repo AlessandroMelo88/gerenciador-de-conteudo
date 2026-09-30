@@ -24,6 +24,15 @@ from datetime import datetime
 from typing import Literal
 
 from src.fact_check_prompt import METADATA_FACT_CHECK_INSTRUCTION
+from src.metadata_safety import (
+    YOUTUBE_DESCRIPTION_MAX_BYTES,
+    YOUTUBE_METADATA_SAFETY_INSTRUCTION,
+    YOUTUBE_TAGS_MAX_CHARS,
+    contains_strong_profanity,
+    sanitize_youtube_text,
+    validate_youtube_metadata,
+    youtube_tags_character_count,
+)
 from src.prompt_profiles import profile_prompt
 
 GROQ_CHAT_MODEL = (
@@ -40,8 +49,10 @@ THUMBNAIL_TEXT_MAX_CHARS = 64
 THUMBNAIL_TEXT_MIN_WORDS = 2
 THUMBNAIL_TEXT_MAX_WORDS = 10
 TITLE_MAX_CHARS = 100
+MAX_GENERATED_DESCRIPTION_CHARS = 3500
+MAX_GENERATED_DESCRIPTION_BYTES = 4500
 FORBIDDEN_TITLE_LABEL_RE = re.compile(r'\b(?:video\s+longo|long\s+video|shorts?|cortes?|\d+\s*s)\b')
-TECH_NICHES = frozenset({'hacker-libertario', 'tecnologia', 'tech', 'linux', 'ia', 'opensource'})
+HACKER_LIBERTARIO_NICHE = 'hacker-libertario'
 HACKER_CHANNEL_NAME = 'Hacker Libertário'
 HACKER_CHANNEL_KEYWORDS = (
     'hacker libertário',
@@ -63,12 +74,16 @@ HACKER_CHANNEL_KEYWORDS_HINT = ', '.join(HACKER_CHANNEL_KEYWORDS)
 HACKER_CHANNEL_SEO_INSTRUCTION = (
     f'IDENTIDADE DO CANAL: {HACKER_CHANNEL_NAME} publica cortes sobre tecnologia, inteligência '
     'artificial, Linux, open source, programação, privacidade, criptografia e cultura hacker libertária. '
-    'DIRETRIZES LIBERTÁRIAS INEGOCIÁVEIS: '
-    '1. O ESTADO NUNCA DEVE SER DEFENDIDO: jamais defenda, elogie ou legitime o Estado, impostos, regulação governamental ou censura. '
-    '2. ZERO MENÇÃO A POLÍTICOS E FUNCIONÁRIOS PÚBLICOS: nenhum político (de qualquer partido) ou funcionário público/agente estatal deve ser sequer mencionado no título, descrição ou tags. Zero politicagem. O foco é estritamente nas ideias, ferramentas, tecnologia e na liberdade individual. '
-    'SEO OBRIGATÓRIO: use o assunto técnico específico do trecho como palavra-chave principal; '
-    'abra a descrição com 1 ou 2 frases que resumam o insight e deixem claro qual problema, ferramenta '
-    'ou ideia está em foco, enfatizando autonomia e soberania; desenvolva o contexto com informações presentes na transcrição; finalize '
+    'PERSPECTIVA EDITORIAL: use a visão crítica e libertária do canal sem trocar fatos por rótulos. '
+    'Preserve nomes próprios, produtos, siglas, termos técnicos, categorias legais, citações e expressões de busca específicas. '
+    'Não substitua termos do assunto por sinônimos ideológicos que mudem seu sentido ou apaguem a consulta que o público usa. '
+    'Apresente juízos libertários como análise ou opinião, não como verificação factual. '
+    'O foco do canal é tecnologia, privacidade, código, Bitcoin e liberdade individual; descarte politicagem que não seja parte do assunto tecnológico. '
+    'SEO: use uma expressão de busca específica que corresponda ao assunto realmente falado; '
+    'coloque-a naturalmente no título e nas primeiras frases da descrição, sem repetir palavras-chave. '
+    'Abra a descrição com 1 ou 2 frases que resumam o insight e deixem claro qual problema, ferramenta '
+    'ou ideia está em foco; desenvolva o contexto com informações presentes na transcrição e mantenha '
+    'a descrição editorial abaixo de 3.500 caracteres. Não prometa alcance ou viralização. Finalize '
     f'com um CTA curto para inscrição no canal {HACKER_CHANNEL_NAME} e, quando fizer sentido, no '
     'máximo 3 hashtags relevantes. '
     f'Use como referências de busca, somente quando forem relevantes: {HACKER_CHANNEL_KEYWORDS_HINT}. '
@@ -82,7 +97,9 @@ METADATA_EDITORIAL_INSTRUCTION = (
     'serve apenas como contexto para identificar o vídeo: nunca copie, repita ou use esse título '
     'como título final. Por exemplo, se o título original for "FABIO AKITA - Flow #588", não '
     'retorne "FABIO AKITA - Flow #588"; escreva um título que explique o insight principal do '
-    'trecho. A descrição deve ser completa e boa para SEO, em PT-BR, com contexto, assunto, '
+    'trecho. Use no título e nas primeiras frases da descrição uma expressão de busca específica '
+    'do assunto falado, naturalmente e sem repetição artificial. A descrição deve ser completa e '
+    'boa para SEO, em PT-BR, com contexto, assunto, '
     'argumentos e conclusão do trecho, explicando claramente por que ele é relevante; não apenas '
     'repita o título ou o motivo do corte. Use somente informações presentes na transcrição e no '
     'contexto fornecido, sem inventar fatos. Nunca inclua rótulos genéricos de formato ou duração '
@@ -159,12 +176,11 @@ THUMBNAIL_SYSTEM_PROMPT = (
 
 
 POLITICA_METADATA_PROMPT = (
-    'Você é um estrategista de elite em SEO e títulos virais de alta retenção para YouTube Shorts e Reels de POLÍTICA e DEBATES. '
-    'Gere metadados de alto impacto e curiosidade para o corte selecionado: '
-    '1. Título (máximo 100 caracteres): Crie um título extremamente chamativo com gancho de confronto, revelação ou refutação '
-    "(ex: 'VEJA O QUE ELE DISSE QUANDO...', 'NÃO ESPERAVA ESSA RESPOSTA...', 'MOMENTO EM QUE FOI DESMASCARADO...', 'JANTADA HISTÓRICA NO DEBATE!'). "
-    '2. Descrição: Resumo rápido do embate ou declaração, provocando a audiência a comentar. '
-    '3. Tags: Lista de tags em PT-BR (sem hashtag), incluindo temas como politica, debate, shorts, cortes, noticias e nomes citados.'
+    'Você é especialista em SEO para YouTube Shorts e Reels de POLÍTICA e DEBATES. '
+    'Gere metadados específicos e fiéis ao trecho: o título (máximo 100 caracteres) deve nomear '
+    'naturalmente o tema ou a questão debatida e despertar curiosidade sem exagerar ou atribuir '
+    'uma conclusão não dita. A descrição deve resumir a fala e seu contexto. Use somente tags '
+    'relacionadas ao tema realmente discutido; não acrescente termos genéricos só para ampliar alcance.'
 )
 
 
@@ -186,7 +202,7 @@ def get_system_prompt(
             f'{profile_instruction}\n{format_instruction}\n'
             f'{METADATA_EDITORIAL_INSTRUCTION}{METADATA_FACT_CHECK_INSTRUCTION}'
         )
-    if niche in TECH_NICHES:
+    if niche == HACKER_LIBERTARIO_NICHE:
         return HACKER_LIBERTARIO_LONG_SYSTEM_PROMPT if is_longo else HACKER_LIBERTARIO_SYSTEM_PROMPT
     if niche in {'futebol', 'esportes', 'podcast'}:
         return LONG_SYSTEM_PROMPT if is_longo else SYSTEM_PROMPT
@@ -229,9 +245,6 @@ THUMBNAIL_OUTPUT_SCHEMA = {
 }
 
 
-_FAKE_NEWS_STATUS_RE = re.compile(
-    r'fake\s+news\s*:\s*(positivo|negativo|inconclusivo)', re.IGNORECASE
-)
 _FAKE_NEWS_SUFFIX_RE = re.compile(
     r'\s*(?:[|.]\s*)?(?:verificação\s+de\s+)?fake\s+news\s*:\s*'
     r'(?:positivo|negativo|inconclusivo)\s*\.?\s*$',
@@ -246,16 +259,10 @@ _FACT_CHECK_BLOCK_RE = re.compile(
     r'(?:^|\n)[ \t]*fact\s+check\s*:\s*(?P<facts>.*?)\s*$',
     re.IGNORECASE | re.DOTALL,
 )
-_FACT_CHECK_FALLBACK = 'Fact Check: E os fatos reais.'
 
 
 def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [VID] {msg}')
-
-
-def _extract_fake_news_status(text: str) -> str | None:
-    match = _FAKE_NEWS_STATUS_RE.search(text or '')
-    return match.group(1).casefold() if match else None
 
 
 def _strip_fake_news_labels(text: str) -> str:
@@ -264,22 +271,34 @@ def _strip_fake_news_labels(text: str) -> str:
 
 
 def _ensure_fake_news_verdict(description: str, clip_context: dict | None) -> str:
-    """Mantém o fact-check na descrição somente quando o veredito for positivo."""
+    """Remove o rótulo gerado sem pesquisa e sem evidência verificável anexada."""
     fact_check_match = _FACT_CHECK_BLOCK_RE.search(description or '')
-    existing_facts = ''
     if fact_check_match:
-        existing_facts = _strip_fake_news_labels(fact_check_match.group('facts') or '')
         description = description[: fact_check_match.start()].rstrip()
+    return _strip_fake_news_labels(description)
 
-    description = _strip_fake_news_labels(description)
 
-    reason = str((clip_context or {}).get('reason') or '')
-    status = _extract_fake_news_status(reason)
-    if status != 'positivo':
-        return description
+def _truncate_description(value: str, *, max_bytes: int = MAX_GENERATED_DESCRIPTION_BYTES) -> str:
+    """Trunca a descrição por caracteres e bytes UTF-8 sem partir palavras."""
+    text = '\n'.join(re.sub(r'[ \t]+', ' ', line).strip() for line in str(value or '').splitlines())
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    if len(text) <= MAX_GENERATED_DESCRIPTION_CHARS and len(text.encode('utf-8')) <= max_bytes:
+        return text
 
-    fact_check = f'Fact Check: {existing_facts}' if existing_facts else _FACT_CHECK_FALLBACK
-    return f'{description}\n\n{fact_check}'
+    prefix = text[:MAX_GENERATED_DESCRIPTION_CHARS]
+    ellipsis_bytes = len('…'.encode())
+    byte_budget = max(max_bytes - ellipsis_bytes, 0)
+    while prefix and len(prefix.encode('utf-8')) > byte_budget:
+        prefix = prefix[:-1]
+
+    sentence_end = max(prefix.rfind('. '), prefix.rfind('! '), prefix.rfind('? '))
+    if sentence_end >= len(prefix) * 0.7:
+        return prefix[: sentence_end + 1].rstrip()
+
+    word_boundary = prefix.rfind(' ')
+    if word_boundary >= 0:
+        prefix = prefix[:word_boundary]
+    return prefix.rstrip(' ,;:-') + ('…' if prefix else '')
 
 
 def _normalize_for_match(text: str) -> str:
@@ -307,24 +326,46 @@ def _is_literal_thumbnail_text(text: str, transcript_excerpt: str) -> bool:
 
 
 def _extract_fallback_thumbnail_text(excerpt: str) -> str:
-    """Extrai um trecho literal válido da transcrição para thumbnail quando a IA falha."""
+    """Extrai um trecho literal sem linguagem vulgar para thumbnail quando a IA falha."""
     if not excerpt:
-        return 'Destaque Imperdível'
+        raise ValueError('A transcrição não oferece uma chamada literal segura para thumbnail')
     words = excerpt.split()
-    if len(words) < THUMBNAIL_TEXT_MIN_WORDS:
-        return _trim_thumbnail_text(excerpt)[:THUMBNAIL_TEXT_MAX_CHARS]
 
-    # Tenta pegar as primeiras 5 a 8 palavras que caibam em 64 chars
+    def _valid_clean_candidate(candidate: str) -> bool:
+        return (
+            THUMBNAIL_TEXT_MIN_WORDS <= len(candidate.split()) <= THUMBNAIL_TEXT_MAX_WORDS
+            and len(candidate) <= THUMBNAIL_TEXT_MAX_CHARS
+            and not contains_strong_profanity(candidate)
+        )
+
+    # Preserve the established first phrase when it is already safe.
+    first_window = _trim_thumbnail_text(' '.join(words[: min(8, len(words))]))
+    if not contains_strong_profanity(first_window):
+        for count in range(min(8, len(words)), THUMBNAIL_TEXT_MIN_WORDS - 1, -1):
+            candidate = _trim_thumbnail_text(' '.join(words[:count]))
+            if _valid_clean_candidate(candidate):
+                return candidate
+
+    # If the opening phrase contains profanity, prefer another complete sentence.
+    sentences = re.split(r'(?<=[.!?])\s+', excerpt.strip())
+    for sentence in sentences:
+        if contains_strong_profanity(sentence):
+            continue
+        sentence_words = sentence.split()
+        for count in range(min(8, len(sentence_words)), THUMBNAIL_TEXT_MIN_WORDS - 1, -1):
+            for start in range(len(sentence_words) - count + 1):
+                candidate = _trim_thumbnail_text(' '.join(sentence_words[start : start + count]))
+                if _valid_clean_candidate(candidate):
+                    return candidate
+
+    # Transcripts without sentence punctuation still get a safe literal scan.
     for count in range(min(8, len(words)), THUMBNAIL_TEXT_MIN_WORDS - 1, -1):
-        candidate = _trim_thumbnail_text(' '.join(words[:count]))
-        if (
-            len(candidate) <= THUMBNAIL_TEXT_MAX_CHARS
-            and len(candidate.split()) >= THUMBNAIL_TEXT_MIN_WORDS
-        ):
-            return candidate
-    return _trim_thumbnail_text(' '.join(words[:THUMBNAIL_TEXT_MIN_WORDS]))[
-        :THUMBNAIL_TEXT_MAX_CHARS
-    ]
+        for start in range(len(words) - count + 1):
+            candidate = _trim_thumbnail_text(' '.join(words[start : start + count]))
+            if _valid_clean_candidate(candidate):
+                return candidate
+
+    raise ValueError('A transcrição não oferece uma chamada literal sem linguagem vulgar forte')
 
 
 def _safe_json_loads(raw_text: str) -> dict:
@@ -356,6 +397,20 @@ def _safe_json_loads(raw_text: str) -> dict:
     return {}
 
 
+def _is_libertarian_context(context: dict | None) -> bool:
+    if not context:
+        return False
+    niche = str(context.get('niche') or '').lower()
+    dest_slug = str(context.get('destination_slug') or '').lower()
+    profile = context.get('prompt_profile') or {}
+    profile_slug = str(profile.get('slug') or '').lower() if hasattr(profile, 'get') else ''
+    return (
+        dest_slug == HACKER_LIBERTARIO_NICHE
+        or niche == HACKER_LIBERTARIO_NICHE
+        or profile_slug == 'conteudo-inteligencia'
+    )
+
+
 def _normalize_thumbnail_text(value: object, clip_context: dict | None = None) -> str:
     """Normaliza e valida a chamada da IA sem inventar texto.
 
@@ -381,8 +436,12 @@ def _normalize_thumbnail_text(value: object, clip_context: dict | None = None) -
         not THUMBNAIL_TEXT_MIN_WORDS <= word_count <= THUMBNAIL_TEXT_MAX_WORDS
         or not excerpt
         or not _is_literal_thumbnail_text(candidate, excerpt)
+        or contains_strong_profanity(candidate)
     ):
-        return _extract_fallback_thumbnail_text(excerpt)
+        candidate = _extract_fallback_thumbnail_text(excerpt)
+
+    if contains_strong_profanity(candidate):
+        raise ValueError('Metadado bloqueado: thumbnail_text contém linguagem vulgar forte.')
 
     return candidate
 
@@ -417,19 +476,21 @@ def _contains_forbidden_title_label(title: str) -> bool:
 
 
 def _normalize_tags(tags: object) -> list[str]:
-    """Limpa hashtags acidentais e remove tags duplicadas preservando a ordem."""
+    """Limpa, deduplica e limita tags pelo orçamento efetivo da API do YouTube."""
     raw_tags: list[str]
     if isinstance(tags, str):
         raw_tags = tags.split(',')
     else:
         raw_tags = [str(tag) for tag in tags] if isinstance(tags, (list, tuple, set)) else []
 
-    normalized = []
+    normalized: list[str] = []
     seen = set()
     for raw_tag in raw_tags:
         tag = re.sub(r'\s+', ' ', str(raw_tag)).strip().lstrip('#').strip(' ,;')
         key = _normalize_for_match(tag)
         if not key or key in seen:
+            continue
+        if youtube_tags_character_count([*normalized, tag]) > YOUTUBE_TAGS_MAX_CHARS:
             continue
         seen.add(key)
         normalized.append(tag)
@@ -439,8 +500,8 @@ def _normalize_tags(tags: object) -> list[str]:
 def _normalize_metadata(metadata: dict, clip_context: dict | None = None) -> dict:
     """Valida e normaliza title, description e tags retornados pela IA."""
     context = clip_context or {}
-    title = str(metadata.get('title') or '').strip()
-    description = str(metadata.get('description') or '').strip()
+    title = sanitize_youtube_text(metadata.get('title')).strip()
+    description = sanitize_youtube_text(metadata.get('description')).strip()
     tags = metadata.get('tags') or []
     is_longo = context.get('format') == 'longo'
 
@@ -455,6 +516,7 @@ def _normalize_metadata(metadata: dict, clip_context: dict | None = None) -> dic
         raise ValueError('A IA não retornou uma descrição para SEO')
 
     description = _ensure_fake_news_verdict(description, context)
+    description = _truncate_description(description)
 
     tags = _normalize_tags(tags)
 
@@ -463,6 +525,8 @@ def _normalize_metadata(metadata: dict, clip_context: dict | None = None) -> dic
 
     if not tags:
         raise ValueError('A IA não retornou tags para SEO')
+
+    validate_youtube_metadata(title=title, description=description, tags=tags)
 
     return {
         'title': title,
@@ -478,7 +542,9 @@ def _build_prompt(clip_context: dict) -> str:
         'metadata_long_prompt' if is_longo else 'metadata_short_prompt',
     )
     channel_instruction = profile_instruction or (
-        HACKER_CHANNEL_SEO_INSTRUCTION if clip_context.get('niche') in TECH_NICHES else ''
+        HACKER_CHANNEL_SEO_INSTRUCTION
+        if clip_context.get('niche') == HACKER_LIBERTARIO_NICHE
+        else ''
     )
     format_instruction = (
         'Formato: vídeo normal horizontal, não Shorts. Não use "shorts" ou "cortes" nas tags.'
@@ -496,10 +562,11 @@ def _build_prompt(clip_context: dict) -> str:
         f'{format_instruction}\n'
         f'{channel_instruction}\n'
         f'{METADATA_EDITORIAL_INSTRUCTION}\n'
+        f'{YOUTUBE_METADATA_SAFETY_INSTRUCTION}\n'
         f'Nicho configurado: {clip_context.get("niche", "")}\n'
         f'Título original: {clip_context.get("source_title", "")}\n'
         f'Motivo do corte: {clip_context.get("reason", "")}\n'
-        f'Score viral: {clip_context.get("score", "")}\n'
+        f'Score editorial (não prevê alcance): {clip_context.get("score", "")}\n'
         f'Intervalo: {clip_context.get("start_time", "")}s até {clip_context.get("end_time", "")}s\n'
         f'Trecho da transcrição:\n{clip_context.get("transcript_excerpt", "")}\n\n'
         f'{output_instruction}\n'
@@ -524,9 +591,10 @@ def _build_thumbnail_prompt(clip_context: dict) -> str:
         'Não use o título, o motivo ou conhecimento externo para completar a frase.\n\n'
         f'Título de referência (não copie): {clip_context.get("source_title", "")}\n'
         f'Motivo do corte (somente contexto): {clip_context.get("reason", "")}\n'
-        f'Score viral (somente contexto): {clip_context.get("score", "")}\n'
+        f'Score editorial (não prevê alcance): {clip_context.get("score", "")}\n'
         f'Formato: {clip_context.get("format", "curto")}\n'
         f'{profile_context}'
+        f'{YOUTUBE_METADATA_SAFETY_INSTRUCTION}\n'
         f'Trecho da transcrição:\n{clip_context.get("transcript_excerpt", "")}\n\n'
         'Responda exclusivamente com JSON no formato '
         '{"thumbnail_text": "frase literal escolhida"}. '
@@ -537,11 +605,17 @@ def _build_thumbnail_prompt(clip_context: dict) -> str:
 def _get_thumbnail_system_prompt(clip_context: dict) -> str:
     profile_instruction = profile_prompt(clip_context.get('prompt_profile'), 'thumbnail_prompt')
     if profile_instruction:
-        return f'{THUMBNAIL_SYSTEM_PROMPT}\n{profile_instruction}'
+        return (
+            f'{THUMBNAIL_SYSTEM_PROMPT}\n{profile_instruction}\n'
+            f'{YOUTUBE_METADATA_SAFETY_INSTRUCTION}'
+        )
     niche = str(clip_context.get('niche') or '').strip()
     if not niche:
-        return THUMBNAIL_SYSTEM_PROMPT
-    return f'{THUMBNAIL_SYSTEM_PROMPT} O nicho de referência deste corte é {niche}.'
+        return f'{THUMBNAIL_SYSTEM_PROMPT}\n{YOUTUBE_METADATA_SAFETY_INSTRUCTION}'
+    return (
+        f'{THUMBNAIL_SYSTEM_PROMPT} O nicho de referência deste corte é {niche}.\n'
+        f'{YOUTUBE_METADATA_SAFETY_INSTRUCTION}'
+    )
 
 
 def _resolve_system_prompt(clip_context: dict) -> str:
@@ -695,7 +769,16 @@ def append_credits(description: str, credit_template: str, channel_handle: str) 
         return description
     credits_line = credit_template.format(channel_handle=channel_handle)
     credits_line = re.sub(r'@{2,}', '@', credits_line)
-    return f'{description}\n\n{credits_line}'
+    separator = '\n\n'
+    separator_bytes = len(separator.encode('utf-8'))
+    credits_line = _truncate_description(
+        credits_line, max_bytes=YOUTUBE_DESCRIPTION_MAX_BYTES - separator_bytes
+    )
+    description_budget = (
+        YOUTUBE_DESCRIPTION_MAX_BYTES - separator_bytes - len(credits_line.encode('utf-8'))
+    )
+    description = _truncate_description(description, max_bytes=description_budget)
+    return f'{description}{separator}{credits_line}' if description else credits_line
 
 
 def resolve_credit_handle(channel_handle: str | None, channel_name: str | None) -> str:

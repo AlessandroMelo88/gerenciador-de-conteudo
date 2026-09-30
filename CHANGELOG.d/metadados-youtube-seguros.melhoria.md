@@ -1,0 +1,1 @@
+**Metadados do YouTube seguros** — título, descrição, tags e texto da thumbnail passam por filtro de palavrão e limites da API (5000 bytes, 500 caracteres de tags, sem `<`/`>`); o pipeline deixa de afirmar fact-check sem fontes e marca "inconclusivo"
