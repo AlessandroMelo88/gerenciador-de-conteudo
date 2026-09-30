@@ -132,6 +132,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 
 | Data | Rodada | Onde parou | Próximo passo combinado |
 |---|---|---|---|
+| 30/09/2026 | Lote 6 (prompts por perfil) do `release/rico` | Em `feature/prompts-por-perfil`, sem merge/deploy; sem canal versionado; migration pendente | Escrever `prompts/channels/mbl.yaml`, compilar `--apply`, ligar perfil no painel |
 | 29/09/2026 | Busca vetorial + comparação com `release/rico` | Busca pronta em `feature/busca-vetorial`, fora de produção; lotes 1–2 do Ricardo em branches | Backup + trocar imagem do Postgres na A1, deploy, backfill; rotacionar token do Telegram |
 | 20/09/2026 | Criação deste checkpoint | Produção em `3cc729b`, saudável: 141 clips publicados, 16 na fila de aprovação, 18 vídeos na janela, 0 ofertas | Cadastrar a primeira oferta real de afiliado |
 | 18/09/2026 | Afiliados na master, modo manutenção, hotfix do Vite | Afiliados em produção com token configurado | Criar canais do Telegram |
