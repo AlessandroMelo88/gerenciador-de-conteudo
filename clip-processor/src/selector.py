@@ -19,6 +19,36 @@ import os
 from datetime import datetime
 
 
+# Regras portadas de release/rico (lote 5), enxutas: valem para todos os nichos e formatos.
+BOUNDARY_RULES = (
+    "FECHAMENTO DE FRASE: os timestamps delimitam blocos da transcrição, NÃO necessariamente frases completas. "
+    "Antes de definir end_time, leia a linha escolhida e as seguintes: se o texto terminar em vírgula, dois-pontos, "
+    "reticências, conjunção ou preposição (\"mas\", \"porque\", \"então\"), avance end_time até fechar a oração, a "
+    "resposta ou o raciocínio. NUNCA corte no meio de uma palavra, frase, pergunta ou explicação, nem só porque a "
+    "linha acabou ou a duração preferida foi atingida. O start_time também não pode cair no meio de uma fala. "
+    "PUBLICIDADE: exclua o bloco inteiro de anúncio, patrocínio, cupom ou chamada comercial (entrada e saída "
+    "incluídas), onde quer que apareça no vídeo; nenhum momento pode sobrepor publicidade nem por poucos segundos. "
+)
+
+RETENTION_SHORTFORM_RULES = (
+    "CRITÉRIOS DE RETENÇÃO DO FORMATO CURTO: o espectador do feed não escolheu o vídeo e o trecho precisa se "
+    "sustentar sozinho. Rejeite início que dependa de conteúdo anterior (\"como eu falei\", \"isso\", \"ele\", "
+    "\"aquilo\" sem referente) e trecho cujo assunto central não se entende sem o resto do vídeo. Toda pergunta ou "
+    "tensão aberta no começo deve ser respondida dentro do trecho; suspense genérico sem promessa específica e "
+    "opinião sem razão, consequência ou tensão reprovam o candidato. Nunca crie corte só para completar a cota: "
+    "se nenhum candidato passar, retorne {\"moments\": []}. "
+)
+
+RETENTION_LONGFORM_RULES = (
+    "CRITÉRIOS DE RETENÇÃO DO FORMATO LONGO: o pipeline cria um único corte contínuo, sem intercalar nem remover "
+    "pausas internas, então escolha uma fala naturalmente coesa. ABERTURA LIMPA: o segmento deve começar com o "
+    "sujeito e o tema introduzidos; rejeite início no meio de oração subordinada ou com conectivo órfão (\"e depois...\", "
+    "\"mas de lá...\", \"de modo que...\") e posicione start_time no início da fala que introduz o tópico. "
+    "FECHAMENTO CONCLUSIVO: termine em conclusão natural com pontuação final, nunca em conectivo, reticências ou "
+    "pergunta retórica solta. Posicione end_time ANTES de despedidas do criador original (\"se inscreve no canal\", "
+    "\"deixa o like\", menções a redes pessoais). Escolha um recorte temático único, sem esticar para cobrir a fonte inteira. "
+)
+
 SYSTEM_PROMPT = (
     "Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos. "
     "Analise a transcrição fornecida e identifique os melhores segmentos para criar clips CURTOS, "
@@ -29,7 +59,8 @@ SYSTEM_PROMPT = (
     "Para podcasts: priorize discussão intensa, revelação importante, momento de conflito ou humor. "
     "Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente "
     "(10 = viral garantido, 1 = sem valor). "
-    "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
+    + BOUNDARY_RULES + RETENTION_SHORTFORM_RULES
+    + "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
@@ -47,7 +78,8 @@ LONG_SYSTEM_PROMPT = (
     "(end_time - start_time >= 420). "
     "Retorne exatamente 1 momento, com score de 1 a 10 "
     "(10 = análise excelente pra virar vídeo, 1 = sem valor). "
-    "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
+    + BOUNDARY_RULES + RETENTION_LONGFORM_RULES
+    + "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
@@ -63,7 +95,8 @@ POLITICA_SYSTEM_PROMPT = (
     "3. RACIOCÍNIO FECHADO: Começo, meio e desfecho claro do argumento. Termine logo após a conclusão impactante ou momento de choque, sem sobras. "
     "Retorne no máximo 3 momentos não-sobrepostos, ordenados por score decrescente "
     "(10 = momento épico/altamente compartilhável, 1 = sem relevância). "
-    "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
+    + BOUNDARY_RULES + RETENTION_SHORTFORM_RULES
+    + "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
@@ -76,7 +109,8 @@ POLITICA_LONG_SYSTEM_PROMPT = (
     "uma entrevista reveladora ou um confronto de ideias do início ao desfecho do argumento. "
     "O segmento PRECISA ter pelo menos 420 segundos de duração (end_time - start_time >= 420). "
     "Retorne exatamente 1 momento, com score de 1 a 10. "
-    "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
+    + BOUNDARY_RULES + RETENTION_LONGFORM_RULES
+    + "IMPORTANTE: start_time e end_time DEVEM ser NÚMEROS inteiros em segundos (ex: 120, 350), NUNCA use formato com dois pontos como 21:21 ou strings. "
     "Responda APENAS com JSON válido, sem texto adicional:\n"
     '{"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}'
 )
@@ -299,6 +333,38 @@ def _filter_shortform_duration(moments: list[dict], transcript_duration: float =
     return valid
 
 
+def _clamp_moment_bounds(moments: list[dict], transcript_duration: float) -> list[dict]:
+    """Mantém start/end devolvidos pela IA dentro da duração real da transcrição.
+
+    O modelo às vezes alucina tempos além do fim do vídeo (ou negativos); sem isso o corte
+    tenta ler além do arquivo. Momentos que colapsam (end <= start) são removidos depois
+    pelos filtros de duração.
+    """
+    if not moments or transcript_duration <= 0:
+        return moments
+
+    clamped: list[dict] = []
+    for moment in moments:
+        try:
+            start = float(moment['start_time'])
+            end = float(moment['end_time'])
+        except (KeyError, TypeError, ValueError):
+            clamped.append(moment)
+            continue
+        new_start = min(max(start, 0.0), transcript_duration)
+        new_end = min(max(end, 0.0), transcript_duration)
+        if new_end < new_start:
+            new_end = new_start
+        if new_start == start and new_end == end:
+            clamped.append(moment)
+            continue
+        updated = dict(moment)
+        updated['start_time'] = new_start
+        updated['end_time'] = new_end
+        clamped.append(updated)
+    return clamped
+
+
 def _snap_to_sentence_boundaries(moments: list[dict], segments: list[dict], buffer_end: float = 1.0) -> list[dict]:
     """Ajusta os timestamps dos momentos para respeitar os finais reais de frases do Whisper.
     
@@ -384,6 +450,7 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', 
         return []
 
     def _finalize(moments: list[dict]) -> list[dict]:
+        moments = _clamp_moment_bounds(moments, transcript_duration)
         # Aplica ajuste de fronteiras de frase para não cortar fala no meio
         moments = _snap_to_sentence_boundaries(moments, segments)
         result = _remove_overlaps(moments, max_count=max_moments)
