@@ -206,6 +206,10 @@ def update_status(conn, video_id, status, local_path=None, clear_local_path=Fals
     janela de download — que conta `local_path IS NOT NULL` —, e vídeo com
     download falho segurava vaga pra sempre.
 
+    Toda mudança de status renova `updated_at`: os recoveries por idade
+    (`recover_stuck_selecting`, `recover_stuck_transcribing`) medem o tempo
+    desde a última transição, e o banco não tem trigger que faça isso.
+
     Args:
         conn: conexão pymysql ativa
         video_id: youtube_video_id do vídeo a atualizar
@@ -216,21 +220,21 @@ def update_status(conn, video_id, status, local_path=None, clear_local_path=Fals
     if clear_local_path:
         sql = (
             'UPDATE source_videos '
-            'SET status=%s, local_path=NULL '
+            'SET status=%s, local_path=NULL, updated_at=NOW() '
             'WHERE youtube_video_id=%s'
         )
         params = (status, video_id)
     elif local_path is not None:
         sql = (
             'UPDATE source_videos '
-            'SET status=%s, local_path=%s '
+            'SET status=%s, local_path=%s, updated_at=NOW() '
             'WHERE youtube_video_id=%s'
         )
         params = (status, local_path, video_id)
     else:
         sql = (
             'UPDATE source_videos '
-            'SET status=%s '
+            'SET status=%s, updated_at=NOW() '
             'WHERE youtube_video_id=%s'
         )
         params = (status, video_id)
@@ -383,3 +387,97 @@ def recover_stuck_selecting(conn):
         raise
 
 
+
+
+# Transcrição legítima pode demorar; a mesma janela conservadora de 'selecting'
+# evita atropelar um vídeo que ainda está sendo processado.
+def recover_stuck_transcribing(conn):
+    """Recupera fontes presas em 'transcribing' há mais de SELECTING_STUCK_HOURS.
+
+    Com raw em disco volta para 'downloaded' (nova tentativa). Sem raw vai para
+    'failed', que libera a vaga da janela. Só muda o status: nenhum arquivo é
+    apagado e o Redis (chaves ``video:*``) não é tocado, então nada ressuscita.
+    """
+    driver = get_db_driver(conn)
+    if driver == 'pgsql':
+        age = "updated_at < NOW() - (%s * INTERVAL '1 hour')"
+    else:
+        age = 'updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)'
+    sql_with_file = (
+        "UPDATE source_videos SET status='downloaded' "
+        f"WHERE status='transcribing' AND local_path IS NOT NULL AND {age}"
+    )
+    sql_without_file = (
+        "UPDATE source_videos SET status='failed' "
+        f"WHERE status='transcribing' AND local_path IS NULL AND {age}"
+    )
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql_with_file, (SELECTING_STUCK_HOURS,))
+            with_file = cur.rowcount
+            cur.execute(sql_without_file, (SELECTING_STUCK_HOURS,))
+            without_file = cur.rowcount
+        conn.commit()
+        _log(
+            f'recover_stuck_transcribing: {with_file} vídeo(s) voltaram para downloaded; '
+            f'{without_file} sem raw foram para failed'
+        )
+    except Exception as exc:
+        _log(f'AVISO: falha ao recuperar transcrições presas: {exc}')
+        raise
+
+
+# Um upload longo em conexão lenta pode passar de 15min; 60min é a escolha
+# conservadora para não devolver à fila um clip que ainda está subindo.
+PUBLISHING_STUCK_MINUTES = 60
+
+
+def recover_stuck_publishing(conn):
+    """Devolve clips presos em 'publishing' para 'pending'.
+
+    Só considera clips SEM youtube_video_id (se já há id, o vídeo foi ao ar e
+    o estado precisa de análise humana, não de reenvio) e parados há mais de
+    PUBLISHING_STUCK_MINUTES. Em modo de aprovação manual o clip volta para
+    'pending' e exige nova aprovação, o que evita reenvio automático.
+    Risco residual: se o YouTube aceitou o upload mas o processo caiu antes de
+    gravar o id, o reenvio pode duplicar o vídeo.
+    """
+    driver = get_db_driver(conn)
+    if driver == 'pgsql':
+        age = "updated_at < NOW() - (%s * INTERVAL '1 minute')"
+    else:
+        age = 'updated_at < DATE_SUB(NOW(), INTERVAL %s MINUTE)'
+    sql = (
+        "UPDATE generated_clips SET status='pending' "
+        f"WHERE status='publishing' AND youtube_video_id IS NULL AND {age}"
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (PUBLISHING_STUCK_MINUTES,))
+            count = cur.rowcount
+        conn.commit()
+        if count:
+            _log(f'recover_stuck_publishing: {count} clip(s) redefinido(s) para pending')
+    except Exception as exc:
+        _log(f'AVISO: falha ao recuperar clips em publishing: {exc}')
+        raise
+
+
+def recover_cutting_on_boot(conn):
+    """Devolve clips em 'cutting' para 'pending_cut'. SÓ no boot do daemon.
+
+    Processo novo significa que o FFmpeg do anterior não existe mais. O job
+    periódico não pode chamar isto: um corte legítimo passa de 30min. Só troca
+    o status; o raw continua em disco (o corte precisa dele) e nada é apagado.
+    """
+    sql = "UPDATE generated_clips SET status='pending_cut' WHERE status='cutting'"
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            affected = cur.rowcount
+        conn.commit()
+        _log(f'recover_cutting_on_boot: {affected} clip(s) redefinido(s) para pending_cut')
+    except Exception as exc:
+        _log(f'AVISO: falha ao recuperar clips em cutting: {exc}')
+        raise

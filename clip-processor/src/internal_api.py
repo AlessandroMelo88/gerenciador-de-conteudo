@@ -33,6 +33,12 @@ REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 app = Flask(__name__)
 
 
+@app.get('/health')
+def _route_health():
+    """Liveness sem auth e sem tocar em banco/Redis: só diz que o sidecar responde."""
+    return jsonify(status='ok'), 200
+
+
 def _check_auth() -> bool:
     return bool(INTERNAL_TOKEN) and request.headers.get('X-Internal-Token') == INTERNAL_TOKEN
 

@@ -39,12 +39,25 @@ except ImportError:
     sentry_sdk = None
 
 from src.pipeline_runner import run_pipeline_once, run_publish_only, run_ingest_cycle
-from src.db import get_db_connection, recover_stuck_downloads, recover_stuck_selecting
+from src.db import (
+    get_db_connection,
+    recover_cutting_on_boot,
+    recover_stuck_downloads,
+    recover_stuck_publishing,
+    recover_stuck_selecting,
+    recover_stuck_transcribing,
+)
 from src.publisher import finalize_settled_source_videos
 from src import ttl_worker
 from src.ttl_worker import run_ttl_once
 from src.watchdog import run_watchdog_cycle
 from src.internal_api import app as _internal_app
+
+
+def pipeline_enabled() -> bool:
+    """Permite manter o sidecar HTTP no ar sem iniciar ingestão/publicação."""
+    return os.environ.get('PIPELINE_ENABLED', 'true').strip().lower() in {'1', 'true', 'yes', 'on'}
+
 
 SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
 if sentry_sdk and SENTRY_DSN:
@@ -63,7 +76,7 @@ def _start_internal_api():
     _internal_app.run(host='0.0.0.0', port=8090, use_reloader=False, debug=False)
 
 
-def run_recovery_once():
+def run_recovery_once(*, recover_cutting=False):
     """Roda os recoveries de estado preso. Agendado, não só no boot.
 
     Enquanto isso existia apenas no bloco de startup, tudo que travasse depois
@@ -73,13 +86,21 @@ def run_recovery_once():
 
     Falha é logada e engolida de propósito — recovery é manutenção oportunista,
     não pode derrubar o scheduler.
+
+    ``cutting`` só é recuperado com ``recover_cutting=True`` (boot): o job
+    periódico o deixa intacto, pois um corte legítimo pode passar de 30min.
+    Nenhum recovery apaga arquivo; o raw fica para o corte refeito.
     """
     conn = None
     try:
         conn = get_db_connection()
         recover_stuck_downloads(conn)
+        recover_stuck_transcribing(conn)
         recover_stuck_selecting(conn)
+        recover_stuck_publishing(conn)
         finalize_settled_source_videos(conn)
+        if recover_cutting:
+            recover_cutting_on_boot(conn)
     except Exception as e:
         log(f'[ACQU] Aviso: recovery periódico falhou — {e}')
     finally:
@@ -88,6 +109,20 @@ def run_recovery_once():
                 conn.close()
             except Exception:
                 pass
+
+
+def run_ingest_if_enabled():
+    if not pipeline_enabled():
+        log('[ACQU] Ingestão pausada por PIPELINE_ENABLED=false')
+        return
+    run_ingest_cycle()
+
+
+def run_publish_if_enabled():
+    if not pipeline_enabled():
+        log('[ACQU] Publicação pausada por PIPELINE_ENABLED=false')
+        return
+    run_publish_only()
 
 
 def run_watchdog_once():
@@ -119,7 +154,7 @@ def shutdown(signum, frame):
 # maior faz vaga aberta (vídeo excluído no painel, ou publicação concluída) ser
 # reposta rápido, em vez de esperar até 6h pelo próximo vídeo.
 scheduler.add_job(
-    run_ingest_cycle,
+    run_ingest_if_enabled,
     'interval',
     minutes=20,
     id='ingest_cycle',
@@ -131,7 +166,7 @@ scheduler.add_job(
 # Publica clips já aprovados isoladamente, mesma cadência do ingest — evita
 # represar a fila esperando quando a cota diária reseta ou libera espaço.
 scheduler.add_job(
-    run_publish_only,
+    run_publish_if_enabled,
     'interval',
     minutes=20,
     id='publish_cycle',
@@ -184,6 +219,7 @@ if __name__ == '__main__':
     log('[ACQU] Daemon iniciado — ingestão + publish a cada 20 minutos')
     log(f'[ACQU] MYSQL_HOST: {os.environ.get("MYSQL_HOST", "não configurado")}')
     log(f'[ACQU] REDIS_HOST: {os.environ.get("REDIS_HOST", "não configurado")}')
+    log(f'[ACQU] PIPELINE_ENABLED: {pipeline_enabled()}')
     log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "private")}')
     log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
     log(f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)')
@@ -191,8 +227,9 @@ if __name__ == '__main__':
 
     # Recovery: vídeos presos em 'downloading' voltam para 'pending' e os
     # presos em 'selecting' voltam para 'downloaded' (senão seguram slot da
-    # janela de download pra sempre e o pipeline para de baixar).
-    run_recovery_once()
+    # janela de download pra sempre e o pipeline para de baixar). No boot também
+    # 'cutting' volta para 'pending_cut': o FFmpeg do processo anterior morreu.
+    run_recovery_once(recover_cutting=True)
 
     # Watchdog inicial: auto-cura clipes fantasmas e valida saúde do disco/OAuth
     run_watchdog_once()
@@ -205,8 +242,11 @@ if __name__ == '__main__':
     log('[ACQU] Sidecar HTTP interno iniciado em 0.0.0.0:8090 (thread daemon)')
 
     # Executar imediatamente na inicialização (não esperar o primeiro tick de 20min)
-    log('[ACQU] Executando ciclo inicial...')
-    run_pipeline_once()
+    if pipeline_enabled():
+        log('[ACQU] Executando ciclo inicial...')
+        run_pipeline_once()
+    else:
+        log('[ACQU] Ciclo inicial pausado — sidecar HTTP continua disponível')
 
     log('[ACQU] Scheduler iniciado — próximo ciclo (ingest + publish) em 20 minutos')
     scheduler.start()
