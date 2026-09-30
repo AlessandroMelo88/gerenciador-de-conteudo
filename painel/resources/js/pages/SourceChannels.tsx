@@ -27,6 +27,8 @@ type SourceChannel = {
     targetNiche: string;
     active: boolean;
     blacklisted: boolean;
+    freshnessDays: 1 | 3;
+    inputPriority: number;
     createdAt: string | null;
 };
 
@@ -133,6 +135,75 @@ function CreateChannelDialog({ niches }: { niches: Niche[] }) {
     );
 }
 
+function FreshnessSelect({
+    channel,
+    onChange,
+}: {
+    channel: SourceChannel;
+    onChange: (id: number, value: string) => void;
+}) {
+    return (
+        <select
+            aria-label={`Janela de busca de ${channel.channelName}`}
+            value={channel.freshnessDays ?? 1}
+            onChange={(event) => onChange(channel.id, event.target.value)}
+            className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-foreground"
+        >
+            <option value={1}>Hoje e ontem</option>
+            <option value={3}>3 dias</option>
+        </select>
+    );
+}
+
+function InputPriorityControl({ channel }: { channel: SourceChannel }) {
+    const [processing, setProcessing] = useState(false);
+    const priority = channel.inputPriority ?? 0;
+
+    function updatePriority(value: number) {
+        router.put(
+            `/painel/canais-fonte/${channel.id}`,
+            { input_priority: value },
+            {
+                preserveScroll: true,
+                onStart: () => setProcessing(true),
+                onFinish: () => setProcessing(false),
+                onSuccess: () => toast.success('Prioridade do input atualizada'),
+                onError: () => toast.error('Não foi possível atualizar a prioridade'),
+            }
+        );
+    }
+
+    return (
+        <div className="space-y-1" role="group" aria-label={`Prioridade de input de ${channel.channelName}`}>
+            <div className="flex items-center gap-1.5">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-xs"
+                    aria-label={`Diminuir prioridade de ${channel.channelName}`}
+                    disabled={processing || priority <= -10}
+                    onClick={() => updatePriority(Math.max(-10, priority - 1))}
+                >
+                    −
+                </Button>
+                <span className="min-w-7 text-center font-mono text-xs font-semibold" aria-live="polite">
+                    {priority > 0 ? `+${priority}` : priority}
+                </span>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-xs"
+                    aria-label={`Aumentar prioridade de ${channel.channelName}`}
+                    disabled={processing || priority >= 10}
+                    onClick={() => updatePriority(Math.min(10, priority + 1))}
+                >
+                    +
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 export default function SourceChannels() {
     const { props } = usePage<PageProps>();
     const { channels, niches, auth } = props;
@@ -148,6 +219,18 @@ export default function SourceChannels() {
             {
                 preserveScroll: true,
                 onSuccess: () => toast.success('Status atualizado com sucesso'),
+            }
+        );
+    };
+
+    const setFreshness = (id: number, value: string) => {
+        router.put(
+            `/painel/canais-fonte/${id}`,
+            { freshness_days: Number(value) },
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Janela de busca atualizada'),
+                onError: () => toast.error('Não foi possível atualizar a janela de busca'),
             }
         );
     };
@@ -335,6 +418,18 @@ export default function SourceChannels() {
                                             </span>
                                         </div>
 
+                                        <label className="flex items-center justify-between gap-3 text-xs">
+                                            <span className="text-muted-foreground">Buscar vídeos de:</span>
+                                            <FreshnessSelect channel={channel} onChange={setFreshness} />
+                                        </label>
+
+                                        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 px-3 py-2 text-xs">
+                                            <span className="text-muted-foreground">
+                                                Prioridade de input (−10 a +10)
+                                            </span>
+                                            <InputPriorityControl channel={channel} />
+                                        </div>
+
                                         <div className="flex items-center gap-3 pt-2 border-t border-border/60">
                                             <div className="flex items-center gap-2">
                                                 <Switch
@@ -386,6 +481,8 @@ export default function SourceChannels() {
                                         <TableRow>
                                             <TableHead className="px-5 py-3 font-semibold">Canal</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold">Nicho</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold">Janela de busca</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold">Prioridade</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold">Ativo</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold">Blacklist</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold text-right">Ações</TableHead>
@@ -423,6 +520,12 @@ export default function SourceChannels() {
                                                     </TableCell>
                                                     <TableCell className="px-5 py-3">
                                                         <NicheBadge niche={channel.targetNiche} />
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3">
+                                                        <FreshnessSelect channel={channel} onChange={setFreshness} />
+                                                    </TableCell>
+                                                    <TableCell className="px-5 py-3">
+                                                        <InputPriorityControl channel={channel} />
                                                     </TableCell>
                                                     <TableCell className="px-5 py-3">
                                                         <Switch

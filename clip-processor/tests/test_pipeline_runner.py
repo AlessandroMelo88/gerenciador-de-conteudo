@@ -264,8 +264,8 @@ class TestSelectPendingVideos:
         assert select_call.args[1][-1] == 1 * CANDIDATES_PER_SLOT
 
     def test_filters_by_freshness_cutoff(self):
-        """SELECT deve restringir a published_at de até FRESHNESS_DAYS dias atrás."""
-        from datetime import datetime, timedelta
+        """O SELECT recebe hoje (SP) e o fallback FRESHNESS_DAYS; o corte é por canal no SQL."""
+        from datetime import datetime
         from src.pipeline_runner import SAO_PAULO_TZ, FRESHNESS_DAYS
 
         mock_conn = MagicMock()
@@ -277,9 +277,45 @@ class TestSelectPendingVideos:
 
         _select_pending_videos(mock_conn)
 
-        expected_cutoff = (datetime.now(SAO_PAULO_TZ) - timedelta(days=FRESHNESS_DAYS)).date()
         select_call = cur.execute.call_args_list[2]
-        assert select_call.args[1][2] == expected_cutoff
+        sql, params = select_call.args
+        assert params[2] == datetime.now(SAO_PAULO_TZ).date()
+        assert params[3] == FRESHNESS_DAYS
+        # frescor por canal: freshness_days do source_channel vence o fallback
+        assert 'COALESCE(sc.freshness_days, %s)' in sql
+
+    def test_select_expoe_input_priority_do_canal_para_a_fila_justa(self):
+        mock_conn = MagicMock()
+        cur = self._make_cursor(
+            fetchone_results=[{'c': 9}],
+            fetchall_results=[[], [], self._ocupacao({1: DOWNLOAD_WINDOW_POLITICA})],
+        )
+        mock_conn.cursor.return_value = cur
+
+        _select_pending_videos(mock_conn)
+
+        sql = cur.execute.call_args_list[2].args[0]
+        assert 'COALESCE(sc.input_priority, 0) AS input_priority' in sql
+
+    def test_canal_com_prioridade_maior_comeca_a_rodada(self):
+        mock_conn = MagicMock()
+        candidatos = [
+            {'youtube_video_id': 'normal', 'channel_id': 1, 'input_priority': 0},
+            {'youtube_video_id': 'vip', 'channel_id': 2, 'input_priority': 5},
+        ]
+        cur = self._make_cursor(
+            fetchone_results=[{'c': 2}],
+            fetchall_results=[
+                [],
+                candidatos,
+                self._ocupacao({1: DOWNLOAD_WINDOW_POLITICA}),
+            ],
+        )
+        mock_conn.cursor.return_value = cur
+
+        result = _select_pending_videos(mock_conn)
+
+        assert result[0] == 'vip'
 
     def test_canal_prolifico_nao_toma_a_janela_inteira(self):
         """10 vagas livres e 2 canais ativos: cada canal leva no máximo 5, intercalando."""

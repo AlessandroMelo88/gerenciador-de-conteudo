@@ -80,3 +80,32 @@ class TestFairPick:
         candidates = [{'channel_id': None, 'youtube_video_id': 'x1'}]
 
         assert _ids(fair_pick(candidates, occupancy={}, deficit=1, cap=1)) == ['x1']
+
+    def test_prioridade_do_input_define_quem_comeca_sem_mudar_a_cota_justa(self):
+        candidates = [
+            {'channel_id': 1, 'youtube_video_id': 'padrao', 'input_priority': 0},
+            {'channel_id': 2, 'youtube_video_id': 'prioritario', 'input_priority': 8},
+        ]
+
+        picked = _ids(fair_pick(candidates, occupancy={}, deficit=2, cap=1))
+
+        assert picked == ['prioritario', 'padrao']
+
+    def test_prioridade_nao_fura_o_anti_fome_de_ocupacao(self):
+        """Canal com menos vagas ocupadas continua na frente, mesmo com prioridade menor."""
+        candidates = [
+            {'channel_id': 1, 'youtube_video_id': 'vazio', 'input_priority': 0},
+            {'channel_id': 2, 'youtube_video_id': 'ocupado', 'input_priority': 10},
+        ]
+
+        picked = _ids(fair_pick(candidates, occupancy={2: 3}, deficit=1, cap=5))
+
+        assert picked == ['vazio']
+
+    def test_prioridade_invalida_vira_neutra(self):
+        candidates = [
+            {'channel_id': 1, 'youtube_video_id': 'a', 'input_priority': 'lixo'},
+            {'channel_id': 2, 'youtube_video_id': 'b', 'input_priority': None},
+        ]
+
+        assert _ids(fair_pick(candidates, occupancy={}, deficit=2, cap=1)) == ['a', 'b']

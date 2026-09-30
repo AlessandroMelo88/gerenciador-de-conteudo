@@ -274,3 +274,11 @@ Artefatos de clip em [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md#artefatos-em-disco).
 
 **Ao cruzar banco × disco, filtrar pelo id**, nunca pelo nome do arquivo — regra 3 do
 [`../CLAUDE.md`](../CLAUDE.md).
+
+---
+
+## Frescor por canal (30/09/2026)
+
+O corte de frescor agora é **por canal-fonte** (`source_channels.freshness_days`, padrão 1 dia) e a
+fila justa desempata por `input_priority`. `FRESHNESS_DAYS` virou só fallback. Detalhes em
+[`SISTEMA-FRESCOR-E-PRIORIDADE.md`](SISTEMA-FRESCOR-E-PRIORIDADE.md).
