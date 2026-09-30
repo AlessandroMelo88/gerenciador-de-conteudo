@@ -1,0 +1,55 @@
+[project]
+name = "clip-processor"
+version = "0.1.0"
+description = "Daemon do pipeline Canal de Cortes: RSS → download → transcrição → seleção por IA → corte → upload"
+requires-python = ">=3.12"
+
+# ---------------------------------------------------------------------------
+# Ruff — lint (o `ruff format` NÃO é exigido: 48 arquivos legados fugiriam do estilo)
+# Rodar: ruff check .   (ou `make lint-python`)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+extend-exclude = [".venv", "venv", "build", "dist"]
+
+[tool.ruff.lint]
+# Baseline conservador: só erros que quebram em runtime (sintaxe, nomes indefinidos,
+# comparações/format strings inválidas). O código legado ainda tem ~120 achados de
+# estilo (F401, I001, UP, SIM, RUF); ao limpá-los, acrescente o prefixo da regra aqui
+# ("F", "I", "B", "UP"...) e o CI passa a exigir. Nunca rodar --fix em massa junto de
+# outra mudança: faça num lote "style" isolado.
+select = ["E9", "F63", "F7", "F82"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+# ---------------------------------------------------------------------------
+# mypy — informativo: 23 erros herdados (30/09/2026); ainda NÃO bloqueia o CI.
+# Rode `make types-python` e reduza a contagem; quando zerar, ligue no ci.yml.
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+files = ["src"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+pretty = true
+
+# pytest: a configuração continua em pytest.ini (tem precedência sobre este arquivo).
+
+# ---------------------------------------------------------------------------
+# coverage — piso de cobertura (medido 66,5% em 30/09/2026); só sobe, nunca desce
+# Rodar: pytest --cov   (o CI faz isso e falha abaixo do piso)
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["src"]
+branch = false
+
+[tool.coverage.report]
+fail_under = 60
+show_missing = false
+skip_empty = true

@@ -1,0 +1,81 @@
+# pre-commit — hooks locais de qualidade. Só valida; nenhum hook faz deploy nem mexe no compose.
+#   make setup-python && make hooks     # instala (pre-commit vem do requirements-dev)
+#   pre-commit run --all-files          # roda tudo uma vez
+# Os hooks do painel usam o vendor/ e o node_modules/ locais (composer install, npm ci).
+# Os hooks só olham os arquivos do commit: o código legado não é reformatado em massa.
+minimum_pre_commit_version: "3.5.0"
+default_install_hook_types: [pre-commit, pre-push]
+
+exclude: |
+  (?x)^(
+    graphify-out/|
+    \.planning/|
+    painel/vendor/|
+    painel/node_modules/|
+    painel/public/build/|
+    backups/|
+    videos/
+  )
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+        exclude: ^painel/(tsconfig|\.oxlintrc)\.json$
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
+    hooks:
+      - id: ruff-check
+        files: ^clip-processor/
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: [-S, error]
+        files: \.sh$
+        types: [text]
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-c, .yamllint.yml]
+
+  - repo: local
+    hooks:
+      - id: oxlint
+        name: oxlint (painel/resources/js)
+        entry: bash -c 'cd painel && npx oxlint "${@#painel/}"' --
+        language: system
+        files: ^painel/resources/js/.*\.(ts|tsx)$
+      - id: phpstan
+        name: phpstan (painel)
+        entry: bash -c 'cd painel && vendor/bin/phpstan analyse --memory-limit=1G --no-progress'
+        language: system
+        files: ^painel/.*\.php$
+        pass_filenames: false
+        stages: [pre-push]
+      - id: pytest-clip-processor
+        name: pytest (clip-processor)
+        entry: bash -c 'cd clip-processor && .venv/bin/pytest -q -p no:cacheprovider -x'
+        language: system
+        files: ^clip-processor/.*\.(py|toml|txt)$
+        pass_filenames: false
+        stages: [pre-push]
+      - id: pytest-affiliate-worker
+        name: pytest (affiliate-worker)
+        entry: bash -c 'cd affiliate-worker && python3 -m pytest -q -p no:cacheprovider -x'
+        language: system
+        files: ^affiliate-worker/.*\.(py|txt|ini)$
+        pass_filenames: false
+        stages: [pre-push]
