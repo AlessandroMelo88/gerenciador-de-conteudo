@@ -134,7 +134,7 @@ class TranscriptSearch
             ORDER BY t.score DESC
             SQL, [
             'v' => $literal, 'v2' => $literal, 'pool' => $pool,
-            'piso' => (float) config('services.embedder.min_similarity', 0.75),
+            'piso' => (float) config('services.embedder.min_similarity', 0.83),
         ]);
     }
 
@@ -149,11 +149,17 @@ class TranscriptSearch
                 LIMIT :pool1
             ),
             vec AS (
-                SELECT c.id, ROW_NUMBER() OVER (ORDER BY c.embedding <=> CAST(:v AS vector)) AS r
-                FROM transcript_chunks c
-                WHERE c.embedding IS NOT NULL
-                ORDER BY c.embedding <=> CAST(:v2 AS vector)
-                LIMIT :pool2
+                -- Mesmo piso da busca semântica: sem ele, uma consulta sem sentido (ou fora do
+                -- assunto de todas as aulas) trazia o acervo inteiro na Híbrida.
+                SELECT t.id, ROW_NUMBER() OVER (ORDER BY t.dist) AS r
+                FROM (
+                    SELECT c.id, c.embedding <=> CAST(:v AS vector) AS dist
+                    FROM transcript_chunks c
+                    WHERE c.embedding IS NOT NULL
+                    ORDER BY c.embedding <=> CAST(:v2 AS vector)
+                    LIMIT :pool2
+                ) t
+                WHERE 1 - t.dist >= :piso
             ),
             rrf AS (
                 SELECT id, SUM(1.0 / (:k + r)) AS score
@@ -169,6 +175,7 @@ class TranscriptSearch
             SQL, [
             'q' => $q, 'v' => $literal, 'v2' => $literal, 'k' => self::RRF_K,
             'pool1' => $pool, 'pool2' => $pool, 'pool3' => $pool * 2,
+            'piso' => (float) config('services.embedder.min_similarity', 0.83),
             'opts' => $this->headlineOpts(),
         ]);
     }
@@ -210,6 +217,7 @@ class TranscriptSearch
             if (! $job) {
                 continue;
             }
+            $hits = array_map(fn (array $hit) => $this->linkDoYoutube($hit, $job), $grupo['hits']);
             $resultados[] = [
                 'job_id' => $jobId,
                 'title' => $job->title,
@@ -217,11 +225,35 @@ class TranscriptSearch
                 'source_url' => $job->source_url,
                 'duration_seconds' => $job->duration_seconds,
                 'score' => round($grupo['score'], 6),
-                'hits' => $grupo['hits'],
+                'hits' => $hits,
             ];
         }
 
         return $resultados;
+    }
+
+    /**
+     * Contrato: aula do YouTube abre o vídeo no minuto (`source_url` + t=<seg>s); as demais
+     * ficam com o link interno (detalhe rolado até o parágrafo).
+     *
+     * @param  array<string, mixed>  $hit
+     * @return array<string, mixed>
+     */
+    private function linkDoYoutube(array $hit, TranscriptionJob $job): array
+    {
+        $url = (string) $job->source_url;
+        $ehYoutube = strcasecmp((string) $job->platform, 'youtube') === 0
+            || preg_match('~^https?://([a-z0-9-]+\.)?(youtube\.com|youtu\.be)/~i', $url) === 1;
+
+        if (! $ehYoutube || $hit['start_seconds'] === null || ! preg_match('~^https?://~i', $url)) {
+            return $hit;
+        }
+
+        $base = preg_replace('/([?&])t=[^&#]*&?/', '$1', explode('#', $url)[0]);
+        $base = rtrim((string) $base, '?&');
+        $hit['link'] = $base.(str_contains($base, '?') ? '&' : '?').'t='.(int) floor($hit['start_seconds']).'s';
+
+        return $hit;
     }
 
     /** @return array<string, mixed> */
