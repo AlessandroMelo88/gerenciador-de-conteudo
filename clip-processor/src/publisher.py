@@ -138,7 +138,7 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
         cur.execute(
             'SELECT gc.id, gc.youtube_video_id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, '
-            'sv.local_path AS source_local_path, sv.format AS format, '
+            'sv.local_path AS source_local_path, COALESCE(gc.format, sv.format) AS format, '
             'sv.youtube_video_id AS source_youtube_video_id, '
             '(SELECT rgc.youtube_video_id FROM generated_clips rgc '
             "WHERE rgc.status = 'published' "
@@ -162,7 +162,7 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
             'AND gc.destination_channel_id = %s '
             'AND gc.clip_path IS NOT NULL '
             'AND gc.title IS NOT NULL '
-            "ORDER BY (sv.format = 'longo') DESC, CASE WHEN gc.status = 'approved' THEN 0 ELSE 1 END, gc.created_at ASC",
+            "ORDER BY (COALESCE(gc.format, sv.format) = 'longo') DESC, CASE WHEN gc.status = 'approved' THEN 0 ELSE 1 END, gc.created_at ASC",
             (destination_channel_id,),
         )
         clips = cur.fetchall() or []
@@ -273,13 +273,17 @@ def _publish_clips_for(
                 conn, clip['source_video_id'], clip.get('source_local_path')
             )
             published_count += 1
-            _log(f'Clip {clip_id} publicado no YouTube: {youtube_video_id}')
+            video_url = (
+                f'https://www.youtube.com/shorts/{youtube_video_id}'
+                if clip_format == 'curto'
+                else f'https://www.youtube.com/watch?v={youtube_video_id}'
+            )
             notify(
                 'upload_published',
                 {
                     'clip_id': clip_id,
                     'youtube_video_id': youtube_video_id,
-                    'youtube_url': f'https://www.youtube.com/watch?v={youtube_video_id}',
+                    'youtube_url': video_url,
                     'title': clip.get('title'),
                 },
             )
@@ -335,12 +339,17 @@ def _publish_one(
         quota_manager.record_upload(now=now, format=clip_format)
         _maybe_finalize_source_video(conn, clip['source_video_id'], clip.get('source_local_path'))
         _log(f'Clip {clip_id} publicado no YouTube: {youtube_video_id}')
+        video_url = (
+            f'https://www.youtube.com/shorts/{youtube_video_id}'
+            if clip_format == 'curto'
+            else f'https://www.youtube.com/watch?v={youtube_video_id}'
+        )
         notify(
             'upload_published',
             {
                 'clip_id': clip_id,
                 'youtube_video_id': youtube_video_id,
-                'youtube_url': f'https://www.youtube.com/watch?v={youtube_video_id}',
+                'youtube_url': video_url,
                 'title': clip.get('title'),
             },
         )
@@ -371,7 +380,7 @@ def _fetch_pending_clips(conn) -> list[dict]:
             'SELECT '
             'gc.id, gc.youtube_video_id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, sv.local_path AS source_local_path, '
-            'sv.format AS format, sv.youtube_video_id AS source_youtube_video_id, '
+            'COALESCE(gc.format, sv.format) AS format, sv.youtube_video_id AS source_youtube_video_id, '
             '(SELECT rgc.youtube_video_id FROM generated_clips rgc '
             "WHERE rgc.status = 'published' "
             'AND rgc.youtube_video_id IS NOT NULL '
@@ -391,7 +400,7 @@ def _fetch_pending_clips(conn) -> list[dict]:
             'WHERE gc.status = %s '
             'AND gc.clip_path IS NOT NULL '
             'AND gc.title IS NOT NULL '
-            "ORDER BY (sv.format = 'longo') DESC, gc.created_at ASC",
+            "ORDER BY (COALESCE(gc.format, sv.format) = 'longo') DESC, gc.created_at ASC",
             (_publishable_status(),),
         )
         return cur.fetchall()

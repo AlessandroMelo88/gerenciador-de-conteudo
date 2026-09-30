@@ -8,41 +8,71 @@ Exports esperados: poll_all_channels(db_conn, redis_client)
 Os cenários cobrem descoberta RSS e integração das etapas do pipeline.
 """
 
-from src.rss_poller import _detect_format, poll_all_channels
+from src.rss_poller import _is_blocked_title, poll_all_channels
+from src.transcriber import WHISPER_TECH_PROMPT
 
 
-class TestDetectFormat:
-    def test_detect_format_respects_forced_auto_ingest_format(self, mocker, monkeypatch):
-        monkeypatch.setenv('AUTO_INGEST_FORMAT', 'curto')
+class TestBlockedTitles:
+    def test_gambling_terms_are_blocked_for_every_channel(self):
+        assert _is_blocked_title('Apostas e cassino em alta')
 
-        assert _detect_format('abc12345678') == 'curto'
-        mocker.patch('src.rss_poller.yt_dlp.YoutubeDL').assert_not_called()
+    def test_gambling_inflections_are_blocked_despite_word_boundary_matching(self):
+        for title in (
+            'Ele apostou tudo no clássico',
+            'Apostadores perdem no Brasileirão',
+            'Bet365 no jogo',
+        ):
+            assert _is_blocked_title(title), title
 
-    def test_detect_format_returns_longo_for_long_video(self, mocker):
-        mock_ydl = mocker.MagicMock()
-        mock_ydl.extract_info.return_value = {'duration': 900}
-        mocker.patch(
-            'src.rss_poller.yt_dlp.YoutubeDL'
-        ).return_value.__enter__.return_value = mock_ydl
+    def test_hacker_libertario_political_terms_are_scoped_to_its_profile(self):
+        title = 'STF anuncia mudanças sobre eleições'
 
-        assert _detect_format('abc12345678') == 'longo'
+        assert _is_blocked_title(title, prompt_profile_slug='conteudo-inteligencia')
+        assert not _is_blocked_title(title, prompt_profile_slug='futebol')
 
-    def test_detect_format_returns_curto_for_short_video(self, mocker):
-        mock_ydl = mocker.MagicMock()
-        mock_ydl.extract_info.return_value = {'duration': 45}
-        mocker.patch(
-            'src.rss_poller.yt_dlp.YoutubeDL'
-        ).return_value.__enter__.return_value = mock_ydl
-
-        assert _detect_format('abc12345678') == 'curto'
-
-    def test_detect_format_defaults_to_curto_on_error(self, mocker):
-        mocker.patch('src.rss_poller.yt_dlp.YoutubeDL', side_effect=Exception('network down'))
-
-        assert _detect_format('abc12345678') == 'curto'
+    def test_hacker_libertario_filter_uses_word_boundaries(self):
+        assert not _is_blocked_title(
+            'Dinossauro no Linux', prompt_profile_slug='conteudo-inteligencia'
+        )
+        assert not _is_blocked_title('Manifesto de software livre', prompt_profile_slug='futebol')
 
 
 class TestPollAllChannels:
+    def test_new_rss_source_is_queued_for_both_formats_without_duration_probe(
+        self, mock_db_conn, mock_redis, mocker
+    ):
+        channel = {
+            'id': 1,
+            'youtube_channel_id': 'UCxxx',
+            'channel_name': 'Canal',
+            'rss_url': 'https://www.youtube.com/feeds/videos.xml?channel_id=UCxxx',
+        }
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchall.return_value = [channel]
+        mocker.patch(
+            'src.rss_poller.requests.get',
+            return_value=mocker.MagicMock(
+                status_code=200,
+                text='<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"><entry><yt:videoId>abc12345678</yt:videoId><title>Entrevista</title></entry></feed>',
+            ),
+        )
+        mocker.patch('src.rss_poller.is_seen', return_value=False)
+        duration_probe = mocker.patch('src.rss_poller.yt_dlp.YoutubeDL')
+        insert = mocker.patch('src.rss_poller.insert_video')
+
+        poll_all_channels(mock_db_conn, mock_redis)
+
+        insert.assert_called_once_with(
+            mock_db_conn,
+            'abc12345678',
+            1,
+            'Entrevista',
+            None,
+            format='curto',
+            generate_both_formats=True,
+        )
+        duration_probe.assert_not_called()
+
     def test_poll_falls_back_to_ytdlp_when_rss_is_unavailable(
         self, mock_db_conn, mock_redis, mocker
     ):
@@ -70,7 +100,6 @@ class TestPollAllChannels:
             ],
         )
         mocker.patch('src.rss_poller.is_seen', return_value=False)
-        mocker.patch('src.rss_poller._detect_format', return_value='curto')
         mock_insert = mocker.patch('src.rss_poller.insert_video')
 
         poll_all_channels(mock_db_conn, mock_redis)
@@ -101,9 +130,6 @@ class TestPollAllChannels:
 
         # Mock: nenhum vídeo já visto (is_seen retorna False)
         mocker.patch('src.rss_poller.is_seen', return_value=False)
-
-        # Mock: detecção de formato sem chamada de rede real
-        mocker.patch('src.rss_poller._detect_format', return_value='curto')
 
         # Mock: insert_video não levanta exceção
         mock_insert = mocker.patch('src.rss_poller.insert_video')
@@ -279,6 +305,59 @@ class TestAIPipelineIntegration:
             mock_transcript, anthropic_client=None, fmt='curto', niche='futebol'
         )
 
+    def test_process_ai_pipeline_selects_both_formats_from_one_long_transcript(
+        self, mock_db_conn, mocker
+    ):
+        from src.rss_poller import _process_ai_pipeline
+
+        transcript = {
+            'video_id': 'vid001aaaaaa',
+            'text': 'Texto longo',
+            'segments': [{'start': 0.0, 'end': 900.0, 'text': 'Análise completa'}],
+        }
+        mocker.patch('src.rss_poller.transcribe_video', return_value=transcript)
+        mocker.patch('src.rss_poller.save_transcript')
+        select = mocker.patch(
+            'src.rss_poller.select_moments',
+            side_effect=[
+                [{'start_time': 20.0, 'end_time': 55.0, 'score': 9, 'reason': 'Short'}],
+                [{'start_time': 100.0, 'end_time': 700.0, 'score': 9, 'reason': 'Longform'}],
+            ],
+        )
+        insert = mocker.patch('src.rss_poller.insert_selected_moments', return_value=1)
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = {
+            'id': 42,
+            'format': 'curto',
+            'generate_both_formats': True,
+        }
+
+        _process_ai_pipeline(mock_db_conn, 'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4')
+
+        assert [call.kwargs['fmt'] for call in select.call_args_list] == ['curto', 'longo']
+        assert [call.kwargs['format'] for call in insert.call_args_list] == ['curto', 'longo']
+
+    def test_process_ai_pipeline_skips_longform_when_transcript_is_too_short(
+        self, mock_db_conn, mocker
+    ):
+        from src.rss_poller import _process_ai_pipeline
+
+        transcript = {
+            'video_id': 'vid001aaaaaa',
+            'text': 'Texto curto',
+            'segments': [{'start': 0.0, 'end': 180.0, 'text': 'Análise'}],
+        }
+        mocker.patch('src.rss_poller.transcribe_video', return_value=transcript)
+        mocker.patch('src.rss_poller.save_transcript')
+        select = mocker.patch('src.rss_poller.select_moments', return_value=[])
+        mocker.patch('src.rss_poller.insert_selected_moments', return_value=0)
+        cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        cursor.fetchone.return_value = {'id': 42, 'generate_both_formats': True}
+
+        _process_ai_pipeline(mock_db_conn, 'vid001aaaaaa', '/app/videos/vid001aaaaaa.mp4')
+
+        assert [call.kwargs['fmt'] for call in select.call_args_list] == ['curto']
+
     def test_process_ai_pipeline_passes_source_prompt_profile(self, mock_db_conn, mocker):
         """O perfil ativo do canal-fonte chega ao seletor sem usar perfil de outro nicho."""
         from src.rss_poller import _process_ai_pipeline
@@ -288,7 +367,9 @@ class TestAIPipelineIntegration:
             'text': 'Texto',
             'segments': [{'start': 0.0, 'end': 60.0, 'text': 'Explicação técnica'}],
         }
-        mocker.patch('src.rss_poller.transcribe_video', return_value=mock_transcript)
+        mock_transcribe = mocker.patch(
+            'src.rss_poller.transcribe_video', return_value=mock_transcript
+        )
         mocker.patch('src.rss_poller.save_transcript')
         mock_select = mocker.patch('src.rss_poller.select_moments', return_value=[])
         mocker.patch('src.rss_poller.insert_selected_moments', return_value=0)
@@ -310,6 +391,7 @@ class TestAIPipelineIntegration:
 
         assert mock_select.call_args.kwargs['prompt_profile']['slug'] == 'conteudo-inteligencia'
         assert mock_select.call_args.kwargs['niche'] == 'tecnologia'
+        assert mock_transcribe.call_args.kwargs['prompt'] == WHISPER_TECH_PROMPT
 
     def test_process_ai_pipeline_passes_used_moments_to_selector(self, mock_db_conn, mocker):
         """O histórico de generated_clips é encaminhado para o prompt da IA."""
@@ -463,7 +545,6 @@ class TestBlacklistGuard:
             ),
         )
         mocker.patch('src.rss_poller.is_seen', return_value=False)
-        mocker.patch('src.rss_poller._detect_format', return_value='curto')
         mock_insert = mocker.patch('src.rss_poller.insert_video')
 
         poll_all_channels(mock_db_conn, mock_redis)
@@ -503,5 +584,5 @@ class TestSourceInputPriority:
         assert 'JOIN source_channels sc ON sc.id = sv.channel_id' in query
         assert (
             'ORDER BY sv.priority DESC, COALESCE(sc.input_priority, 0) DESC, '
-            "(sv.format = 'longo') DESC, gc.id ASC"
+            "(COALESCE(gc.format, sv.format) = 'longo') DESC, gc.id ASC"
         ) in query

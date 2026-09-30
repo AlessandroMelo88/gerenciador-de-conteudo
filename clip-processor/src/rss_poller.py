@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import unicodedata
 from datetime import UTC, datetime
 
 import feedparser
@@ -36,19 +37,29 @@ from src.db import (
     update_status,
 )
 from src.dedup import is_seen
-from src.paths import VIDEOS_DIR, YOUTUBE_COOKIES_FILE, resolve_stored_video_path
+from src.paths import VIDEOS_DIR, resolve_stored_video_path
 from src.prompt_profiles import PROMPT_PROFILE_SQL_COLUMNS, profile_from_row, profile_matches_niche
 from src.queue_controls import _cleanup_partial
 from src.selector import MIN_LONGFORM_SECONDS, insert_selected_moments, select_moments
-from src.transcriber import save_transcript, transcribe_video
+from src.topic_segmenter import process_transcript_topics
+from src.transcriber import WHISPER_TECH_PROMPT, save_transcript, transcribe_video
 from src.video_processor import process_clip
 
-# Palavras-chave que bloqueiam ingestão de vídeos — títulos com qualquer uma são ignorados
+# Bloqueios editoriais globais; políticas por canal ficam em listas separadas abaixo.
 _TITLE_BLOCK_KEYWORDS = [
     'aposta',
     'apostas',
+    # A checagem é por palavra inteira (antes era substring): flexões precisam constar.
+    'apostar',
+    'apostou',
+    'apostando',
+    'apostador',
+    'apostadores',
     'bet ',
     'bets ',
+    'bet365',
+    'betano',
+    'betfair',
     'betting',
     'odds',
     'cassino',
@@ -61,17 +72,81 @@ _TITLE_BLOCK_KEYWORDS = [
     'sportingbet',
 ]
 
+_HACKER_LIBERTARIO_TITLE_BLOCK_KEYWORDS = [
+    'fux',
+    'dino',
+    'moraes',
+    'stf',
+    'tse',
+    'stj',
+    'pgr',
+    'lula',
+    'bolsonaro',
+    'haddad',
+    'congresso',
+    'câmara',
+    'camara',
+    'senado',
+    'planalto',
+    'receita federal',
+    'imposto de renda',
+    'inss',
+    'ibge',
+    'pib',
+    'tráfico',
+    'trafico',
+    'drogas',
+    'eleição',
+    'eleicao',
+    'eleições',
+    'eleicoes',
+    'voto',
+    'urna',
+    'ministro',
+    'deputado',
+    'senador',
+    'governador',
+    'prefeito',
+    'partido',
+    'política',
+    'politica',
+    'parasita',
+    'servidor público',
+    'servidor publico',
+    'funcionário público',
+    'funcionario publico',
+    'concurso público',
+    'concurso publico',
+    'candidatura',
+    'candidato',
+    'campanha eleitoral',
+]
 
-def _is_blocked_title(title: str) -> bool:
-    t = title.lower()
-    return any(kw in t for kw in _TITLE_BLOCK_KEYWORDS)
+
+def _normalize_title_terms(value: str) -> str:
+    decomposed = unicodedata.normalize('NFKD', value.casefold())
+    without_accents = ''.join(char for char in decomposed if not unicodedata.combining(char))
+    return ' '.join(re.findall(r'[a-z0-9]+', without_accents))
+
+
+def _contains_title_keyword(title: str, keywords: list[str]) -> bool:
+    normalized_title = f' {_normalize_title_terms(title)} '
+    return any(f' {_normalize_title_terms(keyword)} ' in normalized_title for keyword in keywords)
+
+
+def _is_blocked_title(title: str, prompt_profile_slug: str | None = None) -> bool:
+    if _contains_title_keyword(title, _TITLE_BLOCK_KEYWORDS):
+        return True
+
+    return prompt_profile_slug == 'conteudo-inteligencia' and _contains_title_keyword(
+        title, _HACKER_LIBERTARIO_TITLE_BLOCK_KEYWORDS
+    )
 
 
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 SOURCE_FILE_ROOT = os.path.realpath(VIDEOS_DIR)
 CLIP_STATUSES_NEED_RAW = ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')
-AUTO_INGEST_FORMATS = {'auto', 'curto', 'longo'}
 
 
 def _log(msg: str) -> None:
@@ -140,51 +215,6 @@ def _release_failed_source_files(conn, video_id: str) -> None:
         )
     conn.commit()
     _log(f'[AI] Arquivos de {video_id} liberados após falha terminal')
-
-
-def _detect_format(video_id: str) -> str:
-    """Decide o formato do item ingerido automaticamente.
-
-    ``AUTO_INGEST_FORMAT`` permite que cada deployment escolha o contrato de
-    saída. Para um canal de Shorts, ``curto`` é obrigatório: a duração do
-    vídeo-fonte não deve transformar uma entrevista longa em um vídeo longo
-    horizontal. ``auto`` mantém a detecção histórica por duração e ``longo``
-    força o fluxo de vídeo longo.
-
-    Vídeos com MIN_LONGFORM_SECONDS ou mais (entrevistas, podcasts, análises longas)
-    têm material suficiente pra um corte longo horizontal; o resto continua shorts.
-    Falha ao consultar metadados (rede, vídeo indisponível) → assume 'curto' (comportamento
-    anterior), sem abortar a ingestão do vídeo por isso.
-    """
-    requested_format = os.environ.get('AUTO_INGEST_FORMAT', 'auto').strip().lower()
-    if requested_format not in AUTO_INGEST_FORMATS:
-        _log(f'AVISO: AUTO_INGEST_FORMAT={requested_format!r} inválido — usando auto')
-        requested_format = 'auto'
-
-    if requested_format != 'auto':
-        _log(f'Formato automático forçado para {requested_format}: {video_id}')
-        return requested_format
-
-    try:
-        ydl_opts = {
-            'quiet': True,
-            'no_color': True,
-            'skip_download': True,
-            'remote_components': ['ejs:github'],
-            'extractor_args': {'youtube': {'player_client': ['mweb', 'tv', 'ios', 'android']}},
-        }
-        cookie_file = YOUTUBE_COOKIES_FILE
-        if os.path.exists(cookie_file):
-            ydl_opts['cookiefile'] = cookie_file
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
-        duration = info.get('duration') if info else None
-        if duration and duration >= MIN_LONGFORM_SECONDS:
-            return 'longo'
-    except Exception as exc:
-        _log(f'AVISO: falha ao obter duração de {video_id} para detecção de formato: {exc}')
-    return 'curto'
 
 
 def _fallback_channel_entries(channel: dict) -> list[dict]:
@@ -296,7 +326,48 @@ def _process_ai_pipeline(
 
         # Transcrição
         update_status(conn, video_id, 'transcribing')
-        transcript = transcribe_video(video_id, local_path, groq_client=groq_client)
+        # Carrega o perfil antes do Whisper para não enviesar a transcrição de outros canais.
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT sv.id, sv.format, sv.generate_both_formats, '
+                'sc.target_niche, sc.prompt_profile_id, ' + PROMPT_PROFILE_SQL_COLUMNS + ' '
+                'FROM source_videos sv '
+                'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
+                'LEFT JOIN prompt_profiles pp '
+                'ON pp.id = sc.prompt_profile_id AND pp.active = TRUE '
+                'WHERE sv.youtube_video_id = %s',
+                (video_id,),
+            )
+            row = cur.fetchone()
+        if row is None:
+            _log(f'[AI] AVISO: source_video_id não encontrado para {video_id}')
+            update_status(conn, video_id, 'failed')
+            _release_failed_source_files(conn, video_id)
+            _cleanup_partial(video_id)
+            return
+
+        source_video_id = row['id']
+        source_format = row.get('format') or 'curto'
+        generate_both_formats = bool(row.get('generate_both_formats'))
+        niche = row.get('target_niche')
+        prompt_profile = profile_from_row(row)
+        if prompt_profile and not profile_matches_niche(prompt_profile, niche):
+            _log(
+                f'[AI] Perfil {prompt_profile.get("slug")} não corresponde ao nicho {niche}; '
+                'fallback seguro aplicado'
+            )
+            prompt_profile = None
+
+        transcription_kwargs = {}
+        if prompt_profile and prompt_profile.get('slug') == 'conteudo-inteligencia':
+            transcription_kwargs['prompt'] = WHISPER_TECH_PROMPT
+
+        transcript = transcribe_video(
+            video_id,
+            local_path,
+            groq_client=groq_client,
+            **transcription_kwargs,
+        )
         if transcript is None:
             _log(f'[AI] Transcrição falhou para {video_id} — marcando como failed')
             update_status(conn, video_id, 'failed')
@@ -311,54 +382,68 @@ def _process_ai_pipeline(
 
         save_transcript(conn, video_id, transcript)
 
-        # Seleção
-        update_status(conn, video_id, 'selecting')
-
-        # Obter source_video_id INT, formato, nicho e perfil para calibrar a IA.
-        with conn.cursor() as cur:
-            cur.execute(
-                'SELECT sv.id, sv.format, sc.target_niche, sc.prompt_profile_id, '
-                + PROMPT_PROFILE_SQL_COLUMNS
-                + ' '
-                'FROM source_videos sv '
-                'LEFT JOIN source_channels sc ON sc.id = sv.channel_id '
-                'LEFT JOIN prompt_profiles pp '
-                'ON pp.id = sc.prompt_profile_id AND pp.active = TRUE '
-                'WHERE sv.youtube_video_id = %s',
-                (video_id,),
-            )
-            row = cur.fetchone()
-        if row is None:
-            _log(f'[AI] AVISO: source_video_id não encontrado para {video_id}')
-            return
-        source_video_id = row['id']
-        fmt = row.get('format') or 'curto'
-        niche = row.get('target_niche')
-        prompt_profile = profile_from_row(row)
-        if prompt_profile and not profile_matches_niche(prompt_profile, niche):
+        if not process_transcript_topics(
+            conn,
+            source_video_id,
+            transcript,
+            ai_client=anthropic_client,
+        ):
             _log(
-                f'[AI] Perfil {prompt_profile.get("slug")} não corresponde ao nicho {niche}; '
-                'fallback seguro aplicado'
+                f'[AI] Transcrição de {video_id} arquivada; divisão por assunto falhou '
+                'e poderá ser refeita sem retranscrever'
             )
-            prompt_profile = None
-        used_moments = fetch_used_moments(conn, source_video_id)
 
-        select_kwargs = {'anthropic_client': anthropic_client, 'fmt': fmt}
-        if used_moments:
-            select_kwargs['used_moments'] = used_moments
-        if niche:
-            select_kwargs['niche'] = niche
-        elif not prompt_profile:
-            select_kwargs['niche'] = 'futebol'
-        if prompt_profile:
-            select_kwargs['prompt_profile'] = prompt_profile
-
-        moments = select_moments(transcript, **select_kwargs)
-        inserted = insert_selected_moments(conn, source_video_id, video_id, moments)
-        _log(
-            f'[AI] Pipeline concluído para {video_id}: {inserted} momento(s) inserido(s) em generated_clips'
+        # Uma transcrição alimenta os dois formatos; cada clip guarda seu
+        # formato para renderização, publicação, cota e metadados.
+        update_status(conn, video_id, 'selecting')
+        transcript_duration = max(
+            (float(segment.get('end', 0)) for segment in transcript.get('segments', [])),
+            default=0.0,
         )
-        if inserted == 0:
+        output_formats = [source_format]
+        if generate_both_formats:
+            output_formats = ['curto']
+            if transcript_duration > MIN_LONGFORM_SECONDS + 2.0:
+                output_formats.append('longo')
+
+        total_inserted = 0
+        for output_format in output_formats:
+            try:
+                used_moments = fetch_used_moments(conn, source_video_id, format=output_format)
+                select_kwargs = {'anthropic_client': anthropic_client, 'fmt': output_format}
+                if used_moments:
+                    select_kwargs['used_moments'] = used_moments
+                if niche:
+                    select_kwargs['niche'] = niche
+                elif not prompt_profile:
+                    select_kwargs['niche'] = 'futebol'
+                if prompt_profile:
+                    select_kwargs['prompt_profile'] = prompt_profile
+
+                moments = select_moments(transcript, **select_kwargs)
+                inserted = insert_selected_moments(
+                    conn,
+                    source_video_id,
+                    video_id,
+                    moments,
+                    format=output_format,
+                )
+                total_inserted += inserted
+                _log(
+                    f'[AI] {output_format} concluído para {video_id}: '
+                    f'{inserted} momento(s) inserido(s)'
+                )
+            except Exception as exc:
+                _log(f'[AI] ERRO ao gerar formato {output_format} para {video_id}: {exc}')
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
+        _log(
+            f'[AI] Pipeline concluído para {video_id}: {total_inserted} momento(s) inserido(s) em generated_clips'
+        )
+        if total_inserted == 0:
             # Sem clip válido o status 'selecting' segurava a janela pra sempre.
             _log(f'[AI] Nenhum momento válido para {video_id} — marcando failed e liberando janela')
             update_status(conn, video_id, 'failed')
@@ -422,7 +507,7 @@ def _process_pending_clips(conn) -> None:
             "WHERE gc.status = 'pending_cut' AND sv.paused = FALSE "
             'AND sv.local_path IS NOT NULL AND sv.transcript_path IS NOT NULL '
             'ORDER BY sv.priority DESC, COALESCE(sc.input_priority, 0) DESC, '
-            "(sv.format = 'longo') DESC, gc.id ASC"
+            "(COALESCE(gc.format, sv.format) = 'longo') DESC, gc.id ASC"
         )
         rows = cur.fetchall()
 
@@ -492,9 +577,12 @@ def poll_all_channels(
         # Buscar canais ativos (canais blacklistados filtrados no SELECT — COPY-03)
         with db_conn.cursor() as cur:
             cur.execute(
-                'SELECT id, channel_name, rss_url, target_niche, channel_handle, youtube_channel_id '
-                'FROM source_channels '
-                'WHERE active = TRUE AND blacklisted = FALSE'
+                'SELECT sc.id, sc.channel_name, sc.rss_url, sc.target_niche, '
+                'sc.channel_handle, sc.youtube_channel_id, pp.slug AS prompt_profile_slug '
+                'FROM source_channels sc '
+                'LEFT JOIN prompt_profiles pp '
+                'ON pp.id = sc.prompt_profile_id AND pp.active = TRUE '
+                'WHERE sc.active = TRUE AND sc.blacklisted = FALSE'
             )
             channels = cur.fetchall()
 
@@ -540,13 +628,25 @@ def poll_all_channels(
                     title = entry.get('title', video_id)
                     published_at = entry.get('published', None)
 
-                    if _is_blocked_title(title):
+                    if _is_blocked_title(
+                        title,
+                        prompt_profile_slug=channel.get('prompt_profile_slug'),
+                    ):
                         _log(f'Título bloqueado (keyword): {video_id} — {title}')
                         continue
 
-                    fmt = _detect_format(video_id)
-                    insert_video(db_conn, video_id, channel_id, title, published_at, format=fmt)
-                    _log(f'Novo vídeo detectado ({fmt}): {video_id} — {title}')
+                    insert_video(
+                        db_conn,
+                        video_id,
+                        channel_id,
+                        title,
+                        published_at,
+                        format='curto',
+                        generate_both_formats=True,
+                    )
+                    _log(
+                        f'Novo vídeo detectado (Shorts + longo quando elegível): {video_id} — {title}'
+                    )
                     total_new += 1
 
             except Exception as exc:

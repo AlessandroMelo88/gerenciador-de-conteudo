@@ -394,6 +394,20 @@ class TestPublisherMultiCanal:
             'SELECT deve filtrar por destination_channel_id=1'
         )
 
+    def test_pending_clips_use_their_output_format_not_the_source_default(self):
+        from src.publisher import _fetch_pending_clips_for_channel
+
+        clip = {**SAMPLE_CLIP, 'id': 1, 'format': 'longo', 'destination_channel_id': 1}
+        conn, cursor = make_conn_with_clips([clip])
+        cursor.fetchall.side_effect = None
+        cursor.fetchall.return_value = [clip]
+
+        result = _fetch_pending_clips_for_channel(conn, 1)
+
+        assert result[0]['format'] == 'longo'
+        query = cursor.execute.call_args.args[0]
+        assert 'COALESCE(gc.format, sv.format) AS format' in query
+
     def test_fetch_pending_clips_excludes_other_channels(self):
         """MCAN-02: clips de canal 2 não aparecem na busca do canal 1."""
         from src.publisher import _fetch_pending_clips_for_channel

@@ -249,7 +249,6 @@ if __name__ == '__main__':
     log(f'[ACQU] BURNED_SUBTITLE_DETECTION: {os.environ.get("BURNED_SUBTITLE_DETECTION", "true")}')
     log(f'[ACQU] YOUTUBE_PRIVACY_STATUS: {os.environ.get("YOUTUBE_PRIVACY_STATUS", "public")}')
     log(f'[ACQU] YOUTUBE_WAIT_FOR_HD: {os.environ.get("YOUTUBE_WAIT_FOR_HD", "true")}')
-    log(f'[ACQU] AUTO_INGEST_FORMAT: {os.environ.get("AUTO_INGEST_FORMAT", "auto")}')
     log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "6")}')
     log(f'[ACQU] MAX_LONGO_UPLOADS_PER_DAY: {os.environ.get("MAX_LONGO_UPLOADS_PER_DAY", "3")}')
     log(f'[ACQU] MIN_UPLOAD_INTERVAL_MINUTES: {os.environ.get("MIN_UPLOAD_INTERVAL_MINUTES", "0")}')
