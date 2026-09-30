@@ -15,6 +15,8 @@ import json
 import os
 from datetime import datetime
 
+from src.prompt_profiles import apply_profile_layer
+
 
 SYSTEM_PROMPT = (
     "Você é especialista em SEO para YouTube Shorts no nicho de futebol brasileiro. "
@@ -104,7 +106,9 @@ def _build_prompt(clip_context: dict) -> str:
 
 def _resolve_system_prompt(clip_context: dict) -> str:
     niche = (clip_context or {}).get('niche', '').lower()
-    return POLITICA_METADATA_PROMPT if niche == 'politica' else SYSTEM_PROMPT
+    base = POLITICA_METADATA_PROMPT if niche == 'politica' else SYSTEM_PROMPT
+    field = 'metadata_long_prompt' if (clip_context or {}).get('format') == 'longo' else 'metadata_short_prompt'
+    return apply_profile_layer(base, (clip_context or {}).get('prompt_profile'), field)
 
 
 def _generate_via_anthropic(clip_context: dict, anthropic_client) -> dict:

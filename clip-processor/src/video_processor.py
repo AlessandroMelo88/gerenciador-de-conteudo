@@ -20,6 +20,7 @@ import subprocess
 from datetime import datetime
 
 from src.metadata_generator import generate_metadata, update_clip_metadata
+from src.prompt_profiles import load_profile_for_source_video
 
 
 VIDEOS_DIR = '/app/videos'
@@ -609,7 +610,9 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
             # Sem canal-destino ou vídeo longo: renomear arquivo legendado para path final
             os.rename(subtitled_path, final_clip_path)
 
-        metadata = generate_metadata(_build_clip_context(clip, transcript), anthropic_client=anthropic_client)
+        clip_context = _build_clip_context(clip, transcript)
+        clip_context['prompt_profile'] = load_profile_for_source_video(conn, clip.get('source_video_id'))
+        metadata = generate_metadata(clip_context, anthropic_client=anthropic_client)
         update_clip_metadata(conn, clip_id, metadata)
         title = (metadata.get('title') or clip.get('title') or clip.get('source_title') or 'CORTES EXCLUSIVOS').strip()
 

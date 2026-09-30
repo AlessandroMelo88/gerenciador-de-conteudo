@@ -38,6 +38,7 @@ def _is_blocked_title(title: str) -> bool:
 from src.db import get_db_connection, insert_video, update_status
 from src.dedup import is_seen
 from src.transcriber import transcribe_video, save_transcript
+from src.prompt_profiles import load_profile_for_source_video
 from src.selector import select_moments, insert_selected_moments, MIN_LONGFORM_SECONDS
 from src.video_processor import process_clip
 from src.queue_controls import _cleanup_partial
@@ -162,7 +163,12 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
         fmt = row.get('format') or 'curto'
         niche = row.get('target_niche') or 'futebol'
 
-        moments = select_moments(transcript, anthropic_client=anthropic_client, fmt=fmt, niche=niche)
+        profile_kwargs = {}
+        prompt_profile = load_profile_for_source_video(conn, source_video_id)
+        if prompt_profile:  # sem perfil: chamada idêntica à de antes dos perfis
+            profile_kwargs['prompt_profile'] = prompt_profile
+        moments = select_moments(transcript, anthropic_client=anthropic_client, fmt=fmt, niche=niche,
+                                 **profile_kwargs)
         inserted = insert_selected_moments(conn, source_video_id, video_id, moments)
         _log(f'[AI] Pipeline concluído para {video_id}: {inserted} momento(s) inserido(s) em generated_clips')
         if inserted == 0:
