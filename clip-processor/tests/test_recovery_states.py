@@ -2,17 +2,19 @@
 
 Regras que estes testes travam:
 - nenhum recovery apaga arquivo nem mexe no Redis (raw de clip em corte fica; video:* intacto);
-- cutting só é recuperado no boot, nunca pelo job periódico;
-- publishing só volta à fila sem youtube_video_id e com carência longa.
+- cutting volta a pending_cut no boot (sem espera) ou, no job periódico, só após CUTTING_STUCK_HOURS;
+- publishing com youtube_video_id vira published (nunca reenvia); sem id volta à fila, com carência longa.
 """
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.db import (
+    CUTTING_STUCK_HOURS,
     PUBLISHING_STUCK_MINUTES,
     SELECTING_STUCK_HOURS,
     recover_cutting_on_boot,
+    recover_stuck_cutting,
     recover_stuck_publishing,
     recover_stuck_transcribing,
     update_status,
@@ -45,18 +47,48 @@ class TestRecoverStuckTranscribing:
 
 
 class TestRecoverStuckPublishing:
-    def test_exige_sem_youtube_id_e_carencia(self, mock_db_conn):
+    def test_com_youtube_id_vira_published_e_sem_id_volta_para_pending(self, mock_db_conn):
         recover_stuck_publishing(mock_db_conn)
 
         cursor, calls = _executed(mock_db_conn)
+        assert len(calls) == 2
+        (sql_pub, params_pub), (sql_pend, params_pend) = calls
+        assert "SET status='published'" in sql_pub
+        assert 'youtube_video_id IS NOT NULL' in sql_pub
+        assert 'COALESCE(published_at' in sql_pub
+        assert "SET status='pending'" in sql_pend
+        assert 'youtube_video_id IS NULL' in sql_pend
+        for sql in (sql_pub, sql_pend):
+            assert "status='publishing'" in sql
+            assert 'updated_at <' in sql
+        assert params_pub == params_pend == (PUBLISHING_STUCK_MINUTES,)
+        assert PUBLISHING_STUCK_MINUTES >= 60
+        mock_db_conn.commit.assert_called_once()
+
+    def test_nunca_devolve_a_fila_um_clip_com_youtube_id(self, mock_db_conn):
+        recover_stuck_publishing(mock_db_conn)
+
+        _, calls = _executed(mock_db_conn)
+        for sql, _ in calls:
+            if "SET status='pending'" in sql:
+                assert 'youtube_video_id IS NULL' in sql
+                assert 'NOT NULL' not in sql
+
+
+class TestRecoverStuckCutting:
+    def test_exige_carencia_e_so_troca_status(self, mock_db_conn):
+        recover_stuck_cutting(mock_db_conn)
+
+        _, calls = _executed(mock_db_conn)
         assert len(calls) == 1
         sql, params = calls[0]
-        assert "SET status='pending'" in sql
-        assert "status='publishing'" in sql
-        assert 'youtube_video_id IS NULL' in sql
-        assert 'updated_at' in sql
-        assert params == (PUBLISHING_STUCK_MINUTES,)
-        assert PUBLISHING_STUCK_MINUTES >= 60
+        assert sql.startswith('UPDATE generated_clips')
+        assert "SET status='pending_cut'" in sql
+        assert "status='cutting'" in sql
+        assert 'updated_at <' in sql
+        assert 'DELETE' not in sql.upper()
+        assert params == (CUTTING_STUCK_HOURS,)
+        assert CUTTING_STUCK_HOURS >= 2
         mock_db_conn.commit.assert_called_once()
 
 
@@ -93,6 +125,7 @@ class TestRunRecoveryOnce:
             'recover_stuck_transcribing',
             'recover_stuck_selecting',
             'recover_stuck_publishing',
+            'recover_stuck_cutting',
             'finalize_settled_source_videos',
             'recover_cutting_on_boot',
         ]
@@ -106,11 +139,27 @@ class TestRunRecoveryOnce:
                 p.stop()
         return conn, mocks
 
-    def test_periodico_nao_toca_em_cutting(self):
+    def test_periodico_so_recupera_cutting_pelo_tempo_limite(self):
         conn, mocks = self._run()
         mocks['recover_stuck_transcribing'].assert_called_once_with(conn)
         mocks['recover_stuck_publishing'].assert_called_once_with(conn)
+        mocks['recover_stuck_cutting'].assert_called_once_with(conn)
         mocks['recover_cutting_on_boot'].assert_not_called()
+
+    def test_finalize_roda_depois_dos_recoveries_de_clip(self):
+        import src.main as main
+
+        ordem = []
+        conn = MagicMock()
+        with patch.object(main, 'get_db_connection', return_value=conn), \
+             patch.object(main, 'recover_stuck_downloads'), \
+             patch.object(main, 'recover_stuck_transcribing'), \
+             patch.object(main, 'recover_stuck_selecting'), \
+             patch.object(main, 'recover_stuck_publishing', side_effect=lambda c: ordem.append('publishing')), \
+             patch.object(main, 'recover_stuck_cutting', side_effect=lambda c: ordem.append('cutting')), \
+             patch.object(main, 'finalize_settled_source_videos', side_effect=lambda c: ordem.append('finalize')):
+            main.run_recovery_once()
+        assert ordem == ['publishing', 'cutting', 'finalize']
 
     def test_boot_recupera_cutting(self):
         conn, mocks = self._run(recover_cutting=True)
