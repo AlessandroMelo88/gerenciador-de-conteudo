@@ -1,9 +1,12 @@
 // Lógica PURA da captura do player HLS (sem chamar chrome.*): testável com node.
 // Usada pelo background.js (importScripts) e pelo popup.js (<script>).
 (function (raiz) {
-  // Hosts do player Hotmart. Se o embed usar outro domínio, ajuste aqui E em
-  // host_permissions/urls do background.js (veja o README).
-  const SUFIXOS_PLAYER = ['hotmart.com'];
+  // Hosts de onde o player puxa o .m3u8. O Hotmart serve o vídeo pela Panda Video
+  // (*.tv.pandavideo.com.br), não por hotmart.com. Se aparecer outro domínio, ajuste aqui E em
+  // host_permissions/urls do background.js, extensao_api.py (MEDIA_HOSTS_PADRAO) e no README.
+  const SUFIXOS_PLAYER = ['hotmart.com', 'pandavideo.com.br'];
+  // Páginas de aula que exigem captura (o yt-dlp não lê a página).
+  const SUFIXOS_PAGINA = ['hotmart.com'];
 
   function hostDe(url) {
     try { return new URL(url).hostname.toLowerCase(); } catch { return ''; }
@@ -50,12 +53,12 @@
 
   // Só páginas do Hotmart exigem captura; no resto o yt-dlp lê a página normalmente.
   function exigeCaptura(urlDaAba) {
-    return hostPermitido(urlDaAba, SUFIXOS_PLAYER);
+    return hostPermitido(urlDaAba, SUFIXOS_PAGINA);
   }
 
   const chaveDaAba = (tabId) => `captura:${tabId}`;
 
-  const api = { SUFIXOS_PLAYER, hostPermitido, ehPlaylist, prioridade, escolher, capturaDe, exigeCaptura, chaveDaAba };
+  const api = { SUFIXOS_PLAYER, SUFIXOS_PAGINA, hostPermitido, ehPlaylist, prioridade, escolher, capturaDe, exigeCaptura, chaveDaAba };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else raiz.Captura = api;
 })(typeof self !== 'undefined' ? self : globalThis);

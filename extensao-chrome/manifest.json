@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Canal de Cortes — Transcrever aula",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Manda a aula aberta para a base de conhecimento. Usa o login que você já tem no Chrome; a sessão só vai para o seu Mac.",
   "action": {
     "default_popup": "popup.html",
@@ -11,6 +11,6 @@
     "service_worker": "background.js"
   },
   "permissions": ["cookies", "activeTab", "webRequest", "storage"],
-  "host_permissions": ["*://*.hotmart.com/*"],
+  "host_permissions": ["*://*.hotmart.com/*", "*://*.pandavideo.com.br/*"],
   "optional_host_permissions": ["<all_urls>"]
 }

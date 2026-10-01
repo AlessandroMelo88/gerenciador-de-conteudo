@@ -39,7 +39,7 @@ HEADER = '# Netscape HTTP Cookie File\n'
 # Sufixos de dois níveis mais comuns; o resto usa os dois últimos rótulos.
 # Hosts aceitos para o endereço da mídia (sufixo). TRANSCRICAO_MEDIA_HOSTS=a.com,b.com soma
 # outros; o resto é recusado com 400 — a API não vira proxy para baixar qualquer coisa.
-MEDIA_HOSTS_PADRAO = ('hotmart.com',)
+MEDIA_HOSTS_PADRAO = ('hotmart.com', 'pandavideo.com.br')
 MEDIA_URL_MAX = 4000
 MEDIA_REFERER_MAX = 1000
 TITLE_MAX = 500

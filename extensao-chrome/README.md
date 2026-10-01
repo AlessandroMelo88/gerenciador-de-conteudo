@@ -45,7 +45,7 @@ O que a extensão faz e não faz:
   guarda, por aba, o último `.m3u8` (prefere o `playlist.m3u8` master) e o `Referer`. Fica em
   `chrome.storage.session` (some ao fechar o Chrome).
 - Permissões: `cookies`, `activeTab`, `webRequest`, `storage`, e `host_permissions` **só**
-  `*://*.hotmart.com/*`. Para qualquer outro site, o Chrome pede permissão **na hora do clique**
+  `*://*.hotmart.com/*` e `*://*.pandavideo.com.br/*` (o Hotmart serve o vídeo pela Panda Video). Para qualquer outro site, o Chrome pede permissão **na hora do clique**
   (`optional_host_permissions`): aceite uma vez por site.
 - O endereço do vídeo é assinado (vale como senha): vai só para o Mac, em
   `~/.config/canaldecortes/media-urls.json` (0600), **nunca** para o servidor ou o banco. Só o
