@@ -53,6 +53,7 @@ from src.publisher import finalize_settled_source_videos
 from src import ttl_worker
 from src.ttl_worker import run_ttl_once
 from src.watchdog import run_watchdog_cycle
+from src.metrics_collector import collector_enabled, run_metrics_collection_once
 from src.internal_api import app as _internal_app
 
 
@@ -279,6 +280,21 @@ scheduler.add_job(
     misfire_grace_time=900,
 )
 
+# Coleta de métricas (views no YouTube): de hora em hora decide quais clips estão "devidos"
+# (6h nos primeiros 7 dias, 1x/dia até 30 dias) e só então chama a API. Não depende de
+# PIPELINE_ENABLED (é leitura) e nunca derruba o scheduler: o próprio coletor engole erros.
+# METRICS_COLLECTOR_ENABLED=false desliga.
+if collector_enabled():
+    scheduler.add_job(
+        run_metrics_collection_once,
+        'interval',
+        hours=1,
+        id='metrics_collector',
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=900,
+    )
+
 if __name__ == '__main__':
     install_signal_handlers()
     log('[ACQU] Daemon iniciado — ingestão + publish a cada 20 minutos')
@@ -289,6 +305,7 @@ if __name__ == '__main__':
     log(f'[ACQU] MAX_UPLOADS_PER_DAY: {os.environ.get("MAX_UPLOADS_PER_DAY", "2")}')
     log(f'[BOOT] TTL worker agendado: a cada 1h (TTL={ttl_worker.TTL_HOURS}h, WARN={ttl_worker.WARN_HOURS}h)')
     log('[BOOT] Watchdog agendado: a cada 30min (auto-cura de fantasmas e monitor de janela)')
+    log(f'[BOOT] Coleta de métricas: {"a cada 1h (decide por idade do clip)" if collector_enabled() else "desligada (METRICS_COLLECTOR_ENABLED=false)"}')
 
     # Recovery: vídeos presos em 'downloading' voltam para 'pending' e os
     # presos em 'selecting' voltam para 'downloaded' (senão seguram slot da

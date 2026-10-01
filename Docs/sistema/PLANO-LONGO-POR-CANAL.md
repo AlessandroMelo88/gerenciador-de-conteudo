@@ -1,6 +1,6 @@
 # Plano — vídeo longo automático, escolhido por canal
 
-**Status:** plano escrito em 01/10/2026, decisões do dono para o futebol e respostas (rampa 6, revezar origem, teto de longos) registradas no mesmo dia; nada implementado.
+**Status:** IMPLEMENTADO em 01/10/2026 na branch `feature/longo-por-canal` (ainda fora de produção; tudo em `auto` até o dono ligar o futebol). Plano escrito em 01/10/2026, decisões do dono para o futebol e respostas (rampa 6, revezar origem, teto de longos) registradas no mesmo dia; nada implementado.
 **Origem:** PR #1 do Ricardo (`release/rico`) fazia todo vídeo gerar Shorts **e** longo, sem chave para
 desligar. Recusado como está; o dono quer decidir **por canal destino**, nas configurações do canal.
 
@@ -171,3 +171,24 @@ Etapas 1 e 2 independem do risco de aumentar volume e podem entrar primeiro.
   início da rampa.
 
 Antes de codar: spec curta em `Docs/specs/` (skill `padroes-projeto`), branch `feature/longo-por-canal`.
+
+
+## Estado da implementação (01/10/2026)
+
+| Etapa | Estado |
+|---|---|
+| 1. Coluna `long_format_mode` + campo no painel | Feito |
+| 2. Coleta de views + tela Métricas | Feito (coletor de hora em hora; tela em `/painel/metricas`) |
+| 3. Cota por formato, teto 10, espaçamento, revezamento | Feito. Defaults de produção inalterados |
+| 4. Modos `short_only` e `both` no pipeline | Feito. `generated_clips.format` criada (nula, herda da fonte) |
+| Teto de longos aguardando aprovação | **Só a função** (`longo_teto_atingido` em `db.py`); falta chamá-la no fluxo de download (`scripts/local_download_worker.py`), antes de baixar vídeo longo |
+| 5. Rollout | Pendente: deploy com tudo em `auto`, depois ligar o futebol |
+
+**Variáveis do rollout no `.env` do servidor** (o código não as aplica sozinho): `MAX_UPLOADS_PER_DAY=10`,
+`MAX_LONGO_UPLOADS_PER_DAY=4`, `MAX_CURTO_UPLOADS_PER_DAY=6`, `MIN_UPLOAD_SPACING_MINUTES=15`. O modo do canal
+(`long_format_mode = both`) é ligado no painel, em Canais Destino.
+
+**Limitações conhecidas:** se o processo cair entre a seleção dos Shorts e a do longo, o longo daquela fonte se
+perde (documentado em `SISTEMA-IA-SELECAO.md`); o seletor do longo lê só os primeiros 8000 caracteres; publicação
+em rajada sem espaçamento; sem divisão do upload por janela (12–14h e 19–22h). `LONG_UPLOAD_HOURS` não existe
+no código.

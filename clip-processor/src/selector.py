@@ -302,6 +302,70 @@ def _enforce_longform_duration(moments: list[dict], transcript_duration: float) 
     return adjusted
 
 
+def _filter_strict_longform(moments: list[dict]) -> list[dict]:
+    """Longo do modo `both`: só passa trecho contínuo que a IA já devolveu com MIN..MAX segundos.
+
+    Diferente de `_enforce_longform_duration`, NÃO estica trecho curto até 7 min (isso inventa um
+    corte que a IA não escolheu). Trecho abaixo do mínimo é descartado; acima do teto é limitado
+    a MAX_LONGFORM_SECONDS (mesmo critério do caminho padrão).
+    """
+    valid = []
+    for m in moments:
+        m_copy = dict(m)
+        start = float(m_copy.get('start_time', 0))
+        end = float(m_copy.get('end_time', 0))
+        duration = end - start
+        if duration < MIN_LONGFORM_SECONDS:
+            _log(f'[SELECTOR] Longo descartado: {duration:.1f}s < {MIN_LONGFORM_SECONDS}s (sem esticar)')
+            continue
+        if duration > MAX_LONGFORM_SECONDS:
+            _log(f'[SELECTOR] Momento longo ({duration:.1f}s) limitado para o máximo ({MAX_LONGFORM_SECONDS}s)')
+            m_copy['end_time'] = start + MAX_LONGFORM_SECONDS
+        valid.append(m_copy)
+    return valid
+
+
+# Janelas amostradas ao longo de uma fonte longa no modo Shorts (short_only / both).
+SAMPLE_WINDOWS = 4
+SAMPLE_MAX_CHARS = 8000
+
+
+def _sample_transcript_windows(lines: list[str], max_chars: int = SAMPLE_MAX_CHARS,
+                               windows: int = SAMPLE_WINDOWS) -> list[int]:
+    """Índices das linhas mantidas: `windows` blocos espalhados pelo vídeo, cada um com ~max_chars/windows.
+
+    Se tudo cabe em max_chars devolve todas as linhas. Os timestamps das linhas continuam absolutos,
+    então o modelo responde em tempo real do vídeo.
+    """
+    if sum(len(line) + 1 for line in lines) <= max_chars:
+        return list(range(len(lines)))
+    per_window = max_chars // windows
+    chunk = -(-len(lines) // windows)  # ceil
+    kept: list[int] = []
+    for w in range(windows):
+        used = 0
+        for i in range(w * chunk, min(len(lines), (w + 1) * chunk)):
+            cost = len(lines[i]) + 1
+            if used + cost > per_window:
+                break
+            kept.append(i)
+            used += cost
+    return kept
+
+
+def _drop_moments_over_unseen_text(moments: list[dict], segments: list[dict], kept: set[int]) -> list[dict]:
+    """Descarta momento que cobre trecho da transcrição que o modelo NÃO viu (lacuna entre janelas)."""
+    unseen = [(float(seg['start']), float(seg['end'])) for i, seg in enumerate(segments) if i not in kept]
+    result = []
+    for m in moments:
+        start, end = float(m['start_time']), float(m['end_time'])
+        if any(u_start < end and u_end > start for u_start, u_end in unseen):
+            _log(f'[SELECTOR] Momento {start:.0f}s-{end:.0f}s descartado: cobre trecho não amostrado')
+            continue
+        result.append(m)
+    return result
+
+
 def _filter_shortform_duration(moments: list[dict], transcript_duration: float = None) -> list[dict]:
     """Valida e ajusta momentos do formato 'curto' para respeitar os limites de duração."""
     valid = []
@@ -409,7 +473,8 @@ def _snap_to_sentence_boundaries(moments: list[dict], segments: list[dict], buff
 
 
 def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', niche: str = 'futebol',
-                   prompt_profile: dict | None = None) -> list[dict]:
+                   prompt_profile: dict | None = None, strict_long: bool = False,
+                   sample_windows: bool = False) -> list[dict]:
     """Analisa transcrição e retorna momentos selecionados via IA.
 
     Args:
@@ -418,6 +483,11 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', 
         fmt: 'curto' (vários momentos de 30s-3min, padrão) ou 'longo' (1 segmento contínuo)
         niche: 'futebol' ou 'politica' para guiar os critérios de corte do LLM
         prompt_profile: perfil de prompt opcional do canal-fonte (src.prompt_profiles); None = prompts padrão
+        strict_long: só formato longo — NÃO estica trecho curto até 7 min; descarta o que a IA devolver
+            abaixo do mínimo (modo `both`, sem fallback cego)
+        sample_windows: só formato curto — em transcrição maior que o limite de caracteres, amostra
+            janelas ao longo do vídeo em vez de ler só o início (fonte longa em `short_only`/`both`).
+            Momentos que cobrem trecho não amostrado são descartados.
 
     Returns:
         Lista de dicts com {'start_time', 'end_time', 'score', 'reason'}, sem overlap.
@@ -447,9 +517,16 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', 
 
     # Groq free tier: 8k TPM limit. MAX_CHARS=8000 (~2.5k tokens + prompt) garante resposta sem rate limit.
     MAX_CHARS = 8000
+    sampled_kept: set[int] | None = None
     if len(transcript_text) > MAX_CHARS:
-        transcript_text = transcript_text[:MAX_CHARS]
-        _log(f'[SELECTOR] Transcrição truncada para {MAX_CHARS} chars (original maior)')
+        if sample_windows and not is_longo:
+            kept = _sample_transcript_windows(lines, MAX_CHARS)
+            sampled_kept = set(kept)
+            transcript_text = '\n'.join(lines[i] for i in kept)
+            _log(f'[SELECTOR] Transcrição amostrada em {SAMPLE_WINDOWS} janelas ({len(kept)} de {len(lines)} linhas)')
+        else:
+            transcript_text = transcript_text[:MAX_CHARS]
+            _log(f'[SELECTOR] Transcrição truncada para {MAX_CHARS} chars (original maior)')
 
     if not transcript_text.strip():
         _log('[SELECTOR] Transcrição vazia — sem momentos')
@@ -459,8 +536,12 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', 
         moments = _clamp_moment_bounds(moments, transcript_duration)
         # Aplica ajuste de fronteiras de frase para não cortar fala no meio
         moments = _snap_to_sentence_boundaries(moments, segments)
+        if sampled_kept is not None:
+            moments = _drop_moments_over_unseen_text(moments, segments, sampled_kept)
         result = _remove_overlaps(moments, max_count=max_moments)
-        if is_longo:
+        if is_longo and strict_long:
+            result = _filter_strict_longform(result)
+        elif is_longo:
             result = _enforce_longform_duration(result, transcript_duration)
         else:
             result = _filter_shortform_duration(result, transcript_duration)
@@ -524,8 +605,13 @@ def _lookup_destination_channel_id(conn, source_video_id: int) -> int | None:
     return dest_row['id'] if dest_row else None
 
 
-def insert_selected_moments(conn, source_video_id: int, video_id: str, moments: list[dict]) -> int:
+def insert_selected_moments(conn, source_video_id: int, video_id: str, moments: list[dict],
+                            clip_format: str | None = None) -> int:
     """Filtra momentos com score >= 7 e insere em generated_clips.
+
+    clip_format: None (padrão) = INSERT idêntico ao histórico, sem a coluna `format` (o clip herda o
+    formato de source_videos.format). 'curto'/'longo' grava `generated_clips.format` explícito — usado
+    pelo modo `both`, em que a mesma fonte tem clips dos dois formatos.
 
     Returns:
         Número de momentos inseridos.
@@ -546,13 +632,22 @@ def insert_selected_moments(conn, source_video_id: int, video_id: str, moments: 
             continue
 
         with conn.cursor() as cur:
-            cur.execute(
-                'INSERT INTO generated_clips '
-                '(source_video_id, start_time, end_time, score, reason, status, destination_channel_id) '
-                'VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                (source_video_id, moment['start_time'], moment['end_time'], score, reason,
-                 'pending_cut', destination_channel_id),
-            )
+            if clip_format is None:
+                cur.execute(
+                    'INSERT INTO generated_clips '
+                    '(source_video_id, start_time, end_time, score, reason, status, destination_channel_id) '
+                    'VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                    (source_video_id, moment['start_time'], moment['end_time'], score, reason,
+                     'pending_cut', destination_channel_id),
+                )
+            else:
+                cur.execute(
+                    'INSERT INTO generated_clips '
+                    '(source_video_id, start_time, end_time, score, reason, status, destination_channel_id, format) '
+                    'VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                    (source_video_id, moment['start_time'], moment['end_time'], score, reason,
+                     'pending_cut', destination_channel_id, clip_format),
+                )
         conn.commit()
         inserted += 1
         _log(f'Momento inserido (score {score}, dest_ch={destination_channel_id}): {reason}')

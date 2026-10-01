@@ -1,0 +1,1 @@
+**Métricas de visualização** — o sistema passa a medir as views dos clips publicados (YouTube Data API, a cada 6 h nos primeiros 7 dias, 1x/dia até 30) e a tela `/painel/metricas` mostra o que rende mais: Short × longo e ranking de canal-fonte

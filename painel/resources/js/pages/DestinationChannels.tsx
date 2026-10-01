@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import {
     Table,
@@ -22,6 +23,18 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { AppShell } from '@/layouts/app-shell';
 
+type LongFormatMode = 'auto' | 'short_only' | 'both';
+
+const LONG_FORMAT_OPTIONS: { value: LongFormatMode; label: string; hint: string }[] = [
+    { value: 'auto', label: 'Automático', hint: 'O robô decide pela duração do vídeo original.' },
+    { value: 'short_only', label: 'Só Shorts', hint: 'Este canal publica apenas vídeos curtos (Shorts).' },
+    { value: 'both', label: 'Shorts + vídeo longo', hint: 'Além dos Shorts, publica um vídeo longo do mesmo original (só quando ele tem 7 minutos ou mais).' },
+];
+
+function longFormatLabel(mode: LongFormatMode | undefined) {
+    return LONG_FORMAT_OPTIONS.find((o) => o.value === mode)?.label ?? 'Automático';
+}
+
 type DestinationChannel = {
     id: number;
     slug: string;
@@ -30,6 +43,7 @@ type DestinationChannel = {
     youtubeChannelId: string;
     creditTemplate: string | null;
     templateConfig?: TemplateConfig | null;
+    longFormatMode?: LongFormatMode;
     active: boolean;
     oauthStatus: 'authorized' | 'expired' | 'missing';
     hasWatermark: boolean;
@@ -90,6 +104,7 @@ function ChannelDialog({
         niche: channel?.niche ?? '',
         youtube_channel_id: channel?.youtubeChannelId ?? '',
         credit_template: channel?.creditTemplate ?? 'Créditos: @{channel_handle}',
+        long_format_mode: (channel?.longFormatMode ?? 'auto') as LongFormatMode,
         active: channel?.active ?? true,
     });
 
@@ -176,6 +191,31 @@ function ChannelDialog({
                             rows={2}
                             placeholder="Créditos: @{channel_handle}"
                         />
+                    </Field>
+
+                    <Field>
+                        <FieldLabel>Formato dos vídeos</FieldLabel>
+                        <Select
+                            value={data.long_format_mode}
+                            onValueChange={(v) => setData('long_format_mode', v as LongFormatMode)}
+                        >
+                            <SelectTrigger className="w-full" aria-label="Formato dos vídeos">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {LONG_FORMAT_OPTIONS.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>
+                                        {o.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            {LONG_FORMAT_OPTIONS.find((o) => o.value === data.long_format_mode)?.hint}
+                        </p>
+                        {errors.long_format_mode && (
+                            <p className="text-xs text-destructive">{errors.long_format_mode}</p>
+                        )}
                     </Field>
 
                     <DialogFooter>
@@ -491,6 +531,7 @@ export default function DestinationChannels() {
                                     <TableRow className="hover:bg-transparent">
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Canal</TableHead>
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Nicho</TableHead>
+                                        <TableHead className="px-5 py-3.5 text-xs font-semibold">Formato</TableHead>
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Status OAuth</TableHead>
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Channel ID</TableHead>
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Ativo</TableHead>
@@ -525,6 +566,9 @@ export default function DestinationChannels() {
                                                 </TableCell>
                                                 <TableCell className="px-5 py-3">
                                                     <NicheBadge niche={channel.niche} />
+                                                </TableCell>
+                                                <TableCell className="px-5 py-3 text-xs text-muted-foreground">
+                                                    {longFormatLabel(channel.longFormatMode)}
                                                 </TableCell>
                                                 <TableCell className="px-5 py-3">
                                                     <span

@@ -51,6 +51,7 @@ const clipItems: SidebarItem[] = [
     { title: 'Canais Fonte', url: '/painel/canais-fonte', icon: RadioTowerIcon, badge: 32 },
     { title: 'Vídeos', url: '/painel/videos', icon: ClapperboardIcon, badge: '2620' },
     { title: 'Processar Vídeo', url: '/painel/processar-video', icon: LinkIcon },
+    { title: 'Métricas', url: '/painel/metricas', icon: ChartColumnIcon },
     { title: 'Transcrições', url: '/painel/transcricoes', icon: AudioLinesIcon },
     { title: 'Links Úteis', url: '/painel/links-uteis', icon: BookmarkIcon },
     { title: 'Documentação', url: '/painel/documentacao', icon: BookOpenIcon },

@@ -10,6 +10,7 @@ Exporta:
 import os
 from datetime import datetime, timezone
 
+from src.format_mode import clip_format_sql
 from src.metadata_generator import append_credits, resolve_credit_handle
 from src.quota_manager import QuotaManager
 from src.telegram_notifier import notify
@@ -64,10 +65,22 @@ def publish_pending_clips(
         ch_quota = quota_manager or QuotaManager(redis_client, channel_id=dest['youtube_channel_id'])
         clips = _fetch_pending_clips_for_channel(conn, dest['id'])
         remaining = list(clips)
+        last_upload = _fetch_source_channel_last_upload(conn, dest['id'])
 
         while remaining:
-            clip = remaining[0]
             longo_waiting = _has_longo_waiting(remaining)
+            # Só concorrem os clips que a cota (total/formato/reserva) deixa publicar.
+            eligible = [
+                c for c in remaining
+                if ch_quota.can_upload(
+                    now=now, format=c.get('format') or 'curto',
+                    longo_waiting=longo_waiting, bypass_window=bypass_window,
+                )
+            ]
+            if not eligible:
+                break
+            picked = _pick_next_by_rotation(eligible, last_upload)
+            clip = picked
             credit_handle = resolve_credit_handle(clip.get('channel_handle'), clip.get('channel_name'))
             if dest.get('credit_template') and credit_handle:
                 clip = dict(clip)  # não mutar original
@@ -79,13 +92,63 @@ def publish_pending_clips(
             published = _publish_one(
                 conn, clip, ch_uploader, ch_quota, now, longo_waiting=longo_waiting, bypass_window=bypass_window,
             )
-            remaining.pop(0)
+            remaining[:] = [c for c in remaining if c is not picked]
             total += published
+            if published:
+                last_upload[picked.get('source_channel_id')] = datetime.now(timezone.utc).timestamp()
             # Sem capacidade total, o resto do canal espera o próximo ciclo.
             if published == 0 and not ch_quota.has_capacity(now=now, bypass_window=bypass_window):
                 break
 
     return total
+
+
+def _to_epoch(value) -> float:
+    """datetime (aware ou naive=UTC) ou epoch -> epoch; None -> -inf (nunca publicou)."""
+    if value is None:
+        return float('-inf')
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.timestamp()
+    return float('-inf')
+
+
+def _fetch_source_channel_last_upload(conn, destination_channel_id: int) -> dict:
+    """Último upload (epoch) por canal-fonte neste canal-destino, para o revezamento."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT sv.channel_id AS source_channel_id, MAX(gc.published_at) AS last_published_at '
+                'FROM generated_clips gc '
+                'JOIN source_videos sv ON sv.id = gc.source_video_id '
+                "WHERE gc.status = 'published' AND gc.published_at IS NOT NULL "
+                'AND gc.destination_channel_id = %s '
+                'GROUP BY sv.channel_id',
+                (destination_channel_id,),
+            )
+            rows = cur.fetchall() or []
+    except Exception as exc:
+        _log(f'Revezamento: sem histórico de uploads ({exc}) — ordem padrão')
+        return {}
+    result = {}
+    for row in rows:
+        if isinstance(row, dict) and 'last_published_at' in row:
+            result[row.get('source_channel_id')] = _to_epoch(row['last_published_at'])
+    return result
+
+
+def _pick_next_by_rotation(clips: list[dict], last_upload: dict) -> dict:
+    """Revezamento entre canais-fonte: escolhe o clip do canal-fonte que publicou há
+    mais tempo (ou nunca). Empate: ordem atual da lista (prioridade/created_at).
+    Clips sem source_channel_id formam um único grupo, preservando a ordem."""
+    best_idx = min(
+        range(len(clips)),
+        key=lambda i: (_to_epoch(last_upload.get(clips[i].get('source_channel_id'))), i),
+    )
+    return clips[best_idx]
 
 
 def _fetch_destination_channels(conn) -> list[dict]:
@@ -113,7 +176,7 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
         cur.execute(
             'SELECT gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, '
-            'sv.local_path AS source_local_path, sv.format AS format, '
+            'sv.local_path AS source_local_path, ' + clip_format_sql(conn) + ' AS format, '
             'sc.id AS source_channel_id, sc.channel_handle, sc.channel_name '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
@@ -242,7 +305,7 @@ def _fetch_pending_clips(conn) -> list[dict]:
             'SELECT '
             'gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, sv.local_path AS source_local_path, '
-            'sv.format AS format '
+            + clip_format_sql(conn) + ' AS format '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'WHERE gc.status = %s '
