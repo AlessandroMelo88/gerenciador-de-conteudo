@@ -10,6 +10,7 @@ Exporta:
 import os
 from datetime import datetime, timezone
 
+from src.format_mode import clip_format_sql
 from src.metadata_generator import append_credits, resolve_credit_handle
 from src.quota_manager import QuotaManager
 from src.telegram_notifier import notify
@@ -175,7 +176,7 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
         cur.execute(
             'SELECT gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, '
-            'sv.local_path AS source_local_path, sv.format AS format, '
+            'sv.local_path AS source_local_path, ' + clip_format_sql(conn) + ' AS format, '
             'sc.id AS source_channel_id, sc.channel_handle, sc.channel_name '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
@@ -304,7 +305,7 @@ def _fetch_pending_clips(conn) -> list[dict]:
             'SELECT '
             'gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
             'gc.title, gc.description, gc.tags, sv.local_path AS source_local_path, '
-            'sv.format AS format '
+            + clip_format_sql(conn) + ' AS format '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '
             'WHERE gc.status = %s '

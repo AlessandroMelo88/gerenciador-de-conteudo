@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Relatório de visualizações (tela "Métricas"): o que rende mais, por formato e por canal-fonte.
@@ -45,7 +46,11 @@ class MetricsReport
             ->where('gc.status', 'published')
             ->whereNotNull('gc.published_at')
             ->where('gc.published_at', '>=', $now->copy()->subDays(self::WINDOW_DAYS))
-            ->select('gc.id', 'gc.title', 'gc.youtube_video_id', 'gc.published_at', 'sv.format',
+            ->select('gc.id', 'gc.title', 'gc.youtube_video_id', 'gc.published_at',
+                // Formato do clip (gc.format) quando existe; senão o da fonte.
+                Schema::hasColumn('generated_clips', 'format')
+                    ? DB::raw('COALESCE(gc.format, sv.format) as format')
+                    : 'sv.format',
                 'sc.id as source_channel_id', 'sc.channel_name')
             ->get();
 
