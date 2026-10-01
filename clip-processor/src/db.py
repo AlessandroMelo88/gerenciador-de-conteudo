@@ -434,33 +434,80 @@ PUBLISHING_STUCK_MINUTES = 60
 
 
 def recover_stuck_publishing(conn):
-    """Devolve clips presos em 'publishing' para 'pending'.
+    """Resolve clips presos em 'publishing' há mais de PUBLISHING_STUCK_MINUTES.
 
-    Só considera clips SEM youtube_video_id (se já há id, o vídeo foi ao ar e
-    o estado precisa de análise humana, não de reenvio) e parados há mais de
-    PUBLISHING_STUCK_MINUTES. Em modo de aprovação manual o clip volta para
-    'pending' e exige nova aprovação, o que evita reenvio automático.
-    Risco residual: se o YouTube aceitou o upload mas o processo caiu antes de
-    gravar o id, o reenvio pode duplicar o vídeo.
+    Dois casos, decididos por ``youtube_video_id``:
+
+    - COM id: o upload completou (o id só é gravado após o YouTube aceitar) e o
+      processo caiu antes de fechar o status. Vai para 'published' — nunca de
+      volta à fila, senão republicaria e duplicaria o vídeo. ``published_at`` é
+      preservado se já existir; a varredura ``finalize_settled_source_videos``
+      encerra o vídeo-fonte em seguida.
+    - SEM id: volta para 'pending' e exige nova aprovação, o que evita reenvio
+      automático. Risco residual: se o YouTube aceitou o upload mas o processo
+      caiu antes de gravar o id, o reenvio pode duplicar o vídeo.
     """
     driver = get_db_driver(conn)
     if driver == 'pgsql':
         age = "updated_at < NOW() - (%s * INTERVAL '1 minute')"
     else:
         age = 'updated_at < DATE_SUB(NOW(), INTERVAL %s MINUTE)'
-    sql = (
-        "UPDATE generated_clips SET status='pending' "
+    sql_published = (
+        "UPDATE generated_clips SET status='published', "
+        "published_at=COALESCE(published_at, NOW()), updated_at=NOW() "
+        f"WHERE status='publishing' AND youtube_video_id IS NOT NULL AND {age}"
+    )
+    sql_pending = (
+        "UPDATE generated_clips SET status='pending', updated_at=NOW() "
         f"WHERE status='publishing' AND youtube_video_id IS NULL AND {age}"
     )
     try:
         with conn.cursor() as cur:
-            cur.execute(sql, (PUBLISHING_STUCK_MINUTES,))
+            cur.execute(sql_published, (PUBLISHING_STUCK_MINUTES,))
+            published = cur.rowcount
+            cur.execute(sql_pending, (PUBLISHING_STUCK_MINUTES,))
+            pending = cur.rowcount
+        conn.commit()
+        if published:
+            _log(f'recover_stuck_publishing: {published} clip(s) já no YouTube marcado(s) como published')
+        if pending:
+            _log(f'recover_stuck_publishing: {pending} clip(s) redefinido(s) para pending')
+    except Exception as exc:
+        _log(f'AVISO: falha ao recuperar clips em publishing: {exc}')
+        raise
+
+
+# Um corte legítimo (FFmpeg de vídeo longo) pode passar de 30min; 3h só pega o
+# que de fato morreu sem o processo ter reiniciado (no boot o recover_cutting_on_boot
+# já devolve tudo, sem esperar).
+CUTTING_STUCK_HOURS = 3
+
+
+def recover_stuck_cutting(conn):
+    """Devolve clips em 'cutting' parados há mais de CUTTING_STUCK_HOURS a 'pending_cut'.
+
+    Versão periódica: respeita o tempo limite para não pegar corte em curso.
+    Só troca o status — o raw continua em disco (o corte refeito precisa dele)
+    e nada é apagado.
+    """
+    driver = get_db_driver(conn)
+    if driver == 'pgsql':
+        age = "updated_at < NOW() - (%s * INTERVAL '1 hour')"
+    else:
+        age = 'updated_at < DATE_SUB(NOW(), INTERVAL %s HOUR)'
+    sql = (
+        "UPDATE generated_clips SET status='pending_cut', updated_at=NOW() "
+        f"WHERE status='cutting' AND {age}"
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (CUTTING_STUCK_HOURS,))
             count = cur.rowcount
         conn.commit()
         if count:
-            _log(f'recover_stuck_publishing: {count} clip(s) redefinido(s) para pending')
+            _log(f'recover_stuck_cutting: {count} clip(s) redefinido(s) para pending_cut')
     except Exception as exc:
-        _log(f'AVISO: falha ao recuperar clips em publishing: {exc}')
+        _log(f'AVISO: falha ao recuperar clips em cutting: {exc}')
         raise
 
 

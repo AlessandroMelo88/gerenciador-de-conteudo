@@ -133,7 +133,7 @@ verificado no YouTube — thumbnail custom exige verificação.
 
 ---
 
-## 4. PARCIAL — Estados sem recuperação automática seguram arquivo em disco
+## 4. FEITO — Estados sem recuperação automática seguram arquivo em disco
 
 **O que foi corrigido em 13/08/2026** (`main.py`, `db.py`):
 
@@ -152,16 +152,23 @@ verificado no YouTube — thumbnail custom exige verificação.
    queries anteriores exigem `local_path IS NOT NULL`. Nenhum restart resolvia. Sem raw em disco não há
    seleção para reprocessar, então `failed` é o estado honesto e libera a vaga da janela.
 
-**O que continua ABERTO:** não existe recuperação para `generated_clips.cutting`,
-`generated_clips.publishing` nem `source_videos.transcribing`. O que trava nesses três fica preso para
-sempre e segura arquivo em disco. Foi a causa do acúmulo que lotou o SSD no incidente de 27/07/2026.
+**Parte 2 — corrigida em 29–01/10/2026** (`db.py`, `main.py`; commit `9a73d76` + branch
+`fix/bug4-recovery-publishing-cutting`, aguardando deploy). Todos rodam em `run_recovery_once`
+(boot + 30 min) e nenhum apaga arquivo nem toca no Redis:
 
-Agrava com o bug 11: o container morre por SIGKILL em todo `docker stop`, ou seja, pode ser morto **no
-meio** de um `cutting` ou `publishing`.
+| Estado preso | Recuperação | Regra de segurança |
+|---|---|---|
+| `source_videos.transcribing` | `recover_stuck_transcribing`: com raw volta a `downloaded`, sem raw vai a `failed` | parado há `SELECTING_STUCK_HOURS` (2 h) |
+| `generated_clips.publishing` **com** `youtube_video_id` | vira `published` (`published_at` preservado) | o id só existe se o YouTube aceitou o upload: **nunca volta à fila**, então não duplica |
+| `generated_clips.publishing` **sem** id | volta a `pending` (nova aprovação) | parado há `PUBLISHING_STUCK_MINUTES` (60 min) |
+| `generated_clips.cutting` | no boot, tudo volta a `pending_cut` (o FFmpeg anterior morreu); no job periódico, `recover_stuck_cutting` só pega o parado há `CUTTING_STUCK_HOURS` (3 h) | só muda o status: o raw fica em disco para o corte refeito |
 
-**Onde corrigir:** nova query em [`db.py`](../clip-processor/src/db.py) + chamada em `run_recovery_once`.
-`publishing` precisa de cuidado extra: devolver a `pending` um clip que **já subiu** republica e
-duplica — checar `youtube_video_id` antes.
+`finalize_settled_source_videos` roda por último em `run_recovery_once`, para encerrar o vídeo-fonte
+cujo último clip acabou de virar `published`.
+
+**Risco residual (inevitável sem API do YouTube):** `publishing` sem id pode ter subido no YouTube e
+o processo cair antes de gravar o id; o reenvio pode duplicar, mas exige nova aprovação humana.
+Com o bug 11 corrigido, o container deixa de morrer no meio de um estágio a cada `docker stop`.
 
 Destrave manual em [`RUNBOOK.md`](RUNBOOK.md#estado-preso-sem-recuperação-automática).
 

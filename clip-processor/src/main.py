@@ -42,6 +42,7 @@ from src.pipeline_runner import run_pipeline_once, run_publish_only, run_ingest_
 from src.db import (
     get_db_connection,
     recover_cutting_on_boot,
+    recover_stuck_cutting,
     recover_stuck_downloads,
     recover_stuck_publishing,
     recover_stuck_selecting,
@@ -87,9 +88,13 @@ def run_recovery_once(*, recover_cutting=False):
     Falha é logada e engolida de propósito — recovery é manutenção oportunista,
     não pode derrubar o scheduler.
 
-    ``cutting`` só é recuperado com ``recover_cutting=True`` (boot): o job
-    periódico o deixa intacto, pois um corte legítimo pode passar de 30min.
-    Nenhum recovery apaga arquivo; o raw fica para o corte refeito.
+    ``cutting`` tem dois caminhos: no boot (``recover_cutting=True``) tudo volta a
+    ``pending_cut``, pois o FFmpeg do processo anterior morreu; no job periódico
+    só volta o que passou de CUTTING_STUCK_HOURS, pois um corte legítimo pode
+    passar de 30min. ``publishing`` com ``youtube_video_id`` vira ``published``
+    (nunca reenvia). Nenhum recovery apaga arquivo; o raw fica para o corte refeito.
+    A ordem importa: ``finalize_settled_source_videos`` roda por último, depois
+    que os clips destravados deixaram de ser não-terminais.
     """
     conn = None
     try:
@@ -98,6 +103,7 @@ def run_recovery_once(*, recover_cutting=False):
         recover_stuck_transcribing(conn)
         recover_stuck_selecting(conn)
         recover_stuck_publishing(conn)
+        recover_stuck_cutting(conn)
         finalize_settled_source_videos(conn)
         if recover_cutting:
             recover_cutting_on_boot(conn)
