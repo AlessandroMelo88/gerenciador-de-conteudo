@@ -196,3 +196,31 @@ class TestPostgresSupport:
         assert 'INTERVAL' in stuck_sql.upper()
         assert 'DATE_SUB' not in stuck_sql.upper()
 
+
+
+import pytest  # noqa: E402
+from unittest.mock import MagicMock  # noqa: E402
+
+
+class TestTetoLongosPendentes:
+    def test_default_sem_teto(self, monkeypatch):
+        from src.db import max_longos_pendentes_por_canal, longo_teto_atingido
+        monkeypatch.delenv('MAX_LONGOS_PENDENTES_POR_CANAL', raising=False)
+        assert max_longos_pendentes_por_canal() == 0
+        assert longo_teto_atingido(object(), 1) is False  # nem consulta o banco
+
+    def test_teto_invalido_vira_sem_teto(self, monkeypatch):
+        from src.db import max_longos_pendentes_por_canal
+        monkeypatch.setenv('MAX_LONGOS_PENDENTES_POR_CANAL', 'abc')
+        assert max_longos_pendentes_por_canal() == 0
+
+    @pytest.mark.parametrize('qtd,esperado', [(3, False), (4, True), (7, True)])
+    def test_teto_atingido(self, monkeypatch, qtd, esperado):
+        from src.db import longo_teto_atingido
+        monkeypatch.setenv('MAX_LONGOS_PENDENTES_POR_CANAL', '4')
+        conn = MagicMock()
+        cur = conn.cursor.return_value.__enter__.return_value
+        cur.fetchone.return_value = {'cnt': qtd}
+        assert longo_teto_atingido(conn, 1) is esperado
+        sql = cur.execute.call_args.args[0]
+        assert "sv.format = 'longo'" in sql and 'pending_cut' in sql

@@ -477,6 +477,54 @@ def recover_stuck_publishing(conn):
         raise
 
 
+def max_longos_pendentes_por_canal() -> int:
+    """Teto de longos aguardando aprovação por canal-destino (env MAX_LONGOS_PENDENTES_POR_CANAL).
+
+    0 / ausente / inválido = sem teto (comportamento anterior). Valor recomendado
+    no rollout do canal de futebol: 4.
+    """
+    try:
+        return max(0, int(os.environ.get('MAX_LONGOS_PENDENTES_POR_CANAL', '0') or 0))
+    except ValueError:
+        return 0
+
+
+def count_longos_aguardando(conn, destination_channel_id: int) -> int:
+    """Conta clips longos do canal-destino que ainda não foram ao ar nem saíram da fila.
+
+    Estados 'pending_cut', 'cutting', 'pending' e 'approved' (corte em andamento
+    conta: vira 'pending' logo em seguida). Consulta somente leitura.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            'SELECT COUNT(*) AS cnt FROM generated_clips gc '
+            'JOIN source_videos sv ON sv.id = gc.source_video_id '
+            "WHERE sv.format = 'longo' "
+            "AND gc.status IN ('pending_cut', 'cutting', 'pending', 'approved') "
+            'AND gc.destination_channel_id = %s',
+            (destination_channel_id,),
+        )
+        row = cur.fetchone() or {}
+    if isinstance(row, dict):
+        return int(row.get('cnt') or 0)
+    return int(row[0] or 0)
+
+
+def longo_teto_atingido(conn, destination_channel_id: int) -> bool:
+    """True se o canal já tem longos aguardando >= teto configurado.
+
+    Ponto de chamada recomendado (fluxo de seleção/download, NÃO implementado aqui):
+    antes de baixar/selecionar um vídeo fonte `format='longo'` para o canal. Barrar
+    ali, antes de existir raw em disco ou clip em 'pending_cut', evita segurar o
+    raw (bug 17). Não barrar em process_clip: o clip ficaria em pending_cut
+    prendendo o arquivo.
+    """
+    teto = max_longos_pendentes_por_canal()
+    if teto <= 0:
+        return False
+    return count_longos_aguardando(conn, destination_channel_id) >= teto
+
+
 # Um corte legítimo (FFmpeg de vídeo longo) pode passar de 30min; 3h só pega o
 # que de fato morreu sem o processo ter reiniciado (no boot o recover_cutting_on_boot
 # já devolve tudo, sem esperar).

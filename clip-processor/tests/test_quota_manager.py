@@ -82,11 +82,11 @@ class TestCanUpload:
         assert qm.can_upload(now=dt_sp(20, 0)) is True
 
     def test_env_value_above_ceiling_is_clamped(self, monkeypatch):
-        """MAX_UPLOADS_PER_DAY > 6 deve ser reduzido para 6."""
+        """MAX_UPLOADS_PER_DAY acima do teto absoluto (padrão 10) é reduzido."""
         monkeypatch.setenv('MAX_UPLOADS_PER_DAY', '100')
         r = make_redis(count=0)
         qm = QuotaManager(r)  # lê do env
-        assert qm._max == 6
+        assert qm._max == 10
 
     def test_default_max_is_two(self, monkeypatch):
         """Sem env, default é 2."""
@@ -225,3 +225,135 @@ class TestLongoReservation:
 
         moments = _parse_moments('{"moments":[{"start_time":0,"end_time":500,"score":0.95,"reason":"x"}]}')
         assert moments[0]['score'] == pytest.approx(9.5)
+
+
+class FakeRedis:
+    """Redis em memória: get/incr/expire/set suficientes para o QuotaManager."""
+
+    def __init__(self):
+        self.data = {}
+
+    def get(self, k):
+        v = self.data.get(k)
+        return None if v is None else str(v)
+
+    def incr(self, k):
+        self.data[k] = int(self.data.get(k, 0)) + 1
+        return self.data[k]
+
+    def expire(self, k, ttl):
+        return True
+
+    def set(self, k, v, ex=None):
+        self.data[k] = v
+
+
+@pytest.fixture
+def clean_env(monkeypatch):
+    for k in ('MAX_UPLOADS_PER_DAY', 'MAX_LONGO_UPLOADS_PER_DAY', 'MAX_CURTO_UPLOADS_PER_DAY',
+              'ABSOLUTE_MAX_UPLOADS_PER_DAY', 'MIN_UPLOAD_SPACING_MINUTES'):
+        monkeypatch.delenv(k, raising=False)
+
+
+def _drain(qm, fmt, now, longo_waiting=False):
+    n = 0
+    while qm.can_upload(now=now, format=fmt, longo_waiting=longo_waiting):
+        qm.record_upload(now=now, format=fmt)
+        n += 1
+        assert n < 50
+    return n
+
+
+class TestCotaPorFormato:
+    def test_regressao_env_vazia_defaults_de_producao(self, clean_env):
+        qm = QuotaManager(FakeRedis())
+        assert qm.max_uploads_per_day == 2
+        assert qm.max_longo_per_day == 2
+        assert qm.max_curto_per_day is None
+        assert qm.min_spacing_minutes == 0
+
+    def test_regressao_sem_teto_de_curto_curtos_usam_o_total(self, clean_env):
+        qm = QuotaManager(FakeRedis())
+        assert _drain(qm, 'curto', dt_sp(20)) == 2
+
+    def test_teto_absoluto_sobe_para_10(self, clean_env, monkeypatch):
+        monkeypatch.setenv('MAX_UPLOADS_PER_DAY', '10')
+        assert QuotaManager(FakeRedis()).max_uploads_per_day == 10
+
+    def test_teto_absoluto_sobrescrevivel_por_env(self, clean_env, monkeypatch):
+        monkeypatch.setenv('MAX_UPLOADS_PER_DAY', '50')
+        monkeypatch.setenv('ABSOLUTE_MAX_UPLOADS_PER_DAY', '12')
+        assert QuotaManager(FakeRedis()).max_uploads_per_day == 12
+
+    def test_futebol_6_curtos_e_4_longos_somam_10(self, clean_env, monkeypatch):
+        monkeypatch.setenv('MAX_UPLOADS_PER_DAY', '10')
+        monkeypatch.setenv('MAX_LONGO_UPLOADS_PER_DAY', '4')
+        monkeypatch.setenv('MAX_CURTO_UPLOADS_PER_DAY', '6')
+        qm = QuotaManager(FakeRedis())
+        now = dt_sp(20)
+        assert _drain(qm, 'curto', now) == 6
+        assert _drain(qm, 'longo', now) == 4
+        assert qm.has_capacity(now=now) is False
+
+    def test_curto_nao_passa_do_teto_mesmo_com_total_sobrando(self, clean_env, monkeypatch):
+        monkeypatch.setenv('MAX_UPLOADS_PER_DAY', '10')
+        monkeypatch.setenv('MAX_CURTO_UPLOADS_PER_DAY', '6')
+        qm = QuotaManager(FakeRedis())
+        assert _drain(qm, 'curto', dt_sp(20)) == 6
+        assert qm.has_capacity(now=dt_sp(20)) is True  # ainda há vaga p/ longo
+
+    def test_curtos_mais_longos_nunca_passam_do_total(self, clean_env, monkeypatch):
+        monkeypatch.setenv('MAX_UPLOADS_PER_DAY', '5')
+        monkeypatch.setenv('MAX_LONGO_UPLOADS_PER_DAY', '4')
+        monkeypatch.setenv('MAX_CURTO_UPLOADS_PER_DAY', '6')  # clamp em 5
+        qm = QuotaManager(FakeRedis())
+        assert qm.max_curto_per_day == 5
+        now = dt_sp(20)
+        total = _drain(qm, 'longo', now) + _drain(qm, 'curto', now)
+        assert total == 5
+
+    def test_reserva_do_longo_continua_com_curto_limitado(self, clean_env, monkeypatch):
+        monkeypatch.setenv('MAX_UPLOADS_PER_DAY', '10')
+        monkeypatch.setenv('MAX_LONGO_UPLOADS_PER_DAY', '4')
+        monkeypatch.setenv('MAX_CURTO_UPLOADS_PER_DAY', '8')
+        qm = QuotaManager(FakeRedis())
+        now = dt_sp(20)
+        # Há longo na fila: curtos só até total - 4 reservados = 6.
+        assert _drain(qm, 'curto', now, longo_waiting=True) == 6
+        assert _drain(qm, 'longo', now, longo_waiting=True) == 4
+
+    def test_chaves_redis_por_data_canal_e_formato(self, clean_env):
+        r = FakeRedis()
+        qm = QuotaManager(r, channel_id='UCx', max_uploads_per_day=4)
+        qm.record_upload(now=dt_sp(20), format='longo')
+        assert r.data['youtube_uploads:UCx:2026-06-18'] == 1
+        assert r.data['youtube_uploads:UCx:2026-06-18:longo'] == 1
+
+
+class TestEspacamento:
+    def test_default_nao_espaca(self, clean_env):
+        qm = QuotaManager(FakeRedis(), max_uploads_per_day=5)
+        now = dt_sp(20)
+        qm.record_upload(now=now)
+        assert qm.has_capacity(now=now) is True
+
+    def test_espacamento_bloqueia_ate_passar_o_intervalo(self, clean_env, monkeypatch):
+        monkeypatch.setenv('MIN_UPLOAD_SPACING_MINUTES', '15')
+        qm = QuotaManager(FakeRedis(), max_uploads_per_day=5)
+        qm.record_upload(now=dt_sp(20, 0))
+        assert qm.can_upload(now=dt_sp(20, 10)) is False
+        assert qm.can_upload(now=dt_sp(20, 16)) is True
+
+    def test_dez_uploads_cabem_nas_janelas_com_espacamento_de_15_min(self, clean_env, monkeypatch):
+        """12-14h + 19-22h = 5h; ciclo de 20 min => 1 upload por ciclo = até 15 vagas."""
+        monkeypatch.setenv('MIN_UPLOAD_SPACING_MINUTES', '15')
+        monkeypatch.setenv('MAX_UPLOADS_PER_DAY', '10')
+        qm = QuotaManager(FakeRedis())
+        published = 0
+        for hour in (12, 13, 19, 20, 21):
+            for minute in (0, 20, 40):
+                now = dt_sp(hour, minute)
+                if qm.can_upload(now=now):  # o publisher publica 1 por ciclo
+                    qm.record_upload(now=now)
+                    published += 1
+        assert published == 10
