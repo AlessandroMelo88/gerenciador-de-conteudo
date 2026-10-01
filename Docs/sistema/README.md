@@ -63,6 +63,7 @@ horizontal de 7 a 20 min).
 |---|---|
 | [`PLANO-PROMPTS-EDITAVEIS.md`](PLANO-PROMPTS-EDITAVEIS.md) | Como tornar os prompts de seleção editáveis pelo painel, sem editar Python e sem rebuild, com métricas para comparar versões |
 | [`PLANO-REVISAO-DE-PALAVRAO.md`](PLANO-REVISAO-DE-PALAVRAO.md) | Ideia (não implementada): lista de palavrões com minutagem na aprovação, escolha por clip de publicar com ou sem palavrão, áudio censurado e palavra mantida na legenda |
+| [`PLANO-LONGO-POR-CANAL.md`](PLANO-LONGO-POR-CANAL.md) | Plano (não implementado): seletor por canal destino com três modos (automático, só Shorts, Shorts + longo); padrão não muda nada em produção |
 
 
 `.planning/` é do fluxo GSD (roadmap por fase) e **não** é fonte de verdade do estado atual.
