@@ -3,6 +3,7 @@
 import signal
 import os
 import threading
+import time
 from datetime import datetime
 try:
     from apscheduler.schedulers.blocking import BlockingScheduler
@@ -144,9 +145,69 @@ def run_watchdog_once():
 scheduler = BlockingScheduler(timezone='America/Sao_Paulo')
 
 
+# Bug 11 — encerramento limpo. O handler de sinal roda na thread principal, a
+# mesma que fica bloqueada em `scheduler.start()`; chamar `scheduler.shutdown()`
+# de dentro dele apagava os jobs no meio de `_process_jobs` e, mesmo assim, o
+# processo não saía: a thread do pool com o job em curso não é daemon e o
+# interpretador espera por ela. Resultado: `docker stop` virava SIGKILL (137).
+# Agora o handler só sinaliza; uma thread vigia o evento, para o scheduler e
+# impõe um prazo de graça menor que o do Docker (10s por padrão).
+_stop_event = threading.Event()
+SHUTDOWN_GRACE_SECONDS = float(os.environ.get('SHUTDOWN_GRACE_SECONDS', '8'))
+
+
 def shutdown(signum, frame):
     log('[ACQU] Recebendo sinal de shutdown — encerrando scheduler')
-    scheduler.shutdown(wait=False)
+    _stop_event.set()
+
+
+def install_signal_handlers():
+    """Registra os handlers e a thread vigia (vale já durante o ciclo inicial)."""
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
+    threading.Thread(target=_shutdown_watcher, daemon=True, name='shutdown-watcher').start()
+
+
+def _hard_exit(code=0):
+    os._exit(code)
+
+
+def _shutdown_watcher():
+    """Para o scheduler fora do handler e garante saída dentro do prazo."""
+    _stop_event.wait()
+    try:
+        # Em outra thread, shutdown() apenas acorda o start() da principal.
+        scheduler.shutdown(wait=False)
+    except Exception:
+        pass  # scheduler ainda não iniciou (ciclo inicial em andamento)
+    time.sleep(SHUTDOWN_GRACE_SECONDS)
+    log(f'[ACQU] Prazo de {SHUTDOWN_GRACE_SECONDS:g}s esgotado com trabalho em curso — saindo')
+    _hard_exit(0)
+
+
+def _wait_for_workers(timeout):
+    """Espera as threads de trabalho do pool terminarem, até `timeout`."""
+    deadline = time.monotonic() + timeout
+    for t in threading.enumerate():
+        if t is threading.main_thread() or t.daemon:
+            continue
+        t.join(max(0.0, deadline - time.monotonic()))
+    return not any(
+        t.is_alive() for t in threading.enumerate()
+        if t is not threading.main_thread() and not t.daemon
+    )
+
+
+def run_scheduler_until_stopped():
+    """Roda o scheduler na thread principal até chegar SIGTERM/SIGINT."""
+    if _stop_event.is_set():
+        log('[ACQU] Sinal recebido antes do scheduler iniciar — saindo')
+    else:
+        scheduler.start()
+    if not _wait_for_workers(SHUTDOWN_GRACE_SECONDS):
+        log('[ACQU] Job ainda em curso após o prazo de graça — saindo mesmo assim')
+        _hard_exit(0)
+    log('[ACQU] Scheduler encerrado')
 
 
 # Ingestão (RSS/download/AI): repõe a janela de download ativo (DOWNLOAD_WINDOW_*
@@ -212,10 +273,8 @@ scheduler.add_job(
     misfire_grace_time=900,
 )
 
-signal.signal(signal.SIGTERM, shutdown)
-signal.signal(signal.SIGINT, shutdown)
-
 if __name__ == '__main__':
+    install_signal_handlers()
     log('[ACQU] Daemon iniciado — ingestão + publish a cada 20 minutos')
     log(f'[ACQU] MYSQL_HOST: {os.environ.get("MYSQL_HOST", "não configurado")}')
     log(f'[ACQU] REDIS_HOST: {os.environ.get("REDIS_HOST", "não configurado")}')
@@ -249,4 +308,4 @@ if __name__ == '__main__':
         log('[ACQU] Ciclo inicial pausado — sidecar HTTP continua disponível')
 
     log('[ACQU] Scheduler iniciado — próximo ciclo (ingest + publish) em 20 minutos')
-    scheduler.start()
+    run_scheduler_until_stopped()

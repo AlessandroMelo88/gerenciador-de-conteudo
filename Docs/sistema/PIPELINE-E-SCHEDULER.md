@@ -100,18 +100,15 @@ O cliente Redis **não** é fechado explicitamente em nenhum dos ciclos.
 
 ---
 
-## Shutdown: o container não honra SIGTERM (bug aberto)
+## Shutdown: SIGTERM honrado (bug 11, corrigido em 01/10/2026)
 
-`main.py:137-138` registra `SIGTERM` e `SIGINT` em `shutdown`
-([`main.py:80`](../clip-processor/src/main.py#L80)), que chama `scheduler.shutdown(wait=False)`.
+`install_signal_handlers()` registra `SIGTERM`/`SIGINT`; o handler só sinaliza um `threading.Event`
+(`main.py`, `shutdown`). Uma thread vigia para o scheduler fora do sinal e impõe o prazo de graça
+`SHUTDOWN_GRACE_SECONDS` (padrão 8 s); `run_scheduler_until_stopped()` espera o job em curso até esse
+prazo e sai com código 0. Job que passa do prazo é abandonado (como num kill), então o clip pode ficar
+em `cutting`/`publishing` — a recuperação do bug 4 cuida disso no boot seguinte.
+Detalhes e causa em [`BUGS.md`](BUGS.md).
 
-**Na prática todo `docker stop` termina em `Exited (137)` / SIGKILL**: o `BlockingScheduler` não
-retorna do `shutdown` e o Docker mata o processo depois do timeout de graça. Registrado como bug
-aberto em [`BUGS.md`](BUGS.md).
-
-Consequência operacional: o processo pode ser morto **no meio de um estágio**. Um clip em `cutting`
-ou `publishing` na hora do kill fica preso — e nenhum dos dois tem recuperação automática
-(ver [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md#recuperação-automática-o-que-tem-e-o-que-não-tem)).
 Antes de reiniciar, seguir [`RUNBOOK.md`](RUNBOOK.md#reiniciar-o-clip-processor-com-segurança).
 
 ---
