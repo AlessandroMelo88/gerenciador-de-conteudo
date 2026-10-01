@@ -1,7 +1,7 @@
 # Estado do projeto — leia primeiro
 
 **Última atualização:** 01/10/2026
-**Produção:** commit `ace7714`, no ar em https://toolscut.alessandromelo.com.br
+**Produção:** commit `99fbba4`, no ar em https://toolscut.alessandromelo.com.br
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
 Ele resume e aponta; o detalhe fica nos arquivos citados.
@@ -108,8 +108,8 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Busca vetorial nas transcrições | 30/09 | **No ar.** Postgres com pgvector 0.8 (imagem própria sobre alpine), `embedder` saudável (e5-small, 384d), 2 transcrições / 41 trechos indexados. Transcrições novas só ganham vetor se o worker do Mac rodar com o venv `~/.config/canaldecortes/venv-busca` (hoje o launchd usa o python3 do Homebrew, sem o modelo: entram só por texto; rodar `backfill.sh` ou apontar o launchd para o venv). Doc: `Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md` |
 | Integração da branch do Ricardo (`release/rico`) | 30/09 | Lotes 1–9 na `master` e em produção. Fora: Hacker Libertário (não é do dono), stage workers, captions via API interna, seletor com janelas distribuídas, painel de perfis por canal destino. PR #1 dele ainda aberta no GitHub (responder/fechar). Não trazer compose, `composer.lock`, docs nem defaults de publicação dele |
 | Token do Telegram no histórico público (`.planning/.../09-01-PLAN.md`, commit `614092d`) | Comparação 29/09 | **Rotacionar no BotFather** (passo do operador), depois remover o arquivo |
-| Transcrição de aula Hotmart (HLS, só áudio) | 30/09 | Código em `feature/transcricao-audio-hls-extensao`, sem merge/deploy e **sem teste real no Hotmart**. Falta: recarregar a extensão (v1.1.0), reiniciar o worker e testar numa aula (ver `Docs/sistema/SISTEMA-TRANSCRICAO.md`) |
-| Bugs 11, 4 e 17 (SIGTERM, recuperação de `cutting`/`publishing`/`transcribing`, vaga presa por aprovação) | `BUGS.md` | **Corrigidos em 01/10/2026, sem deploy.** Falta `git push` + `./deploy.sh` (rebuild do `clip-processor`) e conferir `docker stop` com exit 0. Bug 17 foi decisão: `pending` continua contando na janela (proteção de disco, bug 12); teto separado fica como alternativa de produto |
+| Transcrição de aula Hotmart (HLS, só áudio) | 30/09 | **Validada em 01/10/2026** numa aula real (28 min transcritos). O Hotmart serve o vídeo pela Panda Video (`*.tv.pandavideo.com.br`), não por `hotmart.com`; extensão 1.1.1 e API local aceitam os dois hosts. Outro player = ajustar `SUFIXOS_PLAYER`, `host_permissions` e `MEDIA_HOSTS_PADRAO` (ver `Docs/sistema/SISTEMA-TRANSCRICAO.md`). Falta só ligar o launchd do worker ao venv da busca |
+| Bugs 11, 4 e 17 (SIGTERM, recuperação de `cutting`/`publishing`/`transcribing`, vaga presa por aprovação) | `BUGS.md` | **Corrigidos e no ar em 01/10/2026 (`99fbba4`).** `docker stop clip-processor` conferido em produção: exit 0 e log "Scheduler encerrado". Bug 17 foi decisão: `pending` continua contando na janela (proteção de disco, bug 12); teto separado fica como alternativa de produto. Risco a vigiar: `cutting` volta a `pending_cut` após 3 h sem `updated_at` |
 | Bug 10 — 287 `clip_path` sem arquivo | `BUGS.md` | Aberto (número não reconferido após a migração) |
 | Bug 6 — painel não apaga backlog de download | `BUGS.md` | Aberto |
 | Monitor do Better Stack por palavra-chave | Incidente 18/09 | Sugerido, não feito |
@@ -136,6 +136,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | 30/09/2026 | Validação visual da busca (`fix/busca-transcricoes-ui`) | 5 bugs de UI/backend corrigidos, piso de similaridade calibrado (0,83); branch pronta para merge, ainda fora de produção | Merge na master, depois o runbook de rollout (imagem do Postgres, embedder, backfill) |
 | 30/09/2026 | Lote 6 (prompts por perfil) do `release/rico` | Em `feature/prompts-por-perfil`, sem merge/deploy; sem canal versionado; migration pendente | Escrever `prompts/channels/mbl.yaml`, compilar `--apply`, ligar perfil no painel |
 | 30/09/2026 | Lotes 3 e 9 do Ricardo | CI, Makefile, pre-commit e configs de lint sem reformatar o código; ADRs renumerados (0002–0007, PostgreSQL 17), `Docs/DESENVOLVIMENTO.md`, `restore-postgres.sh`. Em branches, sem merge | Revisar, mesclar e ligar o `CI gate` na proteção da `master` |
+| 01/10/2026 | Bugs 11, 4 e 17 no ar; extensão 1.1.1 com host Panda Video; transcrição Hotmart validada | Produção em `99fbba4`, `docker stop` com exit 0, aula do Hotmart transcrita | Primeira oferta de afiliado; ligar o worker do Mac ao venv da busca; responder a PR #1 do Ricardo |
 | 30/09/2026 | Produção em `ace7714`: pgvector, embedder, lotes 1–9 do Ricardo, watchdog sem falso deadlock (janela cheia por aprovação é proposital), transcrição Hotmart só áudio (extensão 1.1.0, **não testada no Chrome**) | Token do Telegram rotacionado e webhook com segredo | Testar a extensão numa aula real; ligar o worker do Mac ao venv da busca; responder a PR #1 |
 | 29/09/2026 | Busca vetorial + comparação com `release/rico` | Busca pronta em `feature/busca-vetorial`, fora de produção; lotes 1–2 do Ricardo em branches | Backup + trocar imagem do Postgres na A1, deploy, backfill; rotacionar token do Telegram |
 | 20/09/2026 | Criação deste checkpoint | Produção em `3cc729b`, saudável: 141 clips publicados, 16 na fila de aprovação, 18 vídeos na janela, 0 ofertas | Cadastrar a primeira oferta real de afiliado |
