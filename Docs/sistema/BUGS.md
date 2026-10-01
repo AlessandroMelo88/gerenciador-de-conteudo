@@ -494,7 +494,7 @@ alguns dias de operação normal.
 
 ---
 
-## 17. PARCIAL — Vaga da janela presa por clip aguardando aprovação
+## 17. FEITO (por decisão) — Vaga da janela presa por clip aguardando aprovação
 
 **Apurado em 16/09/2026.** A janela de futebol ficou em **10/10 ocupada** com 145 vídeos frescos
 esperando, e nenhum download novo começava.
@@ -550,5 +550,24 @@ Correção ([`publisher.py`](../clip-processor/src/publisher.py)):
 
 Testes: `tests/test_finalize_source_video.py`.
 
-**Continua aberto:** clip parado em `pending` esperando o operador ainda segura a vaga até ser
-aprovado, rejeitado ou expirar pelo TTL (48h). Os caminhos listados acima seguem válidos para essa parte.
+### Decisão em 01/10/2026 — manter a contagem, o aviso já cobre
+
+Das três opções, **nenhuma muda a ocupação**:
+
+- **Não contar `pending`: descartada por segurança.** Clip em `pending` mantém em disco o raw do
+  vídeo-fonte e os arquivos do clip (o raw só sai em `_maybe_finalize_source_video`, quando todos os
+  clips ficam terminais). Tirar `pending` da conta reabre a ingestão sem teto de disco — é
+  exatamente a causa do bug 12 (306 vídeos, disco cheio). Além disso não bastaria: o próprio
+  `source_videos.status = 'selecting'` já segura a vaga na segunda condição do `OR`.
+- **Teto separado "aguardando aprovação": é decisão de produto** (quantos GB e quantos vídeos o
+  operador pode deixar parados). Não implementada; fica como alternativa se a fila de aprovação
+  passar a parar a ingestão com frequência. Exigiria uma coluna de teto e mudar `_niche_windows`.
+- **Alerta: já existe.** O watchdog distingue janela cheia por aprovação de deadlock real e avisa
+  no máximo 1 vez por dia (`download_window_waiting_approval`, branch
+  `fix/watchdog-janela-cheia-por-aprovacao`). O TTL de 48h rejeita o que ninguém decidir, e a
+  rejeição/falha dispara `_maybe_finalize_source_video`, que libera a vaga.
+
+Mudança de código: nenhuma na ocupação. Entrou `tests/test_janela_ocupacao.py`, que trava a regra
+(a consulta de ocupação conta `pending`) para ninguém "consertar" isso sem ler este item.
+**Alternativa pendente, só no painel:** mostrar na tela da janela um selo "N clips aguardando
+aprovação seguram vagas" — melhoria de visibilidade, não de lógica.
