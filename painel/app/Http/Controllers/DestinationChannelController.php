@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\LongFormatMode;
 use App\Models\DestinationChannel;
 use App\Models\Niche;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,6 +25,7 @@ class DestinationChannelController extends Controller
                 'youtubeChannelId' => $c->youtube_channel_id,
                 'creditTemplate' => $c->credit_template,
                 'templateConfig' => $c->effective_template_config,
+                'longFormatMode' => $c->long_format_mode->value,
                 'active' => $c->active,
                 'oauthStatus' => $c->oauth_status,
                 'hasWatermark' => Storage::disk('branding')->exists("watermark-{$c->slug}.png"),
@@ -43,6 +46,7 @@ class DestinationChannelController extends Controller
             'youtube_channel_id' => ['required', 'string', 'unique:destination_channels,youtube_channel_id'],
             'credit_template' => ['sometimes', 'nullable', 'string'],
             'template_config' => ['sometimes', 'nullable'],
+            'long_format_mode' => ['sometimes', Rule::enum(LongFormatMode::class)],
             'active' => ['sometimes', 'boolean'],
         ]);
 
@@ -64,6 +68,7 @@ class DestinationChannelController extends Controller
             'youtube_channel_id' => ['sometimes', 'string', 'unique:destination_channels,youtube_channel_id,'.$destinationChannel->id],
             'credit_template' => ['sometimes', 'nullable', 'string'],
             'template_config' => ['sometimes', 'nullable'],
+            'long_format_mode' => ['sometimes', Rule::enum(LongFormatMode::class)],
             'active' => ['sometimes', 'boolean'],
         ]);
 
