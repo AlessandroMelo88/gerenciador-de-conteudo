@@ -1,6 +1,6 @@
 # Plano — vídeo longo automático, escolhido por canal
 
-**Status:** plano escrito em 01/10/2026, nada implementado.
+**Status:** plano escrito em 01/10/2026, decisões do dono para o futebol registradas no mesmo dia; nada implementado.
 **Origem:** PR #1 do Ricardo (`release/rico`) fazia todo vídeo gerar Shorts **e** longo, sem chave para
 desligar. Recusado como está; o dono quer decidir **por canal destino**, nas configurações do canal.
 
@@ -86,10 +86,67 @@ conjuntos de clips da mesma fonte. Caminho sugerido:
 7. **Rollout:** deploy com tudo em `auto`; depois ligar **um** canal, observar render, disco, cota e
    fila por alguns dias antes de ligar o segundo.
 
+## Decisões do dono (01/10/2026)
+
+- **Futebol é o primeiro canal a ligar `both` (Shorts + longo).** É o teste do plano.
+- **Mistura do dia: até 10 uploads, 6 Shorts + 4 longos.** Shorts levam mais volume, mas o dono quer
+  longos no mix para comparar visualização.
+- **Diversificar a origem:** os 10 do dia devem vir de **canais-fonte diferentes**, sem um canal
+  dominar a fila.
+- **Medir o que dá mais visualização** (por formato e por canal-fonte) em vez de decidir no escuro.
+- Contexto: o canal tomou um **strike** e as visualizações ainda não voltaram ao normal (~10 dias).
+
+## O que isso exige no código (verificado em 01/10/2026)
+
+| Necessidade | Hoje | O que muda |
+|---|---|---|
+| 10 uploads/dia | `ABSOLUTE_MAX_UPLOADS_PER_DAY = 6` em `quota_manager.py` é **teto fixo**; `MAX_UPLOADS_PER_DAY` padrão 2 | Subir o teto absoluto (configurável por ambiente) e a cota do canal |
+| 4 longos + 6 Shorts | Só existe teto de longo (`MAX_LONGO_UPLOADS_PER_DAY`, padrão 2) e reserva de vaga quando há longo na fila; **não há teto de Shorts** | Cota por formato: `curto` e `longo` somando no máximo o total |
+| Janelas de horário | 12h–14h e 19h–22h (BRT), `LONG_UPLOAD_HOURS` para o longo | Conferir se 10 uploads cabem nessas janelas sem empilhar tudo no mesmo minuto |
+| Origens diferentes | A janela de **download** já limita 2 por canal-fonte; a **publicação** não diversifica | Na escolha do próximo clip a publicar, preferir o canal-fonte com menos uploads no dia |
+| Ver visualização | O sistema **não coleta views**; só guarda `youtube_video_id` do que publicou | Nova coleta (abaixo) |
+
+### Coleta de métrica (nova)
+
+Um job periódico lê as views dos clips publicados na API do YouTube (`videos.list`, parte `statistics`,
+50 ids por chamada, custo mínimo de cota) e grava um histórico: `clip_metrics(clip_id, coletado_em,
+views, likes, comentarios)`. Com o clip já ligado a `format` e ao canal-fonte, dá para mostrar no painel:
+
+- views médias por **formato** (Short × longo) nas primeiras 24 h e 7 dias;
+- views médias por **canal-fonte**;
+- o que nunca passou de algumas dezenas de views.
+
+Depois, o resultado alimenta a prioridade do canal-fonte (`SISTEMA-FRESCOR-E-PRIORIDADE.md` já tem
+prioridade por canal-fonte): canal que rende mais ganha mais vaga. Primeiro só **mostrar**; usar para
+decidir fica para depois de ter dados.
+
+## Cuidado com o strike
+
+O canal está penalizado e com alcance baixo há ~10 dias. Passar de poucos uploads para 10 por dia de
+uma vez muda muito o comportamento do canal e dá pouco sinal sobre o que causou a queda (o strike, o
+volume ou o conteúdo). Sugestão, decisão do dono:
+
+1. **Rampa:** começar em ~6/dia (4 Shorts + 2 longos), subir para 10 depois de 1 a 2 semanas estáveis.
+2. **Só fontes de baixo risco** de direitos autorais (política do projeto desde 14/09/2026); longo
+   contínuo de 7 a 20 min de fonte alheia é o formato de maior exposição.
+3. Medir **antes** de subir: sem a coleta de métrica não há como saber se a rampa ajuda ou piora.
+
+## Etapas (ordem revista)
+
+1. Migration `long_format_mode` + campo no painel (padrão `auto`, nada muda).
+2. **Coleta de métrica** e tela simples de views por formato e por canal-fonte (valor imediato, zero
+   risco para o pipeline).
+3. Cota por formato (6 + 4) com teto absoluto configurável; diversificação por canal-fonte na publicação.
+4. Modo `both` no seletor (duas seleções por fonte) ligado **só no futebol**.
+5. Rollout em rampa (acima), olhando a métrica a cada passo.
+
+Etapas 1 e 2 independem do risco de aumentar volume e podem entrar primeiro.
+
 ## Decisões em aberto (do dono)
 
-- Qual canal liga `both` primeiro?
-- O canal de futebol deve ficar em `auto` ou ir para `short_only`?
+- Rampa (começar em 6) ou ir direto a 10?
 - Teto de longos pendentes de aprovação por canal?
+- Qual o critério de "canal-fonte diferente": no máximo N por canal-fonte ao dia (qual N?) ou só
+  revezar?
 
 Antes de codar: spec curta em `Docs/specs/` (skill `padroes-projeto`), branch `feature/longo-por-canal`.
