@@ -1,6 +1,6 @@
 # Estado do projeto — leia primeiro
 
-**Última atualização:** 30/09/2026
+**Última atualização:** 01/10/2026
 **Produção:** commit `ace7714`, no ar em https://toolscut.alessandromelo.com.br
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
@@ -27,7 +27,7 @@ nova; o esforço agora é receita por afiliados e conteúdo próprio.
    oferta de verdade e validar o caminho inteiro: aprovar, copiar o link rastreável, conferir o clique.
 2. **Canais do Telegram** criados e com o bot como administrador, para a divulgação automática.
 3. **Domínio Umbrella Solutions**: DNS, vhost, certificado e logo. O tema já troca pelo host.
-4. **Bugs 11 e 4** (SIGTERM e estados sem recuperação), que ainda prendem vaga da janela.
+4. **Deploy das correções dos bugs 11, 4 e 17** (prontas, falta push + rebuild do `clip-processor`).
 5. Cursos e produto próprio.
 
 **Fora de escopo por enquanto:** separar as contas Google dos dois canais (decidido adiar em
@@ -109,9 +109,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Integração da branch do Ricardo (`release/rico`) | 30/09 | Lotes 1–9 na `master` e em produção. Fora: Hacker Libertário (não é do dono), stage workers, captions via API interna, seletor com janelas distribuídas, painel de perfis por canal destino. PR #1 dele ainda aberta no GitHub (responder/fechar). Não trazer compose, `composer.lock`, docs nem defaults de publicação dele |
 | Token do Telegram no histórico público (`.planning/.../09-01-PLAN.md`, commit `614092d`) | Comparação 29/09 | **Rotacionar no BotFather** (passo do operador), depois remover o arquivo |
 | Transcrição de aula Hotmart (HLS, só áudio) | 30/09 | Código em `feature/transcricao-audio-hls-extensao`, sem merge/deploy e **sem teste real no Hotmart**. Falta: recarregar a extensão (v1.1.0), reiniciar o worker e testar numa aula (ver `Docs/sistema/SISTEMA-TRANSCRICAO.md`) |
-| Bug 11 — container não honra SIGTERM | `BUGS.md` | Aberto; gera estado preso a cada restart |
-| Bug 4 — `cutting` e `publishing` sem recuperação | `BUGS.md` | Parcial; `selecting` já tem |
-| Bug 17 — vaga presa por clip aguardando aprovação | `BUGS.md` | Parcial; caso "todos rejeitados" resolvido |
+| Bugs 11, 4 e 17 (SIGTERM, recuperação de `cutting`/`publishing`/`transcribing`, vaga presa por aprovação) | `BUGS.md` | **Corrigidos em 01/10/2026, sem deploy.** Falta `git push` + `./deploy.sh` (rebuild do `clip-processor`) e conferir `docker stop` com exit 0. Bug 17 foi decisão: `pending` continua contando na janela (proteção de disco, bug 12); teto separado fica como alternativa de produto |
 | Bug 10 — 287 `clip_path` sem arquivo | `BUGS.md` | Aberto (número não reconferido após a migração) |
 | Bug 6 — painel não apaga backlog de download | `BUGS.md` | Aberto |
 | Monitor do Better Stack por palavra-chave | Incidente 18/09 | Sugerido, não feito |
