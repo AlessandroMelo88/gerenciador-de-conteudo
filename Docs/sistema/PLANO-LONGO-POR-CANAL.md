@@ -1,6 +1,6 @@
 # Plano — vídeo longo automático, escolhido por canal
 
-**Status:** plano escrito em 01/10/2026, decisões do dono para o futebol registradas no mesmo dia; nada implementado.
+**Status:** plano escrito em 01/10/2026, decisões do dono para o futebol e respostas (rampa 6, revezar origem, teto de longos) registradas no mesmo dia; nada implementado.
 **Origem:** PR #1 do Ricardo (`release/rico`) fazia todo vídeo gerar Shorts **e** longo, sem chave para
 desligar. Recusado como está; o dono quer decidir **por canal destino**, nas configurações do canal.
 
@@ -142,11 +142,32 @@ volume ou o conteúdo). Sugestão, decisão do dono:
 
 Etapas 1 e 2 independem do risco de aumentar volume e podem entrar primeiro.
 
+## Decisões fechadas (01/10/2026)
+
+- **Rampa:** começar em **6 uploads/dia** (4 Shorts + 2 longos) e só subir para 10 depois de 1 a 2 semanas
+  estáveis, olhando a métrica.
+- **Teto de longos aguardando aprovação por canal:** aprovado (valor inicial sugerido: **4**, igual à
+  meta diária de longos; ajustar com o uso).
+- **Diversidade de origem:** **só revezar** entre canais-fonte (sem limite fixo por canal-fonte por dia):
+  a cada vaga, vai o clip do canal-fonte que publicou há mais tempo.
+- **Janela de download não muda por causa deste plano.** Ela conta **vídeos-fonte** (10 por canal destino),
+  não clips; o longo e os Shorts da mesma fonte saem do mesmo arquivo e gastam **uma** vaga. Ver
+  `Docs/mapas/ideias/longo-e-short-da-mesma-fonte.excalidraw` (mapa visual).
+
+## Disco: o que realmente limita (medido em 01/10/2026)
+
+- A1: `/mnt/videos` com 147 GB, **3,9 GB usados** (3 %); 308 arquivos em `videos/`.
+- Com um terceiro canal destino a janela vira 30 vídeos-fonte (3 × 10): o raw é o que pesa e cabe com
+  folga. O que encheu o disco no passado foi **fila sem teto** (bug 12) e raw preso, não o tamanho da janela.
+- Para crescer sem encher: (1) manter o teto de vídeos-fonte por canal; (2) manter o teto por canal-fonte
+  (hoje 2) — é o que reparte a janela; (3) idear **apagar o raw assim que todos os cortes da fonte
+  estiverem prontos**, em vez de esperar a aprovação (hoje clip em aprovação segura o raw). Isso só
+  vale se nada depois precisar do raw (re-render, censura de palavrão: ver
+  `PLANO-REVISAO-DE-PALAVRAO.md`); decidir antes de mudar.
+
 ## Decisões em aberto (do dono)
 
-- Rampa (começar em 6) ou ir direto a 10?
-- Teto de longos pendentes de aprovação por canal?
-- Qual o critério de "canal-fonte diferente": no máximo N por canal-fonte ao dia (qual N?) ou só
-  revezar?
+- Nenhuma para a etapa 1 e 2. Para a etapa 4 (modo `both`): confirmar o canal-fonte de teste e a data de
+  início da rampa.
 
 Antes de codar: spec curta em `Docs/specs/` (skill `padroes-projeto`), branch `feature/longo-por-canal`.
