@@ -1,6 +1,6 @@
 # Sistema — `painel/`
 
-Referência de rotas, controllers e páginas. Visão conceitual em [`../ARCHITECTURE.md`](../ARCHITECTURE.md) seções 3 e 7.
+Referência de rotas, controllers e páginas. Visão conceitual em [`../ARCHITECTURE.md`](../../ARCHITECTURE.md) seções 3 e 7.
 O lado Python da fronteira está em [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md).
 
 Última atualização: **13/08/2026**

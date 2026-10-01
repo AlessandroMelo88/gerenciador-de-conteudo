@@ -104,7 +104,7 @@ def run_remote_sql(query: str) -> str:
 
     A senha é resolvida **dentro do servidor**, lendo o `.env` no próprio comando remoto.
     Até 16/09/2026 ela estava escrita neste arquivo, que é versionado num repositório público
-    (bug 16 em Docs/sistema/BUGS.md). Resolver no destino é melhor do que só tirar daqui: o
+    (bug 16 em Docs/operacao/BUGS.md). Resolver no destino é melhor do que só tirar daqui: o
     segredo não trafega, não fica em memória do cliente e não aparece em `ps` na máquina local.
     """
     remote = (

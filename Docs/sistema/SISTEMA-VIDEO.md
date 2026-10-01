@@ -1,7 +1,7 @@
 # Corte e pós-produção de vídeo
 
 Tudo que o FFmpeg faz: cortar, legendar, marcar e gerar thumbnail. Módulo único,
-[`video_processor.py`](../clip-processor/src/video_processor.py).
+[`video_processor.py`](../../clip-processor/src/video_processor.py).
 
 A **escolha** dos trechos é assunto de [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md); aqui o
 `start_time`/`end_time` já vem decidido no banco.
@@ -12,28 +12,28 @@ Verificado no código em **13/08/2026**.
 
 ## `process_clip` — o orquestrador
 
-[`video_processor.py:188`](../clip-processor/src/video_processor.py#L188). Roda por clip em
+[`video_processor.py:188`](../../clip-processor/src/video_processor.py#L188). Roda por clip em
 `pending_cut`, disparado por `_process_pending_clips`
-([`rss_poller.py:158`](../clip-processor/src/rss_poller.py#L158)) — que só pega clips cujo vídeo fonte
+([`rss_poller.py:158`](../../clip-processor/src/rss_poller.py#L158)) — que só pega clips cujo vídeo fonte
 tem `paused = 0`.
 
 | # | Etapa | Função | Saída |
 |---|---|---|---|
-| 0 | marca `cutting` | [`:200`](../clip-processor/src/video_processor.py#L200) | — |
-| 1 | corta o trecho | `cut_clip` [`:34`](../clip-processor/src/video_processor.py#L34) | `clips/<id>_raw.mp4` |
-| 2 | gera legenda | `generate_srt` [`:72`](../clip-processor/src/video_processor.py#L72) | `clips/<id>.srt` |
-| 3 | queima legenda | `burn_subtitles` [`:99`](../clip-processor/src/video_processor.py#L99) | `clips/<id>_subtitled.mp4` |
-| 4 | marca d'água | `overlay_watermark` [`:158`](../clip-processor/src/video_processor.py#L158) | `clips/<id>.mp4` |
-| 5 | thumbnail | `extract_thumbnail` [`:137`](../clip-processor/src/video_processor.py#L137) | `thumbnails/<id>.jpg` |
-| 6 | grava `clip_path`/`thumbnail_path` | [`:235`](../clip-processor/src/video_processor.py#L235) | — |
-| 7 | gera título/descrição/tags | `generate_metadata` [`:244`](../clip-processor/src/video_processor.py#L244) | — |
-| 8 | marca `pending` | [`:246`](../clip-processor/src/video_processor.py#L246) | — |
+| 0 | marca `cutting` | [`:200`](../../clip-processor/src/video_processor.py#L200) | — |
+| 1 | corta o trecho | `cut_clip` [`:34`](../../clip-processor/src/video_processor.py#L34) | `clips/<id>_raw.mp4` |
+| 2 | gera legenda | `generate_srt` [`:72`](../../clip-processor/src/video_processor.py#L72) | `clips/<id>.srt` |
+| 3 | queima legenda | `burn_subtitles` [`:99`](../../clip-processor/src/video_processor.py#L99) | `clips/<id>_subtitled.mp4` |
+| 4 | marca d'água | `overlay_watermark` [`:158`](../../clip-processor/src/video_processor.py#L158) | `clips/<id>.mp4` |
+| 5 | thumbnail | `extract_thumbnail` [`:137`](../../clip-processor/src/video_processor.py#L137) | `thumbnails/<id>.jpg` |
+| 6 | grava `clip_path`/`thumbnail_path` | [`:235`](../../clip-processor/src/video_processor.py#L235) | — |
+| 7 | gera título/descrição/tags | `generate_metadata` [`:244`](../../clip-processor/src/video_processor.py#L244) | — |
+| 8 | marca `pending` | [`:246`](../../clip-processor/src/video_processor.py#L246) | — |
 
-Todo o corpo está num `try/except` único ([`:250`](../clip-processor/src/video_processor.py#L250)):
+Todo o corpo está num `try/except` único ([`:250`](../../clip-processor/src/video_processor.py#L250)):
 qualquer exceção ⇒ clip vira `failed` e a função retorna `False`. Não há retry, e não há limpeza dos
 intermediários nesse caminho.
 
-O transcript é lido do disco em [`:202`](../clip-processor/src/video_processor.py#L202) via
+O transcript é lido do disco em [`:202`](../../clip-processor/src/video_processor.py#L202) via
 `clip['transcript_path']`; se o arquivo não existir, o clip vai direto para `failed`.
 
 ---
@@ -58,12 +58,12 @@ relação ao `start_time` pedido.
 
 ## Legendas
 
-`generate_srt` ([`:72`](../clip-processor/src/video_processor.py#L72)) recorta os `segments` do
+`generate_srt` ([`:72`](../../clip-processor/src/video_processor.py#L72)) recorta os `segments` do
 transcript Whisper para a janela do clip e **rebaseia os timestamps em zero**
-([`:83-84`](../clip-processor/src/video_processor.py#L83)): segmento que atravessa a borda é
+([`:83-84`](../../clip-processor/src/video_processor.py#L83)): segmento que atravessa a borda é
 truncado, segmento fora da janela é descartado, texto vazio é ignorado.
 
-`burn_subtitles` ([`:99`](../clip-processor/src/video_processor.py#L99)) queima com o filtro
+`burn_subtitles` ([`:99`](../../clip-processor/src/video_processor.py#L99)) queima com o filtro
 `subtitles` do libass. Estilo, e o porquê de cada escolha:
 
 | Propriedade | Valor | Motivo (do próprio código) |
@@ -84,15 +84,15 @@ fonte deveria sair diferente do esperado em `longo`. Vale conferir num clip long
 
 ## Marca d'água
 
-`overlay_watermark` ([`:158`](../clip-processor/src/video_processor.py#L158)):
+`overlay_watermark` ([`:158`](../../clip-processor/src/video_processor.py#L158)):
 `-filter_complex overlay=W-w-20:20` — canto superior direito, margem de 20 px.
 
 O PNG vem de `/app/branding/watermark-<slug>.png`, onde `<slug>` é
-`destination_channels.slug` ([`:216-218`](../clip-processor/src/video_processor.py#L216)).
+`destination_channels.slug` ([`:216-218`](../../clip-processor/src/video_processor.py#L216)).
 O painel faz upload desses arquivos (`POST /painel/canais-destino/.../watermark`); o volume é
 montado **read-only** no `clip-processor` e read-write no `php`.
 
-Degradação graciosa em três caminhos ([`:215-230`](../clip-processor/src/video_processor.py#L215)):
+Degradação graciosa em três caminhos ([`:215-230`](../../clip-processor/src/video_processor.py#L215)):
 
 | Situação | O que acontece |
 |---|---|
@@ -106,13 +106,13 @@ Nos dois últimos casos o clip sai **sem marca d'água e sem erro** — nada no 
 
 ## Thumbnail
 
-`extract_thumbnail` ([`:137`](../clip-processor/src/video_processor.py#L137)): um frame, `-q:v 2`,
+`extract_thumbnail` ([`:137`](../../clip-processor/src/video_processor.py#L137)): um frame, `-q:v 2`,
 JPG. O `at_seconds` usado por `process_clip` é `duração / 2`
-([`:232-233`](../clip-processor/src/video_processor.py#L232)) — o meio do clip, não o início.
+([`:232-233`](../../clip-processor/src/video_processor.py#L232)) — o meio do clip, não o início.
 
 **Não há ramo por formato**: `curto` e `longo` geram thumbnail igual. Isso já foi verificado ao
 investigar a suspeita de thumbnail faltando nos longos — o defeito, se existir, está na aplicação via
-API do YouTube, não aqui. Ver [`BUGS.md`](BUGS.md) e
+API do YouTube, não aqui. Ver [`BUGS.md`](../operacao/BUGS.md) e
 [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md#thumbnail-sem-trycatch-próprio).
 
 ---
@@ -128,13 +128,13 @@ API do YouTube, não aqui. Ver [`BUGS.md`](BUGS.md) e
 | `<clip_id>.srt` | `videos/clips/` | **não** | **ninguém** |
 
 `_raw.mp4` e `_subtitled.mp4` passaram a ser apagados na finalização do vídeo fonte
-([`publisher.py:345-354`](../clip-processor/src/publisher.py#L345)) — antes ficavam para sempre e eram
+([`publisher.py:345-354`](../../clip-processor/src/publisher.py#L345)) — antes ficavam para sempre e eram
 o maior consumidor de disco do projeto. O `.srt` continua sem nenhuma rotina de limpeza (arquivo de
 texto, KB).
 
 **Nenhum desses auxiliares está em coluna do banco.** Cruzar disco × banco por **nome de arquivo**
 classifica `.srt` e `_raw.mp4` como órfãos e apaga arquivo de clip vivo — filtrar pelo **id**
-(prefixo numérico antes de `.` ou `_`). Regra 3 do [`../CLAUDE.md`](../CLAUDE.md).
+(prefixo numérico antes de `.` ou `_`). Regra 3 do [`../CLAUDE.md`](../../CLAUDE.md).
 
 ### Buraco que sobra
 
@@ -146,13 +146,13 @@ os alcança se algum **outro** clip do mesmo vídeo chegar a publicar. Se nenhum
 
 ## Metadata do clip
 
-`generate_metadata` ([`metadata_generator.py:124`](../clip-processor/src/metadata_generator.py#L124)),
+`generate_metadata` ([`metadata_generator.py:124`](../../clip-processor/src/metadata_generator.py#L124)),
 chamado no passo 7. Ordem de tentativa, corrigida em 27/07/2026:
 
 | Ordem | Caminho | Modelo |
 |---|---|---|
-| 1 | Anthropic | `claude-haiku-4-5` ([`:97`](../clip-processor/src/metadata_generator.py#L97)) |
-| 2 | Groq | `llama-3.3-70b-versatile` ([`:112`](../clip-processor/src/metadata_generator.py#L112)) |
+| 1 | Anthropic | `claude-haiku-4-5` ([`:97`](../../clip-processor/src/metadata_generator.py#L97)) |
+| 2 | Groq | `llama-3.3-70b-versatile` ([`:112`](../../clip-processor/src/metadata_generator.py#L112)) |
 | 3 | determinístico | título = título bruto do vídeo original |
 
 **`ANTHROPIC_API_KEY` está vazia na operação normal**, então o caminho 1 sempre levanta e quem gera a
@@ -163,18 +163,18 @@ até 3 momentos por vídeo, os 3 clips saíam com título idêntico — parecia 
 aprovação, mas eram trechos diferentes do mesmo vídeo.
 
 Créditos ao canal fonte são anexados **no momento da publicação**, não aqui: `append_credits`
-([`:152`](../clip-processor/src/metadata_generator.py#L152)) e `resolve_credit_handle`
-([`:164`](../clip-processor/src/metadata_generator.py#L164)) são chamados pelo publisher
-([`publisher.py:69-76`](../clip-processor/src/publisher.py#L69)) usando
+([`:152`](../../clip-processor/src/metadata_generator.py#L152)) e `resolve_credit_handle`
+([`:164`](../../clip-processor/src/metadata_generator.py#L164)) são chamados pelo publisher
+([`publisher.py:69-76`](../../clip-processor/src/publisher.py#L69)) usando
 `destination_channels.credit_template`.
 
 ---
 
 ## Abortar um corte em andamento
 
-`pause_video` ([`queue_controls.py:34`](../clip-processor/src/queue_controls.py#L34)) mata o ffmpeg do
-clip (`pkill -f 'ffmpeg.*clips/<id>'`, [`:200`](../clip-processor/src/queue_controls.py#L200)) e
-devolve o clip de `cutting` para `pending_cut` ([`:82`](../clip-processor/src/queue_controls.py#L82)).
+`pause_video` ([`queue_controls.py:34`](../../clip-processor/src/queue_controls.py#L34)) mata o ffmpeg do
+clip (`pkill -f 'ffmpeg.*clips/<id>'`, [`:200`](../../clip-processor/src/queue_controls.py#L200)) e
+devolve o clip de `cutting` para `pending_cut` ([`:82`](../../clip-processor/src/queue_controls.py#L82)).
 Os intermediários do corte abortado **não** são limpos.
 
 ---

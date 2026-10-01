@@ -27,8 +27,8 @@ horizontal de 7 a 20 min).
 |---|---|
 | [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) | Arquitetura as-built: topologia dos containers, a fronteira painel ↔ pipeline, decisões e dívida técnica. **Primeira leitura de quem chega agora** |
 | [`../../CLAUDE.md`](../../CLAUDE.md) | As 7 regras de operação destrutiva e os incidentes que as geraram. **Ler antes de apagar qualquer coisa** |
-| [`RUNBOOK.md`](RUNBOOK.md) | Comandos do dia a dia: está de pé? por que parou? como reiniciar sem travar clip? como limpar disco em duas etapas? |
-| [`BUGS.md`](BUGS.md) | Backlog com status FEITO / PARCIAL / ABERTO / SUSPEITA, evidência e onde corrigir |
+| [`RUNBOOK.md`](../operacao/RUNBOOK.md) | Comandos do dia a dia: está de pé? por que parou? como reiniciar sem travar clip? como limpar disco em duas etapas? |
+| [`BUGS.md`](../operacao/BUGS.md) | Backlog com status FEITO / PARCIAL / ABERTO / SUSPEITA, evidência e onde corrigir |
 
 ### Como o sistema funciona, por subsistema
 
@@ -45,7 +45,7 @@ horizontal de 7 a 20 min).
 | [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | As 10 rotas do sidecar HTTP 8090, auth fail-closed, controles de fila (pause/resume/reorder/prioritize), rejeição de clip, eventos para o Telegram |
 | [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, **suporte híbrido a MySQL e PostgreSQL**, comandos de backup (`db:backup`) e recuperação (`db:restore`) |
 | [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | Índice módulo a módulo do daemon (21 módulos), padrões comuns de código, o que o Redis guarda, tabela de env vars |
-| [`ESTRATEGIA-YOUTUBE-E-BENCHMARK.md`](ESTRATEGIA-YOUTUBE-E-BENCHMARK.md) | Estratégia de conteúdo, diagnóstico do YouTube Studio (CTR/Retenção), Benchmark de concorrentes e modelo de cortes de Política (MBL/Missão) |
+| [`ESTRATEGIA-YOUTUBE-E-BENCHMARK.md`](../estudos/ESTRATEGIA-YOUTUBE-E-BENCHMARK.md) | Estratégia de conteúdo, diagnóstico do YouTube Studio (CTR/Retenção), Benchmark de concorrentes e modelo de cortes de Política (MBL/Missão) |
 | [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | Rotas, controllers e páginas do Laravel/Inertia; **Assistente IA (LLaMA 3.3)**, **Channel Template Studio (9:16)**, **Preview de Clipes** e **Links Úteis** |
 | [`SISTEMA-ALERTAS-E-MONITORAMENTO.md`](SISTEMA-ALERTAS-E-MONITORAMENTO.md) | Observabilidade em 3 camadas: Better Stack (uptime/heartbeats), Sentry (crashes), Watchdog proativo (`watchdog.py`, auto-cura de deadlocks e clipes fantasmas) e alertas via Telegram e Email |
 
@@ -54,16 +54,16 @@ horizontal de 7 a 20 min).
 | Documento | Responde |
 |---|---|
 | [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md) | Ofertas de afiliado: `affiliate-worker` local que empurra ofertas, `POST /api/offers` com token fail-closed, tela Ofertas, redirect rastreável `/o/{slug}` com clique sem IP cru |
-| [`PLANO-MESTRE.md`](PLANO-MESTRE.md) | **Ponto de retomada.** Advertência de direitos autorais de 14/09/2026, gate de licença em `source_channels`, migração A1 12 GB + PostgreSQL, marca Umbrella Solutions, plano de afiliados, ordem de execução e decisões registradas |
-| [`PLANO-ORACLE.md`](PLANO-ORACLE.md) | Migração para Oracle Cloud Always Free: decisão, como o custo zero é garantido, riscos e checklist por fase |
+| [`PLANO-MESTRE.md`](../planos/PLANO-MESTRE.md) | **Ponto de retomada.** Advertência de direitos autorais de 14/09/2026, gate de licença em `source_channels`, migração A1 12 GB + PostgreSQL, marca Umbrella Solutions, plano de afiliados, ordem de execução e decisões registradas |
+| [`PLANO-ORACLE.md`](../historico/PLANO-ORACLE.md) | Migração para Oracle Cloud Always Free: decisão, como o custo zero é garantido, riscos e checklist por fase |
 
 ### Planos (nada implementado)
 
 | Documento | Responde |
 |---|---|
-| [`PLANO-PROMPTS-EDITAVEIS.md`](PLANO-PROMPTS-EDITAVEIS.md) | Como tornar os prompts de seleção editáveis pelo painel, sem editar Python e sem rebuild, com métricas para comparar versões |
-| [`PLANO-REVISAO-DE-PALAVRAO.md`](PLANO-REVISAO-DE-PALAVRAO.md) | Ideia (não implementada): lista de palavrões com minutagem na aprovação, escolha por clip de publicar com ou sem palavrão, áudio censurado e palavra mantida na legenda |
-| [`PLANO-LONGO-POR-CANAL.md`](PLANO-LONGO-POR-CANAL.md) | Plano (não implementado): seletor por canal destino com três modos (automático, só Shorts, Shorts + longo); padrão não muda nada em produção |
+| [`PLANO-PROMPTS-EDITAVEIS.md`](../planos/PLANO-PROMPTS-EDITAVEIS.md) | Como tornar os prompts de seleção editáveis pelo painel, sem editar Python e sem rebuild, com métricas para comparar versões |
+| [`PLANO-REVISAO-DE-PALAVRAO.md`](../planos/PLANO-REVISAO-DE-PALAVRAO.md) | Ideia (não implementada): lista de palavrões com minutagem na aprovação, escolha por clip de publicar com ou sem palavrão, áudio censurado e palavra mantida na legenda |
+| [`PLANO-LONGO-POR-CANAL.md`](../planos/PLANO-LONGO-POR-CANAL.md) | Plano (não implementado): seletor por canal destino com três modos (automático, só Shorts, Shorts + longo); padrão não muda nada em produção |
 
 
 `.planning/` é do fluxo GSD (roadmap por fase) e **não** é fonte de verdade do estado atual.
@@ -91,7 +91,7 @@ instâncias fora do novo limite a partir de **18/08/2026**. Se já existe instâ
 shape antes dessa data — e **redimensionar, nunca terminar**.
 
 **Bugs:** 4 corrigidos, 1 parcial, 5 abertos, 1 suspeita. Detalhe e prioridade em
-[`BUGS.md`](BUGS.md).
+[`BUGS.md`](../operacao/BUGS.md).
 
 ### Corrigido em 12–13/08/2026
 
@@ -109,7 +109,7 @@ shape antes dessa data — e **redimensionar, nunca terminar**.
    fica preso para sempre e segura arquivo em disco (bug 4).
 2. **O container não honra SIGTERM:** todo `docker stop` termina em `Exited (137)` / SIGKILL porque o
    `BlockingScheduler` não retorna do `shutdown` (bug 11). Junto com o item 1, cada restart pode criar
-   um estado preso novo. Por isso o [`RUNBOOK.md`](RUNBOOK.md#reiniciar-o-clip-processor-com-segurança)
+   um estado preso novo. Por isso o [`RUNBOOK.md`](../operacao/RUNBOOK.md#reiniciar-o-clip-processor-com-segurança)
    manda conferir o que está em trânsito antes de parar o container.
 
 ---

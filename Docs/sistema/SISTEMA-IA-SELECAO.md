@@ -3,8 +3,8 @@
 Como o pipeline decide **quais trechos** de um vídeo viram clip. Qual modelo faz isso, com que
 prompt, com que regras de duração, e onde mexer.
 
-Código-fonte único desta decisão: [`clip-processor/src/selector.py`](../clip-processor/src/selector.py).
-Módulo irmão, mesmo subsistema de IA: [`clip-processor/src/metadata_generator.py`](../clip-processor/src/metadata_generator.py).
+Código-fonte único desta decisão: [`clip-processor/src/selector.py`](../../clip-processor/src/selector.py).
+Módulo irmão, mesmo subsistema de IA: [`clip-processor/src/metadata_generator.py`](../../clip-processor/src/metadata_generator.py).
 
 Estado as-built em **13/08/2026**. Para o mapa geral do daemon, ver [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md).
 
@@ -25,13 +25,13 @@ Quando este documento diz "Groq", é a empresa de inferência rodando **LLaMA 3.
 
 ### Cadeia de fallback
 
-`select_moments()` ([`selector.py:188`](../clip-processor/src/selector.py#L188)) tenta providers em ordem:
+`select_moments()` ([`selector.py:188`](../../clip-processor/src/selector.py#L188)) tenta providers em ordem:
 
 | # | Provider | Modelo | Onde a key é lida | Condição |
 |---|---|---|---|---|
-| 1 | Anthropic | `claude-haiku-4-5` | `os.environ['ANTHROPIC_API_KEY']` — [`selector.py:249`](../clip-processor/src/selector.py#L249) | Só tenta se a env existir e não estiver vazia (`.strip()`) |
-| 2 | Groq | `llama-3.3-70b-versatile` | `GROQ_API_KEY`, lida implicitamente pelo SDK em `Groq()` — [`selector.py:107`](../clip-processor/src/selector.py#L107) | Fallback: usado se (1) não tiver key **ou** levantar exceção |
-| 3 | — | nenhum | — | Se o Groq também falhar, retorna `[]` — [`selector.py:265`](../clip-processor/src/selector.py#L265) |
+| 1 | Anthropic | `claude-haiku-4-5` | `os.environ['ANTHROPIC_API_KEY']` — [`selector.py:249`](../../clip-processor/src/selector.py#L249) | Só tenta se a env existir e não estiver vazia (`.strip()`) |
+| 2 | Groq | `llama-3.3-70b-versatile` | `GROQ_API_KEY`, lida implicitamente pelo SDK em `Groq()` — [`selector.py:107`](../../clip-processor/src/selector.py#L107) | Fallback: usado se (1) não tiver key **ou** levantar exceção |
+| 3 | — | nenhum | — | Se o Groq também falhar, retorna `[]` — [`selector.py:265`](../../clip-processor/src/selector.py#L265) |
 
 **Quem responde hoje, em produção:** `ANTHROPIC_API_KEY` está **vazia** no container (len=0) e
 `GROQ_API_KEY` está preenchida (len=56). Logo, **100% das seleções hoje saem do Groq LLaMA 3.3-70b**.
@@ -45,11 +45,11 @@ No log isso aparece como:
 ```
 
 Se a key da Anthropic fosse preenchida e falhasse (crédito zerado, rede), a linha seria
-`[SELECTOR] Anthropic indisponível (<erro>) — fallback para Groq` ([`selector.py:258`](../clip-processor/src/selector.py#L258)).
+`[SELECTOR] Anthropic indisponível (<erro>) — fallback para Groq` ([`selector.py:258`](../../clip-processor/src/selector.py#L258)).
 
 ### Parâmetros da chamada Groq
 
-[`selector.py:109-118`](../clip-processor/src/selector.py#L109)
+[`selector.py:109-118`](../../clip-processor/src/selector.py#L109)
 
 | Parâmetro | Valor | Efeito |
 |---|---|---|
@@ -71,9 +71,9 @@ truncamento de 8000 chars deixaria de ser necessário e passaria a ser desperdí
 
 ### Mesmo subsistema: geração de título
 
-`metadata_generator.generate_metadata()` ([`metadata_generator.py:124`](../clip-processor/src/metadata_generator.py#L124))
+`metadata_generator.generate_metadata()` ([`metadata_generator.py:124`](../../clip-processor/src/metadata_generator.py#L124))
 tem a **mesma cadeia**: Anthropic → Groq → fallback burro. O fallback final aqui é
-`title = título bruto do vídeo original` ([`metadata_generator.py:145`](../clip-processor/src/metadata_generator.py#L145)).
+`title = título bruto do vídeo original` ([`metadata_generator.py:145`](../../clip-processor/src/metadata_generator.py#L145)).
 
 Isso é o bug corrigido em **27/07/2026**: antes, `metadata_generator.py` **não tinha** o degrau Groq.
 Com `ANTHROPIC_API_KEY` vazia (que é a config normal de operação), toda geração caía no fallback burro
@@ -89,7 +89,7 @@ Copiados literalmente do código. São o que efetivamente vai no campo `system` 
 
 ### `SYSTEM_PROMPT` — formato **curto** (shorts)
 
-[`selector.py:15-32`](../clip-processor/src/selector.py#L15) · **reescrito em 13/08/2026**
+[`selector.py:15-32`](../../clip-processor/src/selector.py#L15) · **reescrito em 13/08/2026**
 
 ```text
 Você é um especialista em identificar momentos virais de vídeos de futebol e podcasts esportivos.
@@ -112,7 +112,7 @@ Responda APENAS com JSON válido, sem texto adicional:
 
 ### `LONG_SYSTEM_PROMPT` — formato **longo** (vídeo horizontal)
 
-[`selector.py:38-53`](../clip-processor/src/selector.py#L38)
+[`selector.py:38-53`](../../clip-processor/src/selector.py#L38)
 
 ```text
 Você é um especialista em identificar o melhor segmento de ANÁLISE ou ENTREVISTA longa
@@ -131,13 +131,13 @@ Responda APENAS com JSON válido, sem texto adicional:
 {"moments": [{"start_time": <number>, "end_time": <number>, "score": <number>, "reason": "<string>"}]}
 ```
 
-**Por que dois prompts e não um com parâmetro:** comentário em [`selector.py:34-37`](../clip-processor/src/selector.py#L34)
+**Por que dois prompts e não um com parâmetro:** comentário em [`selector.py:34-37`](../../clip-processor/src/selector.py#L34)
 — testado com Groq LLaMA 3.3-70b, o modelo **ignora** instruções de duração longa quando elas
 convivem no mesmo prompt com o pedido de "múltiplos momentos curtos". Separar foi o que fez o modo
 longo funcionar.
 
 O prompt de **metadados** (título/descrição/tags) é um terceiro, curto, em
-[`metadata_generator.py:18-24`](../clip-processor/src/metadata_generator.py#L18) — não influencia a
+[`metadata_generator.py:18-24`](../../clip-processor/src/metadata_generator.py#L18) — não influencia a
 escolha do trecho, só o texto que acompanha o upload.
 
 ---
@@ -180,7 +180,7 @@ Saíram do `SYSTEM_PROMPT` curto:
 O ponto: mudar só `MIN_SHORTFORM_SECONDS` de 15 para 30 **não resolveria**. O modelo entregaria
 trechos de exatamente 30s picados, só para bater a régua, ainda sem assunto. A frase
 `ASSUNTO COMPLETO` é o que muda o comportamento; a constante é só o filtro. Comentário registrado no
-código em [`selector.py:55-57`](../clip-processor/src/selector.py#L55).
+código em [`selector.py:55-57`](../../clip-processor/src/selector.py#L55).
 
 ### Formato LONGO — critérios de conteúdo
 
@@ -213,24 +213,24 @@ código em [`selector.py:55-57`](../clip-processor/src/selector.py#L55).
 
 ## 4. Regras de duração
 
-Quatro constantes, [`selector.py:58-62`](../clip-processor/src/selector.py#L58):
+Quatro constantes, [`selector.py:58-62`](../../clip-processor/src/selector.py#L58):
 
 | Constante | Valor atual | Linha | Significado |
 |---|---|---|---|
-| `MIN_SHORTFORM_SECONDS` | **30** (era 15 até 13/08/2026) | [`:58`](../clip-processor/src/selector.py#L58) | Alvo do curto. De 15 s a 30 s o momento é **esticado** até bater 30 s; abaixo de 15 s é **descartado** |
-| `MAX_SHORTFORM_SECONDS` | **180** | [`:59`](../clip-processor/src/selector.py#L59) | Teto do curto (limite do Shorts). Acima disso o `end_time` é **cortado no teto**, não descartado |
-| `MIN_LONGFORM_SECONDS` | **420** | [`:61`](../clip-processor/src/selector.py#L61) | Piso do longo. Abaixo disso, o segmento é **esticado** |
-| `MAX_LONGFORM_SECONDS` | **1200** | [`:62`](../clip-processor/src/selector.py#L62) | Teto do longo, aplicado ao esticar |
+| `MIN_SHORTFORM_SECONDS` | **30** (era 15 até 13/08/2026) | [`:58`](../../clip-processor/src/selector.py#L58) | Alvo do curto. De 15 s a 30 s o momento é **esticado** até bater 30 s; abaixo de 15 s é **descartado** |
+| `MAX_SHORTFORM_SECONDS` | **180** | [`:59`](../../clip-processor/src/selector.py#L59) | Teto do curto (limite do Shorts). Acima disso o `end_time` é **cortado no teto**, não descartado |
+| `MIN_LONGFORM_SECONDS` | **420** | [`:61`](../../clip-processor/src/selector.py#L61) | Piso do longo. Abaixo disso, o segmento é **esticado** |
+| `MAX_LONGFORM_SECONDS` | **1200** | [`:62`](../../clip-processor/src/selector.py#L62) | Teto do longo, aplicado ao esticar |
 
 `MIN_LONGFORM_SECONDS` tem um **segundo uso**, fora da seleção: `rss_poller._detect_format()`
-([`rss_poller.py:54`](../clip-processor/src/rss_poller.py#L54)) classifica o vídeo fonte como `longo`
+([`rss_poller.py:54`](../../clip-processor/src/rss_poller.py#L54)) classifica o vídeo fonte como `longo`
 se a duração real for ≥ 420 s. Mudar essa constante muda também **quantos vídeos entram como longo**.
 
 ### A assimetria: curto descarta, longo estica
 
 Duas funções com filosofias opostas, de propósito.
 
-**Curto — `_filter_shortform_duration()`** ([`selector.py:168`](../clip-processor/src/selector.py#L168)):
+**Curto — `_filter_shortform_duration()`** ([`selector.py:168`](../../clip-processor/src/selector.py#L168)):
 percorre os momentos, e qualquer um fora de `[30, 180]` é **jogado fora** com log. Pode sobrar zero.
 
 ```
@@ -240,12 +240,12 @@ percorre os momentos, e qualquer um fora de `[30, 180]` é **jogado fora** com l
 **Curto — `_filter_shortform_duration()`**: abaixo de 15 s descarta; entre 15 s e 30 s estica
 simetricamente até 30 s, respeitando `0` e a duração real da transcrição; acima de 180 s corta no teto.
 
-**Longo — `_enforce_longform_duration()`** ([`selector.py:139`](../clip-processor/src/selector.py#L139)):
+**Longo — `_enforce_longform_duration()`** ([`selector.py:139`](../../clip-processor/src/selector.py#L139)):
 segmento abaixo de 420 s é **esticado simetricamente** — metade do que falta para trás, metade para
 frente — respeitando `0` e a duração real da transcrição, e com o `end_time` clampado em
 `start + MAX_LONGFORM_SECONDS`. Nada é descartado.
 
-**Por que a diferença** (justificativa no docstring, [`selector.py:171-173`](../clip-processor/src/selector.py#L171)):
+**Por que a diferença** (justificativa no docstring, [`selector.py:171-173`](../../clip-processor/src/selector.py#L171)):
 
 - Esticar um trecho de 3 s para 30 s **não cria assunto** — adiciona 27 s de contexto aleatório em
   volta de uma interjeição. O resultado é um short ruim de 30 s em vez de um short ruim de 3 s.
@@ -300,12 +300,12 @@ flowchart TD
 ### Passo a passo
 
 **1. Transcrição.** `transcriber.transcribe_video()`
-([`transcriber.py:51`](../clip-processor/src/transcriber.py#L51)) manda o áudio para **Groq Whisper
+([`transcriber.py:51`](../../clip-processor/src/transcriber.py#L51)) manda o áudio para **Groq Whisper
 `whisper-large-v3-turbo`**, idioma `pt`. Converte para MP3 se o arquivo passar de 24 MB. **Não tem
 fallback** — se falhar, o vídeo vira `failed` e nunca chega no seletor. Retorna
 `{'video_id', 'text', 'segments'}`, onde cada segmento tem `start`, `end`, `text`.
 
-**2. Formatação para o prompt.** [`selector.py:210-215`](../clip-processor/src/selector.py#L210) —
+**2. Formatação para o prompt.** [`selector.py:210-215`](../../clip-processor/src/selector.py#L210) —
 cada segmento vira uma linha com os tempos em segundos inteiros:
 
 ```
@@ -318,10 +318,10 @@ cada segmento vira uma linha com os tempos em segundos inteiros:
 texto com marcações — **toda a qualidade da seleção depende da qualidade da transcrição**.
 
 **3. Duração da transcrição.** `transcript_duration = segments[-1]['end']`
-([`selector.py:218`](../clip-processor/src/selector.py#L218)) — usada só pelo esticamento do longo,
+([`selector.py:218`](../../clip-processor/src/selector.py#L218)) — usada só pelo esticamento do longo,
 como limite superior.
 
-**4. Truncamento.** [`selector.py:223-226`](../clip-processor/src/selector.py#L223):
+**4. Truncamento.** [`selector.py:223-226`](../../clip-processor/src/selector.py#L223):
 
 | Formato | `MAX_CHARS` | Consequência |
 |---|---|---|
@@ -334,8 +334,8 @@ Corte é bruto (`transcript_text[:MAX_CHARS]`), no meio da linha se preciso. Log
 **5. Chamada ao modelo** — cadeia da seção 1.
 
 **6. Parse + normalização de score.** `_parse_moments()`
-([`selector.py:87`](../clip-processor/src/selector.py#L87)) faz `json.loads` e chama
-`_normalize_scores()` ([`selector.py:69`](../clip-processor/src/selector.py#L69)): se **o maior score
+([`selector.py:87`](../../clip-processor/src/selector.py#L87)) faz `json.loads` e chama
+`_normalize_scores()` ([`selector.py:69`](../../clip-processor/src/selector.py#L69)): se **o maior score
 do lote for ≤ 1.0**, assume que o modelo usou escala 0–1 (comportamento comum do LLaMA, apesar do
 prompt pedir 1–10) e multiplica todos por 10. Loga
 `[SELECTOR] Scores em escala 0–1 detectados — normalizando ×10`. Sem isso, todo clip seria descartado
@@ -346,26 +346,26 @@ tiverem score baixo (ex.: 0.8 e 1.0 num vídeo ruim), a heurística multiplica p
 lixo em score 8–10.
 
 **7. Remoção de sobreposição.** `_remove_overlaps()`
-([`selector.py:122`](../clip-processor/src/selector.py#L122)): ordena por score decrescente e vai
+([`selector.py:122`](../../clip-processor/src/selector.py#L122)): ordena por score decrescente e vai
 aceitando candidatos que não intersectam nenhum já aceito, até `max_count` — **3 no curto, 1 no
-longo** ([`selector.py:208`](../clip-processor/src/selector.py#L208)).
+longo** ([`selector.py:208`](../../clip-processor/src/selector.py#L208)).
 
 **8. Filtro/ajuste de duração** — seção 4.
 
 **9. Inserção.** `insert_selected_moments()`
-([`selector.py:298`](../clip-processor/src/selector.py#L298)) chama `_remove_overlaps` **de novo**
+([`selector.py:298`](../../clip-processor/src/selector.py#L298)) chama `_remove_overlaps` **de novo**
 (agora sempre com o default `max_count=3`), resolve o `destination_channel_id` via
 `source_videos → source_channels.target_niche → destination_channels.niche`
-([`selector.py:269`](../clip-processor/src/selector.py#L269)), e para cada momento:
+([`selector.py:269`](../../clip-processor/src/selector.py#L269)), e para cada momento:
 
 - **`score < 7` → descartado** com log `Momento descartado (score N): <reason>`
-  ([`selector.py:315`](../clip-processor/src/selector.py#L315)). Este é o segundo filtro de qualidade,
+  ([`selector.py:315`](../../clip-processor/src/selector.py#L315)). Este é o segundo filtro de qualidade,
   independente da duração;
 - caso contrário, `INSERT INTO generated_clips (..., status='pending_cut')`, commit por linha, teto
-  rígido de 3 inserções ([`selector.py:309`](../clip-processor/src/selector.py#L309)).
+  rígido de 3 inserções ([`selector.py:309`](../../clip-processor/src/selector.py#L309)).
 
 **10. Zero momentos.** Se `inserted == 0`, `rss_poller` marca o vídeo fonte como `failed`
-([`rss_poller.py:147-149`](../clip-processor/src/rss_poller.py#L147)) — sem isso o status ficava em
+([`rss_poller.py:147-149`](../../clip-processor/src/rss_poller.py#L147)) — sem isso o status ficava em
 `selecting` (estado **sem recuperação automática**) segurando a janela de download para sempre.
 
 **11. Daí em diante** o clip é do `video_processor.process_clip()` — corte FFmpeg, legendas,
@@ -377,8 +377,8 @@ thumbnail — e o título/descrição vêm do `metadata_generator` (mesma cadeia
 
 | Caminho | Onde | `fmt` |
 |---|---|---|
-| **Automático (RSS)** | `rss_poller.py:142` chama `select_moments(transcript, anthropic_client=..., fmt=fmt)` — [`rss_poller.py:142`](../clip-processor/src/rss_poller.py#L142) | Lido do banco: `SELECT id, format FROM source_videos` ([`rss_poller.py:134`](../clip-processor/src/rss_poller.py#L134)), default `'curto'` |
-| **Manual (painel → "Processar Vídeo")** | `ProcessVideoController@store` ([`painel/app/Http/Controllers/ProcessVideoController.php:22`](../painel/app/Http/Controllers/ProcessVideoController.php#L22)) valida `format in:curto,longo` e chama o sidecar `POST /process-url` ([`internal_api.py:307`](../clip-processor/src/internal_api.py#L307)) → `processar.main(url, fmt)` ([`processar.py:155`](../clip-processor/src/processar.py#L155)) | **Escolhido pelo usuário** no formulário, gravado em `source_videos.format` |
+| **Automático (RSS)** | `rss_poller.py:142` chama `select_moments(transcript, anthropic_client=..., fmt=fmt)` — [`rss_poller.py:142`](../../clip-processor/src/rss_poller.py#L142) | Lido do banco: `SELECT id, format FROM source_videos` ([`rss_poller.py:134`](../../clip-processor/src/rss_poller.py#L134)), default `'curto'` |
+| **Manual (painel → "Processar Vídeo")** | `ProcessVideoController@store` ([`painel/app/Http/Controllers/ProcessVideoController.php:22`](../../painel/app/Http/Controllers/ProcessVideoController.php#L22)) valida `format in:curto,longo` e chama o sidecar `POST /process-url` ([`internal_api.py:307`](../../clip-processor/src/internal_api.py#L307)) → `processar.main(url, fmt)` ([`processar.py:155`](../../clip-processor/src/processar.py#L155)) | **Escolhido pelo usuário** no formulário, gravado em `source_videos.format` |
 
 Detalhe importante do caminho manual: `processar.py` **não** executa a IA. Ele só enfileira o vídeo
 como `pending` com o `format` escolhido; a seleção acontece depois, no ciclo normal do
@@ -386,10 +386,10 @@ como `pending` com o `format` escolhido; a seleção acontece depois, no ciclo n
 switch** que decide qual dos dois prompts será usado.
 
 No caminho automático, quem define o formato é `_detect_format()`
-([`rss_poller.py:54`](../clip-processor/src/rss_poller.py#L54)): consulta a duração real via yt-dlp e
+([`rss_poller.py:54`](../../clip-processor/src/rss_poller.py#L54)): consulta a duração real via yt-dlp e
 retorna `longo` se ≥ `MIN_LONGFORM_SECONDS` (420 s), senão `curto`. Falha de rede → assume `curto`.
 
-Como `fmt` propaga dentro de `select_moments` ([`selector.py:206-208`](../clip-processor/src/selector.py#L206)):
+Como `fmt` propaga dentro de `select_moments` ([`selector.py:206-208`](../../clip-processor/src/selector.py#L206)):
 
 | | `fmt='curto'` | `fmt='longo'` |
 |---|---|---|
@@ -410,13 +410,13 @@ Tudo o que governa a seleção está **hard-coded em `selector.py`**:
 
 | Quero mudar | Editar |
 |---|---|
-| Critérios de conteúdo do short | string `SYSTEM_PROMPT`, [`selector.py:15`](../clip-processor/src/selector.py#L15) |
-| Critérios do vídeo longo | string `LONG_SYSTEM_PROMPT`, [`selector.py:38`](../clip-processor/src/selector.py#L38) |
-| Duração mínima/máxima | as 4 constantes, [`selector.py:58-62`](../clip-processor/src/selector.py#L58) |
-| Quantos clips por vídeo | `max_moments`, [`selector.py:208`](../clip-processor/src/selector.py#L208) (e o teto duro em [`:309`](../clip-processor/src/selector.py#L309)) |
-| Quanto da transcrição a IA vê | `MAX_CHARS`, [`selector.py:223`](../clip-processor/src/selector.py#L223) |
-| Corte de score | `if score < 7`, [`selector.py:315`](../clip-processor/src/selector.py#L315) |
-| Modelo / temperatura | [`selector.py:110-117`](../clip-processor/src/selector.py#L110) |
+| Critérios de conteúdo do short | string `SYSTEM_PROMPT`, [`selector.py:15`](../../clip-processor/src/selector.py#L15) |
+| Critérios do vídeo longo | string `LONG_SYSTEM_PROMPT`, [`selector.py:38`](../../clip-processor/src/selector.py#L38) |
+| Duração mínima/máxima | as 4 constantes, [`selector.py:58-62`](../../clip-processor/src/selector.py#L58) |
+| Quantos clips por vídeo | `max_moments`, [`selector.py:208`](../../clip-processor/src/selector.py#L208) (e o teto duro em [`:309`](../../clip-processor/src/selector.py#L309)) |
+| Quanto da transcrição a IA vê | `MAX_CHARS`, [`selector.py:223`](../../clip-processor/src/selector.py#L223) |
+| Corte de score | `if score < 7`, [`selector.py:315`](../../clip-processor/src/selector.py#L315) |
+| Modelo / temperatura | [`selector.py:110-117`](../../clip-processor/src/selector.py#L110) |
 
 **Nada disso lê variável de ambiente nem banco.** Não há bind mount para `src/` — a imagem embute o
 código no build. Então **qualquer** alteração acima, inclusive trocar uma palavra do prompt, exige:
@@ -440,15 +440,15 @@ existe, o ciclo de iteração é editar → build → restart → esperar o pró
 
 | # | Limitação | Onde | Impacto |
 |---|---|---|---|
-| 1 | **Truncamento de 8000 chars no curto** | [`selector.py:223`](../clip-processor/src/selector.py#L223) | Num vídeo de 1h+, a IA só analisa o começo. O melhor momento da segunda metade nunca é considerado — e nada no log diz "achei pouco", só que truncou |
-| 2 | **Score vem do modelo, não é calibrado** | prompt + [`:315`](../clip-processor/src/selector.py#L315) | O `>= 7` filtra contra uma nota que o LLaMA atribui por conta própria, sem referência a resultado real de publicação. Não há feedback loop entre desempenho no YouTube e o score |
-| 3 | **Normalização 0–1 pode inflar lixo** | [`selector.py:77`](../clip-processor/src/selector.py#L77) | Se todos os scores do lote forem ≤ 1.0 na escala correta, são multiplicados por 10 e passam o corte |
-| 4 | **Zero momentos válidos → vídeo `failed`** | [`rss_poller.py:147`](../clip-processor/src/rss_poller.py#L147) | Comportamento correto (libera a janela), mas o vídeo fica indistinguível de falha real de download/transcrição. Com o `MIN` em 30s, a taxa de `failed` tende a subir |
-| 5 | **Fallback burro de título** | [`metadata_generator.py:145`](../clip-processor/src/metadata_generator.py#L145) | Se Anthropic **e** Groq falharem, os clips do mesmo vídeo saem com título idêntico — o sintoma de "vídeo duplicado na fila". Hoje mitigado pelo degrau Groq, mas se `GROQ_API_KEY` expirar o sintoma volta |
-| 6 | **Transcrição sem fallback** | [`transcriber.py:51`](../clip-processor/src/transcriber.py#L51) | Whisper falhando = vídeo `failed`, seleção nunca roda. A IA de seleção é 100% dependente de um provider único |
-| 7 | **`fmt` inválido silencioso** | [`selector.py:206`](../clip-processor/src/selector.py#L206) | Qualquer valor ≠ `'longo'` vira curto sem aviso |
+| 1 | **Truncamento de 8000 chars no curto** | [`selector.py:223`](../../clip-processor/src/selector.py#L223) | Num vídeo de 1h+, a IA só analisa o começo. O melhor momento da segunda metade nunca é considerado — e nada no log diz "achei pouco", só que truncou |
+| 2 | **Score vem do modelo, não é calibrado** | prompt + [`:315`](../../clip-processor/src/selector.py#L315) | O `>= 7` filtra contra uma nota que o LLaMA atribui por conta própria, sem referência a resultado real de publicação. Não há feedback loop entre desempenho no YouTube e o score |
+| 3 | **Normalização 0–1 pode inflar lixo** | [`selector.py:77`](../../clip-processor/src/selector.py#L77) | Se todos os scores do lote forem ≤ 1.0 na escala correta, são multiplicados por 10 e passam o corte |
+| 4 | **Zero momentos válidos → vídeo `failed`** | [`rss_poller.py:147`](../../clip-processor/src/rss_poller.py#L147) | Comportamento correto (libera a janela), mas o vídeo fica indistinguível de falha real de download/transcrição. Com o `MIN` em 30s, a taxa de `failed` tende a subir |
+| 5 | **Fallback burro de título** | [`metadata_generator.py:145`](../../clip-processor/src/metadata_generator.py#L145) | Se Anthropic **e** Groq falharem, os clips do mesmo vídeo saem com título idêntico — o sintoma de "vídeo duplicado na fila". Hoje mitigado pelo degrau Groq, mas se `GROQ_API_KEY` expirar o sintoma volta |
+| 6 | **Transcrição sem fallback** | [`transcriber.py:51`](../../clip-processor/src/transcriber.py#L51) | Whisper falhando = vídeo `failed`, seleção nunca roda. A IA de seleção é 100% dependente de um provider único |
+| 7 | **`fmt` inválido silencioso** | [`selector.py:206`](../../clip-processor/src/selector.py#L206) | Qualquer valor ≠ `'longo'` vira curto sem aviso |
 | 8 | **Free tier de 12k TPM** | Groq | Vários vídeos em paralelo podem estourar o TPM; a exceção cai em `return []` → vídeo `failed`, sem retry específico |
-| 9 | **`_remove_overlaps` roda duas vezes** | [`:233`](../clip-processor/src/selector.py#L233) e [`:304`](../clip-processor/src/selector.py#L304) | A segunda chamada usa o default `max_count=3` mesmo no modo longo. Inofensivo hoje (longo já tem 1 momento), mas é uma pegadinha se `max_moments` do longo mudar |
+| 9 | **`_remove_overlaps` roda duas vezes** | [`:233`](../../clip-processor/src/selector.py#L233) e [`:304`](../../clip-processor/src/selector.py#L304) | A segunda chamada usa o default `max_count=3` mesmo no modo longo. Inofensivo hoje (longo já tem 1 momento), mas é uma pegadinha se `max_moments` do longo mudar |
 | 10 | **Sem A/B de prompt** | — | Não há versionamento nem registro de qual versão do prompt gerou qual clip. Depois de um rebuild, é impossível comparar a safra nova com a antiga a partir do banco |
 
 ### A justificativa (`reason`) é higienizada antes de gravar
@@ -465,7 +465,7 @@ inteira nesse campo. Caso real, colhido na produção:
 A coluna é `TEXT`, então nada estourava — o estrago era metadado ilegível, exatamente onde a
 justificativa deveria ajudar a decidir aprovação.
 
-`_clean_reason` ([`selector.py`](../clip-processor/src/selector.py)) colapsa espaços e corta em
+`_clean_reason` ([`selector.py`](../../clip-processor/src/selector.py)) colapsa espaços e corta em
 `MAX_REASON_CHARS = 300`, com reticência no fim. Roda dentro de `_parse_moments`, então vale para
 **os dois caminhos de IA** (Anthropic e Groq) sem duplicar lógica. Também garante a chave `reason`
 sempre presente — `insert_selected_moments` lê `moment['reason']` direto e levantaria `KeyError` se

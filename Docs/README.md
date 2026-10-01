@@ -20,7 +20,7 @@ Docs/
 Contém as especificações operacionais e de engenharia de todos os componentes do sistema:
 
 * [`Docs/sistema/README.md`](sistema/README.md) — Índice geral e mapa completo dos subsistemas.
-* [`Docs/sistema/ESTRATEGIA-YOUTUBE-E-BENCHMARK.md`](sistema/ESTRATEGIA-YOUTUBE-E-BENCHMARK.md) — Estratégia de conteúdo, diagnóstico do YouTube Studio, Benchmark de concorrentes e modelo viral de Política (MBL/Missão).
+* [`Docs/estudos/ESTRATEGIA-YOUTUBE-E-BENCHMARK.md`](estudos/ESTRATEGIA-YOUTUBE-E-BENCHMARK.md) — Estratégia de conteúdo, diagnóstico do YouTube Studio, Benchmark de concorrentes e modelo viral de Política (MBL/Missão).
 * [`Docs/sistema/BANCO-DE-DADOS.md`](sistema/BANCO-DE-DADOS.md) — Schema, tabelas, suporte híbrido a MySQL/PostgreSQL e rotinas de backup/recuperação (`db:backup`, `db:restore`).
 * [`Docs/sistema/SISTEMA-PAINEL.md`](sistema/SISTEMA-PAINEL.md) — Interface web em Laravel 13 + Inertia + React 19, Assistente IA (LLaMA 3.3), Channel Template Studio (9:16), modal de preview de clipes e controles.
 * [`Docs/sistema/SISTEMA-CLIP-PROCESSOR.md`](sistema/SISTEMA-CLIP-PROCESSOR.md) — Daemon em Python (21 módulos), ciclo de vida, poller RSS, variáveis de ambiente.
@@ -31,19 +31,19 @@ Contém as especificações operacionais e de engenharia de todos os componentes
 * [`Docs/sistema/SISTEMA-TRANSCRICAO.md`](sistema/SISTEMA-TRANSCRICAO.md) — Transcrição via Groq Whisper API e Transcrição Local com whisper.cpp.
 * [`Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md`](sistema/SISTEMA-BUSCA-TRANSCRICOES.md) — Busca por texto, semântica e híbrida nas transcrições (pgvector, embedder, RRF): guia do usuário em linguagem simples, arquitetura, runbook de rollout e como reindexar.
 * [`Docs/adr/`](adr/README.md) — ADRs 0001 a 0007 (busca vetorial, fila, fallback de IA, PostgreSQL 17, gates de qualidade).
-* [`Docs/DESENVOLVIMENTO.md`](DESENVOLVIMENTO.md) — Como rodar lint, testes (pytest, Pest, oxlint) e o CI; o que reprova e o que é só informativo.
+* [`Docs/operacao/DESENVOLVIMENTO.md`](operacao/DESENVOLVIMENTO.md) — Como rodar lint, testes (pytest, Pest, oxlint) e o CI; o que reprova e o que é só informativo.
 * [`Docs/sistema/SISTEMA-SIDECAR.md`](sistema/SISTEMA-SIDECAR.md) — API interna HTTP na porta 8090 para comunicação com o painel.
 * [`Docs/sistema/PIPELINE-E-SCHEDULER.md`](sistema/PIPELINE-E-SCHEDULER.md) — Agendamento de rotinas do daemon e cron jobs.
 * [`Docs/sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md`](sistema/SISTEMA-ALERTAS-E-MONITORAMENTO.md) — Observabilidade em três camadas: Better Stack (uptime/heartbeats), Sentry (crashes), Watchdog proativo (auto-cura de deadlocks e clipes fantasmas) e alertas via Telegram e Email.
 * [`Docs/sistema/ESTADOS-E-TRANSICOES.md`](sistema/ESTADOS-E-TRANSICOES.md) — Máquina de estados dos vídeos e clipes.
-* [`Docs/sistema/RUNBOOK.md`](sistema/RUNBOOK.md) — Comandos práticos de manutenção, operação e troubleshooting.
-* [`Docs/sistema/BUGS.md`](sistema/BUGS.md) — Histórico e backlog de bugs e correções.
-* [`Docs/sistema/RETOMADA-TRANSCRICOES.md`](sistema/RETOMADA-TRANSCRICOES.md) — **Retomada de 18/09/2026:** estado da master × produção, extensão do Chrome, próximas tarefas (destino local/produção, contexto de estudo, Hotmart) e pendências do operador.
-* [`Docs/sistema/CI-CD.md`](sistema/CI-CD.md) — Deploy automático diário: opções (launchd no Mac, cron na A1, GitHub Actions), recomendação e a trava que impede reiniciar no meio de um corte. **Só desenho, nada implementado.**
-* [`Docs/sistema/MIGRACAO-A1.md`](sistema/MIGRACAO-A1.md) — **Produção atual (17/09/2026):** VM A1 + PostgreSQL, rollback, backup e pendências da migração.
-* [`Docs/sistema/PLANO-MESTRE.md`](sistema/PLANO-MESTRE.md) — **Comece por aqui para retomar trabalho.** Advertência de direitos autorais, gate de licença, migração para A1 12 GB + PostgreSQL, marca Umbrella Solutions, afiliados e ordem de execução.
+* [`Docs/operacao/RUNBOOK.md`](operacao/RUNBOOK.md) — Comandos práticos de manutenção, operação e troubleshooting.
+* [`Docs/operacao/BUGS.md`](operacao/BUGS.md) — Histórico e backlog de bugs e correções.
+* [`Docs/historico/RETOMADA-TRANSCRICOES.md`](historico/RETOMADA-TRANSCRICOES.md) — **Retomada de 18/09/2026:** estado da master × produção, extensão do Chrome, próximas tarefas (destino local/produção, contexto de estudo, Hotmart) e pendências do operador.
+* [`Docs/planos/CI-CD.md`](planos/CI-CD.md) — Deploy automático diário: opções (launchd no Mac, cron na A1, GitHub Actions), recomendação e a trava que impede reiniciar no meio de um corte. **Só desenho, nada implementado.**
+* [`Docs/planos/MIGRACAO-A1.md`](planos/MIGRACAO-A1.md) — **Produção atual (17/09/2026):** VM A1 + PostgreSQL, rollback, backup e pendências da migração.
+* [`Docs/planos/PLANO-MESTRE.md`](planos/PLANO-MESTRE.md) — **Comece por aqui para retomar trabalho.** Advertência de direitos autorais, gate de licença, migração para A1 12 GB + PostgreSQL, marca Umbrella Solutions, afiliados e ordem de execução.
 * [`Docs/sistema/SISTEMA-AFILIADOS.md`](sistema/SISTEMA-AFILIADOS.md) — Ofertas de afiliado: worker local, API com token, aprovação no painel, link rastreável `/o/{slug}`, divulgação automática no Telegram, tela de performance e tema Umbrella Solutions.
-* [`Docs/sistema/RETOMADA-SESSAO-CRON.md`](sistema/RETOMADA-SESSAO-CRON.md) — Agendamento noturno e retomada da sessão Claude Code pós-limite de uso.
+* [`Docs/historico/RETOMADA-SESSAO-CRON.md`](historico/RETOMADA-SESSAO-CRON.md) — Agendamento noturno e retomada da sessão Claude Code pós-limite de uso.
 
 ---
 

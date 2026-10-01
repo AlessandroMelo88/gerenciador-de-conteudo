@@ -129,7 +129,7 @@ coluna.**
 ```bash
 cd /Users/alessandrobm1/develop/server/wordpress/canaldecortes
 git switch master                   # a fase A já está aqui
-sed -n '/## Fase B/,/^## /p' Docs/sistema/PLANO-POSTGRES.md        # o que falta
+sed -n '/## Fase B/,/^## /p' Docs/planos/PLANO-POSTGRES.md        # o que falta
 ssh -i ~/.ssh/oracle-ssh-key-2026-08-27.key ubuntu@147.15.124.191 cat /home/ubuntu/canaldecortes/REVISION
 ```
 

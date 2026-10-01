@@ -1,7 +1,7 @@
 # Sistema de afiliados
 
 Como o Canal de Cortes busca, prepara, aprova e divulga ofertas de afiliado. Decisões de arquitetura
-e motivos estão em [`PLANO-MESTRE.md`](PLANO-MESTRE.md#6-afiliados); este documento descreve o que
+e motivos estão em [`PLANO-MESTRE.md`](../planos/PLANO-MESTRE.md#6-afiliados); este documento descreve o que
 foi construído.
 
 Última atualização: **15/09/2026** — fase 2 (branch `afiliadas-fase2`): divulgação no Telegram, tela de
@@ -262,7 +262,7 @@ teste que garante isso. Agregação toda em SQL portável (MySQL 8.4 / PostgreSQ
 
 ## Marca Umbrella Solutions
 
-Mesmo Laravel, mesmo banco, mesmas rotas. Só muda apresentação ([`PLANO-MESTRE.md`](PLANO-MESTRE.md#5-marca--umbrella-solutions)).
+Mesmo Laravel, mesmo banco, mesmas rotas. Só muda apresentação ([`PLANO-MESTRE.md`](../planos/PLANO-MESTRE.md#5-marca--umbrella-solutions)).
 
 | Peça | Onde |
 |---|---|

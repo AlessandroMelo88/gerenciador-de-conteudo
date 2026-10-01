@@ -7,7 +7,7 @@ depois, mas deixe documentado"). Hoje o deploy é manual: `./deploy.sh` a partir
 ## O que se quer
 
 Deploy do que está na `master` do GitHub, todo dia às **6h (BRT)**, **sem reiniciar o processador no
-meio de um corte** ([bug 11](BUGS.md#11-aberto--container-não-honra-sigterm-todo-docker-stop-vira-sigkill)).
+meio de um corte** ([bug 11](../operacao/BUGS.md#11-aberto--container-não-honra-sigterm-todo-docker-stop-vira-sigkill)).
 
 ## As três opções
 

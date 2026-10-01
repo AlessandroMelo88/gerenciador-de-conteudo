@@ -1,6 +1,6 @@
 # Retomada — Transcrições, extensão e estudos (18/09/2026)
 
-Documento de passagem de contexto. Lê este arquivo e o [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md)
+Documento de passagem de contexto. Lê este arquivo e o [`SISTEMA-TRANSCRICAO.md`](../sistema/SISTEMA-TRANSCRICAO.md)
 e dá para continuar sem o histórico da conversa.
 
 ## Onde as coisas estão agora
@@ -49,7 +49,7 @@ foi descartado. O botão Transcrever do painel **local** continua sem worker (o 
 No lugar, entrou o download do arquivo da aula — e, na mesma noite, o operador decidiu que o
 arquivo é **apagado depois da transcrição** (só o texto fica); guardar virou opção
 `TRANSCRICAO_GUARDAR_AULA=1`, desligada. Ver
-[`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md). Material de curso agora mora em
+[`SISTEMA-TRANSCRICAO.md`](../sistema/SISTEMA-TRANSCRICAO.md). Material de curso agora mora em
 `painel/storage/app/private/conteudo-cursos/`, mesma árvore no Mac e na A1
 (`/mnt/videos/conteudo-cursos`).
 
@@ -99,7 +99,7 @@ Testar `hotmart.com/pt-BR/club/formula-youtube/products/8093188/content/V4VKj9GV
 - Carência do canal novo no expurgo de notícia velha.
 - Vagas de política liberadas (canais legados CNN/UOL/JP/Band), com backup em
   `/mnt/videos/backups/manual/`.
-- CI/CD **só desenhado** em [`CI-CD.md`](CI-CD.md), com a trava do bug 11 (não reiniciar com clip
+- CI/CD **só desenhado** em [`CI-CD.md`](../planos/CI-CD.md), com a trava do bug 11 (não reiniciar com clip
   em `cutting`/`publishing`) — usada na mão em todos os deploys de 17/09.
 - Diagnóstico de política: os canais MBL paravam no download; títulos nossos giram em torno de
   instituição (STF, Moraes), os de Felino Missionário e Missão Avança em torno de uma pessoa

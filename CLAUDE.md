@@ -8,7 +8,7 @@ migração para a Oracle e referência de cada serviço. Toda conversa nova abre
 tarefa mora nesses arquivos, não no histórico de conversa.
 
 Arquitetura as-built: `ARCHITECTURE.md`. **Produção desde 17/09/2026:** VM A1 `129.80.236.185`
-(PostgreSQL 17, vídeos em `/mnt/videos`) — ver `Docs/sistema/MIGRACAO-A1.md`. O painel é Inertia.js + React 19 + shadcn UI desde `dca6e44`.
+(PostgreSQL 17, vídeos em `/mnt/videos`) — ver `Docs/planos/MIGRACAO-A1.md`. O painel é Inertia.js + React 19 + shadcn UI desde `dca6e44`.
 
 **Isolamento:** o `docker-compose.yml` da raiz `wordpress/` é compartilhado com outros projetos
 (kelnab, feeb, placebeads, riodelux, gringo). Mexer **apenas** no serviço `clip-processor` e nos

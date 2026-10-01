@@ -44,15 +44,15 @@ disco cheio) o `except` nunca executa e o arquivo fica órfão para sempre.
 
 Correção:
 - glob passou a partir do prefixo sem extensão, filtrando por `_WORK_ARTIFACT_RE`
-  ([`downloader.py:39`](../clip-processor/src/downloader.py#L39));
-- nova `cleanup_stale_downloads` ([`downloader.py:72`](../clip-processor/src/downloader.py#L72)) varre
+  ([`downloader.py:39`](../../clip-processor/src/downloader.py#L39));
+- nova `cleanup_stale_downloads` ([`downloader.py:72`](../../clip-processor/src/downloader.py#L72)) varre
   o primeiro nível de `/app/videos` e remove artefato de trabalho parado; um `<id>.mp4` completo não
   casa com a regex;
 - `pipeline_runner.py:152` chama a limpeza no início de `_download_pending_videos`, antes de ocupar
   disco novo — o disk guard de 2 GB mede o disco real, então órfão não limpo virava bloqueio de
   download.
 
-`STALE_AFTER_HOURS` é **1 hora** ([`downloader.py:45`](../clip-processor/src/downloader.py#L45)), não 6
+`STALE_AFTER_HOURS` é **1 hora** ([`downloader.py:45`](../../clip-processor/src/downloader.py#L45)), não 6
 como constava aqui antes.
 
 5 testes novos com os nomes reais tirados do disco de produção. **Resíduo removido à mão:** 7 arquivos,
@@ -67,14 +67,14 @@ como constava aqui antes.
 Impacto quando aberto: 8.5 GB em 259 arquivos — o maior item do disco, acima dos vídeos fonte.
 `video_processor.py:205` cria `<clip_id>_raw.mp4`, usa como entrada da queima de legenda e não apagava.
 
-`_maybe_finalize_source_video` ([`publisher.py:345-354`](../clip-processor/src/publisher.py#L345))
+`_maybe_finalize_source_video` ([`publisher.py:345-354`](../../clip-processor/src/publisher.py#L345))
 passou a apagar, para cada clip do vídeo, `clip_path`, `<prefix>_raw.mp4`, `<prefix>_subtitled.mp4` e a
 thumbnail — junto com o `.mp4` bruto do vídeo fonte. Só roda quando nenhum clip do vídeo está em estado
 não-terminal **e** ao menos um publicou, o que é exatamente o guard necessário: o `_raw` é insumo do
 corte enquanto o clip está em `pending_cut`/`cutting`.
 
 **Buraco que sobra** (não é regressão, é escopo não coberto): o `except` de `process_clip`
-([`video_processor.py:250`](../clip-processor/src/video_processor.py#L250)) marca o clip `failed` e
+([`video_processor.py:250`](../../clip-processor/src/video_processor.py#L250)) marca o clip `failed` e
 **não limpa nada**. Clip que morre no meio deixa `_raw.mp4` para trás, e a limpeza só o alcança se
 algum **outro** clip do mesmo vídeo chegar a publicar. Se nenhum publicar, ficam.
 
@@ -94,7 +94,7 @@ Logo o defeito está **depois da geração**, na aplicação via API.
 
 **Hipótese principal:** `thumbnails().set` retornando 403 — custom thumbnail exige canal verificado no
 YouTube. Ela roda **depois** do `videos.insert` e **fora de qualquer `try` local**
-([`uploader.py:114-123`](../clip-processor/src/uploader.py#L114)), então o vídeo sobe e a exceção
+([`uploader.py:114-123`](../../clip-processor/src/uploader.py#L114)), então o vídeo sobe e a exceção
 propaga, marcando o clip como `failed` com o motivo em `upload_error`. Shorts não expõem o sintoma
 porque o YouTube ignora thumbnail custom neles.
 
@@ -122,7 +122,7 @@ Duas verificações independentes derrubam o diagnóstico acima:
    ```
 
 2. **A correção proposta já estava no código.** `thumbnails().set` **já roda dentro de try/except
-   próprio** ([`uploader.py:116-129`](../clip-processor/src/uploader.py#L116)); a falha vira um aviso
+   próprio** ([`uploader.py:116-129`](../../clip-processor/src/uploader.py#L116)); a falha vira um aviso
    em `stderr` e `upload_video` devolve o `video_id` normalmente. Não há caminho em que a thumbnail
    marque o clip como `failed`.
 
@@ -139,14 +139,14 @@ verificado no YouTube — thumbnail custom exige verificação.
 
 1. `recover_stuck_selecting` e `recover_stuck_downloads` deixaram de rodar **só no boot**. Agora rodam
    também como job periódico a cada 30 min — `run_recovery_once`
-   ([`main.py:51`](../clip-processor/src/main.py#L51)), job id `state_recovery`
-   ([`main.py:127`](../clip-processor/src/main.py#L127)). Antes, o que travasse depois do container
+   ([`main.py:51`](../../clip-processor/src/main.py#L51)), job id `state_recovery`
+   ([`main.py:127`](../../clip-processor/src/main.py#L127)). Antes, o que travasse depois do container
    subir ficava preso até o próximo restart — na prática, dias. A cadência de 30 min é menor que
    `SELECTING_STUCK_HOURS = 2` de propósito.
 2. Cobre a janela do `Errno 111` (clip-processor sobe antes do MySQL): o recovery de boot morre no
    `except` e antes ninguém tentava de novo.
 3. `recover_stuck_selecting` ganhou uma **terceira query**
-   ([`db.py:200`](../clip-processor/src/db.py#L200)): `selecting` com `local_path IS NULL` e sem update
+   ([`db.py:200`](../../clip-processor/src/db.py#L200)): `selecting` com `local_path IS NULL` e sem update
    há 2 h vai para `failed`. Esses registros ficavam presos para sempre — a limpeza de disco
    (`delete_source_video_file`, `purge_old_videos`) zera `local_path` sem tocar em `status`, e as duas
    queries anteriores exigem `local_path IS NOT NULL`. Nenhum restart resolvia. Sem raw em disco não há
@@ -177,7 +177,7 @@ Destrave manual em [`RUNBOOK.md`](RUNBOOK.md#estado-preso-sem-recuperação-auto
 ## 5. FEITO — `_subtitled.mp4` órfão
 
 **Corrigido em 12/08/2026**, junto do bug 2 e pela mesma varredura
-([`publisher.py:349`](../clip-processor/src/publisher.py#L349)).
+([`publisher.py:349`](../../clip-processor/src/publisher.py#L349)).
 
 Mesma classe do bug 2, escala menor: `video_processor.py:207` cria o intermediário; ele é removido no
 caminho feliz, mas se o processo morrer entre a queima de legenda e o watermark o arquivo fica. Herda o
@@ -198,7 +198,7 @@ apaga essas **linhas**:
 Resultado: o operador vê o número no painel e não tem botão que resolva.
 
 **Complicação a considerar antes de "resolver":** `purge_old_videos` também apaga as chaves Redis
-`video:<id>` de dedup ([`internal_api.py:220`](../clip-processor/src/internal_api.py#L220)). Os vídeos
+`video:<id>` de dedup ([`internal_api.py:220`](../../clip-processor/src/internal_api.py#L220)). Os vídeos
 purgados deixam de estar "vistos" e voltam a ser inseridos como `pending` no próximo poll RSS. Não
 voltam a baixar (`FRESHNESS_DAYS=1` barra publicado antes de ontem), mas o contador reenche. Purgar
 trata o sintoma; a causa é o RSS ingerir mais do que a janela consome.
@@ -219,7 +219,7 @@ docker run --rm --network none -v "$C/src:/app/src" -v "$C/tests:/app/tests" \
 
 As falhas restantes eram **testes desatualizados**, não defeito de código: `test_rss_poller` esperava
 `select_moments` sem o argumento `niche`, e `test_selector` esperava descarte de um momento de 20 s que
-o código estica até 30 s (ver decisão em [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md)).
+o código estica até 30 s (ver decisão em [`SISTEMA-IA-SELECAO.md`](../sistema/SISTEMA-IA-SELECAO.md)).
 
 ## 8. ABERTO — Docker Desktop travado sob pressão de disco
 
@@ -235,14 +235,14 @@ log, e o diagnóstico do bug 3 depende dos dois.
 ## 9. FEITO — Download falho vazava disco e entupia a janela
 
 **Corrigido em 13/08/2026** (`_discard_failed_download`,
-[`pipeline_runner.py:110`](../clip-processor/src/pipeline_runner.py#L110)).
+[`pipeline_runner.py:110`](../../clip-processor/src/pipeline_runner.py#L110)).
 
 Antes, download que falhava só rodava `update_status(..., 'failed')`: o `.mp4` meio baixado ficava no
 disco e `local_path` continuava preenchido. Como a contagem da janela de download considera
 `local_path IS NOT NULL`, o vídeo ocupava slot **para sempre**. Com 58 `failed` acumulados segurando
 4.1 GB, o déficit virou 0 e **o pipeline parou de baixar qualquer coisa**.
 
-A correção segue a regra 2 de operações destrutivas do [`../CLAUDE.md`](../CLAUDE.md), na ordem:
+A correção segue a regra 2 de operações destrutivas do [`../CLAUDE.md`](../../CLAUDE.md), na ordem:
 
 1. se algum clip está em `pending_cut`/`cutting` (`_clips_need_raw`), só marca `failed` e **preserva** o
    raw — ainda é insumo do corte;
@@ -252,7 +252,7 @@ A correção segue a regra 2 de operações destrutivas do [`../CLAUDE.md`](../C
 
 Se a remoção falhar, `local_path` é mantido de propósito: banco e disco divergentes são pior que uma
 vaga presa. `update_status` ganhou o parâmetro `clear_local_path`
-([`db.py:57`](../clip-processor/src/db.py#L57)) porque `local_path=None` significava "não mexe na
+([`db.py:57`](../../clip-processor/src/db.py#L57)) porque `local_path=None` significava "não mexe na
 coluna" nas chamadas antigas — não havia como zerar a coluna.
 
 **Resíduo antigo não tratado:** vídeos `failed` de antes desta correção que ainda têm `local_path`
@@ -274,7 +274,7 @@ Há mais de um caminho que produz isso, e nenhum é acidente isolado:
 | limpeza manual de disco | apagou arquivo sem tocar no banco (incidente registrado no `CLAUDE.md`) |
 
 **Impacto real é baixo, mas não nulo.** O uploader valida a existência do arquivo
-([`uploader.py:133`](../clip-processor/src/uploader.py#L133)) e levanta `FileNotFoundError`, então o
+([`uploader.py:133`](../../clip-processor/src/uploader.py#L133)) e levanta `FileNotFoundError`, então o
 clip vira `failed` na tentativa de publicar em vez de subir vazio. O dano é o painel mostrar clip com
 preview quebrado e a contabilidade de disco mentir.
 
@@ -282,7 +282,7 @@ preview quebrado e a contabilidade de disco mentir.
 Para o resíduo, script de reconciliação que zera a coluna quando o arquivo não existe — **nunca** o
 contrário (apagar arquivo por causa da coluna já apagou clip vivo aqui).
 
-Query de medição em [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md#divergência-banco--disco-bug-aberto).
+Query de medição em [`BANCO-DE-DADOS.md`](../sistema/BANCO-DE-DADOS.md#divergência-banco--disco-bug-aberto).
 
 ---
 
@@ -299,7 +299,7 @@ bloqueada em `scheduler.start()`; isso apagava os jobs no meio de `_process_jobs
 (`JobLookupError`). E, mesmo com o `start()` saindo, a thread do pool com o job em curso **não é
 daemon**: o interpretador espera por ela no encerramento, até o Docker mandar SIGKILL.
 
-**Correção** ([`main.py`](../clip-processor/src/main.py)): o handler só sinaliza um
+**Correção** ([`main.py`](../../clip-processor/src/main.py)): o handler só sinaliza um
 `threading.Event`. Uma thread vigia (`_shutdown_watcher`, iniciada junto dos handlers, vale também
 durante o ciclo inicial) para o scheduler fora do sinal e impõe um prazo de graça
 (`SHUTDOWN_GRACE_SECONDS`, padrão 8 s, menor que os 10 s do `docker stop`). A thread principal sai
@@ -376,7 +376,7 @@ MySQL de produção. É a mesma classe de problema (credencial conhecida em luga
 alcance maior.
 
 **Prevenção:** desde 15/09/2026 o `phpunit.xml` aponta para o Postgres local
-([`PLANO-POSTGRES.md`](PLANO-POSTGRES.md)), fora da produção. Nunca rodar a suíte contra o banco de
+([`PLANO-POSTGRES.md`](../planos/PLANO-POSTGRES.md)), fora da produção. Nunca rodar a suíte contra o banco de
 produção. A senha do operador foi trocada na mesma data.
 
 **Resíduo ainda aberto (apurado em 15/09/2026):** a *fábrica* que produz essas contas continua no
@@ -510,7 +510,7 @@ OR (gc.status IN ('pending_cut','pending','cutting','approved'))
 
 A terceira sozinha segura a vaga. E `recover_stuck_selecting` **não** alcança esses registros, por
 desenho: ele exige `NOT EXISTS (SELECT 1 FROM generated_clips ...)` justamente para não reprocessar
-vídeo que já tem clip e duplicar corte ([`db.py:308`](../clip-processor/src/db.py#L308)).
+vídeo que já tem clip e duplicar corte ([`db.py:308`](../../clip-processor/src/db.py#L308)).
 
 **Não é bug de código, é bug de fluxo.** O sistema está esperando decisão humana: enquanto o
 operador não aprovar nem rejeitar, a vaga fica retida — e como o teto é por canal destino ativo,
@@ -537,7 +537,7 @@ Causa: `_maybe_finalize_source_video` exigia ao menos um clip `published` e só 
 publisher, logo depois de uma publicação. Rejeição e falha nunca disparavam o encerramento, e
 `recover_stuck_selecting` não alcança vídeo com clip.
 
-Correção ([`publisher.py`](../clip-processor/src/publisher.py)):
+Correção ([`publisher.py`](../../clip-processor/src/publisher.py)):
 
 - `_maybe_finalize_source_video` encerra quando o vídeo tem clip e **nenhum** está em estado
   não-terminal (`pending_cut`, `cutting`, `pending`, `approved`, `publishing`). Status final

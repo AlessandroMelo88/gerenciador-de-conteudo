@@ -8,7 +8,7 @@ Este documento descreve a arquitetura de observabilidade, tratamento de erros, d
 
 ## 1. Visão Geral
 
-![Visão Geral da Arquitetura de Monitoramento e Watchdog](./assets/arquitetura_monitoramento_watchdog.jpg)
+![Visão Geral da Arquitetura de Monitoramento e Watchdog](assets/arquitetura_monitoramento_watchdog.jpg)
 
 O sistema adota uma abordagem de **defesa em três camadas** para garantir que nenhuma falha interrompa a operação diária dos canais no YouTube:
 

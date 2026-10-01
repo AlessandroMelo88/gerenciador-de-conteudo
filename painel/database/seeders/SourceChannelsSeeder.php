@@ -10,7 +10,7 @@ use Illuminate\Database\Seeder;
  *
  * Contexto: a advertência de 14/09/2026 (reclamante Supernova) veio de clip de
  * imagem de partida, cortado do TiaGOL — que por sua vez é canal de cortes.
- * Ver Docs/sistema/PLANO-MESTRE.md, seção 1.
+ * Ver Docs/planos/PLANO-MESTRE.md, seção 1.
  *
  * Critério de entrada desta lista, nesta ordem:
  *   1. Canal de pessoa física ou produção própria — o titular é ele mesmo,

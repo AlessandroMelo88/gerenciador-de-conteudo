@@ -11,7 +11,7 @@ use Illuminate\Database\Seeder;
  * Até 15/09/2026 este `run()` criava `User::factory()->create([...])`. A factory do Laravel usa a
  * senha padrão `password`, então qualquer `php artisan db:seed` sem `--class` plantava uma conta de
  * senha conhecida no banco alvo. Foi assim que três contas de teste acabaram vivendo no banco de
- * produção (bug 14 em Docs/sistema/BUGS.md).
+ * produção (bug 14 em Docs/operacao/BUGS.md).
  *
  * Dado de verdade mora em seeder avulso, chamado explicitamente:
  *

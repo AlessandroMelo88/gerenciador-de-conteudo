@@ -10,7 +10,7 @@ container (config normal de operação), então o caminho 1 nunca roda. Ou seja,
 os prompts daqui são lidos pelo llama-3.3-70b-versatile, não pelo Claude —
 importa ao calibrar texto de prompt. Groq (inferência, free tier) não tem
 relação com Grok (modelo da xAI), que não é usado aqui.
-Ver Docs/SISTEMA-IA-SELECAO.md.
+Ver Docs/sistema/SISTEMA-IA-SELECAO.md.
 
 Em testes: anthropic_client injetado é usado diretamente (sem fallback).
 """
@@ -223,7 +223,7 @@ GROQ_MODEL = os.environ.get('GROQ_MODEL', 'qwen/qwen3.8-27b')
 # O free tier do Groq limita a saída por minuto (OTPM) a 1000 tokens, e a recusa é pelo
 # max_tokens PEDIDO, não pelo consumido: pedir 2048 devolve 429 sem nem chamar o modelo.
 # Em produção isso derrubava toda seleção — "Request too large ... Limit 1000, Requested 2048" —
-# e cada vídeo caía em 'Nenhum momento válido' e virava failed. Ver Docs/sistema/BUGS.md.
+# e cada vídeo caía em 'Nenhum momento válido' e virava failed. Ver Docs/operacao/BUGS.md.
 # O payload real cabe: são no máximo 3 momentos e a justificativa está limitada a
 # MAX_REASON_CHARS. Ajustável por ambiente para quem estiver em plano pago.
 GROQ_MAX_OUTPUT_TOKENS = int(os.environ.get('GROQ_MAX_OUTPUT_TOKENS', '1000'))

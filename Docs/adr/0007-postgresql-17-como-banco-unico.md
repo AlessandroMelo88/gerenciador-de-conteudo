@@ -18,7 +18,7 @@ O runtime usa **PostgreSQL 17** como banco único do painel Laravel (`pgsql`/`pd
 `clip-processor` (`psycopg2`). A imagem é `canaldecortes-postgres:pg17-vector` (`docker/postgres/Dockerfile`:
 `postgres:17-alpine` + pgvector). Produção: VM A1, dados do banco em volume próprio, vídeos em
 `/mnt/videos`. A migração de dados foi feita com `scripts/migrar_mysql_para_postgres.py`
-(`Docs/sistema/MIGRACAO-A1.md`).
+(`Docs/planos/MIGRACAO-A1.md`).
 
 ## Consequências
 

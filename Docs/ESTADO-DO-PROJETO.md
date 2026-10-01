@@ -38,15 +38,15 @@ nova; o esforço agora é receita por afiliados e conteúdo próprio.
 | Preciso de… | Arquivo |
 |---|---|
 | Índice de toda a documentação | `Docs/README.md` e `Docs/sistema/README.md` |
-| Decisões estratégicas e ordem das fases | `Docs/sistema/PLANO-MESTRE.md` |
-| Bugs, com status e histórico de incidente | `Docs/sistema/BUGS.md` |
+| Decisões estratégicas e ordem das fases | `Docs/planos/PLANO-MESTRE.md` |
+| Bugs, com status e histórico de incidente | `Docs/operacao/BUGS.md` |
 | Como o pipeline funciona por dentro | `Docs/sistema/SISTEMA-CLIP-PROCESSOR.md` |
 | Afiliados (ofertas, API, worker, Telegram) | `Docs/sistema/SISTEMA-AFILIADOS.md` |
 | Deploy e regra de branch | `DEPLOY.md` e skill `.claude/skills/gitflow` |
-| Migração para a VM A1 | `Docs/sistema/MIGRACAO-A1.md` |
-| Comandos de operação e destrave | `Docs/sistema/RUNBOOK.md` |
+| Migração para a VM A1 | `Docs/planos/MIGRACAO-A1.md` |
+| Comandos de operação e destrave | `Docs/operacao/RUNBOOK.md` |
 | Regras destrutivas e armadilhas | `CLAUDE.md` |
-| Lint, testes locais e CI | `Docs/DESENVOLVIMENTO.md` (`make help`) |
+| Lint, testes locais e CI | `Docs/operacao/DESENVOLVIMENTO.md` (`make help`) |
 
 ## 2. Produção
 
@@ -135,7 +135,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | 30/09/2026 | Áudio HLS do Hotmart via extensão (`feature/transcricao-audio-hls-extensao`) | Extensão captura o m3u8, API local guarda em `media-urls.json` (0600), worker baixa só o áudio; testes unitários passam, nada validado no Hotmart real | Dono recarrega a extensão, reinicia o worker e testa uma aula; depois merge |
 | 30/09/2026 | Validação visual da busca (`fix/busca-transcricoes-ui`) | 5 bugs de UI/backend corrigidos, piso de similaridade calibrado (0,83); branch pronta para merge, ainda fora de produção | Merge na master, depois o runbook de rollout (imagem do Postgres, embedder, backfill) |
 | 30/09/2026 | Lote 6 (prompts por perfil) do `release/rico` | Em `feature/prompts-por-perfil`, sem merge/deploy; sem canal versionado; migration pendente | Escrever `prompts/channels/mbl.yaml`, compilar `--apply`, ligar perfil no painel |
-| 30/09/2026 | Lotes 3 e 9 do Ricardo | CI, Makefile, pre-commit e configs de lint sem reformatar o código; ADRs renumerados (0002–0007, PostgreSQL 17), `Docs/DESENVOLVIMENTO.md`, `restore-postgres.sh`. Em branches, sem merge | Revisar, mesclar e ligar o `CI gate` na proteção da `master` |
+| 30/09/2026 | Lotes 3 e 9 do Ricardo | CI, Makefile, pre-commit e configs de lint sem reformatar o código; ADRs renumerados (0002–0007, PostgreSQL 17), `Docs/operacao/DESENVOLVIMENTO.md`, `restore-postgres.sh`. Em branches, sem merge | Revisar, mesclar e ligar o `CI gate` na proteção da `master` |
 | 01/10/2026 | Bugs 11, 4 e 17 no ar; extensão 1.1.1 com host Panda Video; transcrição Hotmart validada | Produção em `99fbba4`, `docker stop` com exit 0, aula do Hotmart transcrita | Primeira oferta de afiliado; decidir e responder a PR #1 do Ricardo (worker do Mac já no venv da busca) |
 | 30/09/2026 | Produção em `ace7714`: pgvector, embedder, lotes 1–9 do Ricardo, watchdog sem falso deadlock (janela cheia por aprovação é proposital), transcrição Hotmart só áudio (extensão 1.1.0, **não testada no Chrome**) | Token do Telegram rotacionado e webhook com segredo | Testar a extensão numa aula real; ligar o worker do Mac ao venv da busca; responder a PR #1 |
 | 29/09/2026 | Busca vetorial + comparação com `release/rico` | Busca pronta em `feature/busca-vetorial`, fora de produção; lotes 1–2 do Ricardo em branches | Backup + trocar imagem do Postgres na A1, deploy, backfill; rotacionar token do Telegram |

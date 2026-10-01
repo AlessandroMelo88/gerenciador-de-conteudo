@@ -38,7 +38,7 @@ Rodar só as suítes das áreas alteradas (`git diff --name-only master...HEAD`)
 | `affiliate-worker/` | `cd affiliate-worker && .venv/bin/python -m pytest -q` |
 
 Falha nova → parar. Se o container `php` estiver parado ou o Docker travar (containers presos em
-"Created"), avisar o usuário em vez de contornar (ver bug 8 em `Docs/sistema/BUGS.md`).
+"Created"), avisar o usuário em vez de contornar (ver bug 8 em `Docs/operacao/BUGS.md`).
 
 ### 3. Documentação e grafo, ainda na branch
 

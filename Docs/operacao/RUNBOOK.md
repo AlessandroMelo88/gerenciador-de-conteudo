@@ -2,7 +2,7 @@
 
 Comandos do dia a dia, como diagnosticar e como reiniciar sem estragar nada.
 
-**Antes de qualquer operação destrutiva, ler as 7 regras de [`../CLAUDE.md`](../CLAUDE.md).** Elas não
+**Antes de qualquer operação destrutiva, ler as 7 regras de [`../CLAUDE.md`](../../CLAUDE.md).** Elas não
 são teoria: cada uma nasceu de um incidente com perda de arquivo ou de log.
 
 Verificado em **13/08/2026**.
@@ -128,7 +128,7 @@ thumbnail); marcar `published`, não `pending`.
 Cadeia de causas em ordem de probabilidade:
 
 **1. A janela está cheia de linha morta.** A janela conta muito mais que "tem arquivo"
-(ver [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md#estados--ocupação-da-janela-de-download)):
+(ver [`ESTADOS-E-TRANSICOES.md`](../sistema/ESTADOS-E-TRANSICOES.md#estados--ocupação-da-janela-de-download)):
 
 ```bash
 docker exec mysql mysql -uroot -p"$P" clips_automation -e "
@@ -207,7 +207,7 @@ docker compose logs clip-processor | grep -i thumb
 
 `upload_error` mencionando thumbnail com `youtube_video_id` preenchido = o vídeo **subiu** e o clip foi
 marcado `failed` só por causa da thumbnail
-(ver [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md#thumbnail-sem-trycatch-próprio)).
+(ver [`SISTEMA-PUBLICACAO.md`](../sistema/SISTEMA-PUBLICACAO.md#thumbnail-sem-trycatch-próprio)).
 
 ---
 

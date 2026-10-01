@@ -120,5 +120,5 @@ A busca vetorial exige a extensão `vector`, que a `postgres:17-alpine` não tra
 sobre a mesma alpine 17 (pgvector compilado, mesmo volume `postgres_data`, mesma collation) e
 recriação manual **só do serviço postgres** antes do deploy, porque o deploy comum usa
 `up -d --no-recreate`. Passo a passo, dump prévio e ordem em
-[`SISTEMA-BUSCA-TRANSCRICOES.md`](SISTEMA-BUSCA-TRANSCRICOES.md#runbook-de-rollout-ordem-obrigatória).
+[`SISTEMA-BUSCA-TRANSCRICOES.md`](../sistema/SISTEMA-BUSCA-TRANSCRICOES.md#runbook-de-rollout-ordem-obrigatória).
 Não trocar por imagem Debian reaproveitando o volume (collation diferente).

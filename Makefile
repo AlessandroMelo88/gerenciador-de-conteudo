@@ -1,6 +1,6 @@
 # Makefile — atalhos de qualidade do Canal de Cortes.
 # Tudo roda no host, sem tocar no docker-compose (que é compartilhado com outros projetos).
-# Pré-requisitos e explicação de cada ferramenta: Docs/DESENVOLVIMENTO.md.  `make help` lista os alvos.
+# Pré-requisitos e explicação de cada ferramenta: Docs/operacao/DESENVOLVIMENTO.md.  `make help` lista os alvos.
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
