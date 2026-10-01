@@ -113,7 +113,7 @@ JPG. O `at_seconds` usado por `process_clip` é `duração / 2`
 **Não há ramo por formato**: `curto` e `longo` geram thumbnail igual. Isso já foi verificado ao
 investigar a suspeita de thumbnail faltando nos longos — o defeito, se existir, está na aplicação via
 API do YouTube, não aqui. Ver [`BUGS.md`](../operacao/BUGS.md) e
-[`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md#thumbnail-sem-trycatch-próprio).
+[`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md#thumbnail-sem-tryexcept-próprio).
 
 ---
 

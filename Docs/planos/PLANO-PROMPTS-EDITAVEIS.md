@@ -1,7 +1,7 @@
 # Plano — Prompts de IA editáveis pelo painel
 
 **Data:** 13/08/2026
-**Status:** plano, nada implementado
+**Status:** IDEIA (revisado em 01/10/2026) · o editor no painel, o versionamento no banco e as métricas **não** existem. Parcialmente coberto de outro jeito: o lote 6 do `release/rico` trouxe perfis de prompt em YAML (`prompts/layers`, `prompts/targets`, `prompts/channels`, tabela `prompt_profiles`), editados por arquivo e com rebuild; falta o perfil real do MBL.
 **Objetivo:** o dono do projeto ver e editar, pelo painel, as instruções que a IA usa para escolher
 os cortes — sem editar Python e sem `docker compose build` — e acompanhar métricas para saber se
 um prompt novo é melhor que o anterior.

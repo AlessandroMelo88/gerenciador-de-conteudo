@@ -97,7 +97,7 @@ flowchart LR
 ~~~
 
 - **Só valida.** Não usa segredo e não faz deploy: o deploy continua manual (`./deploy.sh`, ver
-  [`../DEPLOY.md`](../../DEPLOY.md) e [`sistema/CI-CD.md`](../planos/CI-CD.md)).
+  [`../DEPLOY.md`](../../DEPLOY.md) e [`planos/CI-CD.md`](../planos/CI-CD.md)).
 - `CI gate` é o job final; é o único check a exigir na proteção da `master`.
 - Os testes PHP no CI usam PHP 8.3 e `pgvector/pgvector:pg17` com credenciais descartáveis.
 
@@ -134,5 +134,5 @@ make changelog-release VERSION=v0.2.0
 ## Referências
 
 - arquitetura: [`../ARCHITECTURE.md`](../../ARCHITECTURE.md)
-- operação: [`sistema/RUNBOOK.md`](RUNBOOK.md)
+- operação: [`operacao/RUNBOOK.md`](RUNBOOK.md)
 - decisões: [`adr/README.md`](../adr/README.md)

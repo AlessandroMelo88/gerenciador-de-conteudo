@@ -1,5 +1,7 @@
 # Plano PostgreSQL — fase A (local) e fase B (produção)
 
+**Status:** FEITO · fases A e B executadas (A em 15/09/2026, B na migração de 17/09/2026). Restam itens menores: A5/A6/A8 (auditoria final de queries, ciclo real local e doc dos comandos `psql`) e B6 (período de rollback do MySQL). Ver [`MIGRACAO-A1.md`](MIGRACAO-A1.md).
+
 Documento de progresso. **Se a sessão reiniciar, comece por aqui**: cada etapa vira um commit na branch
 `feature/postgres-fase-a`, e o checklist abaixo é a fonte da verdade do que já foi feito.
 

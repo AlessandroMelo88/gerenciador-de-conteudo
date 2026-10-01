@@ -4,8 +4,8 @@ Cada canal de destino pode ter a própria **intro**, **encerramento** e **músic
 robô cola isso no vídeo depois de cortar e legendar. Tudo é opcional: se a mídia não existir ou
 der erro, o vídeo sai do mesmo jeito, só sem o enfeite.
 
-Origem: trazido de `origin/release/rico` em 30/09/2026 (Lote 8), adaptado à master. Não está em
-produção até o merge e o deploy.
+Origem: trazido de `origin/release/rico` em 30/09/2026 (Lote 8), adaptado à master. **Atualizado em
+01/10/2026:** na `master` e em produção (lotes do `release/rico`, deploy `ace7714` de 30/09/2026).
 
 ---
 

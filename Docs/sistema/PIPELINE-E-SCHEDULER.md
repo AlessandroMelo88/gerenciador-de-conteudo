@@ -130,7 +130,7 @@ imagem, é perda de tempo garantida.
 docker compose build clip-processor && docker compose up -d clip-processor
 ```
 
-Como conferir se a imagem está velha: [`RUNBOOK.md`](../operacao/RUNBOOK.md#o-container-está-rodando-código-velho).
+Como conferir se a imagem está velha: [`RUNBOOK.md`](../operacao/RUNBOOK.md#o-container-está-rodando-código-atualizado).
 
 ---
 

@@ -5,7 +5,7 @@ idade um vídeo dele ainda serve para virar corte (**janela de busca**) e quem c
 quando dois canais disputam a mesma vaga (**prioridade de input**).
 
 Origem: trazido de `origin/release/rico` em 30/09/2026 (Lote 4), adaptado à política da master.
-Não está em produção até o merge e o deploy.
+**Atualizado em 01/10/2026:** na `master` e em produção (lotes do `release/rico`, deploy `ace7714` de 30/09/2026).
 
 ---
 

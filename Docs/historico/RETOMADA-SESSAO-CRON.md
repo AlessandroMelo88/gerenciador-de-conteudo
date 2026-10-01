@@ -1,5 +1,7 @@
 # Retomada Automática da Sessão Claude Code e Agendamento Noturno
 
+**Status:** OBSOLETO (arquivado em 01/10/2026) · retomada pontual de 15/09/2026 após limite de uso do Claude Code; o agendamento era de uma noite só e já foi cumprido.
+
 Documento de referência operacional gerado em **15/09/2026** às **00:56 (BRT)**.
 
 ---

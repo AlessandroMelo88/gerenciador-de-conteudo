@@ -1,5 +1,7 @@
 # Migração para a VM A1 + PostgreSQL — como ficou
 
+**Status:** FEITO · em produção desde 17/09/2026 (documento as-built). Pendências: registro A da Cloudflare, desligar a VM Micro após o período de rollback, reverter as adaptações para 1 GB e trocar os comandos `mysql` por `psql` no RUNBOOK e no BANCO-DE-DADOS.
+
 Executada em **17/09/2026**. Documento as-built: o que está no ar, como voltar atrás e o que falta.
 Plano original: [`PLANO-MESTRE.md`](PLANO-MESTRE.md#4-infraestrutura--migrar-para-a1-flex-12-gb)
 e [`PLANO-POSTGRES.md`](PLANO-POSTGRES.md).

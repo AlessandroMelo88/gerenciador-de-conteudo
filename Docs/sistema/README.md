@@ -1,8 +1,11 @@
-# Docs — Sistema Canal de Cortes
+# Docs/sistema — como o sistema funciona
 
-Índice da documentação técnica do sistema. **Comece por aqui em toda conversa nova.**
+**O que mora aqui:** a referência *as-built* de cada subsistema, escrita a partir do código. Nada de
+plano nem de histórico: o que ainda vai ser feito está em [`../planos/`](../planos/), os comandos do dia
+a dia em [`../operacao/`](../operacao/), o que ficou para trás em [`../historico/`](../historico/).
+Visão geral de tudo: [`../README.md`](../README.md). O que está feito e o que falta: [`../PROGRESSO.md`](../PROGRESSO.md).
 
-Última atualização: **Setembro/2026**
+Estado de todos os documentos desta pasta: **VIGENTE** (exceto onde indicado).
 
 ---
 
@@ -19,98 +22,41 @@ horizontal de 7 a 20 min).
 
 ---
 
-## Onde está cada coisa
+## Documentos desta pasta
 
-### Ponto de partida
-
-| Documento | Responde |
-|---|---|
-| [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) | Arquitetura as-built: topologia dos containers, a fronteira painel ↔ pipeline, decisões e dívida técnica. **Primeira leitura de quem chega agora** |
-| [`../../CLAUDE.md`](../../CLAUDE.md) | As 7 regras de operação destrutiva e os incidentes que as geraram. **Ler antes de apagar qualquer coisa** |
-| [`RUNBOOK.md`](../operacao/RUNBOOK.md) | Comandos do dia a dia: está de pé? por que parou? como reiniciar sem travar clip? como limpar disco em duas etapas? |
-| [`BUGS.md`](../operacao/BUGS.md) | Backlog com status FEITO / PARCIAL / ABERTO / SUSPEITA, evidência e onde corrigir |
-
-### Como o sistema funciona, por subsistema
+### Pipeline (o robô)
 
 | Documento | Responde |
 |---|---|
-| [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) | Máquina de estados de `source_videos` e `generated_clips`, quem escreve cada transição, **o que tem e o que não tem recuperação automática**, e o que ocupa vaga na janela de download |
+| [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | Índice módulo a módulo do daemon (21 módulos), padrões comuns de código, o que o Redis guarda, tabela de env vars. **Comece por aqui** |
 | [`PIPELINE-E-SCHEDULER.md`](PIPELINE-E-SCHEDULER.md) | Quais jobs rodam em que cadência, o que cada ciclo executa, por que `rss_poller` faz mais que polling, e a armadilha do rebuild |
+| [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md) | Máquina de estados de `source_videos` e `generated_clips`, quem escreve cada transição, **o que tem e o que não tem recuperação automática**, e o que ocupa vaga na janela de download |
 | [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md) | Descoberta via RSS, dedup, filtro de título, detecção de formato, janela de download por formato, filtro de frescor, disk guard, limpeza de órfãos |
-| [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | Groq Whisper no pipeline (sem fallback) e a Transcrição Local com whisper.cpp, que é uma feature separada |
-| [`SISTEMA-BUSCA-TRANSCRICOES.md`](SISTEMA-BUSCA-TRANSCRICOES.md) | Busca das transcrições: texto × semântica × híbrida (com exemplos para o usuário), tabela `transcript_chunks`, pgvector/HNSW, RRF, sidecar `embedder` (multilingual-e5-small 384d), backfill, fallback (degrada para texto), env vars, runbook de rollout e reindex |
+| [`SISTEMA-FRESCOR-E-PRIORIDADE.md`](SISTEMA-FRESCOR-E-PRIORIDADE.md) | Janela de busca e prioridade de input por canal-fonte (tela Canais Fonte) |
+| [`SISTEMA-TRANSCRICAO.md`](SISTEMA-TRANSCRICAO.md) | Groq Whisper no pipeline (sem fallback) e a base de conhecimento de transcrições (worker do Mac, extensão do Chrome, aulas HLS), feature separada |
+| [`SISTEMA-BUSCA-TRANSCRICOES.md`](SISTEMA-BUSCA-TRANSCRICOES.md) | Busca das transcrições: texto × semântica × híbrida (com exemplos para o usuário), `transcript_chunks`, pgvector/HNSW, RRF, sidecar `embedder`, backfill, runbook de rollout e reindex |
 | [`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md) | Seleção de cortes por IA: prompts por formato, score, limites de duração, Claude Haiku → fallback Groq LLaMA 3.3-70b |
-| [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg: corte por formato, enquadramento vertical com fundo desfocado, geração e queima de legenda, marca d'água, thumbnail, e artefatos gerados |
+| [`SISTEMA-VIDEO.md`](SISTEMA-VIDEO.md) | FFmpeg: corte por formato, enquadramento vertical com fundo desfocado, legenda, marca d'água, thumbnail, artefatos gerados |
+| [`SISTEMA-MIDIA-POR-CANAL.md`](SISTEMA-MIDIA-POR-CANAL.md) | Intro, encerramento e música de fundo por canal destino |
 | [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md) | Quem é publicável, roteamento por nicho, round-robin, cota diária (teto rígido de 6), janela 19h–22h, OAuth por canal, TTL de clip |
-| [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | As 10 rotas do sidecar HTTP 8090, auth fail-closed, controles de fila (pause/resume/reorder/prioritize), rejeição de clip, eventos para o Telegram |
-| [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, **suporte híbrido a MySQL e PostgreSQL**, comandos de backup (`db:backup`) e recuperação (`db:restore`) |
-| [`SISTEMA-CLIP-PROCESSOR.md`](SISTEMA-CLIP-PROCESSOR.md) | Índice módulo a módulo do daemon (21 módulos), padrões comuns de código, o que o Redis guarda, tabela de env vars |
-| [`ESTRATEGIA-YOUTUBE-E-BENCHMARK.md`](../estudos/ESTRATEGIA-YOUTUBE-E-BENCHMARK.md) | Estratégia de conteúdo, diagnóstico do YouTube Studio (CTR/Retenção), Benchmark de concorrentes e modelo de cortes de Política (MBL/Missão) |
-| [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | Rotas, controllers e páginas do Laravel/Inertia; **Assistente IA (LLaMA 3.3)**, **Channel Template Studio (9:16)**, **Preview de Clipes** e **Links Úteis** |
-| [`SISTEMA-ALERTAS-E-MONITORAMENTO.md`](SISTEMA-ALERTAS-E-MONITORAMENTO.md) | Observabilidade em 3 camadas: Better Stack (uptime/heartbeats), Sentry (crashes), Watchdog proativo (`watchdog.py`, auto-cura de deadlocks e clipes fantasmas) e alertas via Telegram e Email |
+| [`SISTEMA-SIDECAR.md`](SISTEMA-SIDECAR.md) | As rotas do sidecar HTTP 8090, auth fail-closed, controles de fila, rejeição de clip, eventos para o Telegram |
+| [`SISTEMA-REGRAS-E-GATILHOS.md`](SISTEMA-REGRAS-E-GATILHOS.md) | **VERIFICAR.** Resumo antigo de metas e janelas; contradiz os dois documentos acima (publicação e download) |
 
-### Infra
+### Painel, dados, observabilidade e negócio
 
 | Documento | Responde |
 |---|---|
-| [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md) | Ofertas de afiliado: `affiliate-worker` local que empurra ofertas, `POST /api/offers` com token fail-closed, tela Ofertas, redirect rastreável `/o/{slug}` com clique sem IP cru |
-| [`PLANO-MESTRE.md`](../planos/PLANO-MESTRE.md) | **Ponto de retomada.** Advertência de direitos autorais de 14/09/2026, gate de licença em `source_channels`, migração A1 12 GB + PostgreSQL, marca Umbrella Solutions, plano de afiliados, ordem de execução e decisões registradas |
-| [`PLANO-ORACLE.md`](../historico/PLANO-ORACLE.md) | Migração para Oracle Cloud Always Free: decisão, como o custo zero é garantido, riscos e checklist por fase |
+| [`SISTEMA-PAINEL.md`](SISTEMA-PAINEL.md) | Rotas, controllers e páginas do Laravel/Inertia; Assistente IA, Channel Template Studio (9:16), Preview de Clipes, Links Úteis |
+| [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) | Schema tabela a tabela, suporte híbrido MySQL/PostgreSQL, backup (`db:backup`) e recuperação (`db:restore`) |
+| [`SISTEMA-ALERTAS-E-MONITORAMENTO.md`](SISTEMA-ALERTAS-E-MONITORAMENTO.md) | Better Stack, Sentry, Watchdog proativo (auto-cura de deadlocks e clipes fantasmas), alertas via Telegram e e-mail |
+| [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md) | Ofertas de afiliado: `affiliate-worker` local, `POST /api/offers` com token fail-closed, tela Ofertas, redirect rastreável `/o/{slug}`, Telegram, tema Umbrella |
 
-### Planos (nada implementado)
-
-| Documento | Responde |
-|---|---|
-| [`PLANO-PROMPTS-EDITAVEIS.md`](../planos/PLANO-PROMPTS-EDITAVEIS.md) | Como tornar os prompts de seleção editáveis pelo painel, sem editar Python e sem rebuild, com métricas para comparar versões |
-| [`PLANO-REVISAO-DE-PALAVRAO.md`](../planos/PLANO-REVISAO-DE-PALAVRAO.md) | Ideia (não implementada): lista de palavrões com minutagem na aprovação, escolha por clip de publicar com ou sem palavrão, áudio censurado e palavra mantida na legenda |
-| [`PLANO-LONGO-POR-CANAL.md`](../planos/PLANO-LONGO-POR-CANAL.md) | Plano (não implementado): seletor por canal destino com três modos (automático, só Shorts, Shorts + longo); padrão não muda nada em produção |
-
+Fora desta pasta, mas parte do "como funciona": [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md)
+(arquitetura as-built, primeira leitura de quem chega) e [`../adr/`](../adr/README.md) (por que foi decidido assim).
 
 `.planning/` é do fluxo GSD (roadmap por fase) e **não** é fonte de verdade do estado atual.
 `.planning/research/ARCHITECTURE.md` é pesquisa de junho/2026 e descreve um futuro que não aconteceu
 (migração do bot para o n8n, painel em Filament) — ignorar.
-
----
-
-## Estado atual em uma tela
-
-**Stack do painel:** Laravel 13 + Inertia 3 + **React 19** + shadcn/ui + Tailwind 4 + Vite 8 +
-TypeScript, desde o commit `dca6e44`. **O Filament foi removido por completo** — qualquer menção a ele
-em README, nome de arquivo ou teste é resíduo, não estado atual.
-
-**Infra:** roda 100% local em Docker, no `docker-compose.yml` da raiz `wordpress/` **compartilhado com
-outros projetos** (kelnab, feeb, placebeads, riodelux, gringo). Mexer apenas no serviço
-`clip-processor` e nos paths sob `canaldecortes/`. Migração para Oracle **não iniciada** — os
-pré-requisitos de código (fase 1) estão em andamento.
-
-**Problema que motivou a migração:** SSD de 228 GB chegou a 85% de uso e derrubou o Docker. Parte era
-volume real, parte era vazamento de arquivo.
-
-**Prazo externo em aberto:** a Oracle cortou o Always Free de 4 OCPU/24 GB para 2 OCPU/12 GB e desliga
-instâncias fora do novo limite a partir de **18/08/2026**. Se já existe instância na conta, conferir o
-shape antes dessa data — e **redimensionar, nunca terminar**.
-
-**Bugs:** 4 corrigidos, 1 parcial, 5 abertos, 1 suspeita. Detalhe e prioridade em
-[`BUGS.md`](../operacao/BUGS.md).
-
-### Corrigido em 12–13/08/2026
-
-| O quê | Onde |
-|---|---|
-| `_raw.mp4` e `_subtitled.mp4` passaram a ser apagados na finalização do vídeo fonte | `publisher.py` (commit `5009112`) |
-| Download falho apaga o arquivo e zera `local_path` — antes vazava disco e entupia a janela para sempre (58 vídeos, 4.1 GB, pipeline parado) | `_discard_failed_download` em `pipeline_runner.py` |
-| Recovery de estado preso virou job periódico de 30 min, não só no boot | `main.py`, job `state_recovery` |
-| `selecting` com `local_path IS NULL` sem update há 2 h agora vai para `failed` — antes ficava preso para sempre | terceira query de `recover_stuck_selecting` em `db.py` |
-| `MIN_SHORTFORM_SECONDS` subiu de 15 s para **30 s** e o prompt do modo curto foi reescrito | `selector.py` |
-
-### Os dois que mais doem hoje
-
-1. **Nada em `cutting`, `publishing` ou `transcribing` tem recuperação automática** — o que travar ali
-   fica preso para sempre e segura arquivo em disco (bug 4).
-2. **O container não honra SIGTERM:** todo `docker stop` termina em `Exited (137)` / SIGKILL porque o
-   `BlockingScheduler` não retorna do `shutdown` (bug 11). Junto com o item 1, cada restart pode criar
-   um estado preso novo. Por isso o [`RUNBOOK.md`](../operacao/RUNBOOK.md#reiniciar-o-clip-processor-com-segurança)
-   manda conferir o que está em trânsito antes de parar o container.
 
 ---
 
@@ -122,7 +68,7 @@ shape antes dessa data — e **redimensionar, nunca terminar**.
    ```bash
    docker compose build clip-processor && docker compose up -d clip-processor
    ```
-2. **A fila não mora no Redis.** Fila = MySQL. O Redis só tem dedup, cota e idempotência de aviso.
+2. **A fila não mora no Redis.** Fila = banco (PostgreSQL desde 17/09/2026). O Redis só tem dedup, cota e idempotência de aviso.
    Apagar as chaves `video:*` **ressuscita todo o backlog** no próximo poll. Nunca `FLUSHALL`.
 3. **Ao cruzar banco × disco, filtrar pela chave, nunca pelo nome do arquivo.** `<id>.srt` e
    `<id>_raw.mp4` não estão em coluna nenhuma — comparar nomes os marca como órfãos e apaga arquivo de
@@ -138,12 +84,13 @@ caminhos de IA, mas quem roda de fato em produção é o **fallback Groq LLaMA 3
 
 Regra única: **status mora no documento, não na cabeça de ninguém.**
 
-- Corrigiu um bug → muda o status em `BUGS.md` para FEITO, com data e commit. **Não renumerar** os
+- Corrigiu um bug → muda o status em [`../operacao/BUGS.md`](../operacao/BUGS.md) para FEITO, com data e commit. **Não renumerar** os
   itens; outros documentos linkam por número.
-- Concluiu uma fase da migração → marca o checkbox em `PLANO-ORACLE.md`.
+- Concluiu uma etapa de plano → marca o checkbox no `PLANO-*` (em [`../planos/`](../planos/)) e atualiza a linha em [`../PROGRESSO.md`](../PROGRESSO.md).
 - Mudou comportamento de um subsistema → atualiza o `SISTEMA-*.md` dele; se mexeu em estado ou
   transição, também `ESTADOS-E-TRANSICOES.md`; se for estrutural, `ARCHITECTURE.md`.
 - Descobriu incidente novo de operação destrutiva → `CLAUDE.md`, não aqui.
+- Moveu ou renomeou um documento → rode `python3 scripts/check-doc-links.py` (tem que dar 0 quebrados).
 
 Ao citar código, usar sempre `arquivo:linha` clicável. Datas sempre absolutas (`13/08/2026`), nunca
 relativas ("semana passada") — estes arquivos são lidos meses depois.

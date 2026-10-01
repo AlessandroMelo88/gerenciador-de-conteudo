@@ -1,6 +1,6 @@
 # Plano — revisão de palavrão antes de publicar
 
-**Status:** ideia registrada em 01/10/2026, nada implementado. Decisão do dono: não entra agora.
+**Status:** IDEIA · registrada em 01/10/2026, nada implementado. Decisão do dono: não entra agora.
 **Origem:** PR #1 do Ricardo (`release/rico`) trazia um filtro que reprova o clip se título, descrição,
 tags ou thumbnail tiverem palavrão. Foi recusado: reprovar sozinho é cego ao contexto.
 

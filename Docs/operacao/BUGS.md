@@ -4,27 +4,28 @@ Status: **FEITO** (corrigido e verificado) · **PARCIAL** (parte corrigida, part
 **ABERTO** (confirmado, não corrigido) · **SUSPEITA** (evidência parcial, falta confirmar).
 
 Numeração é estável — não renumerar ao fechar um item, outros documentos linkam por número.
-Última atualização: **16/09/2026**.
+Última atualização: **16/09/2026**; tabela de status sincronizada com os títulos das seções em
+**01/10/2026** (bugs 4, 11 e 17 no ar em `99fbba4`). Abertos hoje: 6, 8 e 10.
 
 | # | Status | Título |
 |---|---|---|
 | 1 | FEITO | Órfãos de download nunca eram apagados |
 | 2 | FEITO | `_raw.mp4` nunca era apagado |
 | 3 | FEITO | Thumbnail não aplicada nos vídeos longos no YouTube — hipótese refutada |
-| 4 | PARCIAL | Estados sem recuperação automática seguram arquivo em disco |
+| 4 | FEITO | Estados sem recuperação automática seguram arquivo em disco |
 | 5 | FEITO | `_subtitled.mp4` órfão |
 | 6 | ABERTO | Painel não consegue apagar o backlog de download |
 | 7 | FEITO | 4 testes de `test_pipeline_runner.py` falhando |
 | 8 | ABERTO | Docker Desktop travado sob pressão de disco |
 | 9 | FEITO | Download falho vazava disco e entupia a janela |
 | 10 | ABERTO | 287 clips com `clip_path` apontando para arquivo inexistente |
-| 11 | ABERTO | Container não honra SIGTERM — todo `docker stop` vira SIGKILL |
+| 11 | FEITO | Container não honrava SIGTERM — todo `docker stop` virava SIGKILL |
 | 12 | FEITO | Worker local de download ignorava a janela — disco em 100% e painel fora do ar |
 | 13 | FEITO | Rejeitar no painel não apagava os arquivos do clip |
 | 14 | FEITO | Usuários de teste com senha padrão viviam no banco de produção |
 | 15 | FEITO | Groq recusava toda seleção com 429 — `max_tokens` acima do teto do plano |
 | 16 | FEITO | Senhas do MySQL publicadas em repositório público — rotacionadas em 16/09/2026 |
-| 17 | PARCIAL | Vaga da janela presa por clip aguardando aprovação — caso "todos rejeitados" corrigido |
+| 17 | FEITO (por decisão) | Vaga da janela presa por clip aguardando aprovação |
 
 ---
 

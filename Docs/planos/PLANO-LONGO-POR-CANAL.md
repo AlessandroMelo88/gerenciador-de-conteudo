@@ -1,6 +1,6 @@
 # Plano — vídeo longo automático, escolhido por canal
 
-**Status:** plano escrito em 01/10/2026, nada implementado.
+**Status:** IDEIA · plano escrito em 01/10/2026, nada implementado.
 **Origem:** PR #1 do Ricardo (`release/rico`) fazia todo vídeo gerar Shorts **e** longo, sem chave para
 desligar. Recusado como está; o dono quer decidir **por canal destino**, nas configurações do canal.
 

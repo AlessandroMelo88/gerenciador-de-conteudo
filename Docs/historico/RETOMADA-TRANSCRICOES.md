@@ -1,5 +1,7 @@
 # Retomada — Transcrições, extensão e estudos (18/09/2026)
 
+**Status:** ARQUIVADO · retomada de 18/09/2026, superada pelo checkpoint [`../ESTADO-DO-PROJETO.md`](../ESTADO-DO-PROJETO.md) e por [`../sistema/SISTEMA-TRANSCRICAO.md`](../sistema/SISTEMA-TRANSCRICAO.md). Ainda vale como ideia aberta: contexto de estudo (curso, seção, resumo por IA) e a Fase 3 de hierarquia de aulas.
+
 Documento de passagem de contexto. Lê este arquivo e o [`SISTEMA-TRANSCRICAO.md`](../sistema/SISTEMA-TRANSCRICAO.md)
 e dá para continuar sem o histórico da conversa.
 

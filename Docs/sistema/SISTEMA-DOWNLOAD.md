@@ -138,7 +138,7 @@ painel fora do ar. Agora ele:
 Testes: `scripts/test_local_download_worker.py`.
 
 A definição de "ocupa a janela" está em
-[`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md#estados--ocupação-da-janela-de-download) — é mais
+[`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md#source_videosstatus) — é mais
 larga que "tem arquivo em disco" e é o ponto onde estado preso vira pipeline parado.
 
 ### O filtro de frescor morde

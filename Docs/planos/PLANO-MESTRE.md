@@ -1,5 +1,7 @@
 # Plano mestre — estado, decisões e próximos passos
 
+**Status:** EM ANDAMENTO · revisado em 01/10/2026. Feito: migração para a A1 + PostgreSQL (17/09), afiliados e tema Umbrella no ar (18/09), bugs 11 e 4 (01/10). Aberto: primeira oferta real, canais do Telegram, DNS/logo da Umbrella, gate de licença e separação das contas Google (adiada). A tabela da seção 8 e os checklists das seções 4 e 7 ficaram com o status da época em que foram escritos; o quadro atual está em [`../PROGRESSO.md`](../PROGRESSO.md).
+
 Documento de continuidade. Reúne o que foi decidido em 14/09/2026 sobre **advertência de direitos
 autorais**, **infraestrutura**, **banco de dados**, **marca** e **monetização por afiliados**.
 
