@@ -4,7 +4,8 @@
 **Produção:** commit `59b0eb1`, no ar em https://toolscut.alessandromelo.com.br
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
-Ele resume e aponta; o detalhe fica nos arquivos citados.
+Ele resume e aponta; o detalhe fica nos arquivos citados. A lista completa do que está feito, em
+andamento, planejado e pendente é o [`PROGRESSO.md`](PROGRESSO.md) — não é duplicada aqui.
 
 ---
 
@@ -27,7 +28,8 @@ nova; o esforço agora é receita por afiliados e conteúdo próprio.
    oferta de verdade e validar o caminho inteiro: aprovar, copiar o link rastreável, conferir o clique.
 2. **Canais do Telegram** criados e com o bot como administrador, para a divulgação automática.
 3. **Domínio Umbrella Solutions**: DNS, vhost, certificado e logo. O tema já troca pelo host.
-4. **Deploy das correções dos bugs 11, 4 e 17** (prontas, falta push + rebuild do `clip-processor`).
+4. ~~Deploy das correções dos bugs 11, 4 e 17~~ — feito em 01/10/2026 (`99fbba4`). Em seu lugar: decidir
+   os planos novos de `Docs/planos/` (revisão de palavrão, vídeo longo por canal) e responder a PR #1.
 5. Cursos e produto próprio.
 
 **Fora de escopo por enquanto:** separar as contas Google dos dois canais (decidido adiar em
@@ -37,16 +39,17 @@ nova; o esforço agora é receita por afiliados e conteúdo próprio.
 
 | Preciso de… | Arquivo |
 |---|---|
-| Índice de toda a documentação | `Docs/README.md` e `Docs/sistema/README.md` |
-| Decisões estratégicas e ordem das fases | `Docs/sistema/PLANO-MESTRE.md` |
-| Bugs, com status e histórico de incidente | `Docs/sistema/BUGS.md` |
+| O que foi feito, o que falta, o que é ideia | `Docs/PROGRESSO.md` |
+| Índice de toda a documentação (por tipo: sistema, operacao, planos, adr, estudos, historico) | `Docs/README.md` e `Docs/sistema/README.md` |
+| Decisões estratégicas e ordem das fases | `Docs/planos/PLANO-MESTRE.md` |
+| Bugs, com status e histórico de incidente | `Docs/operacao/BUGS.md` |
 | Como o pipeline funciona por dentro | `Docs/sistema/SISTEMA-CLIP-PROCESSOR.md` |
 | Afiliados (ofertas, API, worker, Telegram) | `Docs/sistema/SISTEMA-AFILIADOS.md` |
 | Deploy e regra de branch | `DEPLOY.md` e skill `.claude/skills/gitflow` |
-| Migração para a VM A1 | `Docs/sistema/MIGRACAO-A1.md` |
-| Comandos de operação e destrave | `Docs/sistema/RUNBOOK.md` |
+| Migração para a VM A1 | `Docs/planos/MIGRACAO-A1.md` |
+| Comandos de operação e destrave | `Docs/operacao/RUNBOOK.md` |
 | Regras destrutivas e armadilhas | `CLAUDE.md` |
-| Lint, testes locais e CI | `Docs/DESENVOLVIMENTO.md` (`make help`) |
+| Lint, testes locais e CI | `Docs/operacao/DESENVOLVIMENTO.md` (`make help`) |
 
 ## 2. Produção
 
@@ -108,9 +111,9 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Domínio e logo da Umbrella | Fase 7 | Código pronto, falta DNS/certificado |
 | Busca vetorial nas transcrições | 30/09 | **No ar.** Postgres com pgvector 0.8 (imagem própria sobre alpine), `embedder` saudável (e5-small, 384d), 2 transcrições / 41 trechos indexados. O launchd do worker do Mac (`com.canaldecortes.downloader`) roda desde 01/10/2026 com o python do venv `~/.config/canaldecortes/venv-busca`, então transcrições novas já ganham vetor (backup do plist em `~/.config/canaldecortes/`). Doc: `Docs/sistema/SISTEMA-BUSCA-TRANSCRICOES.md` |
 | Integração da branch do Ricardo (`release/rico`) | 30/09 | Lotes 1–9 na `master` e em produção. Fora: Hacker Libertário (não é do dono), stage workers, captions via API interna, seletor com janelas distribuídas, painel de perfis por canal destino. PR #1 dele ainda aberta no GitHub (responder/fechar). Não trazer compose, `composer.lock`, docs nem defaults de publicação dele |
-| Token do Telegram no histórico público (`.planning/.../09-01-PLAN.md`, commit `614092d`) | Comparação 29/09 | **Rotacionar no BotFather** (passo do operador), depois remover o arquivo |
+| Token do Telegram no histórico público (`.planning/.../09-01-PLAN.md`, commit `614092d`) | Comparação 29/09 | Token rotacionado em 30/09 (ver §8) e arquivo sanitizado em `5be2b2d`; o valor antigo continua no histórico público do git, inofensivo depois de rotacionado. Operador: confirmar a rotação no BotFather e dar baixa |
 | Transcrição de aula Hotmart (HLS, só áudio) | 30/09 | **Validada em 01/10/2026** numa aula real (28 min transcritos). O Hotmart serve o vídeo pela Panda Video (`*.tv.pandavideo.com.br`), não por `hotmart.com`; extensão 1.1.1 e API local aceitam os dois hosts. Outro player = ajustar `SUFIXOS_PLAYER`, `host_permissions` e `MEDIA_HOSTS_PADRAO` (ver `Docs/sistema/SISTEMA-TRANSCRICAO.md`). Falta só ligar o launchd do worker ao venv da busca |
-| Longo por canal destino + cota 10/dia + métricas | 01/10 | **No ar (`59b0eb1`).** Campo "Formato dos vídeos" em Canais Destino (`auto`, `short_only`, `both`); todos os canais seguem em `auto`. Cota no servidor: `MAX_UPLOADS_PER_DAY=10`, longos 4, curtos 6, espaçamento 15 min (backup `.env.bak-20261001`). Tela Métricas em `/painel/metricas` (coleta a cada hora). **Falta:** o dono trocar o futebol para `both` no painel; ligar `longo_teto_atingido` no worker de download. Plano: `Docs/sistema/PLANO-LONGO-POR-CANAL.md` |
+| Longo por canal destino + cota 10/dia + métricas | 01/10 | **No ar (`59b0eb1`).** Campo "Formato dos vídeos" em Canais Destino (`auto`, `short_only`, `both`); todos os canais seguem em `auto`. Cota no servidor: `MAX_UPLOADS_PER_DAY=10`, longos 4, curtos 6, espaçamento 15 min (backup `.env.bak-20261001`). Tela Métricas em `/painel/metricas` (coleta a cada hora). **Falta:** o dono trocar o futebol para `both` no painel; ligar `longo_teto_atingido` no worker de download. Plano: `Docs/planos/PLANO-LONGO-POR-CANAL.md` |
 | Bugs 11, 4 e 17 (SIGTERM, recuperação de `cutting`/`publishing`/`transcribing`, vaga presa por aprovação) | `BUGS.md` | **Corrigidos e no ar em 01/10/2026 (`99fbba4`).** `docker stop clip-processor` conferido em produção: exit 0 e log "Scheduler encerrado". Bug 17 foi decisão: `pending` continua contando na janela (proteção de disco, bug 12); teto separado fica como alternativa de produto. Risco a vigiar: `cutting` volta a `pending_cut` após 3 h sem `updated_at` |
 | Bug 10 — 287 `clip_path` sem arquivo | `BUGS.md` | Aberto (número não reconferido após a migração) |
 | Bug 6 — painel não apaga backlog de download | `BUGS.md` | Aberto |
@@ -135,10 +138,11 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Data | Rodada | Onde parou | Próximo passo combinado |
 |---|---|---|---|
 | 01/10/2026 | Longo por canal, cota 10/dia, revezamento e métricas no ar; PR #1 do Ricardo fechada com comentário; launchd do Mac no venv da busca; plano de palavrão registrado | Produção em `59b0eb1`, env de cota aplicado, tudo em `auto` | Trocar o futebol para `both` no painel e acompanhar a tela Métricas; reorganização dos docs aguarda merge (`docs/organizar-documentacao`) |
+| 01/10/2026 | Reorganização de `Docs/` (`docs/organizar-documentacao`) | Docs por tipo (`sistema/`, `operacao/`, `planos/`, `historico/`, `estudos/`), `Docs/PROGRESSO.md` criado, `**Status:**` em cada plano, links conferidos por `scripts/check-doc-links.py`. Em branch, sem merge | Dono revisa e mescla; manter o PROGRESSO.md a cada rodada |
 | 30/09/2026 | Áudio HLS do Hotmart via extensão (`feature/transcricao-audio-hls-extensao`) | Extensão captura o m3u8, API local guarda em `media-urls.json` (0600), worker baixa só o áudio; testes unitários passam, nada validado no Hotmart real | Dono recarrega a extensão, reinicia o worker e testa uma aula; depois merge |
 | 30/09/2026 | Validação visual da busca (`fix/busca-transcricoes-ui`) | 5 bugs de UI/backend corrigidos, piso de similaridade calibrado (0,83); branch pronta para merge, ainda fora de produção | Merge na master, depois o runbook de rollout (imagem do Postgres, embedder, backfill) |
 | 30/09/2026 | Lote 6 (prompts por perfil) do `release/rico` | Em `feature/prompts-por-perfil`, sem merge/deploy; sem canal versionado; migration pendente | Escrever `prompts/channels/mbl.yaml`, compilar `--apply`, ligar perfil no painel |
-| 30/09/2026 | Lotes 3 e 9 do Ricardo | CI, Makefile, pre-commit e configs de lint sem reformatar o código; ADRs renumerados (0002–0007, PostgreSQL 17), `Docs/DESENVOLVIMENTO.md`, `restore-postgres.sh`. Em branches, sem merge | Revisar, mesclar e ligar o `CI gate` na proteção da `master` |
+| 30/09/2026 | Lotes 3 e 9 do Ricardo | CI, Makefile, pre-commit e configs de lint sem reformatar o código; ADRs renumerados (0002–0007, PostgreSQL 17), `Docs/operacao/DESENVOLVIMENTO.md`, `restore-postgres.sh`. Em branches, sem merge | Revisar, mesclar e ligar o `CI gate` na proteção da `master` |
 | 01/10/2026 | Bugs 11, 4 e 17 no ar; extensão 1.1.1 com host Panda Video; transcrição Hotmart validada | Produção em `99fbba4`, `docker stop` com exit 0, aula do Hotmart transcrita | Primeira oferta de afiliado; decidir e responder a PR #1 do Ricardo (worker do Mac já no venv da busca) |
 | 30/09/2026 | Produção em `ace7714`: pgvector, embedder, lotes 1–9 do Ricardo, watchdog sem falso deadlock (janela cheia por aprovação é proposital), transcrição Hotmart só áudio (extensão 1.1.0, **não testada no Chrome**) | Token do Telegram rotacionado e webhook com segredo | Testar a extensão numa aula real; ligar o worker do Mac ao venv da busca; responder a PR #1 |
 | 29/09/2026 | Busca vetorial + comparação com `release/rico` | Busca pronta em `feature/busca-vetorial`, fora de produção; lotes 1–2 do Ricardo em branches | Backup + trocar imagem do Postgres na A1, deploy, backfill; rotacionar token do Telegram |

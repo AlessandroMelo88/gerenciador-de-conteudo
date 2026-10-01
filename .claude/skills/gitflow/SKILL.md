@@ -25,7 +25,7 @@ mais. O papel de "integração" é da própria `master`, que só recebe trabalho
 | Prefixo | Para quê | Sai de | Volta para |
 |---|---|---|---|
 | `feature/` | funcionalidade nova, tela, canal, integração | `master` | `master` |
-| `fix/` | correção de bug do backlog (`Docs/sistema/BUGS.md`) | `master` | `master` |
+| `fix/` | correção de bug do backlog (`Docs/operacao/BUGS.md`) | `master` | `master` |
 | `hotfix/` | produção quebrada agora | `master` | `master`, com deploy imediato |
 | `docs/` | só documentação, sem efeito em runtime | `master` | `master` |
 | `chore/` | dependência, build, CI, limpeza | `master` | `master` |

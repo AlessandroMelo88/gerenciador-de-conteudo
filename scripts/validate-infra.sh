@@ -12,7 +12,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 COMPOSE_DIR="$(dirname "$PROJECT_DIR")"
 
 # Senha do MySQL: nunca hardcoded. Vem do ambiente ou do .env do compose compartilhado.
-# Ver bug 16 em Docs/sistema/BUGS.md — o literal daqui estava publicado no GitHub.
+# Ver bug 16 em Docs/operacao/BUGS.md — o literal daqui estava publicado no GitHub.
 DB_PASS="${MYSQL_ROOT_PASSWORD:-$(grep -m1 "^MYSQL_ROOT_PASSWORD=" "$COMPOSE_DIR/.env" 2>/dev/null | cut -d= -f2- | tr -d "\"")}"
 
 check() {

@@ -12,7 +12,7 @@
 #   POSTGRES_CONTAINER=outro-nome ...   # se o container não se chamar `postgres`
 #
 # Antes de restaurar em produção: tire um dump novo do estado atual (runbook em
-# Docs/sistema/RUNBOOK.md) e pause o clip-processor. Nunca `docker compose down -v`.
+# Docs/operacao/RUNBOOK.md) e pause o clip-processor. Nunca `docker compose down -v`.
 set -Eeuo pipefail
 
 CONTAINER="${POSTGRES_CONTAINER:-postgres}"

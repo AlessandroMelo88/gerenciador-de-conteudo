@@ -38,4 +38,4 @@ make changelog-release VERSION=v0.2.0  # move os fragmentos para o CHANGELOG.md 
 O `release` cria um cabeçalho de versão com link de comparação logo abaixo de `[Unreleased]`,
 usando a versão anterior encontrada no próprio CHANGELOG para montar o link
 (`.../releases/tag/vX.Y.Z` quando é a primeira). Ele **não** faz bump de versão nem tag —
-o fluxo completo de fechar versão está em `Docs/DESENVOLVIMENTO.md`.
+o fluxo completo de fechar versão está em `Docs/operacao/DESENVOLVIMENTO.md`.

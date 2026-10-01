@@ -98,8 +98,8 @@ verbosos; a intenção é serem idempotentes.
 
 ### `source_channels`
 
-[`mysql/init/01-clips-schema.sql:15`](../mysql/init/01-clips-schema.sql#L15) +
-[`06-multi-canal-migration.sql:39-90`](../mysql/init/06-multi-canal-migration.sql#L39).
+`mysql/init/01-clips-schema.sql:15` +
+`06-multi-canal-migration.sql:39-90`.
 
 | Coluna | Tipo | Notas |
 |---|---|---|
@@ -112,11 +112,11 @@ verbosos; a intenção é serem idempotentes.
 | `blacklisted` | BOOLEAN default FALSE, indexada | filtro do poll |
 
 O poll exige `active = TRUE AND blacklisted = FALSE`
-([`rss_poller.py:203`](../clip-processor/src/rss_poller.py#L203)).
+([`rss_poller.py:203`](../../clip-processor/src/rss_poller.py#L203)).
 
 ### `source_videos`
 
-[`mysql/init/01-clips-schema.sql:24`](../mysql/init/01-clips-schema.sql#L24).
+`mysql/init/01-clips-schema.sql:24`.
 
 | Coluna | Tipo | Notas |
 |---|---|---|
@@ -134,7 +134,7 @@ O poll exige `active = TRUE AND blacklisted = FALSE`
 | `created_at`, `updated_at` | TIMESTAMP | `updated_at` é `ON UPDATE CURRENT_TIMESTAMP` |
 
 **`updated_at` é o que o recovery usa** para decidir se um `selecting` está travado
-([`db.py:188`](../clip-processor/src/db.py#L188)). Qualquer `UPDATE` na linha, mesmo sem mudar
+([`db.py:188`](../../clip-processor/src/db.py#L188)). Qualquer `UPDATE` na linha, mesmo sem mudar
 `status`, reseta esse relógio.
 
 Ordenação canônica da fila (repetida em três queries):
@@ -142,7 +142,7 @@ Ordenação canônica da fila (repetida em três queries):
 
 ### `generated_clips`
 
-[`mysql/init/01-clips-schema.sql:52`](../mysql/init/01-clips-schema.sql#L52) + migrations 03/04/05/06.
+`mysql/init/01-clips-schema.sql:52` + migrations 03/04/05/06.
 
 | Coluna | Tipo | Notas |
 |---|---|---|
@@ -165,7 +165,7 @@ publicado).
 
 ### `destination_channels`
 
-[`mysql/init/06-multi-canal-migration.sql:13`](../mysql/init/06-multi-canal-migration.sql#L13).
+`mysql/init/06-multi-canal-migration.sql:13`.
 
 | Coluna | Notas |
 |---|---|
@@ -199,7 +199,7 @@ em MySQL e no Postgres sem pgvector a migration pula o que não existe. Detalhes
 
 - apagar `source_videos` com clips vinculados **falha por FK**;
 - ordem correta em delete manual: **clips primeiro, depois vídeos**;
-- sempre fazer backup antes (regra 5 do [`../CLAUDE.md`](../CLAUDE.md)).
+- sempre fazer backup antes (regra 5 do [`../CLAUDE.md`](../../CLAUDE.md)).
 
 ```bash
 docker exec mysql mysqldump -uroot -p"$P" clips_automation source_videos generated_clips > backup.sql
@@ -214,10 +214,10 @@ pelo banco; só faz o clip nunca encontrar canal-destino.
 ## Divergência banco × disco (bug aberto)
 
 **287 clips têm `clip_path` apontando para arquivo que não existe em disco.** Origem: limpeza apagou o
-arquivo sem limpar a coluna. Detalhe e status em [`BUGS.md`](BUGS.md).
+arquivo sem limpar a coluna. Detalhe e status em [`BUGS.md`](../operacao/BUGS.md).
 
 Efeito prático no pipeline: o uploader valida a existência do arquivo
-([`uploader.py:133`](../clip-processor/src/uploader.py#L133)) e levanta `FileNotFoundError`, então o
+([`uploader.py:133`](../../clip-processor/src/uploader.py#L133)) e levanta `FileNotFoundError`, então o
 clip vira `failed` na tentativa de publicar em vez de subir vazio.
 
 Query para medir a divergência (só leitura):
@@ -239,7 +239,7 @@ Depois conferir cada path com `docker exec clip-processor ls -l <path>` — não
 
 O `clip-processor` conecta via pymysql com `autocommit=False`, `charset=utf8mb4`,
 `connect_timeout=10`, `cursorclass=DictCursor`
-([`db.py:43`](../clip-processor/src/db.py#L43)). **Cada função faz commit explícito**; quem abre a
+([`db.py:43`](../../clip-processor/src/db.py#L43)). **Cada função faz commit explícito**; quem abre a
 conexão é responsável por fechar.
 
 A senha vem de `CLIPS_DB_PASSWORD` no `.env` da **raiz `wordpress/`** — não o `canaldecortes/.env`.

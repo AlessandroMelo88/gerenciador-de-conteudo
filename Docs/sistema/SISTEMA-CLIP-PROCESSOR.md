@@ -31,7 +31,7 @@ docker compose build clip-processor && docker compose up -d clip-processor
 Isso já causou horas perdidas: em 13/08/2026 o container rodava código de 01/08 enquanto o host tinha
 commits de 12/08, e o comportamento observado não correspondia a nenhuma versão do código que se estava
 lendo. **Conferir a data da imagem antes de investigar qualquer bug** —
-[`RUNBOOK.md`](RUNBOOK.md#o-container-está-rodando-código-velho).
+[`RUNBOOK.md`](../operacao/RUNBOOK.md#o-container-está-rodando-código-atualizado).
 
 ---
 

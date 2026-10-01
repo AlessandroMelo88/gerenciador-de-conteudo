@@ -7,7 +7,7 @@
 1. Leia [`CLAUDE.md`](CLAUDE.md) antes de tocar em dados, Docker, disco ou estados transitórios.
 2. Consulte o documento do subsistema em [`Docs/sistema/`](Docs/sistema/README.md).
 3. Confirme a fonte de verdade no código, migrations, Compose e `.env.example`.
-4. Ambiente local, lint e testes: [`Docs/DESENVOLVIMENTO.md`](Docs/DESENVOLVIMENTO.md).
+4. Ambiente local, lint e testes: [`Docs/operacao/DESENVOLVIMENTO.md`](Docs/operacao/DESENVOLVIMENTO.md).
 
 ## Branches e commits
 

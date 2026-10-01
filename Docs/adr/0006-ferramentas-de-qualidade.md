@@ -30,7 +30,7 @@ Pint) e conflitaria com qualquer branch aberta. Também fixava PHP 8.4, mas a pr
 
 - `make lint` é o contrato local; o que passa nele passa no CI.
 - Prettier, Vitest e Playwright não foram adotados (dependem de código e lockfile fora deste lote).
-- Detalhes de uso: [`../DESENVOLVIMENTO.md`](../DESENVOLVIMENTO.md).
+- Detalhes de uso: [`../DESENVOLVIMENTO.md`](../operacao/DESENVOLVIMENTO.md).
 
 ## Alternativas consideradas
 

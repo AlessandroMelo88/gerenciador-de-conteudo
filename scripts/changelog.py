@@ -11,7 +11,7 @@ Uso:
       move os fragmentos para uma seção "## [vX.Y.Z (D)](<compare>)" no CHANGELOG.md e os apaga
       (--keep mantém; --dry-run só imprime o resultado)
 
-Só stdlib. Não faz bump de versão nem tag — ver Docs/DESENVOLVIMENTO.md.
+Só stdlib. Não faz bump de versão nem tag — ver Docs/operacao/DESENVOLVIMENTO.md.
 """
 
 from __future__ import annotations

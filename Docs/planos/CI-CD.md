@@ -1,5 +1,7 @@
 # Deploy automático diário — opções e decisão
 
+**Status:** IDEIA · só desenho, decidido em 17/09/2026; revisado em 01/10/2026. O bloqueio técnico (bug 11, SIGTERM) foi resolvido em 01/10/2026; falta escolher entre as opções B e C e implementar.
+
 **Estado: só desenho. Nada implementado** (decisão do operador em 17/09/2026: "deixa o deploy pra
 depois, mas deixe documentado"). Hoje o deploy é manual: `./deploy.sh` a partir do Mac, com a
 `master` igual ao GitHub. Ver [`DEPLOY.md`](../../DEPLOY.md) e a skill `finalizar-e-deploy`.
@@ -7,7 +9,7 @@ depois, mas deixe documentado"). Hoje o deploy é manual: `./deploy.sh` a partir
 ## O que se quer
 
 Deploy do que está na `master` do GitHub, todo dia às **6h (BRT)**, **sem reiniciar o processador no
-meio de um corte** ([bug 11](BUGS.md#11-aberto--container-não-honra-sigterm-todo-docker-stop-vira-sigkill)).
+meio de um corte** ([bug 11](../operacao/BUGS.md#11-feito--container-não-honrava-sigterm-todo-docker-stop-virava-sigkill)).
 
 ## As três opções
 

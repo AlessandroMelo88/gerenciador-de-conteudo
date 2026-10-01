@@ -7,7 +7,7 @@ cheio). A trava é política; o que o operador precisa é ser avisado (watchdog,
 `download_window_waiting_approval`) e o TTL de 48h rejeita o que ninguém decide.
 
 Este teste fixa a regra: se alguém tirar `pending` da conta, ele quebra e manda
-ler este docstring e o bug 17 em Docs/sistema/BUGS.md.
+ler este docstring e o bug 17 em Docs/operacao/BUGS.md.
 """
 from unittest.mock import MagicMock
 

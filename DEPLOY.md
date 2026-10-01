@@ -204,7 +204,7 @@ Dentro do Dockerfile do `clip-processor`:
 
 ## 🌐 Informações do Servidor de Produção
 
-* **IP**: `129.80.236.185` — VM A1.Flex 2 OCPU / 12 GB ARM, Ashburn, PostgreSQL 17 (desde 17/09/2026, ver `Docs/sistema/MIGRACAO-A1.md`)
+* **IP**: `129.80.236.185` — VM A1.Flex 2 OCPU / 12 GB ARM, Ashburn, PostgreSQL 17 (desde 17/09/2026, ver `Docs/planos/MIGRACAO-A1.md`)
 * **Usuário**: `ubuntu`
 * **Chave SSH**: `~/.ssh/oracle-a1-2026-09-16.key`
 * **Diretório da Aplicação**: `/home/ubuntu/canaldecortes`

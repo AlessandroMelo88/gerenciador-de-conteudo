@@ -1,5 +1,7 @@
 # Plano mestre — estado, decisões e próximos passos
 
+**Status:** EM ANDAMENTO · revisado em 01/10/2026. Feito: migração para a A1 + PostgreSQL (17/09), afiliados e tema Umbrella no ar (18/09), bugs 11 e 4 (01/10). Aberto: primeira oferta real, canais do Telegram, DNS/logo da Umbrella, gate de licença e separação das contas Google (adiada). A tabela da seção 8 e os checklists das seções 4 e 7 ficaram com o status da época em que foram escritos; o quadro atual está em [`../PROGRESSO.md`](../PROGRESSO.md).
+
 Documento de continuidade. Reúne o que foi decidido em 14/09/2026 sobre **advertência de direitos
 autorais**, **infraestrutura**, **banco de dados**, **marca** e **monetização por afiliados**.
 
@@ -26,7 +28,7 @@ IP:     147.15.124.191
 painel: https://toolscut.alessandromelo.com.br
 ```
 
-**Correção importante:** o [`PLANO-ORACLE.md`](PLANO-ORACLE.md) diz "migração não iniciada", mas a
+**Correção importante:** o [`PLANO-ORACLE.md`](../historico/PLANO-ORACLE.md) diz "migração não iniciada", mas a
 produção **já está na Oracle** — só que no shape errado. `E2.1.Micro` é shape **fixo**, não `.Flex`:
 não existe caminho de aumentar RAM. O plano previa `VM.Standard.A1.Flex` 2 OCPU/12 GB, que também é
 Always Free. Aquele documento precisa ser corrigido.
@@ -286,7 +288,7 @@ O suporte já existe no código, não é reescrita:
 - Queries já compatibilizadas: `ON CONFLICT ... DO NOTHING` vs `INSERT IGNORE`, `INTERVAL` ANSI vs
   `DATE_SUB`
 - Laravel troca por `DB_CONNECTION=pgsql`
-- [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md) já documenta o modo híbrido (MySQL 8.4 / PostgreSQL 17)
+- [`BANCO-DE-DADOS.md`](../sistema/BANCO-DE-DADOS.md) já documenta o modo híbrido (MySQL 8.4 / PostgreSQL 17)
 
 ### Por que compensa
 
@@ -395,7 +397,7 @@ o mesmo Laravel resolve — não duplicar código nem banco.
 
 **Status (15/09/2026):** tema implementado na branch `afiliadas-fase2`: `config/branding.php`,
 `BRAND_DOMAINS`/`APP_BRAND`, tokens em `[data-brand='umbrella']`. Falta domínio (DNS, vhost,
-certificado) e logo. Detalhes em [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md#marca-umbrella-solutions).
+certificado) e logo. Detalhes em [`SISTEMA-AFILIADOS.md`](../sistema/SISTEMA-AFILIADOS.md#marca-umbrella-solutions).
 
 Ponto prático a resolver antes de faturar: rede de afiliado paga pessoa física, mas CNPJ (MEI
 serve) reduz imposto e permite emitir nota. Não bloqueia começar.
@@ -439,7 +441,7 @@ Assim: sem túnel, sem dependência de uptime, e você revisa a oferta no painel
 | Caminho automático por item | Haiku via `ANTHROPIC_API_KEY`, fallback Groq | Centavos por mês. Assinatura de IDE é seat interativo, não backend: quebra sem aviso e não tem retry |
 
 Regra do projeto que vale aqui: **todo caminho novo de IA nasce com fallback Groq** — ver
-[`SISTEMA-IA-SELECAO.md`](SISTEMA-IA-SELECAO.md).
+[`SISTEMA-IA-SELECAO.md`](../sistema/SISTEMA-IA-SELECAO.md).
 
 ### Canais de divulgação — não depende de vídeo
 
@@ -470,7 +472,7 @@ automático por Mercado Livre e Shopee, que liberam API mais fácil.
 
 ## 7. Bugs abertos
 
-Detalhe completo em [`BUGS.md`](BUGS.md).
+Detalhe completo em [`BUGS.md`](../operacao/BUGS.md).
 
 | # | O quê | Gravidade | Onde corrigir |
 |---|---|---|---|
@@ -497,7 +499,7 @@ aberto é enxugar gelo.
 | 3 | Auditar e reclassificar fontes; achar fontes de futebol que aceitam cortes | ⬜ | 2 |
 | 4 | Bugs 11 e 4 | ⬜ | 1 |
 | 5 | VM A1 12 GB + PostgreSQL no mesmo movimento | ✅ 17/09/2026 ([`MIGRACAO-A1.md`](MIGRACAO-A1.md)); falta DNS na Cloudflare | 4 |
-| 6 | Afiliados: schema, `POST /api/offers`, tela, worker local, tela de performance | 🟡 código pronto na branch `afiliadas-fase2` (17/09/2026), sem deploy — ver [`SISTEMA-AFILIADOS.md`](SISTEMA-AFILIADOS.md) | 5 |
+| 6 | Afiliados: schema, `POST /api/offers`, tela, worker local, tela de performance | 🟡 código pronto na branch `afiliadas-fase2` (17/09/2026), sem deploy — ver [`SISTEMA-AFILIADOS.md`](../sistema/SISTEMA-AFILIADOS.md) | 5 |
 | 7 | Tema Umbrella Solutions e domínio | 🟡 tema pronto na branch `afiliadas-fase2` (seleção por host ou `APP_BRAND`); falta DNS, vhost, certificado e logo | 6 |
 | 8 | Divulgação: Telegram, descrições, blog | 🟡 Telegram automático pronto na branch `afiliadas-fase2`; falta criar canais e pôr o bot como admin. Descrições e blog ⬜ | 6 |
 | 9 | Produto próprio e cursos | ⬜ | 8 |

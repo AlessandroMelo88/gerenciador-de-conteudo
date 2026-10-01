@@ -1,5 +1,7 @@
 # Plano de migração — Oracle Cloud (Always Free)
 
+**Status:** OBSOLETO (arquivado em 01/10/2026) · superado pela migração real para a VM A1 com PostgreSQL em 17/09/2026 ([`../planos/MIGRACAO-A1.md`](../planos/MIGRACAO-A1.md)). O texto abaixo (MySQL, "NÃO INICIADO", checkboxes abertos) descreve o plano de 13/08/2026 e não reflete a produção atual.
+
 **Objetivo:** tirar o pipeline do SSD da máquina local e deixar na máquina só o código de desenvolvimento.
 **Restrição inegociável:** custo R$ 0. Nenhuma cobrança no cartão, em nenhum cenário.
 
@@ -107,7 +109,7 @@ Migrar sem isso só transfere o problema: em ritmo normal, 8.5 GB de `_raw` a ca
 - [x] Bug 5 — mesma varredura para `_subtitled.mp4` (12/08/2026)
 - [x] Bug 9 — download falho apaga o arquivo e zera `local_path` (13/08/2026)
 - [x] Bug 4, parte 1 — `recover_stuck_selecting` agora roda a cada 30 min e trata `local_path IS NULL` (13/08/2026)
-- [x] Bug 4, parte 2 — recuperação para `cutting`, `publishing` e `transcribing` ([`BUGS.md`](BUGS.md#4-parcial--estados-sem-recuperação-automática-seguram-arquivo-em-disco))
+- [x] Bug 4, parte 2 — recuperação para `cutting`, `publishing` e `transcribing` ([`BUGS.md`](../operacao/BUGS.md#4-feito--estados-sem-recuperação-automática-seguram-arquivo-em-disco))
 - [ ] Bug 11 — container não honra SIGTERM; todo restart pode criar estado preso novo
 - [ ] Bug 10 — reconciliar os 287 `clip_path` que apontam para arquivo inexistente
 - [ ] Limpeza retroativa do resíduo de `_raw`/`_subtitled` anterior a 12/08/2026

@@ -19,7 +19,7 @@ serviço derruba todos, e um `docker system prune` já apagou o `clip-processor`
 **Não adotar agora.** A regra vigente é a do `CLAUDE.md`: o compose da raiz `wordpress/` é
 compartilhado, e só se mexe no serviço `clip-processor` e nos paths sob `canaldecortes/`. Em
 produção (VM A1) o stack do projeto sobe pelo compose do próprio projeto com PostgreSQL 17 e vídeos
-em `/mnt/videos` (`Docs/sistema/MIGRACAO-A1.md`); a portabilidade que a proposta buscava foi
+em `/mnt/videos` (`Docs/planos/MIGRACAO-A1.md`); a portabilidade que a proposta buscava foi
 resolvida pela migração para a A1, não por um compose novo.
 
 ## Consequências

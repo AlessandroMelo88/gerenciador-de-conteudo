@@ -1,5 +1,5 @@
 # CI — só valida. Não faz deploy, não usa segredo: o deploy é manual (./deploy.sh, ver DEPLOY.md).
-# Espelha `make ci` mais os testes PHP (que exigem PostgreSQL). Detalhes: Docs/DESENVOLVIMENTO.md
+# Espelha `make ci` mais os testes PHP (que exigem PostgreSQL). Detalhes: Docs/operacao/DESENVOLVIMENTO.md
 name: CI
 
 on:

@@ -104,7 +104,7 @@ def run_remote_sql(query: str) -> str:
 
     A senha é resolvida **dentro do servidor**, lendo o `.env` no próprio comando remoto.
     Até 16/09/2026 ela estava escrita neste arquivo, que é versionado num repositório público
-    (bug 16 em Docs/sistema/BUGS.md). Resolver no destino é melhor do que só tirar daqui: o
+    (bug 16 em Docs/operacao/BUGS.md). Resolver no destino é melhor do que só tirar daqui: o
     segredo não trafega, não fica em memória do cliente e não aparece em `ps` na máquina local.
     """
     remote = (
@@ -231,7 +231,7 @@ FRESHNESS_DAYS = int(os.environ.get('WORKER_FRESHNESS_DAYS', 2))
 DOWNLOAD_MAX_PER_SOURCE_CHANNEL = os.environ.get('DOWNLOAD_MAX_PER_SOURCE_CHANNEL') or None
 
 # Teto de clips longos aguardando (corte, aprovação) por nicho; 0 = sem teto. Plano do longo por canal
-# (Docs/sistema/PLANO-LONGO-POR-CANAL.md): barra o download de mais um vídeo longo ANTES de ele ocupar
+# (Docs/planos/PLANO-LONGO-POR-CANAL.md): barra o download de mais um vídeo longo ANTES de ele ocupar
 # raw em disco (bug 17). Vale pelo formato que a fonte já tem ao ser buscada; o formato real só é
 # conhecido depois de baixar, então o teto é de melhor esforço.
 MAX_LONGOS_PENDENTES = int(os.environ.get('MAX_LONGOS_PENDENTES_POR_CANAL', 0) or 0)

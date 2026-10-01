@@ -108,7 +108,7 @@ Todos com `coalesce=True, max_instances=1, misfire_grace_time=900`.
 
 > O `state_recovery` foi adicionado em 13/08/2026. Antes, o recovery de estado preso rodava **só no
 > boot** — o que travasse depois do container subir ficava preso até o próximo restart. Detalhe em
-> [`Docs/ESTADOS-E-TRANSICOES.md`](Docs/ESTADOS-E-TRANSICOES.md).
+> [`Docs/sistema/ESTADOS-E-TRANSICOES.md`](Docs/sistema/ESTADOS-E-TRANSICOES.md).
 
 > **Ingestão e publicação são jobs separados.** O ciclo completo (`run_pipeline_once`) só roda no boot; não está mais agendado. O `ingest_cycle` (commit `dca6e44`) existe para que uma vaga aberta na janela de download — porque um vídeo foi excluído no painel ou uma publicação concluiu — seja reposta em ~20 min em vez de esperar o ciclo antigo de 6 h.
 
@@ -117,7 +117,7 @@ Todos com `coalesce=True, max_instances=1, misfire_grace_time=900`.
 1. **Descoberta** — `poll_all_channels` varre o RSS de cada `source_channel` ativo e não-blacklistado. Por entrada: dedup (Redis `SET NX`, TTL 30 dias, com fallback para MySQL) → filtro de título (bloqueia keywords de aposta/cassino) → detecção de formato (yt-dlp metadata; falha ⇒ assume `curto`) → `INSERT status='pending'`.
 2. **Download** — janela fixa **por formato**, que não se canibaliza: até 6 `curto` e 4 `longo` **ocupando disco simultaneamente**. Baixa só o déficit. Só considera vídeos publicados nas últimas 24 h (`FRESHNESS_DAYS = 1`), ordenados por `published_at DESC` — a notícia mais recente ganha, não a descoberta mais antiga. yt-dlp 720p, 3 tentativas, aborta se restarem < 2 GB de disco.
 3. **Transcrição** — Groq Whisper (`whisper-large-v3-turbo`, pt). Arquivo > 24 MB é convertido para MP3 antes.
-4. **Seleção de momentos** — Claude Haiku escolhe os trechos com score 0–10. Prompt e truncagem variam por formato (`longo`: 1 segmento, 420–1200 s; `curto`: até 3 momentos, 30–180 s). Ver [`Docs/SISTEMA-IA-SELECAO.md`](Docs/SISTEMA-IA-SELECAO.md).
+4. **Seleção de momentos** — Claude Haiku escolhe os trechos com score 0–10. Prompt e truncagem variam por formato (`longo`: 1 segmento, 420–1200 s; `curto`: até 3 momentos, 30–180 s). Ver [`Docs/sistema/SISTEMA-IA-SELECAO.md`](Docs/sistema/SISTEMA-IA-SELECAO.md).
 5. **Corte e pós-produção** — FFmpeg: corta → gera SRT → queima legenda → marca d'água → thumbnail. `curto` recebe crop 1080x1920; `longo` preserva o horizontal (`scale=-2:1080`).
 6. **Metadata** — Claude Haiku gera título, descrição e tags a partir da transcrição do trecho.
 7. **Publicação** — respeitando cota, janela horária e round-robin (ver 4.2).
@@ -156,7 +156,7 @@ Um token por canal-destino, em `/app/youtube/token-{slug}.json`, gerado pelo CLI
 ## 5. Máquina de estados
 
 > Versão completa, com quem escreve cada transição, diagramas Mermaid e a tabela do que **tem e não tem
-> recuperação automática**, em [`Docs/ESTADOS-E-TRANSICOES.md`](Docs/ESTADOS-E-TRANSICOES.md). O resumo
+> recuperação automática**, em [`Docs/sistema/ESTADOS-E-TRANSICOES.md`](Docs/sistema/ESTADOS-E-TRANSICOES.md). O resumo
 > abaixo é suficiente para orientação, não para operar.
 
 ### `source_videos.status`

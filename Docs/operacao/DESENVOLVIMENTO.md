@@ -1,11 +1,11 @@
 # Desenvolvimento — lint, testes e CI
 
 > Tipo: referência as-built · Atualizado: 2026-09-30
-> Índice: [`README.md`](README.md) · regras de trabalho: [`../CLAUDE.md`](../CLAUDE.md),
-> [`../CONTRIBUTING.md`](../CONTRIBUTING.md) · decisão: [ADR-0006](adr/0006-ferramentas-de-qualidade.md)
+> Índice: [`README.md`](../README.md) · regras de trabalho: [`../CLAUDE.md`](../../CLAUDE.md),
+> [`../CONTRIBUTING.md`](../../CONTRIBUTING.md) · decisão: [ADR-0006](../adr/0006-ferramentas-de-qualidade.md)
 
 Tudo roda **no host**, sem `docker compose` do projeto (o compose de `wordpress/` é compartilhado
-com outros projetos — não mexa nele). Os alvos ficam no [`Makefile`](../Makefile); `make help` lista.
+com outros projetos — não mexa nele). Os alvos ficam no [`Makefile`](../../Makefile); `make help` lista.
 
 ## O que cada gate faz hoje
 
@@ -41,7 +41,7 @@ make hooks            # opcional: instala o pre-commit
 
 Requisitos do host: Python 3.12+, PHP 8.3+ com Composer, Node 22, Docker (só para o Postgres de
 teste), `shellcheck` e `hadolint` (opcionais: o `make` avisa e segue se faltarem). Versões de
-referência em [`../.tool-versions`](../.tool-versions); PHP não é fixado lá porque a produção usa
+referência em [`../.tool-versions`](../../.tool-versions); PHP não é fixado lá porque a produção usa
 `php:8.3` e o `composer.lock` é resolvido para 8.3 (`config.platform.php`).
 
 ## Como rodar
@@ -83,7 +83,7 @@ fosse produção; os testes de Telegram/estado usam Redis (extensão `phpredis` 
 
 ## CI
 
-[`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) roda em push na `master` e em PR:
+[`../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) roda em push na `master` e em PR:
 
 ~~~mermaid
 flowchart LR
@@ -97,17 +97,17 @@ flowchart LR
 ~~~
 
 - **Só valida.** Não usa segredo e não faz deploy: o deploy continua manual (`./deploy.sh`, ver
-  [`../DEPLOY.md`](../DEPLOY.md) e [`sistema/CI-CD.md`](sistema/CI-CD.md)).
+  [`../DEPLOY.md`](../../DEPLOY.md) e [`planos/CI-CD.md`](../planos/CI-CD.md)).
 - `CI gate` é o job final; é o único check a exigir na proteção da `master`.
 - Os testes PHP no CI usam PHP 8.3 e `pgvector/pgvector:pg17` com credenciais descartáveis.
 
 ## Fluxo de mudança
 
-1. leia [`../CLAUDE.md`](../CLAUDE.md) e o subsistema relevante;
+1. leia [`../CLAUDE.md`](../../CLAUDE.md) e o subsistema relevante;
 2. branch com prefixo (Gitflow, skill `gitflow`), altere código e teste;
 3. rode o gate proporcional (`make lint` + a suíte da área);
 4. atualize a documentação no mesmo commit e acrescente um fragmento em
-   [`../CHANGELOG.d/`](../CHANGELOG.d/README.md) quando a mudança for percebida por quem usa;
+   [`../CHANGELOG.d/`](../../CHANGELOG.d/README.md) quando a mudança for percebida por quem usa;
 5. `git diff --check` antes do commit.
 
 Editar `clip-processor/src/` continua exigindo rebuild + restart do serviço (`docker compose build
@@ -125,7 +125,7 @@ make changelog-release VERSION=v0.2.0
 
 ## Restaurar um backup do PostgreSQL
 
-[`scripts/restore-postgres.sh`](../scripts/restore-postgres.sh) restaura `.sql.gz` ou `.dump`
+[`scripts/restore-postgres.sh`](../../scripts/restore-postgres.sh) restaura `.sql.gz` ou `.dump`
 (`pg_dump -Fc`) no container `postgres`. Sobrescreve dados: exige
 `CONFIRM_RESTORE=I_UNDERSTAND`, confere o `.sha256` ao lado do arquivo, e aceita
 `POSTGRES_CONTAINER=` se o nome do container for outro. Tire um dump do estado atual antes
@@ -133,6 +133,6 @@ make changelog-release VERSION=v0.2.0
 
 ## Referências
 
-- arquitetura: [`../ARCHITECTURE.md`](../ARCHITECTURE.md)
-- operação: [`sistema/RUNBOOK.md`](sistema/RUNBOOK.md)
-- decisões: [`adr/README.md`](adr/README.md)
+- arquitetura: [`../ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- operação: [`operacao/RUNBOOK.md`](RUNBOOK.md)
+- decisões: [`adr/README.md`](../adr/README.md)

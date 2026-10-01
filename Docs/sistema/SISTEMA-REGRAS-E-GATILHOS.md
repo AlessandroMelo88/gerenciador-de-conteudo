@@ -1,5 +1,7 @@
 # 📋 Regras de Negócio e Gatilhos Operacionais — Canal de Cortes
 
+**Status:** VERIFICAR · resumo antigo de metas e janelas; números (10 vídeos/dia, 48 h, janela 12h/19h) divergem de [`SISTEMA-PUBLICACAO.md`](SISTEMA-PUBLICACAO.md) e [`SISTEMA-DOWNLOAD.md`](SISTEMA-DOWNLOAD.md). Em caso de conflito vale o código e esses dois documentos.
+
 Este documento resume as regras de negócio, limites diários de download e postagem, e gatilhos de auto-expurgo do sistema.
 
 ---

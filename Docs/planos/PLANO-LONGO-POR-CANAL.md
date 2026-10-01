@@ -1,6 +1,6 @@
 # Plano — vídeo longo automático, escolhido por canal
 
-**Status:** IMPLEMENTADO em 01/10/2026 na branch `feature/longo-por-canal` (ainda fora de produção; tudo em `auto` até o dono ligar o futebol). Plano escrito em 01/10/2026, decisões do dono para o futebol e respostas (rampa 6, revezar origem, teto de longos) registradas no mesmo dia; nada implementado.
+**Status:** IMPLEMENTADO e EM PRODUÇÃO desde 01/10/2026 (`59b0eb1`): futebol em `both`, demais canais em `auto`. Plano escrito em 01/10/2026; decisões do dono para o futebol e respostas (rampa 6, revezar origem, teto de longos) registradas no mesmo dia.
 **Origem:** PR #1 do Ricardo (`release/rico`) fazia todo vídeo gerar Shorts **e** longo, sem chave para
 desligar. Recusado como está; o dono quer decidir **por canal destino**, nas configurações do canal.
 
@@ -181,8 +181,8 @@ Antes de codar: spec curta em `Docs/specs/` (skill `padroes-projeto`), branch `f
 | 2. Coleta de views + tela Métricas | Feito (coletor de hora em hora; tela em `/painel/metricas`) |
 | 3. Cota por formato, teto 10, espaçamento, revezamento | Feito. Defaults de produção inalterados |
 | 4. Modos `short_only` e `both` no pipeline | Feito. `generated_clips.format` criada (nula, herda da fonte) |
-| Teto de longos aguardando aprovação | **Só a função** (`longo_teto_atingido` em `db.py`); falta chamá-la no fluxo de download (`scripts/local_download_worker.py`), antes de baixar vídeo longo |
-| 5. Rollout | Pendente: deploy com tudo em `auto`, depois ligar o futebol |
+| Teto de longos aguardando aprovação | **Feito** no worker de download do Mac (`MAX_LONGOS_PENDENTES_POR_CANAL=4` no launchd): barra o download de fonte longa antes de ocupar disco. Melhor esforço: vale pelo formato que a fonte tem ao ser buscada |
+| 5. Rollout | **Feito em 01/10/2026:** deploy `59b0eb1`, env de cota aplicado no servidor (10 / 4 / 6 / 15 min) e `futebol-em-cortes` em `both`. Falta só acompanhar a tela Métricas |
 
 **Variáveis do rollout no `.env` do servidor** (o código não as aplica sozinho): `MAX_UPLOADS_PER_DAY=10`,
 `MAX_LONGO_UPLOADS_PER_DAY=4`, `MAX_CURTO_UPLOADS_PER_DAY=6`, `MIN_UPLOAD_SPACING_MINUTES=15`. O modo do canal
