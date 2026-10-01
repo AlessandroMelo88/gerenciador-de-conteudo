@@ -230,6 +230,12 @@ FRESHNESS_DAYS = int(os.environ.get('WORKER_FRESHNESS_DAYS', 2))
 # Teto de vagas por canal de origem; vazio = janela do nicho ÷ canais ativos.
 DOWNLOAD_MAX_PER_SOURCE_CHANNEL = os.environ.get('DOWNLOAD_MAX_PER_SOURCE_CHANNEL') or None
 
+# Teto de clips longos aguardando (corte, aprovação) por nicho; 0 = sem teto. Plano do longo por canal
+# (Docs/sistema/PLANO-LONGO-POR-CANAL.md): barra o download de mais um vídeo longo ANTES de ele ocupar
+# raw em disco (bug 17). Vale pelo formato que a fonte já tem ao ser buscada; o formato real só é
+# conhecido depois de baixar, então o teto é de melhor esforço.
+MAX_LONGOS_PENDENTES = int(os.environ.get('MAX_LONGOS_PENDENTES_POR_CANAL', 0) or 0)
+
 # Candidatos buscados por vaga livre — o round-robin precisa de mais de um canal
 # na mão para intercalar.
 CANDIDATES_PER_SLOT = int(os.environ.get('CANDIDATES_PER_SLOT', 5))
@@ -323,6 +329,24 @@ def active_source_channels(niche: str) -> int:
         return 0
 
 
+def longos_aguardando(niche: str) -> int | None:
+    """Clips longos do nicho que ainda não foram ao ar nem saíram da fila. None = não deu para contar."""
+    if not niche.replace('_', '').replace('-', '').isalnum():
+        raise ValueError(f'nicho inválido: {niche!r}')
+    out = run_remote_sql(
+        "SELECT COUNT(*) FROM generated_clips gc "
+        "JOIN source_videos sv ON sv.id = gc.source_video_id "
+        "JOIN destination_channels dc ON dc.id = gc.destination_channel_id "
+        "WHERE sv.format = 'longo' "
+        "AND gc.status IN ('pending_cut', 'cutting', 'pending', 'approved') "
+        f"AND dc.niche = '{niche}';"
+    )
+    try:
+        return int((out or '').strip().splitlines()[0])
+    except (ValueError, IndexError):
+        return None
+
+
 def fetch_pending_videos():
     """Busca vídeos 'pending' recentes só até completar a janela, com justiça por canal."""
     # Auto-expurgo de vídeos com mais de 2 dias (notícia velha). O corte vai calculado
@@ -387,6 +411,13 @@ def fetch_pending_videos():
                     'format': parts[3],
                     'channel_id': parts[4].strip(),
                 })
+
+        if MAX_LONGOS_PENDENTES > 0 and any(c['format'] == 'longo' for c in candidatos):
+            aguardando = longos_aguardando(niche)
+            if aguardando is not None and aguardando >= MAX_LONGOS_PENDENTES:
+                _log(f'Nicho {niche}: {aguardando} longo(s) aguardando (teto {MAX_LONGOS_PENDENTES}) — '
+                     'pulando vídeos longos neste ciclo')
+                candidatos = [c for c in candidatos if c['format'] != 'longo']
 
         videos.extend(fair_pick(candidatos, occupancy=ocupacao, deficit=deficit, cap=cap))
     return videos
