@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DestinationChannelController;
 use App\Http\Controllers\DocumentationController;
 use App\Http\Controllers\MediaAssetController;
+use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\NicheController;
 use App\Http\Controllers\OfferController;
 use App\Http\Controllers\OfferPerformanceController;
@@ -101,6 +102,8 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/painel/processar-video', [ProcessVideoController::class, 'show'])->name('process-video.show');
     Route::post('/painel/processar-video', [ProcessVideoController::class, 'store']);
+
+    Route::get('/painel/metricas', [MetricsController::class, 'index'])->name('metrics.index');
 
     Route::get('/painel/transcricoes', [TranscriptionController::class, 'index'])->name('transcriptions.index');
     Route::post('/painel/transcricoes', [TranscriptionController::class, 'store']);

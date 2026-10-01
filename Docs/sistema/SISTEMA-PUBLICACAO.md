@@ -240,3 +240,26 @@ dias.
 
 Atenção: o TTL rejeita por **`created_at`**, não por tempo em `pending`. Um clip que ficou 40 h preso
 em `cutting` e só depois virou `pending` já entra quase expirado.
+
+## Coleta de métricas (views) e tela "Métricas"
+
+Depois de publicado, o clip passa a ser medido: `clip-processor/src/metrics_collector.py` (job `metrics_collector`,
+de hora em hora) chama `videos.list` part=`statistics` (até 50 ids por chamada) e grava **uma linha por clip por
+coleta** em `clip_metrics` (`generated_clip_id`, `collected_at`, `views`, `likes`, `comments`). A FK tem
+`ON DELETE CASCADE`: apagar um clip leva as medições junto (as demais FKs de `generated_clips` não têm cascade).
+
+| Idade do clip | Frequência |
+|---|---|
+| menos de 7 dias | a cada 6 h |
+| 7 a 30 dias | 1 vez por dia |
+| mais de 30 dias | não mede mais |
+
+- **Credencial:** a mesma do upload — `/app/youtube/token-{slug}.json` do canal-destino do clip (clip sem canal usa
+  o token legado). O escopo `youtube.force-ssl` que o token já tem cobre a leitura; **nada novo a configurar**.
+  Token expirado (`RefreshError`) liga `oauth_expired_flag` como no upload e o canal é pulado até renovar.
+- **Cota:** `videos.list` custa 1 unidade/chamada, no projeto GCP de cada canal (10.000/dia). Com ~10 clips/dia
+  medidos a cada 6 h são poucas dezenas de chamadas por dia. Teto de segurança: `METRICS_MAX_CALLS_PER_CHANNEL_DAY` (200).
+- **Falha de API/banco** é só logada (`[METRICS]`); nunca derruba o pipeline. `METRICS_COLLECTOR_ENABLED=false` desliga o job.
+- **Tela:** `/painel/metricas` (menu "Métricas"): views médias por formato (Short × longo) no 1º dia e aos 7 dias,
+  ranking de canal-fonte por views por clip e a lista de clips com menos de 50 views após 2 dias no ar.
+  Sem medições, mostra "ainda sem dados: a primeira coleta roda em até 6 h".
