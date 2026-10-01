@@ -1,7 +1,7 @@
 # Estado do projeto — leia primeiro
 
 **Última atualização:** 01/10/2026
-**Produção:** commit `99fbba4`, no ar em https://toolscut.alessandromelo.com.br
+**Produção:** commit `59b0eb1`, no ar em https://toolscut.alessandromelo.com.br
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
 Ele resume e aponta; o detalhe fica nos arquivos citados.
@@ -96,6 +96,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 - Rodar a suíte contra o banco de produção deixa conta de teste com senha padrão (bug 14).
 - Testes de Telegram dependem de `TELEGRAM_BOT_TOKEN` no `.env`; sem ele falham 8 testes sem ser
   regressão de código.
+- `deploy.sh` faz `up -d --no-recreate` + `restart`: **não relê o `.env`**. Mudou variável (cota, etc.)? No servidor: `docker compose up -d --force-recreate --no-deps clip-processor php` (só com `publishing = 0`; `cutting` volta a `pending_cut` no boot) e depois `docker exec nginx nginx -s reload`, senão o painel dá 502 (IP novo do php). A variável também precisa estar no `environment:` do `docker-compose.yml`, senão não chega ao container (01/10/2026).
 - `docker system prune` já apagou o `clip-processor` inteiro junto com os logs da falha.
 
 ## 6. Em aberto
@@ -109,6 +110,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Integração da branch do Ricardo (`release/rico`) | 30/09 | Lotes 1–9 na `master` e em produção. Fora: Hacker Libertário (não é do dono), stage workers, captions via API interna, seletor com janelas distribuídas, painel de perfis por canal destino. PR #1 dele ainda aberta no GitHub (responder/fechar). Não trazer compose, `composer.lock`, docs nem defaults de publicação dele |
 | Token do Telegram no histórico público (`.planning/.../09-01-PLAN.md`, commit `614092d`) | Comparação 29/09 | **Rotacionar no BotFather** (passo do operador), depois remover o arquivo |
 | Transcrição de aula Hotmart (HLS, só áudio) | 30/09 | **Validada em 01/10/2026** numa aula real (28 min transcritos). O Hotmart serve o vídeo pela Panda Video (`*.tv.pandavideo.com.br`), não por `hotmart.com`; extensão 1.1.1 e API local aceitam os dois hosts. Outro player = ajustar `SUFIXOS_PLAYER`, `host_permissions` e `MEDIA_HOSTS_PADRAO` (ver `Docs/sistema/SISTEMA-TRANSCRICAO.md`). Falta só ligar o launchd do worker ao venv da busca |
+| Longo por canal destino + cota 10/dia + métricas | 01/10 | **No ar (`59b0eb1`).** Campo "Formato dos vídeos" em Canais Destino (`auto`, `short_only`, `both`); todos os canais seguem em `auto`. Cota no servidor: `MAX_UPLOADS_PER_DAY=10`, longos 4, curtos 6, espaçamento 15 min (backup `.env.bak-20261001`). Tela Métricas em `/painel/metricas` (coleta a cada hora). **Falta:** o dono trocar o futebol para `both` no painel; ligar `longo_teto_atingido` no worker de download. Plano: `Docs/sistema/PLANO-LONGO-POR-CANAL.md` |
 | Bugs 11, 4 e 17 (SIGTERM, recuperação de `cutting`/`publishing`/`transcribing`, vaga presa por aprovação) | `BUGS.md` | **Corrigidos e no ar em 01/10/2026 (`99fbba4`).** `docker stop clip-processor` conferido em produção: exit 0 e log "Scheduler encerrado". Bug 17 foi decisão: `pending` continua contando na janela (proteção de disco, bug 12); teto separado fica como alternativa de produto. Risco a vigiar: `cutting` volta a `pending_cut` após 3 h sem `updated_at` |
 | Bug 10 — 287 `clip_path` sem arquivo | `BUGS.md` | Aberto (número não reconferido após a migração) |
 | Bug 6 — painel não apaga backlog de download | `BUGS.md` | Aberto |
@@ -132,6 +134,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 
 | Data | Rodada | Onde parou | Próximo passo combinado |
 |---|---|---|---|
+| 01/10/2026 | Longo por canal, cota 10/dia, revezamento e métricas no ar; PR #1 do Ricardo fechada com comentário; launchd do Mac no venv da busca; plano de palavrão registrado | Produção em `59b0eb1`, env de cota aplicado, tudo em `auto` | Trocar o futebol para `both` no painel e acompanhar a tela Métricas; reorganização dos docs aguarda merge (`docs/organizar-documentacao`) |
 | 30/09/2026 | Áudio HLS do Hotmart via extensão (`feature/transcricao-audio-hls-extensao`) | Extensão captura o m3u8, API local guarda em `media-urls.json` (0600), worker baixa só o áudio; testes unitários passam, nada validado no Hotmart real | Dono recarrega a extensão, reinicia o worker e testa uma aula; depois merge |
 | 30/09/2026 | Validação visual da busca (`fix/busca-transcricoes-ui`) | 5 bugs de UI/backend corrigidos, piso de similaridade calibrado (0,83); branch pronta para merge, ainda fora de produção | Merge na master, depois o runbook de rollout (imagem do Postgres, embedder, backfill) |
 | 30/09/2026 | Lote 6 (prompts por perfil) do `release/rico` | Em `feature/prompts-por-perfil`, sem merge/deploy; sem canal versionado; migration pendente | Escrever `prompts/channels/mbl.yaml`, compilar `--apply`, ligar perfil no painel |
