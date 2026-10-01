@@ -128,9 +128,10 @@ na prática dias. Falha do recovery é logada e engolida de propósito
 | `source_videos.selecting`, com arquivo, sem update há 2h | ✅ → `downloaded` (reprocessa a IA) | [`db.py:183`](../clip-processor/src/db.py#L183) |
 | `source_videos.selecting`, com arquivo, sem nenhum clip gerado | ✅ → `downloaded`, imediato (não espera 2h) | [`db.py:190`](../clip-processor/src/db.py#L190) |
 | `source_videos.selecting`, `local_path IS NULL`, sem update há 2h | ✅ → `failed` | [`db.py:200`](../clip-processor/src/db.py#L200) |
-| `source_videos.transcribing` | ❌ **nenhuma** | — |
-| `generated_clips.cutting` | ❌ **nenhuma** | — |
-| `generated_clips.publishing` | ❌ **nenhuma** | — |
+| `source_videos.transcribing`, sem update há 2h | ✅ → `downloaded` (com raw) ou `failed` (sem raw) | `recover_stuck_transcribing` |
+| `generated_clips.publishing` com `youtube_video_id`, parado há 60 min | ✅ → `published` (nunca reenvia) | `recover_stuck_publishing` |
+| `generated_clips.publishing` sem id, parado há 60 min | ✅ → `pending` (nova aprovação) | `recover_stuck_publishing` |
+| `generated_clips.cutting` | ✅ boot: → `pending_cut`; periódico: só após 3h | `recover_cutting_on_boot`, `recover_stuck_cutting` |
 
 `SELECTING_STUCK_HOURS = 2` em [`db.py:153`](../clip-processor/src/db.py#L153). A cadência de 30 min
 do job é menor que isso de propósito: pega o travamento pouco depois de ele passar do limite.
@@ -143,43 +144,8 @@ primeiras queries nunca alcançavam — as duas exigem `local_path IS NOT NULL` 
 resolvia. Sem o raw em disco não existe seleção para reprocessar, então o destino honesto é `failed`:
 libera a vaga da janela e mantém o registro no banco com os clips que já tinham sido gerados.
 
-### O que fazer com o que não tem recuperação
+### O que fazer quando a recuperação não resolve
 
-`transcribing`, `cutting` e `publishing` travados ficam presos para sempre. Diagnóstico e destrave
-manual em [`RUNBOOK.md`](RUNBOOK.md#estado-preso-sem-recuperação-automática).
-
----
-
-## Estados × ocupação da janela de download
-
-A janela conta vídeos "ocupando disco" por formato
-([`pipeline_runner.py:57`](../clip-processor/src/pipeline_runner.py#L57)). Um vídeo ocupa vaga se
-**qualquer** uma destas for verdadeira:
-
-- `source_videos.local_path IS NOT NULL`, **ou**
-- `source_videos.status` em `downloading`, `downloaded`, `transcribing`, `selecting`, `cutting`, `publishing`, **ou**
-- tem clip em `pending_cut`, `pending`, `cutting` ou `approved`.
-
-Por isso `failed` com `local_path` preenchido travava o pipeline: satisfazia a primeira condição
-para sempre. Foi o que `_discard_failed_download` resolveu — 58 vídeos `failed` seguravam 4.1 GB e
-zeraram o déficit de download.
-
-`published` e `rejected` não ocupam vaga. `failed` só ocupa se `local_path` ainda estiver preenchido.
-
----
-
-## Estados terminais e o que sobra em disco
-
-| Estado terminal | Raw do vídeo fonte | Clip final |
-|---|---|---|
-| `source_videos.published` | apagado por [`publisher.py:331`](../clip-processor/src/publisher.py#L331) | apagado por [`publisher.py:345`](../clip-processor/src/publisher.py#L345), com `clip_path`/`thumbnail_path` zerados |
-| `source_videos.failed` (download) | apagado por `_discard_failed_download` | não existe |
-| `source_videos.failed` (IA) | **fica em disco**, `local_path` preenchido | não existe |
-| `generated_clips.rejected` via `rejeitar.py` | **preservado de propósito** (permite recorte futuro) | MP4 apagado |
-| `generated_clips.failed` | fica com o vídeo fonte | intermediários podem sobrar |
-
-`_maybe_finalize_source_video` ([`publisher.py:314`](../clip-processor/src/publisher.py#L314)) só
-roda quando **nenhum** clip do vídeo está em estado não-terminal (`pending_cut`, `cutting`,
-`pending`, `approved`, `publishing` — lista em
-[`publisher.py:18`](../clip-processor/src/publisher.py#L18)) **e** ao menos um publicou. Se nenhum
-clip publicou, nada é apagado e o raw fica.
+Bug 4 fechado em 01/10/2026: os três estados agora têm recuperação (detalhe e regras de segurança em
+[`BUGS.md`](BUGS.md)). Se algo ainda ficar preso além dos limites, diagnóstico e destrave manual em
+[`RUNBOOK.md`](RUNBOOK.md#estado-preso-sem-recuperação-automática).

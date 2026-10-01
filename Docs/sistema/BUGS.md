@@ -133,7 +133,7 @@ verificado no YouTube — thumbnail custom exige verificação.
 
 ---
 
-## 4. PARCIAL — Estados sem recuperação automática seguram arquivo em disco
+## 4. FEITO — Estados sem recuperação automática seguram arquivo em disco
 
 **O que foi corrigido em 13/08/2026** (`main.py`, `db.py`):
 
@@ -152,16 +152,23 @@ verificado no YouTube — thumbnail custom exige verificação.
    queries anteriores exigem `local_path IS NOT NULL`. Nenhum restart resolvia. Sem raw em disco não há
    seleção para reprocessar, então `failed` é o estado honesto e libera a vaga da janela.
 
-**O que continua ABERTO:** não existe recuperação para `generated_clips.cutting`,
-`generated_clips.publishing` nem `source_videos.transcribing`. O que trava nesses três fica preso para
-sempre e segura arquivo em disco. Foi a causa do acúmulo que lotou o SSD no incidente de 27/07/2026.
+**Parte 2 — corrigida em 29–01/10/2026** (`db.py`, `main.py`; commit `9a73d76` + branch
+`fix/bug4-recovery-publishing-cutting`, aguardando deploy). Todos rodam em `run_recovery_once`
+(boot + 30 min) e nenhum apaga arquivo nem toca no Redis:
 
-Agrava com o bug 11: o container morre por SIGKILL em todo `docker stop`, ou seja, pode ser morto **no
-meio** de um `cutting` ou `publishing`.
+| Estado preso | Recuperação | Regra de segurança |
+|---|---|---|
+| `source_videos.transcribing` | `recover_stuck_transcribing`: com raw volta a `downloaded`, sem raw vai a `failed` | parado há `SELECTING_STUCK_HOURS` (2 h) |
+| `generated_clips.publishing` **com** `youtube_video_id` | vira `published` (`published_at` preservado) | o id só existe se o YouTube aceitou o upload: **nunca volta à fila**, então não duplica |
+| `generated_clips.publishing` **sem** id | volta a `pending` (nova aprovação) | parado há `PUBLISHING_STUCK_MINUTES` (60 min) |
+| `generated_clips.cutting` | no boot, tudo volta a `pending_cut` (o FFmpeg anterior morreu); no job periódico, `recover_stuck_cutting` só pega o parado há `CUTTING_STUCK_HOURS` (3 h) | só muda o status: o raw fica em disco para o corte refeito |
 
-**Onde corrigir:** nova query em [`db.py`](../clip-processor/src/db.py) + chamada em `run_recovery_once`.
-`publishing` precisa de cuidado extra: devolver a `pending` um clip que **já subiu** republica e
-duplica — checar `youtube_video_id` antes.
+`finalize_settled_source_videos` roda por último em `run_recovery_once`, para encerrar o vídeo-fonte
+cujo último clip acabou de virar `published`.
+
+**Risco residual (inevitável sem API do YouTube):** `publishing` sem id pode ter subido no YouTube e
+o processo cair antes de gravar o id; o reenvio pode duplicar, mas exige nova aprovação humana.
+Com o bug 11 corrigido, o container deixa de morrer no meio de um estágio a cada `docker stop`.
 
 Destrave manual em [`RUNBOOK.md`](RUNBOOK.md#estado-preso-sem-recuperação-automática).
 
@@ -279,26 +286,33 @@ Query de medição em [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md#divergência-banco
 
 ---
 
-## 11. ABERTO — Container não honra SIGTERM, todo `docker stop` vira SIGKILL
+## 11. FEITO — Container não honrava SIGTERM, todo `docker stop` virava SIGKILL
 
-**Todo `docker stop clip-processor` termina em `Exited (137)`.** O handler está registrado
-([`main.py:137-138`](../clip-processor/src/main.py#L137)) e chama `scheduler.shutdown(wait=False)`
-([`main.py:80`](../clip-processor/src/main.py#L80)), mas o `BlockingScheduler` **não retorna do
-`shutdown`** — o Docker espera o timeout de graça e manda SIGKILL.
+**Corrigido em 01/10/2026** (branch `fix/bug11-sigterm-clip-processor`, aguardando deploy).
 
-**Por que importa:** o processo é morto **no meio do estágio em execução**. Combinado com o bug 4, um
-clip em `cutting` ou `publishing` na hora do kill fica preso para sempre. `publishing` é o pior caso: o
-upload pode ter completado no YouTube com o banco registrando outra coisa.
+**Sintoma:** `docker stop clip-processor` terminava em `Exited (137)`. O processo era morto **no meio do
+estágio em execução**; combinado com o bug 4, um clip em `cutting`/`publishing` ficava preso.
 
-Sintoma colateral: o container reinicia "sujo" e a cada restart pode acumular um estado preso novo.
+**Causa (reproduzida num container com um job longo, 14 s e exit 137):** a hipótese do doc estava
+certa pela metade. O handler chamava `scheduler.shutdown(wait=False)` na thread principal, a mesma
+bloqueada em `scheduler.start()`; isso apagava os jobs no meio de `_process_jobs`
+(`JobLookupError`). E, mesmo com o `start()` saindo, a thread do pool com o job em curso **não é
+daemon**: o interpretador espera por ela no encerramento, até o Docker mandar SIGKILL.
 
-**Onde investigar:** o `shutdown` é chamado de dentro do handler de sinal, que roda na **mesma thread**
-que está bloqueada em `scheduler.start()`. O padrão usual é sinalizar um `threading.Event` no handler e
-deixar a thread principal sair do `start()` sozinha, em vez de chamar `shutdown` de dentro do sinal.
-Não testei essa hipótese.
+**Correção** ([`main.py`](../clip-processor/src/main.py)): o handler só sinaliza um
+`threading.Event`. Uma thread vigia (`_shutdown_watcher`, iniciada junto dos handlers, vale também
+durante o ciclo inicial) para o scheduler fora do sinal e impõe um prazo de graça
+(`SHUTDOWN_GRACE_SECONDS`, padrão 8 s, menor que os 10 s do `docker stop`). A thread principal sai
+do `start()`, espera os jobs em curso até o prazo e sai com código 0; se o job ainda estiver rodando
+(um corte longo), sai mesmo assim com `os._exit(0)` — o mesmo desfecho do SIGKILL, mas dentro do prazo
+e sem 137. Esse estado preso é então coberto pela recuperação do bug 4 (`cutting` volta no boot;
+`publishing` por tempo/`youtube_video_id`).
 
-Mitigação até então: seguir [`RUNBOOK.md`](RUNBOOK.md#reiniciar-o-clip-processor-com-segurança) —
-conferir se há `cutting`/`publishing` em trânsito **antes** de parar o container.
+Testes: `tests/test_sigterm_shutdown.py` (subprocesso real com job de 120 s; sai com 0 em < 8 s).
+
+**Limite conhecido:** job que passa do prazo de graça é abandonado, não concluído. Para dar mais
+tempo, subir `stop_grace_period` do serviço no compose e `SHUTDOWN_GRACE_SECONDS` juntos.
+O cuidado do [`RUNBOOK.md`](RUNBOOK.md#reiniciar-o-clip-processor-com-segurança) continua válido.
 
 ---
 
@@ -480,7 +494,7 @@ alguns dias de operação normal.
 
 ---
 
-## 17. PARCIAL — Vaga da janela presa por clip aguardando aprovação
+## 17. FEITO (por decisão) — Vaga da janela presa por clip aguardando aprovação
 
 **Apurado em 16/09/2026.** A janela de futebol ficou em **10/10 ocupada** com 145 vídeos frescos
 esperando, e nenhum download novo começava.
@@ -536,5 +550,24 @@ Correção ([`publisher.py`](../clip-processor/src/publisher.py)):
 
 Testes: `tests/test_finalize_source_video.py`.
 
-**Continua aberto:** clip parado em `pending` esperando o operador ainda segura a vaga até ser
-aprovado, rejeitado ou expirar pelo TTL (48h). Os caminhos listados acima seguem válidos para essa parte.
+### Decisão em 01/10/2026 — manter a contagem, o aviso já cobre
+
+Das três opções, **nenhuma muda a ocupação**:
+
+- **Não contar `pending`: descartada por segurança.** Clip em `pending` mantém em disco o raw do
+  vídeo-fonte e os arquivos do clip (o raw só sai em `_maybe_finalize_source_video`, quando todos os
+  clips ficam terminais). Tirar `pending` da conta reabre a ingestão sem teto de disco — é
+  exatamente a causa do bug 12 (306 vídeos, disco cheio). Além disso não bastaria: o próprio
+  `source_videos.status = 'selecting'` já segura a vaga na segunda condição do `OR`.
+- **Teto separado "aguardando aprovação": é decisão de produto** (quantos GB e quantos vídeos o
+  operador pode deixar parados). Não implementada; fica como alternativa se a fila de aprovação
+  passar a parar a ingestão com frequência. Exigiria uma coluna de teto e mudar `_niche_windows`.
+- **Alerta: já existe.** O watchdog distingue janela cheia por aprovação de deadlock real e avisa
+  no máximo 1 vez por dia (`download_window_waiting_approval`, branch
+  `fix/watchdog-janela-cheia-por-aprovacao`). O TTL de 48h rejeita o que ninguém decidir, e a
+  rejeição/falha dispara `_maybe_finalize_source_video`, que libera a vaga.
+
+Mudança de código: nenhuma na ocupação. Entrou `tests/test_janela_ocupacao.py`, que trava a regra
+(a consulta de ocupação conta `pending`) para ninguém "consertar" isso sem ler este item.
+**Alternativa pendente, só no painel:** mostrar na tela da janela um selo "N clips aguardando
+aprovação seguram vagas" — melhoria de visibilidade, não de lógica.
