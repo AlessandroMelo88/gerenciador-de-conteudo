@@ -1,0 +1,1 @@
+**Formato por canal destino** — novo campo "Formato dos vídeos" em Canais Destino (Automático, Só Shorts ou Shorts + vídeo longo), mostrado também na listagem; base da etapa 1 do plano de vídeo longo por canal

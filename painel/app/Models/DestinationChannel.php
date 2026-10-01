@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\LongFormatMode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -21,11 +22,17 @@ class DestinationChannel extends Model
         'youtube_channel_id',
         'credit_template',
         'template_config',
+        'long_format_mode',
         'active',
         'oauth_expired_flag',
     ];
 
+    protected $attributes = [
+        'long_format_mode' => 'auto',
+    ];
+
     protected $casts = [
+        'long_format_mode' => LongFormatMode::class,
         'active' => 'bool',
         'oauth_expired_flag' => 'bool',
         'template_config' => 'array',
