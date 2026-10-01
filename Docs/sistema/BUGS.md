@@ -279,26 +279,33 @@ Query de medição em [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md#divergência-banco
 
 ---
 
-## 11. ABERTO — Container não honra SIGTERM, todo `docker stop` vira SIGKILL
+## 11. FEITO — Container não honrava SIGTERM, todo `docker stop` virava SIGKILL
 
-**Todo `docker stop clip-processor` termina em `Exited (137)`.** O handler está registrado
-([`main.py:137-138`](../clip-processor/src/main.py#L137)) e chama `scheduler.shutdown(wait=False)`
-([`main.py:80`](../clip-processor/src/main.py#L80)), mas o `BlockingScheduler` **não retorna do
-`shutdown`** — o Docker espera o timeout de graça e manda SIGKILL.
+**Corrigido em 01/10/2026** (branch `fix/bug11-sigterm-clip-processor`, aguardando deploy).
 
-**Por que importa:** o processo é morto **no meio do estágio em execução**. Combinado com o bug 4, um
-clip em `cutting` ou `publishing` na hora do kill fica preso para sempre. `publishing` é o pior caso: o
-upload pode ter completado no YouTube com o banco registrando outra coisa.
+**Sintoma:** `docker stop clip-processor` terminava em `Exited (137)`. O processo era morto **no meio do
+estágio em execução**; combinado com o bug 4, um clip em `cutting`/`publishing` ficava preso.
 
-Sintoma colateral: o container reinicia "sujo" e a cada restart pode acumular um estado preso novo.
+**Causa (reproduzida num container com um job longo, 14 s e exit 137):** a hipótese do doc estava
+certa pela metade. O handler chamava `scheduler.shutdown(wait=False)` na thread principal, a mesma
+bloqueada em `scheduler.start()`; isso apagava os jobs no meio de `_process_jobs`
+(`JobLookupError`). E, mesmo com o `start()` saindo, a thread do pool com o job em curso **não é
+daemon**: o interpretador espera por ela no encerramento, até o Docker mandar SIGKILL.
 
-**Onde investigar:** o `shutdown` é chamado de dentro do handler de sinal, que roda na **mesma thread**
-que está bloqueada em `scheduler.start()`. O padrão usual é sinalizar um `threading.Event` no handler e
-deixar a thread principal sair do `start()` sozinha, em vez de chamar `shutdown` de dentro do sinal.
-Não testei essa hipótese.
+**Correção** ([`main.py`](../clip-processor/src/main.py)): o handler só sinaliza um
+`threading.Event`. Uma thread vigia (`_shutdown_watcher`, iniciada junto dos handlers, vale também
+durante o ciclo inicial) para o scheduler fora do sinal e impõe um prazo de graça
+(`SHUTDOWN_GRACE_SECONDS`, padrão 8 s, menor que os 10 s do `docker stop`). A thread principal sai
+do `start()`, espera os jobs em curso até o prazo e sai com código 0; se o job ainda estiver rodando
+(um corte longo), sai mesmo assim com `os._exit(0)` — o mesmo desfecho do SIGKILL, mas dentro do prazo
+e sem 137. Esse estado preso é então coberto pela recuperação do bug 4 (`cutting` volta no boot;
+`publishing` por tempo/`youtube_video_id`).
 
-Mitigação até então: seguir [`RUNBOOK.md`](RUNBOOK.md#reiniciar-o-clip-processor-com-segurança) —
-conferir se há `cutting`/`publishing` em trânsito **antes** de parar o container.
+Testes: `tests/test_sigterm_shutdown.py` (subprocesso real com job de 120 s; sai com 0 em < 8 s).
+
+**Limite conhecido:** job que passa do prazo de graça é abandonado, não concluído. Para dar mais
+tempo, subir `stop_grace_period` do serviço no compose e `SHUTDOWN_GRACE_SECONDS` juntos.
+O cuidado do [`RUNBOOK.md`](RUNBOOK.md#reiniciar-o-clip-processor-com-segurança) continua válido.
 
 ---
 
