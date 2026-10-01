@@ -50,9 +50,21 @@ test('exigeCaptura só no Hotmart', () => {
 test('manifest: JSON válido, sem <all_urls> obrigatório, permissões mínimas', () => {
   const m = JSON.parse(fs.readFileSync(path.join(__dirname, 'manifest.json'), 'utf8'));
   assert.equal(m.manifest_version, 3);
-  assert.deepEqual(m.host_permissions, ['*://*.hotmart.com/*']);
+  assert.deepEqual(m.host_permissions, ['*://*.hotmart.com/*', '*://*.pandavideo.com.br/*']);
   assert.ok(!m.host_permissions.includes('<all_urls>'));
   assert.ok(!m.permissions.includes('webRequestBlocking'));
   assert.ok(m.permissions.includes('webRequest'));
   assert.equal(m.background.service_worker, 'background.js');
+});
+
+test('captura m3u8 do Panda Video (player do Hotmart)', () => {
+  const nova = C.capturaDe({
+    tabId: 5,
+    url: 'https://b-vz-83592399-2d1.tv.pandavideo.com.br/726f3b1c-0369-4b35-b891-61c3272fdc59/playlist.m3u8',
+    requestHeaders: [{ name: 'Referer', value: 'https://player-vz-83592399-2d1.tv.pandavideo.com.br/' }],
+    timeStamp: 1,
+  });
+  assert.ok(nova);
+  assert.equal(C.prioridade(nova.media_url), 2);
+  assert.equal(C.exigeCaptura('https://player.pandavideo.com.br/x'), false);
 });

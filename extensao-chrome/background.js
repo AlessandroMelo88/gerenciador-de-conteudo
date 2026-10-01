@@ -17,7 +17,7 @@ chrome.webRequest.onSendHeaders.addListener(
       if (escolhida !== r[chave]) return guardaSessao.set({ [chave]: escolhida });
     });
   },
-  { urls: ['*://*.hotmart.com/*'] },
+  { urls: ['*://*.hotmart.com/*', '*://*.pandavideo.com.br/*'] },
   ['requestHeaders', 'extraHeaders'],
 );
 
