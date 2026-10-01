@@ -18,7 +18,7 @@ class FakeRemote:
     """Responde às queries do worker: contagem da janela e lista de pendentes."""
 
     def __init__(self, occupancy, pending_rows=3, channels=None, source_channels=1,
-                 pending_por_canal=None):
+                 pending_por_canal=None, longos=None, formato='curto'):
         # occupancy: por nicho, um int (tudo num canal só) ou dict {channel_id: vagas}
         self.occupancy = occupancy
         self.channels = channels if channels is not None else {'politica': 1, 'futebol': 1}
@@ -27,6 +27,9 @@ class FakeRemote:
         # pending_por_canal: lista de channel_id, na ordem em que o SQL devolveria
         self.pending_por_canal = pending_por_canal
         self.queries = []
+        # longos: por nicho, quantos clips longos aguardando; formato: formato das fontes pendentes
+        self.longos = longos if longos is not None else {}
+        self.formato = formato
 
     def __call__(self, query):
         self.queries.append(query)
@@ -44,13 +47,15 @@ class FakeRemote:
             if isinstance(value, dict):
                 return '\n'.join(f'{cid}\t{n}' for cid, n in value.items())
             return f'1\t{value}' if value else ''
+        if "sv.format = 'longo'" in query:
+            return 'erro' if self.longos.get(niche) is None else str(self.longos[niche])
         limit = int(query.rsplit('LIMIT', 1)[1].strip(' ;\n'))
         if self.pending_por_canal is not None:
             canais = self.pending_por_canal[:limit]
         else:
             canais = ['1'] * min(limit, self.pending_rows)
         return '\n'.join(
-            f'{i}\tvid{niche}{i}\tTítulo {i}\tcurto\t{cid}'
+            f'{i}\tvid{niche}{i}\tTítulo {i}\t{self.formato}\t{cid}'
             for i, cid in enumerate(canais, start=1)
         )
 
@@ -204,3 +209,46 @@ class TestGuardarAula:
 
         assert kwargs['download'].keywords == {'video': True}
         assert callable(kwargs['guardar'])
+
+
+def test_teto_de_longos_barra_download_de_longo(monkeypatch, windows):
+    monkeypatch.setattr(worker, 'MAX_LONGOS_PENDENTES', 4)
+    fake = FakeRemote({'futebol': 8, 'politica': 10}, pending_rows=10, formato='longo', longos={'futebol': 4})
+    monkeypatch.setattr(worker, 'run_remote_sql', fake)
+
+    assert worker.fetch_pending_videos() == []
+
+
+def test_abaixo_do_teto_baixa_normalmente(monkeypatch, windows):
+    monkeypatch.setattr(worker, 'MAX_LONGOS_PENDENTES', 4)
+    fake = FakeRemote({'futebol': 8, 'politica': 10}, pending_rows=10, formato='longo', longos={'futebol': 3})
+    monkeypatch.setattr(worker, 'run_remote_sql', fake)
+
+    assert len(worker.fetch_pending_videos()) == 2
+
+
+def test_teto_no_limite_nao_barra_short(monkeypatch, windows):
+    monkeypatch.setattr(worker, 'MAX_LONGOS_PENDENTES', 4)
+    fake = FakeRemote({'futebol': 8, 'politica': 10}, pending_rows=10, formato='curto', longos={'futebol': 9})
+    monkeypatch.setattr(worker, 'run_remote_sql', fake)
+
+    assert len(worker.fetch_pending_videos()) == 2
+    # sem candidato longo nem consulta a contagem
+    assert not any("sv.format = 'longo'" in q for q in fake.queries)
+
+
+def test_teto_desligado_nao_consulta(monkeypatch, windows):
+    monkeypatch.setattr(worker, 'MAX_LONGOS_PENDENTES', 0)
+    fake = FakeRemote({'futebol': 8, 'politica': 10}, pending_rows=10, formato='longo', longos={'futebol': 99})
+    monkeypatch.setattr(worker, 'run_remote_sql', fake)
+
+    assert len(worker.fetch_pending_videos()) == 2
+    assert not any("sv.format = 'longo'" in q for q in fake.queries)
+
+
+def test_falha_ao_contar_nao_barra(monkeypatch, windows):
+    monkeypatch.setattr(worker, 'MAX_LONGOS_PENDENTES', 4)
+    fake = FakeRemote({'futebol': 8, 'politica': 10}, pending_rows=10, formato='longo', longos={'futebol': None})
+    monkeypatch.setattr(worker, 'run_remote_sql', fake)
+
+    assert len(worker.fetch_pending_videos()) == 2
