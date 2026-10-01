@@ -152,7 +152,7 @@ Etapas 1 e 2 independem do risco de aumentar volume e podem entrar primeiro.
   a cada vaga, vai o clip do canal-fonte que publicou há mais tempo.
 - **Janela de download não muda por causa deste plano.** Ela conta **vídeos-fonte** (10 por canal destino),
   não clips; o longo e os Shorts da mesma fonte saem do mesmo arquivo e gastam **uma** vaga. Ver
-  `Docs/mapas/ideias/longo-e-short-da-mesma-fonte.excalidraw` (mapa visual).
+  o mapa visual `longo-e-short-da-mesma-fonte.excalidraw`, na pasta de mapas do repositório umbrella-solutions (`Docs/mapas/ideias/`).
 
 ## Disco: o que realmente limita (medido em 01/10/2026)
 
