@@ -20,6 +20,7 @@ import os
 import subprocess
 from datetime import datetime
 
+from src.format_mode import clip_format_sql
 from src.media_contract import MediaContractError, shorts_max_duration, validate_short_media
 from src.media_assets import resolve_media_assets
 from src.media_composer import compose_media
@@ -801,11 +802,13 @@ def process_clip(conn, clip_id: int, anthropic_client=None) -> bool:
 
 
 def _fetch_clip(conn, clip_id: int) -> dict | None:
+    # formato do clip: generated_clips.format (fonte da verdade) com queda para source_videos.format
+    format_expr = clip_format_sql(conn)
     with conn.cursor() as cur:
         cur.execute(
             'SELECT '
             'gc.id, gc.source_video_id, gc.destination_channel_id, gc.start_time, gc.end_time, gc.score, gc.reason, '
-            'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path, sv.format, '
+            f'sv.youtube_video_id, sv.title AS source_title, sv.local_path, sv.transcript_path, {format_expr} AS format, '
             'dc.slug AS destination_channel_slug, dc.name AS destination_channel_name, dc.niche AS destination_channel_niche, dc.template_config '
             'FROM generated_clips gc '
             'JOIN source_videos sv ON sv.id = gc.source_video_id '

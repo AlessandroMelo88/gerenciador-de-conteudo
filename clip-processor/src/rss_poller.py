@@ -40,6 +40,9 @@ from src.dedup import is_seen
 from src.transcriber import transcribe_video, save_transcript
 from src.prompt_profiles import load_profile_for_source_video
 from src.selector import select_moments, insert_selected_moments, MIN_LONGFORM_SECONDS
+from src.format_mode import (
+    MODE_BOTH, MODE_SHORT_ONLY, clip_format_sql, generated_clips_has_format, get_long_format_mode,
+)
 from src.video_processor import process_clip
 from src.queue_controls import _cleanup_partial
 
@@ -53,8 +56,12 @@ def _log(msg: str) -> None:
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [ACQU] {msg}')
 
 
-def _detect_format(video_id: str) -> str:
+def _detect_format(video_id: str, mode_resolver=None) -> str:
     """Decide 'curto' ou 'longo' com base na duração real do vídeo fonte.
+
+    mode_resolver: callable opcional que devolve o `long_format_mode` do canal destino do nicho
+    (`auto` | `short_only` | `both`). É consultado só quando a fonte é longa; `short_only` rebaixa
+    a fonte para 'curto' (gera Shorts, nunca longo). Sem resolver = comportamento histórico (`auto`).
 
     Vídeos com MIN_LONGFORM_SECONDS ou mais (entrevistas, podcasts, análises longas)
     têm material suficiente pra um corte longo horizontal; o resto continua shorts.
@@ -81,6 +88,8 @@ def _detect_format(video_id: str) -> str:
             info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
         duration = info.get('duration') if info else None
         if duration and duration >= MIN_LONGFORM_SECONDS:
+            if mode_resolver is not None and mode_resolver() == MODE_SHORT_ONLY:
+                return 'curto'
             return 'longo'
     except Exception as exc:
         _log(f'AVISO: falha ao obter duração de {video_id} para detecção de formato: {exc}')
@@ -109,6 +118,56 @@ def _extract_video_id(entry) -> str | None:
         return match.group(1)
 
     return None
+
+
+def _count_clips_of_format(conn, source_video_id: int, fmt: str) -> int:
+    """Clips já existentes da fonte no formato `fmt` (guard de idempotência do modo `both`)."""
+    expr = clip_format_sql(conn)
+    with conn.cursor() as cur:
+        cur.execute(
+            'SELECT COUNT(*) AS n FROM generated_clips gc '
+            'JOIN source_videos sv ON sv.id = gc.source_video_id '
+            f'WHERE gc.source_video_id = %s AND {expr} = %s',
+            (source_video_id, fmt),
+        )
+        row = cur.fetchone()
+    try:
+        return int((row or {}).get('n') or 0)
+    except (TypeError, ValueError, AttributeError):
+        return 0
+
+
+def _plan_selection_runs(conn, source_video_id: int, fmt: str, niche: str) -> list[dict]:
+    """Decide quais seleções rodar para a fonte, conforme `long_format_mode` do canal destino do nicho.
+
+    - fonte curta, ou modo `auto`: uma seleção no formato da fonte, chamada IDÊNTICA à histórica.
+    - fonte longa + `short_only`: uma seleção de Shorts (amostrando janelas) e `source_videos.format`
+      passa a 'curto', para o render/cota tratarem o clip como Short.
+    - fonte longa + `both`: Shorts primeiro, depois um longo estrito (sem esticar trecho curto), cada
+      clip gravado com `generated_clips.format` próprio; `source_videos.format` continua 'longo'.
+      Sem a coluna `generated_clips.format` (migration pendente) degrada para `short_only`: melhor
+      não gerar o longo do que gerar um clip que o render não saberia distinguir.
+    """
+    plain = [{'fmt': fmt, 'select_kwargs': {}, 'insert_kwargs': {}, 'guard': False}]
+    if fmt != 'longo':
+        return plain
+    mode = get_long_format_mode(conn, niche)
+    if mode == MODE_BOTH and not generated_clips_has_format(conn):
+        _log(f'[AI] AVISO: modo both pedido, mas generated_clips.format não existe — gerando só Shorts')
+        mode = MODE_SHORT_ONLY
+    if mode == MODE_SHORT_ONLY:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE source_videos SET format = 'curto' WHERE id = %s", (source_video_id,))
+        conn.commit()
+        return [{'fmt': 'curto', 'select_kwargs': {'sample_windows': True}, 'insert_kwargs': {}, 'guard': False}]
+    if mode == MODE_BOTH:
+        return [
+            {'fmt': 'curto', 'select_kwargs': {'sample_windows': True},
+             'insert_kwargs': {'clip_format': 'curto'}, 'guard': True},
+            {'fmt': 'longo', 'select_kwargs': {'strict_long': True},
+             'insert_kwargs': {'clip_format': 'longo'}, 'guard': True},
+        ]
+    return plain
 
 
 def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None, anthropic_client=None) -> None:
@@ -167,9 +226,18 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
         prompt_profile = load_profile_for_source_video(conn, source_video_id)
         if prompt_profile:  # sem perfil: chamada idêntica à de antes dos perfis
             profile_kwargs['prompt_profile'] = prompt_profile
-        moments = select_moments(transcript, anthropic_client=anthropic_client, fmt=fmt, niche=niche,
-                                 **profile_kwargs)
-        inserted = insert_selected_moments(conn, source_video_id, video_id, moments)
+        runs = _plan_selection_runs(conn, source_video_id, fmt, niche)
+        inserted = 0
+        for run in runs:
+            if run['guard'] and _count_clips_of_format(conn, source_video_id, run['fmt']) > 0:
+                # reprocessamento: esse formato já tem clip — não duplica
+                _log(f'[AI] {video_id}: já existem clips {run["fmt"]} — pulando seleção desse formato')
+                inserted += 1
+                continue
+            moments = select_moments(transcript, anthropic_client=anthropic_client, fmt=run['fmt'], niche=niche,
+                                     **run['select_kwargs'], **profile_kwargs)
+            inserted += insert_selected_moments(conn, source_video_id, video_id, moments,
+                                                **run['insert_kwargs'])
         _log(f'[AI] Pipeline concluído para {video_id}: {inserted} momento(s) inserido(s) em generated_clips')
         if inserted == 0:
             # Sem clip válido o status 'selecting' segurava a janela pra sempre.
@@ -294,7 +362,10 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
                         _log(f'Título bloqueado (keyword): {video_id} — {title}')
                         continue
 
-                    fmt = _detect_format(video_id)
+                    fmt = _detect_format(
+                        video_id,
+                        mode_resolver=lambda: get_long_format_mode(db_conn, channel.get('target_niche')),
+                    )
                     insert_video(db_conn, video_id, channel_id, title, published_at, format=fmt)
                     _log(f'Novo vídeo detectado ({fmt}): {video_id} — {title}')
                     total_new += 1
