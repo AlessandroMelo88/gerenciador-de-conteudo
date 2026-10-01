@@ -435,7 +435,9 @@ class TestPublisherMultiCanal:
         cursor.fetchall.side_effect = [
             [dest_ch1, dest_ch2],   # _fetch_destination_channels
             [clip_ch1],              # _fetch_pending_clips_for_channel(conn, 1)
+            [],                      # _fetch_source_channel_last_upload(conn, 1)
             [clip_ch2],              # _fetch_pending_clips_for_channel(conn, 2)
+            [],                      # _fetch_source_channel_last_upload(conn, 2)
         ]
 
         with patch('src.publisher.QuotaManager') as MockQuota:
@@ -478,3 +480,77 @@ class TestPublisherMultiCanal:
             'Crédito: {channel_handle}',
             '@sportv',
         )
+
+
+# ---------------------------------------------------------------------------
+# Revezamento entre canais-fonte (plano longo por canal, etapa 3)
+# ---------------------------------------------------------------------------
+
+from src.publisher import _pick_next_by_rotation, _fetch_source_channel_last_upload  # noqa: E402
+
+
+def _clip(cid, src, fmt='curto'):
+    return {**SAMPLE_CLIP, 'id': cid, 'source_channel_id': src, 'format': fmt,
+            'source_local_path': None}
+
+
+class TestRevezamento:
+    def test_escolhe_o_canal_fonte_que_publicou_ha_mais_tempo(self):
+        clips = [_clip(1, 'A'), _clip(2, 'B'), _clip(3, 'C')]
+        last = {'A': 300.0, 'B': 100.0, 'C': 200.0}
+        assert _pick_next_by_rotation(clips, last)['id'] == 2
+
+    def test_canal_que_nunca_publicou_vem_primeiro(self):
+        clips = [_clip(1, 'A'), _clip(2, 'B'), _clip(3, 'C')]
+        assert _pick_next_by_rotation(clips, {'A': 10.0, 'C': 20.0})['id'] == 2
+
+    def test_empate_mantem_ordem_atual(self):
+        clips = [_clip(1, 'A'), _clip(2, 'B')]
+        assert _pick_next_by_rotation(clips, {})['id'] == 1
+
+    def test_sem_canal_fonte_distinguivel_mantem_ordem(self):
+        clips = [_clip(1, None), _clip(2, None), _clip(3, None)]
+        assert _pick_next_by_rotation(clips, {})['id'] == 1
+
+    def test_ciclo_publica_intercalando_tres_canais_fonte(self):
+        dest = {'id': 1, 'slug': 'fut', 'youtube_channel_id': 'UC1', 'credit_template': None, 'name': 'F'}
+        # fila em ordem de chegada: A domina o começo
+        clips = [_clip(1, 'A'), _clip(2, 'A'), _clip(3, 'A'), _clip(4, 'B'), _clip(5, 'C')]
+        conn, cursor = make_conn_with_clips([])
+        cursor.fetchall.side_effect = [[dest], clips, [
+            {'source_channel_id': 'A', 'last_published_at': datetime(2026, 6, 18, 18, 0)},
+            {'source_channel_id': 'B', 'last_published_at': datetime(2026, 6, 17, 18, 0)},
+        ]]
+        uploader = make_mock_uploader()
+        with patch('src.publisher.QuotaManager') as MockQuota, \
+             patch('src.publisher._maybe_finalize_source_video'), patch('src.publisher.notify'):
+            q = MockQuota.return_value
+            q.can_upload.return_value = True
+            q.has_capacity.return_value = True
+            publish_pending_clips(conn, MagicMock(), uploader=uploader, now=dt_sp(20))
+        ordem = [c.args[0]['source_channel_id'] for c in uploader.upload_clip.call_args_list]
+        # C nunca publicou -> B (mais antigo) -> A, e depois só sobra A
+        assert ordem == ['C', 'B', 'A', 'A', 'A']
+
+    def test_revezamento_respeita_cota_de_formato(self):
+        dest = {'id': 1, 'slug': 'fut', 'youtube_channel_id': 'UC1', 'credit_template': None, 'name': 'F'}
+        # canal B (preferido pelo revezamento) só tem longo, mas a cota de longo acabou
+        clips = [_clip(1, 'A', 'curto'), _clip(2, 'B', 'longo')]
+        conn, cursor = make_conn_with_clips([])
+        cursor.fetchall.side_effect = [[dest], clips, [
+            {'source_channel_id': 'A', 'last_published_at': datetime(2026, 6, 18, 18, 0)},
+        ]]
+        uploader = make_mock_uploader()
+        with patch('src.publisher.QuotaManager') as MockQuota, \
+             patch('src.publisher._maybe_finalize_source_video'), patch('src.publisher.notify'):
+            q = MockQuota.return_value
+            q.can_upload.side_effect = lambda **kw: kw['format'] != 'longo'
+            q.has_capacity.return_value = True
+            result = publish_pending_clips(conn, MagicMock(), uploader=uploader, now=dt_sp(20))
+        assert result == 1
+        assert uploader.upload_clip.call_args.args[0]['id'] == 1
+
+    def test_falha_ao_buscar_historico_nao_derruba_o_ciclo(self):
+        conn = MagicMock()
+        conn.cursor.side_effect = RuntimeError('db')
+        assert _fetch_source_channel_last_upload(conn, 1) == {}

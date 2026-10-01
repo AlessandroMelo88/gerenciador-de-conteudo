@@ -1,0 +1,1 @@
+**Cota por formato e revezamento de origem na publicação** — teto absoluto de uploads sobe para 10 (configurável), `MAX_CURTO_UPLOADS_PER_DAY` limita curtos, `MIN_UPLOAD_SPACING_MINUTES` espaça uploads e cada vaga vai para o canal-fonte que publicou há mais tempo; defaults de produção inalterados

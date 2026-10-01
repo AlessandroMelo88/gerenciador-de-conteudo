@@ -58,6 +58,17 @@ destravam de uma vez — furaria a fila FIFO e monopolizaria a cota diária por 
 volume menor ficam represados atrás. Com round-robin, nenhum canal fonte publica dois clips seguidos
 enquanto houver clip pendente de outro canal.
 
+### Revezamento na hora de publicar (01/10/2026)
+
+O round-robin acima só define a ordem inicial da lista. Em cada vaga, `publish_pending_clips` filtra
+os clips que a cota deixa publicar (`can_upload`: total, formato e reserva do longo) e escolhe com
+`_pick_next_by_rotation` o clip do **canal-fonte que publicou há mais tempo** (ou nunca) naquele
+canal-destino. O histórico vem de `_fetch_source_channel_last_upload` (`MAX(published_at)` por
+`source_videos.channel_id`) e é atualizado na própria rodada. Empate (inclusive sem canal-fonte
+distinguível) mantém a ordem da lista. Não há limite fixo por canal-fonte por dia: a diversidade vem só
+do revezamento. O revezamento nunca fura a cota: se o canal preferido só tem `longo` e a cota de longo
+acabou, vale o próximo elegível.
+
 ---
 
 ## Cota diária e janela horária
@@ -80,12 +91,21 @@ Montagem das chaves em [`_key`, :127](../clip-processor/src/quota_manager.py#L12
 | Constante | Valor | Env var |
 |---|---|---|
 | `DEFAULT_MAX_UPLOADS_PER_DAY` | 2 | `MAX_UPLOADS_PER_DAY` |
-| **`ABSOLUTE_MAX_UPLOADS_PER_DAY`** | **6** | — |
+| **`ABSOLUTE_MAX_UPLOADS_PER_DAY`** (teto de segurança) | **10** | `ABSOLUTE_MAX_UPLOADS_PER_DAY` |
 | `DEFAULT_MAX_LONGO_UPLOADS_PER_DAY` | 2 | `MAX_LONGO_UPLOADS_PER_DAY` |
+| teto de curtos no dia | sem teto | `MAX_CURTO_UPLOADS_PER_DAY` |
+| espaçamento mínimo entre uploads | 0 (desligado) | `MIN_UPLOAD_SPACING_MINUTES` |
+| longos aguardando por canal | 0 (sem teto) | `MAX_LONGOS_PENDENTES_POR_CANAL` |
 
-`_resolve_limit` ([`:105`](../clip-processor/src/quota_manager.py#L105)) faz
-`max(0, min(valor, 6))`: **existe um teto rígido de 6 uploads/dia por canal no código**, independente
-da env var. Setar `MAX_UPLOADS_PER_DAY=20` não tem efeito acima de 6.
+`_resolve_limit` faz `max(0, min(valor, teto_absoluto))`. Até 30/09/2026 o teto era 6 fixo no código;
+agora é 10 por padrão e sobrescrevível por `ABSOLUTE_MAX_UPLOADS_PER_DAY`. O limite que vale em produção
+continua sendo `MAX_UPLOADS_PER_DAY` (padrão 2) — o teto só impede erro de digitação.
+
+**Cota por formato.** `MAX_CURTO_UPLOADS_PER_DAY` limita os curtos (curtos do dia = total − longos);
+sem a env não há teto de curto (comportamento anterior). `MAX_LONGO_UPLOADS_PER_DAY` limita os longos.
+Os dois são clampados no total, então curtos + longos nunca passam de `MAX_UPLOADS_PER_DAY`.
+Rollout do canal de futebol: `MAX_UPLOADS_PER_DAY=10`, `MAX_LONGO_UPLOADS_PER_DAY=4`,
+`MAX_CURTO_UPLOADS_PER_DAY=6` (rampa sugerida no plano: começar em 6 = 2 longos + 4 curtos).
 
 `_resolve_longo_limit` ([`:110`](../clip-processor/src/quota_manager.py#L110)) clampa o limite de
 `longo` no total (`min(valor, max_uploads_per_day)`).
@@ -109,11 +129,29 @@ reserva de formato o bloqueia.
 
 ### Janela horária
 
-`_is_upload_window` ([`:122`](../clip-processor/src/quota_manager.py#L122)): **19h ≤ hora < 22h** em
-São Paulo. Bypass total com `UPLOAD_WINDOW_BYPASS=true`.
+`_is_upload_window`: `UPLOAD_WINDOWS` = **12h–14h** e **19h–22h** (hora < fim) em São Paulo, 5 h no
+total. Bypass total com `UPLOAD_WINDOW_BYPASS=true`. (`LONG_UPLOAD_HOURS` não existe no código: o longo
+usa as mesmas janelas.)
 
 Fora da janela, `has_capacity` retorna `False` e **nada publica** — o `publish_cycle` roda a cada
-20 min o dia inteiro, mas só faz trabalho útil nessas 3 horas.
+20 min o dia inteiro, mas só faz trabalho útil nessas 5 horas.
+
+**10 uploads cabem?** Sim: são 15 ciclos de 20 min dentro das janelas (6 no almoço, 9 à noite). Sem
+espaçamento, porém, o publisher publica **em rajada**: num único ciclo ele publica todos os clips que a
+cota permitir (até 10 de uma vez no primeiro ciclo da janela do almoço). Para espaçar, use
+`MIN_UPLOAD_SPACING_MINUTES` (recomendado 15): grava em Redis
+(`...:last_upload_ts`) o instante do último upload e `has_capacity` recusa até passar o intervalo, o
+que limita a 1 upload por ciclo. Resultado com 10/dia: o dia enche cedo — 6 uploads entre 12h e 13h40
+e 4 entre 19h e 20h. Não há divisão por janela; se quiser mais peso à noite, é evolução futura.
+Default 0 = comportamento anterior.
+
+### Teto de longos aguardando aprovação
+
+`db.longo_teto_atingido(conn, destination_channel_id)` (env `MAX_LONGOS_PENDENTES_POR_CANAL`, padrão 0 =
+sem teto; rollout 4) conta longos do canal em `pending_cut`/`cutting`/`pending`/`approved`. **Ainda não
+é chamado por ninguém**: o ponto certo é o fluxo de download/seleção (rss_poller/pipeline_runner),
+antes de baixar um vídeo `format='longo'` para o canal. Barrar ali evita raw em disco e clip em
+`pending_cut` (que seguraria o raw, bug 17); barrar em `process_clip` não serve.
 
 ### Sem fallback de Redis
 
