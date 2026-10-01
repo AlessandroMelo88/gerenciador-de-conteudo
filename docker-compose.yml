@@ -33,7 +33,7 @@ services:
       - ${CURSOS_DIR:-/mnt/videos/conteudo-cursos}:/var/www/html/painel/storage/app/private/conteudo-cursos
     environment:
       PHP_MEMORY_LIMIT: 512M
-      MAX_UPLOADS_PER_DAY: '5'
+      MAX_UPLOADS_PER_DAY: "${MAX_UPLOADS_PER_DAY:-5}"
     networks:
       - internal
     depends_on:
@@ -117,6 +117,10 @@ services:
       - YOUTUBE_PRIVACY_STATUS=private
       - MAX_UPLOADS_PER_DAY=${MAX_UPLOADS_PER_DAY:-5}
       - MAX_LONGO_UPLOADS_PER_DAY=${MAX_LONGO_UPLOADS_PER_DAY:-2}
+      # Cota por formato e espaçamento (plano do longo por canal). Vazio/0 = comportamento antigo:
+      # sem teto de curtos e sem intervalo mínimo entre uploads.
+      - MAX_CURTO_UPLOADS_PER_DAY=${MAX_CURTO_UPLOADS_PER_DAY:-}
+      - MIN_UPLOAD_SPACING_MINUTES=${MIN_UPLOAD_SPACING_MINUTES:-0}
       - YOUTUBE_CLIENT_SECRETS=/app/youtube/client_secret.json
       - UPLOAD_WINDOW_BYPASS=true
       - ALLOW_LOCAL_DOWNLOAD=true
