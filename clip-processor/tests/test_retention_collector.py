@@ -1,5 +1,6 @@
 """Retenção: leitura da Analytics API, upsert, janela, cota e escopo (SPEC-001)."""
 from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
 from src import retention_collector as rc
 
@@ -68,3 +69,66 @@ def test_parse_report_sem_rows_devolve_lista_vazia():
     assert rc.parse_report({'columnHeaders': [], 'rows': []}) == []
     assert rc.parse_report({}) == []
     assert rc.parse_report(None) == []
+
+
+def _conn_upsert(rowcount):
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.rowcount = rowcount
+    return conn, cur
+
+
+_LINHA = {
+    'youtube_video_id': 'abc', 'date': '2026-10-01', 'views': 120,
+    'estimated_minutes_watched': 40, 'average_view_duration': 31,
+    'average_view_percentage': 62.5,
+}
+
+
+def test_upsert_atualiza_quando_o_dia_ja_existe():
+    """O YouTube revisa o dado de um dia; coletar de novo atualiza, nunca duplica."""
+    conn, cur = _conn_upsert(rowcount=1)  # o UPDATE achou a linha
+
+    gravadas = rc.upsert_linhas(conn, {'abc': 7}, [_LINHA])
+
+    assert gravadas == 1
+    sqls = [c.args[0] for c in cur.execute.call_args_list]
+    assert any(sql.startswith('UPDATE clip_daily_metrics') for sql in sqls)
+    assert not any(sql.startswith('INSERT INTO clip_daily_metrics') for sql in sqls)
+
+
+def test_upsert_insere_quando_o_dia_e_novo():
+    conn, cur = _conn_upsert(rowcount=0)  # o UPDATE não achou nada
+
+    gravadas = rc.upsert_linhas(conn, {'abc': 7}, [_LINHA])
+
+    assert gravadas == 1
+    sqls = [c.args[0] for c in cur.execute.call_args_list]
+    assert any(sql.startswith('INSERT INTO clip_daily_metrics') for sql in sqls)
+
+
+def test_upsert_ignora_video_que_nao_e_de_clip_conhecido():
+    conn, cur = _conn_upsert(rowcount=0)
+
+    gravadas = rc.upsert_linhas(conn, {'abc': 7}, [{'youtube_video_id': 'outro', 'date': '2026-10-01'}])
+
+    assert gravadas == 0
+    assert cur.execute.call_count == 0
+
+
+def test_upsert_ignora_linha_sem_data():
+    conn, cur = _conn_upsert(rowcount=0)
+
+    assert rc.upsert_linhas(conn, {'abc': 7}, [{'youtube_video_id': 'abc'}]) == 0
+    assert cur.execute.call_count == 0
+
+
+def test_upsert_nao_usa_sintaxe_de_um_banco_so():
+    """db.py fala PostgreSQL e MySQL: ON CONFLICT / ON DUPLICATE KEY quebrariam em um dos dois."""
+    conn, cur = _conn_upsert(rowcount=0)
+
+    rc.upsert_linhas(conn, {'abc': 7}, [_LINHA])
+
+    sqls = ' '.join(c.args[0] for c in cur.execute.call_args_list).upper()
+    assert 'ON CONFLICT' not in sqls
+    assert 'ON DUPLICATE KEY' not in sqls

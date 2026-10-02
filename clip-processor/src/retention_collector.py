@@ -72,3 +72,42 @@ def parse_report(response) -> list[dict]:
                 linha[coluna] = valor
         linhas.append(linha)
     return linhas
+
+
+# Colunas gravadas, na ordem usada tanto pelo UPDATE quanto pelo INSERT.
+_GRAVAVEIS = [
+    'views', 'estimated_minutes_watched', 'average_view_duration', 'average_view_percentage',
+    'likes', 'comments', 'shares', 'subscribers_gained',
+]
+
+
+def upsert_linhas(conn, por_clip: dict, linhas: list[dict]) -> int:
+    """Grava as linhas do relatório, uma por clip por dia.
+
+    Upsert à mão (UPDATE e, se não afetou linha, INSERT) porque `db.py` fala PostgreSQL e MySQL:
+    `ON CONFLICT` e `ON DUPLICATE KEY` são de um dialeto só. O volume é pequeno — a janela de
+    coleta é de 30 dias — então duas idas ao banco por linha não pesam.
+    """
+    gravadas = 0
+    with conn.cursor() as cur:
+        for linha in linhas:
+            clip_id = por_clip.get(linha.get('youtube_video_id'))
+            if clip_id is None or not linha.get('date'):
+                continue
+            valores = [linha.get(coluna) for coluna in _GRAVAVEIS]
+
+            sets = ', '.join(f'{coluna} = %s' for coluna in _GRAVAVEIS)
+            cur.execute(
+                f'UPDATE clip_daily_metrics SET {sets} WHERE generated_clip_id = %s AND date = %s',
+                valores + [clip_id, linha['date']],
+            )
+            if cur.rowcount == 0:
+                colunas = ', '.join(['generated_clip_id', 'date'] + _GRAVAVEIS)
+                marcas = ', '.join(['%s'] * (len(_GRAVAVEIS) + 2))
+                cur.execute(
+                    f'INSERT INTO clip_daily_metrics ({colunas}) VALUES ({marcas})',
+                    [clip_id, linha['date']] + valores,
+                )
+            gravadas += 1
+    conn.commit()
+    return gravadas
