@@ -38,6 +38,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.force-ssl",
+    # Leitura da YouTube Analytics API v2 (retenção por clip, SPEC-001). Token antigo, sem este
+    # escopo, continua publicando normalmente: só a chamada de Analytics falha, e ela é engolida.
+    "https://www.googleapis.com/auth/yt-analytics.readonly",
 ]
 SECRETS_FILE = os.environ.get(
     "YOUTUBE_CLIENT_SECRETS", "/app/youtube/client_secrets.json"
