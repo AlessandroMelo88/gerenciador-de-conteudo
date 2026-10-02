@@ -28,6 +28,7 @@ class GeneratedClip extends Model
         'status',
         'reason',
         'upload_error',
+        'format',
     ];
 
     protected $casts = [

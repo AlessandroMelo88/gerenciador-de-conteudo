@@ -222,6 +222,18 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
         fmt = row.get('format') or 'curto'
         niche = row.get('target_niche') or 'futebol'
 
+        if fmt == 'longo' and transcript and transcript.get('segments'):
+            total_duration = float(transcript['segments'][-1].get('end', 0))
+            if total_duration < MIN_LONGFORM_SECONDS:
+                _log(f'[AI] Vídeo {video_id} tem {total_duration:.1f}s (< {MIN_LONGFORM_SECONDS}s) — corrigindo formato de longo para curto')
+                fmt = 'curto'
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute("UPDATE source_videos SET format = 'curto' WHERE id = %s", (source_video_id,))
+                    conn.commit()
+                except Exception as db_err:
+                    _log(f'[AI] Aviso: falha ao atualizar formato no banco para {video_id}: {db_err}')
+
         profile_kwargs = {}
         prompt_profile = load_profile_for_source_video(conn, source_video_id)
         if prompt_profile:  # sem perfil: chamada idêntica à de antes dos perfis

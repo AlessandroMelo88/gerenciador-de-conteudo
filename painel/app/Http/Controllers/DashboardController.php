@@ -189,13 +189,25 @@ class DashboardController extends Controller
         $publishedCurto = GeneratedClip::query()
             ->where('status', 'published')
             ->where('updated_at', '>=', $since)
-            ->whereHas('sourceVideo', fn ($q) => $q->where('format', 'curto'))
+            ->where(function ($q) {
+                $q->where('format', 'curto')
+                  ->orWhere(function ($sub) {
+                      $sub->whereNull('format')
+                          ->whereHas('sourceVideo', fn ($sv) => $sv->where('format', 'curto'));
+                  });
+            })
             ->count();
 
         $publishedLongo = GeneratedClip::query()
             ->where('status', 'published')
             ->where('updated_at', '>=', $since)
-            ->whereHas('sourceVideo', fn ($q) => $q->where('format', 'longo'))
+            ->where(function ($q) {
+                $q->where('format', 'longo')
+                  ->orWhere(function ($sub) {
+                      $sub->whereNull('format')
+                          ->whereHas('sourceVideo', fn ($sv) => $sv->where('format', 'longo'));
+                  });
+            })
             ->count();
 
         $publishedTotal = $publishedCurto + $publishedLongo;
@@ -243,7 +255,7 @@ class DashboardController extends Controller
                 'endTime' => $clip->end_time,
                 'sourceVideoTitle' => $clip->sourceVideo?->title,
                 'sourceChannelName' => $clip->sourceVideo?->sourceChannel?->channel_name,
-                'format' => $clip->sourceVideo?->format ?? 'curto',
+                'format' => $clip->format ?: ($clip->sourceVideo?->format ?? 'curto'),
                 'destinationChannelName' => $clip->destinationChannel?->name,
                 'destinationChannelSlug' => $clip->destinationChannel?->slug,
                 'niche' => $clip->destinationChannel?->niche ?? $clip->sourceVideo?->sourceChannel?->target_niche ?? 'futebol',
