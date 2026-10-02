@@ -68,6 +68,20 @@ class MetricsReport
                 });
         }
 
+        // Retenção por clip: média do `average_view_percentage` dos dias medidos. Ausência de dado
+        // continua ausência (null), nunca 0 — zero seria uma medição, e não medimos nada.
+        $retention = [];
+        if (Schema::hasTable('clip_daily_metrics')) {
+            foreach ($clips->pluck('id')->chunk(1000) as $ids) {
+                DB::table('clip_daily_metrics')
+                    ->whereIn('generated_clip_id', $ids->all())
+                    ->get(['generated_clip_id', 'average_view_percentage'])
+                    ->each(function ($row) use (&$retention) {
+                        $retention[$row->generated_clip_id][] = (float) $row->average_view_percentage;
+                    });
+            }
+        }
+
         $measured = [];
         foreach ($clips as $clip) {
             $snaps = $snapshots[$clip->id] ?? [];
@@ -84,6 +98,9 @@ class MetricsReport
                 'source' => $clip->channel_name ?: 'Canal-fonte desconhecido',
                 'publishedAt' => $publishedAt,
                 'latest' => end($snaps)['views'],
+                'retention' => isset($retention[$clip->id])
+                    ? round(array_sum($retention[$clip->id]) / count($retention[$clip->id]), 2)
+                    : null,
                 'views24h' => $this->viewsUntil($snaps, $publishedAt, 24, $now),
                 'views7d' => $this->viewsUntil($snaps, $publishedAt, 24 * 7, $now),
             ];
@@ -91,6 +108,7 @@ class MetricsReport
 
         return [
             'hasData' => $measured !== [],
+            'hasRetention' => array_filter(array_column($measured, 'retention'), fn ($v) => $v !== null) !== [],
             'publishedClips' => $clips->count(),
             'measuredClips' => count($measured),
             'lastCollectedAt' => $this->lastCollected($snapshots)?->copy()->setTimezone('America/Sao_Paulo')->format('d/m/Y H:i'),
@@ -132,6 +150,14 @@ class MetricsReport
         return $last;
     }
 
+    /** Média de retenção de um grupo; null quando nenhum clip do grupo foi medido. */
+    private function avgRetention(array $group): ?float
+    {
+        $valores = array_values(array_filter(array_column($group, 'retention'), fn ($v) => $v !== null));
+
+        return $valores === [] ? null : round(array_sum($valores) / count($valores), 2);
+    }
+
     private function avg(array $values): ?int
     {
         $values = array_values(array_filter($values, fn ($v) => $v !== null));
@@ -154,6 +180,7 @@ class MetricsReport
                 'avgViews7d' => $this->avg(array_column($group, 'views7d')),
                 'clips7d' => count(array_filter(array_column($group, 'views7d'), fn ($v) => $v !== null)),
                 'avgViewsNow' => $this->avg(array_column($group, 'latest')),
+                'avgRetention' => $this->avgRetention($group),
             ];
         }
 
@@ -177,9 +204,18 @@ class MetricsReport
                 'totalViews' => array_sum(array_column($group, 'latest')),
                 'shortClips' => count(array_filter($group, fn ($c) => $c['format'] === 'curto')),
                 'longClips' => count(array_filter($group, fn ($c) => $c['format'] === 'longo')),
+                'avgRetention' => $this->avgRetention($group),
             ];
         }
-        usort($rows, fn ($a, $b) => [$b['avgViewsNow'], $b['clips']] <=> [$a['avgViewsNow'], $a['clips']]);
+        // Com retenção medida, ela manda: é ela que diz se o TRECHO escolhido segura o espectador.
+        // Sem nenhuma retenção, o relatório segue ordenado por visualizações, como antes.
+        usort($rows, function ($a, $b) {
+            if ($a['avgRetention'] !== null || $b['avgRetention'] !== null) {
+                return [$b['avgRetention'] ?? -1, $b['clips']] <=> [$a['avgRetention'] ?? -1, $a['clips']];
+            }
+
+            return [$b['avgViewsNow'], $b['clips']] <=> [$a['avgViewsNow'], $a['clips']];
+        });
 
         return $rows;
     }
@@ -197,6 +233,7 @@ class MetricsReport
             'source' => $c['source'],
             'format' => $c['format'],
             'views' => $c['latest'],
+            'retention' => $c['retention'],
             'daysOnline' => (int) $c['publishedAt']->diffInDays($now),
             'url' => $c['youtubeVideoId'] ? 'https://www.youtube.com/watch?v='.$c['youtubeVideoId'] : null,
         ], array_slice($low, 0, self::LOW_LIMIT));

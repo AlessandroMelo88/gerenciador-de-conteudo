@@ -186,3 +186,35 @@ it('sem nenhuma medição devolve hasData=false e conta os publicados à espera'
         ->and($props['bySource'])->toBe([])
         ->and($props['lowViews'])->toBe([]);
 });
+
+it('entrega retenção às props da tela', function () {
+    $source = SourceChannel::factory()->create(['channel_name' => 'Canal com Retenção']);
+    $clip = publishedClip($source, 'curto', Carbon::parse(NOW_ISO, 'UTC')->subDays(10));
+    metric($clip, Carbon::parse(NOW_ISO, 'UTC')->subDays(9), 100);
+
+    DB::table('clip_daily_metrics')->insert([
+        'generated_clip_id' => $clip->id,
+        'date' => Carbon::parse(NOW_ISO, 'UTC')->subDays(9)->toDateString(),
+        'views' => 100,
+        'estimated_minutes_watched' => 10,
+        'average_view_duration' => 20,
+        'average_view_percentage' => 64.25,
+    ]);
+
+    $props = metricsProps();
+
+    expect($props['hasRetention'])->toBeTrue()
+        ->and($props['bySource'][0]['avgRetention'])->toBe(64.25)
+        ->and($props['byFormat'][0]['avgRetention'])->toBe(64.25);
+});
+
+it('marca hasRetention como falso quando nenhum clip foi medido pela Analytics', function () {
+    $source = SourceChannel::factory()->create();
+    $clip = publishedClip($source, 'curto', Carbon::parse(NOW_ISO, 'UTC')->subDays(10));
+    metric($clip, Carbon::parse(NOW_ISO, 'UTC')->subDays(9), 100);
+
+    $props = metricsProps();
+
+    expect($props['hasRetention'])->toBeFalse()
+        ->and($props['bySource'][0]['avgRetention'])->toBeNull();
+});

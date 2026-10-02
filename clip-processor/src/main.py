@@ -54,6 +54,8 @@ from src import ttl_worker
 from src.ttl_worker import run_ttl_once
 from src.watchdog import run_watchdog_cycle
 from src.metrics_collector import collector_enabled, run_metrics_collection_once
+from src.retention_collector import collector_enabled as retention_enabled
+from src.retention_collector import run_retention_collection_once
 from src.internal_api import app as _internal_app
 
 
@@ -293,6 +295,20 @@ if collector_enabled():
         coalesce=True,
         max_instances=1,
         misfire_grace_time=900,
+    )
+
+# Retenção (YouTube Analytics): uma vez por dia, porque a Analytics consolida por dia — coletar de
+# hora em hora só gastaria cota. Não depende de PIPELINE_ENABLED (é leitura) e nunca derruba o
+# scheduler: o coletor engole os próprios erros. RETENTION_COLLECTOR_ENABLED=false desliga.
+if retention_enabled():
+    scheduler.add_job(
+        run_retention_collection_once,
+        'interval',
+        hours=24,
+        id='retention_collector',
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=3600,
     )
 
 if __name__ == '__main__':

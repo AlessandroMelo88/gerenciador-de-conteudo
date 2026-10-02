@@ -15,6 +15,7 @@ type FormatRow = {
     avgViews7d: number | null;
     clips7d: number;
     avgViewsNow: number | null;
+    avgRetention: number | null;
 };
 
 type SourceRow = {
@@ -24,6 +25,7 @@ type SourceRow = {
     totalViews: number;
     shortClips: number;
     longClips: number;
+    avgRetention: number | null;
 };
 
 type LowRow = {
@@ -32,12 +34,14 @@ type LowRow = {
     source: string;
     format: 'curto' | 'longo';
     views: number;
+    retention: number | null;
     daysOnline: number;
     url: string | null;
 };
 
 type PageProps = {
     hasData: boolean;
+    hasRetention: boolean;
     publishedClips: number;
     measuredClips: number;
     lastCollectedAt: string | null;
@@ -49,6 +53,9 @@ type PageProps = {
 };
 
 const formatNumber = (n: number | null) => (n === null ? '—' : n.toLocaleString('pt-BR'));
+
+// Retenção como percentual. Sem medição é travessão: 0% seria uma medição, e não medimos nada.
+const formatRetention = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`);
 
 function SectionCard({ title, description, children }: { title: string; description: string; children: ReactNode }) {
     return (
@@ -86,6 +93,13 @@ function FormatCard({ row }: { row: FormatRow }) {
                     <div className="text-xs text-muted-foreground">views em média aos 7 dias</div>
                     <div className="text-[11px] text-muted-foreground font-mono">{row.clips7d} clips com 7 dias</div>
                 </div>
+                <div>
+                    <div className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                        {formatRetention(row.avgRetention)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">do clip assistido, em média</div>
+                    <div className="text-[11px] text-muted-foreground font-mono">quanto o trecho segura</div>
+                </div>
             </div>
         </div>
     );
@@ -93,7 +107,7 @@ function FormatCard({ row }: { row: FormatRow }) {
 
 export default function Metrics() {
     const { props } = usePage<PageProps>();
-    const { hasData, publishedClips, measuredClips, lastCollectedAt, lowViewsThreshold, byFormat, bySource, lowViews, auth } = props;
+    const { hasData, hasRetention, publishedClips, measuredClips, lastCollectedAt, lowViewsThreshold, byFormat, bySource, lowViews, auth } = props;
 
     return (
         <>
@@ -120,6 +134,13 @@ export default function Metrics() {
                             Brasília). Os números são as visualizações que o próprio YouTube informa.
                         </p>
 
+                        {!hasRetention && (
+                            <p className="rounded-md border border-dashed border-muted-foreground/30 px-4 py-3 text-xs text-muted-foreground">
+                                Retenção ainda não coletada. Os canais precisam ser reautorizados no Google com o escopo de
+                                Analytics e a carga retroativa precisa rodar uma vez.
+                            </p>
+                        )}
+
                         <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 min-w-0">
                             {byFormat.map((row) => (
                                 <FormatCard key={row.format} row={row} />
@@ -128,7 +149,7 @@ export default function Metrics() {
 
                         <SectionCard
                             title="Qual canal de origem rende mais"
-                            description="De onde saíram os vídeos que viraram clips, do que mais para o que menos rende (média de visualizações por clip, hoje)."
+                            description="De onde saíram os vídeos que viraram clips, do que mais para o que menos segura o espectador (retenção média por clip; sem retenção coletada, ordena por visualizações)."
                         >
                             <div className="overflow-x-auto">
                                 <Table className="w-full text-xs">
@@ -137,6 +158,7 @@ export default function Metrics() {
                                             <TableHead className="px-5 py-3 font-semibold">#</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold">Canal de origem</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold text-right">Clips</TableHead>
+                                            <TableHead className="px-5 py-3 font-semibold text-right">Retenção média</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold text-right">Views por clip</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold text-right hidden md:table-cell">Views no total</TableHead>
                                             <TableHead className="px-5 py-3 font-semibold hidden md:table-cell">Formatos</TableHead>
@@ -148,7 +170,8 @@ export default function Metrics() {
                                                 <TableCell className="px-5 py-3 font-mono text-muted-foreground">{i + 1}</TableCell>
                                                 <TableCell className="px-5 py-3 font-semibold text-foreground">{row.source}</TableCell>
                                                 <TableCell className="px-5 py-3 text-right font-mono">{formatNumber(row.clips)}</TableCell>
-                                                <TableCell className="px-5 py-3 text-right font-mono font-semibold">{formatNumber(row.avgViewsNow)}</TableCell>
+                                                <TableCell className="px-5 py-3 text-right font-mono font-semibold">{formatRetention(row.avgRetention)}</TableCell>
+                                                <TableCell className="px-5 py-3 text-right font-mono">{formatNumber(row.avgViewsNow)}</TableCell>
                                                 <TableCell className="px-5 py-3 text-right font-mono hidden md:table-cell">{formatNumber(row.totalViews)}</TableCell>
                                                 <TableCell className="px-5 py-3 text-muted-foreground hidden md:table-cell">
                                                     {row.shortClips} Shorts · {row.longClips} longos
@@ -174,6 +197,7 @@ export default function Metrics() {
                                                 <TableHead className="px-5 py-3 font-semibold">Clip</TableHead>
                                                 <TableHead className="px-5 py-3 font-semibold hidden md:table-cell">Canal de origem</TableHead>
                                                 <TableHead className="px-5 py-3 font-semibold text-right">Views</TableHead>
+                                                <TableHead className="px-5 py-3 font-semibold text-right">Retenção</TableHead>
                                                 <TableHead className="px-5 py-3 font-semibold text-right">Dias no ar</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -203,6 +227,7 @@ export default function Metrics() {
                                                     </TableCell>
                                                     <TableCell className="px-5 py-3 hidden md:table-cell text-muted-foreground">{clip.source}</TableCell>
                                                     <TableCell className="px-5 py-3 text-right font-mono font-semibold">{formatNumber(clip.views)}</TableCell>
+                                                    <TableCell className="px-5 py-3 text-right font-mono">{formatRetention(clip.retention)}</TableCell>
                                                     <TableCell className="px-5 py-3 text-right font-mono">{clip.daysOnline}</TableCell>
                                                 </TableRow>
                                             ))}

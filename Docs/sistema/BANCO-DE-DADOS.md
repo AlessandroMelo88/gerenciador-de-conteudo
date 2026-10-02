@@ -193,6 +193,22 @@ Trechos das transcrições (`transcription_jobs`) com texto, tempo, `embedding v
 em MySQL e no Postgres sem pgvector a migration pula o que não existe. Detalhes e colunas em
 [`SISTEMA-BUSCA-TRANSCRICOES.md`](SISTEMA-BUSCA-TRANSCRICOES.md#banco).
 
+### Medição dos clips publicados
+
+| Tabela | Grão | Escrita | De onde vem |
+|---|---|---|---|
+| `clip_metrics` | snapshot no instante da coleta | append-only, nunca atualiza | YouTube Data v3 (`videos.list`) |
+| `clip_daily_metrics` | clip × dia | **upsert** em `(generated_clip_id, date)` | YouTube Analytics v2 (`reports.query`) |
+
+`clip_daily_metrics` guarda `views`, `estimated_minutes_watched`, `average_view_duration`,
+**`average_view_percentage`** (a retenção), `likes`, `comments`, `shares` e `subscribers_gained`.
+
+As duas têm FK para `generated_clips` com **`ON DELETE CASCADE`**, ao contrário do resto do schema:
+medição é filho descartável, e apagar um clip nunca pode falhar por causa dela.
+
+O upsert existe porque o YouTube revisa o número de um dia depois de fechá-lo. É feito à mão (UPDATE
+e, se `rowcount` for 0, INSERT), não com `ON CONFLICT`, porque o pipeline fala PostgreSQL e MySQL.
+
 ## Integridade referencial
 
 **Nenhuma FK tem `ON DELETE CASCADE`.** Consequências:

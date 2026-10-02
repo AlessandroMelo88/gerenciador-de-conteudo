@@ -1,6 +1,6 @@
 # Estado do projeto — leia primeiro
 
-**Última atualização:** 01/10/2026
+**Última atualização:** 02/10/2026
 **Produção:** commit `59b0eb1`, no ar em https://toolscut.alessandromelo.com.br
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
@@ -115,6 +115,10 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Transcrição de aula Hotmart (HLS, só áudio) | 30/09 | **Validada em 01/10/2026** numa aula real (28 min transcritos). O Hotmart serve o vídeo pela Panda Video (`*.tv.pandavideo.com.br`), não por `hotmart.com`; extensão 1.1.1 e API local aceitam os dois hosts. Outro player = ajustar `SUFIXOS_PLAYER`, `host_permissions` e `MEDIA_HOSTS_PADRAO` (ver `Docs/sistema/SISTEMA-TRANSCRICAO.md`). Falta só ligar o launchd do worker ao venv da busca |
 | Longo por canal destino + cota 10/dia + métricas | 01/10 | **No ar (`59b0eb1`).** Campo "Formato dos vídeos" em Canais Destino (`auto`, `short_only`, `both`); todos os canais seguem em `auto`. Cota no servidor: `MAX_UPLOADS_PER_DAY=10`, longos 4, curtos 6, espaçamento 15 min (backup `.env.bak-20261001`). Tela Métricas em `/painel/metricas` (coleta a cada hora). **Falta:** o dono trocar o futebol para `both` no painel; ligar `longo_teto_atingido` no worker de download. Plano: `Docs/planos/PLANO-LONGO-POR-CANAL.md` |
 | Bugs 11, 4 e 17 (SIGTERM, recuperação de `cutting`/`publishing`/`transcribing`, vaga presa por aprovação) | `BUGS.md` | **Corrigidos e no ar em 01/10/2026 (`99fbba4`).** `docker stop clip-processor` conferido em produção: exit 0 e log "Scheduler encerrado". Bug 17 foi decisão: `pending` continua contando na janela (proteção de disco, bug 12); teto separado fica como alternativa de produto. Risco a vigiar: `cutting` volta a `pending_cut` após 3 h sem `updated_at` |
+| Retenção por clip (SPEC-001) | 02/10 | Implementada em `feature/retencao-youtube-analytics`, 10 tarefas, 20 testes novos no pipeline e 5 no painel; suíte do clip-processor em 523 passando. **Fora de produção.** Falta merge, deploy, o dono reautorizar os canais com `yt-analytics.readonly` e rodar `python -m src.retention_backfill --dias 400` |
+| Revisão de palavrão com JEV (SPEC-002) | 02/10 | Spec e plano na `master`; integração nasce **desligada** (`jev_enabled=false`). Implementação delegada a outra sessão |
+| `queue_controls.py:24` lê `system_settings` com crase (MySQL) | 02/10 | **Bug vivo:** em PostgreSQL a consulta falha, o `except` engole e `allow_local_download` é sempre `false`. Não virou issue ainda |
+| Banco local 7 migrations atrás da produção | 02/10 | As 5 sem pgvector foram aplicadas em 02/10. Faltam as duas da busca vetorial: a imagem em uso no Mac é `postgres:17.2-alpine`, sem a extensão |
 | Bug 10 — 287 `clip_path` sem arquivo | `BUGS.md` | Aberto (número não reconferido após a migração) |
 | Bug 6 — painel não apaga backlog de download | `BUGS.md` | Aberto |
 | Monitor do Better Stack por palavra-chave | Incidente 18/09 | Sugerido, não feito |
@@ -137,6 +141,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 
 | Data | Rodada | Onde parou | Próximo passo combinado |
 |---|---|---|---|
+| 02/10/2026 | Retenção do YouTube Analytics (SPEC-001) implementada; spec e plano do JEV escritos; limpeza de branches | 10 tarefas feitas em `feature/retencao-youtube-analytics`, fora de produção; docs do JEV na `master` | Merge e deploy da retenção; reautorizar os canais no Google e rodar o backfill; decidir o `.gitignore` do graphify |
 | 01/10/2026 | Longo por canal, cota 10/dia, revezamento e métricas no ar; PR #1 do Ricardo fechada com comentário; launchd do Mac no venv da busca; plano de palavrão registrado | Produção em `59b0eb1`, env de cota aplicado, tudo em `auto` | Trocar o futebol para `both` no painel e acompanhar a tela Métricas; reorganização dos docs aguarda merge (`docs/organizar-documentacao`) |
 | 01/10/2026 | Reorganização de `Docs/` (`docs/organizar-documentacao`) | Docs por tipo (`sistema/`, `operacao/`, `planos/`, `historico/`, `estudos/`), `Docs/PROGRESSO.md` criado, `**Status:**` em cada plano, links conferidos por `scripts/check-doc-links.py`. Em branch, sem merge | Dono revisa e mescla; manter o PROGRESSO.md a cada rodada |
 | 30/09/2026 | Áudio HLS do Hotmart via extensão (`feature/transcricao-audio-hls-extensao`) | Extensão captura o m3u8, API local guarda em `media-urls.json` (0600), worker baixa só o áudio; testes unitários passam, nada validado no Hotmart real | Dono recarrega a extensão, reinicia o worker e testa uma aula; depois merge |

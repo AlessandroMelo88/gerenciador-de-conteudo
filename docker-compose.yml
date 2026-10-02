@@ -121,6 +121,10 @@ services:
       # sem teto de curtos e sem intervalo mínimo entre uploads.
       - MAX_CURTO_UPLOADS_PER_DAY=${MAX_CURTO_UPLOADS_PER_DAY:-}
       - MIN_UPLOAD_SPACING_MINUTES=${MIN_UPLOAD_SPACING_MINUTES:-0}
+      # Retenção por clip (YouTube Analytics v2, SPEC-001). O coletor roda 1x/dia e engole os
+      # próprios erros: sem o escopo yt-analytics.readonly no token, só ele falha.
+      - RETENTION_COLLECTOR_ENABLED=${RETENTION_COLLECTOR_ENABLED:-true}
+      - RETENTION_MAX_CALLS_PER_CHANNEL_DAY=${RETENTION_MAX_CALLS_PER_CHANNEL_DAY:-200}
       - YOUTUBE_CLIENT_SECRETS=/app/youtube/client_secret.json
       - UPLOAD_WINDOW_BYPASS=true
       - ALLOW_LOCAL_DOWNLOAD=true
