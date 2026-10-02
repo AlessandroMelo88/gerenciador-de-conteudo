@@ -277,3 +277,32 @@ def test_scheduler_agenda_a_coleta_de_retencao_uma_vez_por_dia():
 
     assert 'retention_collector' in jobs, 'o job de retenção não foi agendado'
     assert jobs['retention_collector'].trigger.interval == timedelta(hours=24)
+
+
+def test_backfill_pede_uma_janela_maior_que_a_do_job_diario():
+    from src import retention_backfill
+
+    chamadas = {}
+
+    def falso(dias=None, **kw):
+        chamadas['dias'] = dias
+        return 3
+
+    retention_backfill.main(['--dias', '400'], runner=falso)
+
+    assert chamadas['dias'] == 400
+    assert chamadas['dias'] > rc.STOP_DAYS
+
+
+def test_backfill_usa_400_dias_por_padrao():
+    from src import retention_backfill
+
+    chamadas = {}
+
+    def falso(dias=None, **kw):
+        chamadas['dias'] = dias
+        return 0
+
+    retention_backfill.main([], runner=falso)
+
+    assert chamadas['dias'] == 400
