@@ -267,3 +267,13 @@ def test_cada_canal_usa_sua_propria_credencial():
     rc.run_retention_collection_once(conn=conn, now=NOW, service_for=service_for)
 
     assert sorted(pedidos) == ['canal-a', 'canal-b']
+
+
+def test_scheduler_agenda_a_coleta_de_retencao_uma_vez_por_dia():
+    """A Analytics consolida por dia; coletar de hora em hora só gastaria cota."""
+    import src.main as main
+
+    jobs = {j.id: j for j in main.scheduler.get_jobs()}
+
+    assert 'retention_collector' in jobs, 'o job de retenção não foi agendado'
+    assert jobs['retention_collector'].trigger.interval == timedelta(hours=24)
