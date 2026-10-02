@@ -1,9 +1,22 @@
-import { Fragment, useEffect, useMemo, useRef } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { PencilIcon } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { AppShell } from '@/layouts/app-shell';
 import { BotoesDownload, formatarDuracao } from '@/pages/TranscricaoLocal';
 import type { FocoDetalhe } from '@/types/busca-transcricoes';
@@ -110,6 +123,33 @@ export default function TranscricaoDetalhe() {
     );
     const refFocado = useRef<HTMLParagraphElement | null>(null);
 
+    const [modalEditarAberto, setModalEditarAberto] = useState(false);
+    const [novoTitulo, setNovoTitulo] = useState(job.title || '');
+    const [salvando, setSalvando] = useState(false);
+
+    useEffect(() => {
+        setNovoTitulo(job.title || '');
+    }, [job.title]);
+
+    function salvarTitulo(e: React.FormEvent) {
+        e.preventDefault();
+        if (!novoTitulo.trim()) return;
+        setSalvando(true);
+        router.patch(
+            `/painel/transcricoes/${job.id}`,
+            { title: novoTitulo.trim() },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setModalEditarAberto(false);
+                    setSalvando(false);
+                    toast.success('Título atualizado.');
+                },
+                onError: () => setSalvando(false),
+            },
+        );
+    }
+
     useEffect(() => {
         if (focado === null || !refFocado.current) return;
         const reduzido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -130,7 +170,13 @@ export default function TranscricaoDetalhe() {
                         <Button asChild variant="ghost" size="sm">
                             <Link href="/painel/transcricoes">← Transcrições</Link>
                         </Button>
-                        <BotoesDownload job={job} />
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setModalEditarAberto(true)} className="gap-1.5">
+                                <PencilIcon className="size-3.5" />
+                                Renomear aula
+                            </Button>
+                            <BotoesDownload job={job} />
+                        </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -140,6 +186,41 @@ export default function TranscricaoDetalhe() {
                             {job.source_url}
                         </a>
                     </div>
+
+                    {/* Modal para editar título */}
+                    <Dialog open={modalEditarAberto} onOpenChange={setModalEditarAberto}>
+                        <DialogContent>
+                            <form onSubmit={salvarTitulo} className="grid gap-4">
+                                <DialogHeader>
+                                    <DialogTitle>Editar título da aula</DialogTitle>
+                                    <DialogDescription>
+                                        Ajuste o nome da aula e módulo para manter seus estudos e e-books organizados.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <Field>
+                                    <FieldLabel htmlFor="detalhe-titulo">Nome da aula / Módulo</FieldLabel>
+                                    <Input
+                                        id="detalhe-titulo"
+                                        value={novoTitulo}
+                                        onChange={(e) => setNovoTitulo(e.target.value)}
+                                        placeholder="Ex: [Mód. 3 - Criação e Identidade] Como clonar vídeos de Canais Dark"
+                                        autoFocus
+                                    />
+                                    <FieldDescription>
+                                        Exemplo: [Mód. 3 - Criação e Identidade] Como clonar vídeos de Canais Dark
+                                    </FieldDescription>
+                                </Field>
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={() => setModalEditarAberto(false)}>
+                                        Cancelar
+                                    </Button>
+                                    <Button type="submit" disabled={salvando || !novoTitulo.trim()}>
+                                        {salvando ? 'Salvando...' : 'Salvar título'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
 
                     <Card>
                         <CardContent className="grid gap-4 pt-6 leading-relaxed">

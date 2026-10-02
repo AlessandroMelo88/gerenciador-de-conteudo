@@ -69,11 +69,99 @@ class TranscriptionController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate(['url' => ['required', 'string', 'url', 'max:500']]);
+        $data = $request->validate([
+            'url' => ['required', 'string', 'url', 'max:500'],
+            'title' => ['nullable', 'string', 'max:500'],
+        ]);
 
-        TranscriptionJob::create(['source_url' => $data['url'], 'status' => 'pending']);
+        TranscriptionJob::create([
+            'source_url' => $data['url'],
+            'title' => ! empty($data['title']) ? trim($data['title']) : null,
+            'status' => 'pending',
+        ]);
 
         return back()->with('success', 'Na fila. O worker do Mac pega em até um minuto.');
+    }
+
+    public function update(Request $request, TranscriptionJob $job): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:500'],
+        ]);
+
+        $job->update([
+            'title' => trim($data['title']),
+        ]);
+
+        return back()->with('success', 'Título atualizado com sucesso.');
+    }
+
+    public function exportEbook(Request $request): StreamedResponse|RedirectResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'titulo' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        $jobs = TranscriptionJob::query()
+            ->whereIn('id', $data['ids'])
+            ->where('status', 'done')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        if ($jobs->isEmpty()) {
+            return back()->with('error', 'Nenhuma transcrição concluída selecionada.');
+        }
+
+        $tituloEbook = trim($data['titulo'] ?? '') ?: 'E-book de Transcrições';
+        $dataHoje = now()->format('d/m/Y');
+
+        $doc = [];
+        $doc[] = "# {$tituloEbook}";
+        $doc[] = "";
+        $doc[] = "> Compilação gerada em {$dataHoje} contendo {$jobs->count()} aula(s).";
+        $doc[] = "";
+        $doc[] = "## Sumário";
+        $doc[] = "";
+        foreach ($jobs as $idx => $job) {
+            $num = $idx + 1;
+            $tituloAula = $job->title ?: "Aula {$job->id}";
+            $slug = Str::slug($tituloAula);
+            $duracao = $job->duration_seconds ? ' ('.self::duracao($job->duration_seconds).')' : '';
+            $doc[] = "{$num}. [{$tituloAula}](#{$slug}){$duracao}";
+        }
+        $doc[] = "";
+        $doc[] = "---";
+        $doc[] = "";
+
+        foreach ($jobs as $idx => $job) {
+            $num = $idx + 1;
+            $tituloAula = $job->title ?: "Aula {$job->id}";
+            $doc[] = "## {$num}. {$tituloAula}";
+            $doc[] = "";
+            $meta = [];
+            if ($job->platform) {
+                $meta[] = "**Plataforma:** {$job->platform}";
+            }
+            if ($job->duration_seconds) {
+                $meta[] = '**Duração:** '.self::duracao($job->duration_seconds);
+            }
+            $meta[] = "**Fonte:** [Acessar vídeo]({$job->source_url})";
+            $doc[] = implode(' | ', $meta);
+            $doc[] = "";
+            $doc[] = $job->transcript_text ?? '_Sem transcrição de texto._';
+            $doc[] = "";
+            $doc[] = "---";
+            $doc[] = "";
+        }
+
+        $conteudo = implode("\n", $doc);
+        $nomeArquivo = (Str::slug($tituloEbook) ?: 'ebook-transcricoes').'-'.now()->format('Y-m-d').'.md';
+
+        return response()->streamDownload(fn () => print($conteudo), $nomeArquivo, [
+            'Content-Type' => 'text/markdown; charset=UTF-8',
+        ]);
     }
 
     /**

@@ -3,6 +3,10 @@
 body { width: 320px; margin: 0; padding: 14px 16px; font: 13px/1.4 system-ui, sans-serif; background: var(--fundo); color: var(--texto); }
 h1 { font-size: 15px; margin: 0 0 8px; }
 .url { color: var(--suave); word-break: break-all; margin: 0 0 8px; font-size: 12px; }
+.campo-titulo { margin: 0 0 10px; }
+.campo-titulo label { display: block; font-size: 11px; font-weight: 500; margin-bottom: 4px; color: var(--suave); }
+.campo-titulo input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--suave); border-radius: 5px; background: transparent; color: var(--texto); font-size: 12px; }
+.campo-titulo input:focus { outline: none; border-color: var(--botao); }
 .estado { margin: 0 0 10px; font-size: 12px; }
 .estado.ok { color: var(--ok); }
 .estado.erro, .resultado.erro { color: var(--erro); }

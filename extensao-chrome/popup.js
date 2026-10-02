@@ -50,6 +50,82 @@ async function garanteAcessoAoSite(site) {
   return chrome.permissions.request({ origins: [`*://*.${site}/*`] });
 }
 
+// Função injetada na página para ler o nome da aula e módulo do DOM real.
+function extrairInfoDaPagina() {
+  const host = window.location.hostname.toLowerCase();
+
+  // 1. Hotmart Club
+  if (host.includes('hotmart.com')) {
+    let aula = '';
+    let modulo = '';
+    let curso = '';
+
+    // Nome do curso
+    const cursoEl =
+      document.querySelector('header h1, header h2, [class*="course-name"], [class*="product-name"]') ||
+      document.querySelector('.club-navigation__title, [data-testid*="product-title"]');
+    if (cursoEl) curso = cursoEl.textContent.trim();
+    if (!curso && document.title.includes('|')) {
+      curso = document.title.split('|')[0].trim();
+    }
+
+    // Título da aula e módulo na área de conteúdo
+    const titulos = Array.from(document.querySelectorAll('h1, h2, [class*="lesson-title"], [class*="content-title"]'));
+    for (const el of titulos) {
+      const txt = (el.textContent || '').trim();
+      if (txt && !/^(voltar|informaç|menu|aulas|concluir)/i.test(txt) && txt.length > 3) {
+        aula = txt;
+        const anterior = el.previousElementSibling;
+        if (anterior && anterior.textContent.trim() && !/voltar/i.test(anterior.textContent)) {
+          modulo = anterior.textContent.trim();
+        }
+        break;
+      }
+    }
+
+    // Se ainda não achou aula, busca na barra lateral pela aula ativa
+    if (!aula) {
+      const activeEl = document.querySelector('[class*="active"], [class*="playing"], [aria-current="true"]');
+      if (activeEl) {
+        aula = (activeEl.textContent || '').replace(/tocando agora/gi, '').trim();
+      }
+    }
+
+    // Se ainda não achou módulo, busca o módulo aberto
+    if (!modulo) {
+      const modEl = document.querySelector('[class*="module"][class*="open"], [class*="section"][class*="active"], [class*="expanded"]');
+      if (modEl) {
+        const h = modEl.querySelector('h2, h3, [class*="title"], [class*="name"]');
+        if (h) modulo = h.textContent.trim();
+      }
+    }
+
+    const partes = [];
+    if (modulo) partes.push(`[${modulo}]`);
+    if (aula) partes.push(aula);
+    if (!partes.length && document.title) partes.push(document.title.split('|')[0].trim());
+    if (curso && !partes.join(' ').toLowerCase().includes(curso.toLowerCase())) {
+      partes.push(`• ${curso}`);
+    }
+
+    return partes.join(' ').trim();
+  }
+
+  // 2. YouTube
+  if (host.includes('youtube.com')) {
+    const el = document.querySelector('h1.ytd-watch-metadata, #title h1, h1 yt-formatted-string');
+    if (el && el.textContent.trim()) return el.textContent.trim();
+  }
+
+  // 3. Fallback genérico: h1 ou document.title limpo
+  const h1 = document.querySelector('h1');
+  if (h1 && h1.textContent.trim() && h1.textContent.trim().length > 3) {
+    return h1.textContent.trim();
+  }
+
+  return document.title.split('|')[0].split(' - ')[0].trim();
+}
+
 async function enviar(url, aba, captura) {
   const site = siteDaAula(new URL(url).hostname);
   const cookies = (await chrome.cookies.getAll({ domain: site })).map((c) => ({
@@ -63,13 +139,15 @@ async function enviar(url, aba, captura) {
     expirationDate: c.expirationDate,
   }));
 
+  const tituloFinal = $('titulo')?.value.trim() || aba.title || '';
+
   const resp = await fetch(`${API}/transcrever`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       url,
       cookies,
-      title: aba.title || '',
+      title: tituloFinal,
       ...(captura ? { media_url: captura.media_url, media_referer: captura.media_referer } : {}),
     }),
   });
@@ -84,6 +162,25 @@ async function enviar(url, aba, captura) {
   if (!/^https?:\/\//.test(url)) {
     mostra('mac', 'Abra a página da aula antes de clicar.', 'erro');
     return;
+  }
+
+  // Tenta extrair o título e módulo da aula diretamente do DOM
+  let tituloDetectado = aba.title || '';
+  try {
+    if (chrome.scripting && aba.id) {
+      const [exec] = await chrome.scripting.executeScript({
+        target: { tabId: aba.id },
+        func: extrairInfoDaPagina,
+      });
+      if (exec?.result) {
+        tituloDetectado = exec.result;
+      }
+    }
+  } catch {
+    // Permissão restrita na aba ativa cai de volta no título da aba
+  }
+  if ($('titulo')) {
+    $('titulo').value = tituloDetectado;
   }
 
   if (!(await macLigado())) {

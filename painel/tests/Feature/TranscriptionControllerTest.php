@@ -218,3 +218,53 @@ it('apagar a transcrição apaga o arquivo da aula junto', function () {
 
     Storage::disk('conteudo-cursos')->assertMissing('aulas/8.mp4');
 });
+
+it('permite atualizar o título da transcrição', function () {
+    $job = transcricaoPronta(['title' => 'Título antigo']);
+
+    $this->actingAs(User::factory()->create())
+        ->patch("/painel/transcricoes/{$job->id}", [
+            'title' => '[Mód. 3] Como clonar vídeos de Canais Dark',
+        ])
+        ->assertRedirect();
+
+    expect($job->fresh()->title)->toBe('[Mód. 3] Como clonar vídeos de Canais Dark');
+});
+
+it('valida que o título não pode ser vazio ao atualizar', function () {
+    $job = transcricaoPronta();
+
+    $this->actingAs(User::factory()->create())
+        ->patch("/painel/transcricoes/{$job->id}", [
+            'title' => '',
+        ])
+        ->assertSessionHasErrors('title');
+});
+
+it('exporta múltiplas transcrições como ebook em markdown', function () {
+    $job1 = transcricaoPronta([
+        'title' => 'Aula 01 - Identidade Sonora',
+        'transcript_text' => 'Texto da aula 1 sobre voz.',
+    ]);
+    $job2 = transcricaoPronta([
+        'title' => 'Aula 02 - Clonar Vídeos',
+        'transcript_text' => 'Texto da aula 2 sobre clonagem.',
+    ]);
+
+    $response = $this->actingAs(User::factory()->create())
+        ->post('/painel/transcricoes/ebook', [
+            'ids' => [$job1->id, $job2->id],
+            'titulo' => 'Meu Ebook de Estudos',
+        ]);
+
+    $response->assertOk();
+    $conteudo = $response->streamedContent();
+
+    expect($conteudo)->toContain('# Meu Ebook de Estudos')
+        ->toContain('## Sumário')
+        ->toContain('1. [Aula 01 - Identidade Sonora]')
+        ->toContain('2. [Aula 02 - Clonar Vídeos]')
+        ->toContain('Texto da aula 1 sobre voz.')
+        ->toContain('Texto da aula 2 sobre clonagem.');
+});
+
