@@ -19,14 +19,24 @@ para ações que tocam disco ou processo.
 **Consequência operacional:** parar o container para o pipeline **e** derruba o sidecar. O painel
 continua abrindo, mas "Apagar arquivo", "Purgar antigos" e "Processar URL" passam a falhar.
 
-### Editar código exige rebuild
+### Editar código: hoje basta reiniciar
 
-Não há bind mount para `src/` — o Dockerfile faz `COPY src/ src/` e a imagem embute o código no build.
-Editar no host e reiniciar **não** aplica a mudança.
+O `docker-compose.yml` deste projeto monta `./clip-processor/src:/app/src`, então o código do host
+vale dentro do container e **reiniciar aplica a mudança**:
+
+```bash
+docker compose restart clip-processor
+```
+
+É o que o `deploy.sh` faz. O `build` só é necessário quando muda o `Dockerfile` ou uma dependência
+(`requirements.txt`):
 
 ```bash
 docker compose build clip-processor && docker compose up -d clip-processor
 ```
+
+**Histórico:** antes do mount a imagem embutia o código (`COPY src/ src/`) e editar no host não tinha
+efeito.
 
 Isso já causou horas perdidas: em 13/08/2026 o container rodava código de 01/08 enquanto o host tinha
 commits de 12/08, e o comportamento observado não correspondia a nenhuma versão do código que se estava
@@ -96,6 +106,40 @@ lendo. **Conferir a data da imagem antes de investigar qualquer bug** —
 Schema e colunas em [`BANCO-DE-DADOS.md`](BANCO-DE-DADOS.md); rotinas de backup e recuperação em [`BANCO-DE-DADOS.md#rotinas-de-backup-e-recuperação-dbbackup-e-dbrestore`](BANCO-DE-DADOS.md#rotinas-de-backup-e-recuperação-dbbackup-e-dbrestore); estados e transições em
 [`ESTADOS-E-TRANSICOES.md`](ESTADOS-E-TRANSICOES.md).
 
+
+---
+
+### Métricas e retenção — `metrics_collector.py` e `retention_collector.py`
+
+Dois coletores irmãos, com grãos diferentes e fontes diferentes:
+
+| | `metrics_collector.py` | `retention_collector.py` |
+|---|---|---|
+| API | YouTube Data v3 (`videos.list` part=statistics) | YouTube **Analytics** v2 (`reports.query`) |
+| Grão | snapshot no instante da coleta | clip × **dia** |
+| Tabela | `clip_metrics`, append-only | `clip_daily_metrics`, upsert |
+| Frequência | 6 h nos primeiros 7 dias, 1x/dia até 30 | 1x por dia |
+| Mede | quantas views o clip tem | **quanto do clip foi assistido** |
+| Escopo OAuth | `youtube.force-ssl` (já existia) | `yt-analytics.readonly` (novo) |
+| Desliga com | `METRICS_COLLECTOR_ENABLED=false` | `RETENTION_COLLECTOR_ENABLED=false` |
+
+O upsert da retenção existe porque o YouTube **revisa** o número de um dia depois de fechá-lo: a
+última leitura daquele dia é a que vale. É feito à mão (UPDATE e, se não afetou linha, INSERT) para
+valer em PostgreSQL e MySQL.
+
+`average_view_percentage` é a métrica que interessa: é a única que mede o que o `selector.py` de fato
+decide — se o **trecho** escolhido é bom. Ela é a etapa 1 de três; as etapas 2 e 3 transformam isso em
+hipótese aprovada pelo dono e, daí, em prompt do seletor
+([`../specs/001-retencao-youtube-analytics.md`](../specs/001-retencao-youtube-analytics.md)).
+
+Token sem o escopo novo não quebra nada: só a chamada de Analytics falha, ela é logada e o pipeline
+segue publicando. Por isso o código pôde ir a produção antes da re-autorização dos canais.
+
+Carga retroativa, rodada à mão uma vez:
+
+```bash
+docker compose exec clip-processor python -m src.retention_backfill --dias 400
+```
 
 ---
 

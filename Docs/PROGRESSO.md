@@ -39,6 +39,8 @@ PENDÊNCIA DO DONO = só você consegue fazer · OBSOLETO = superado, guardado e
 | Divulgação automática no Telegram | [`planos/PLANO-MESTRE.md`](planos/PLANO-MESTRE.md) (fase 8) | criar os canais e pôr o bot como administrador |
 | Marca Umbrella Solutions (tema já troca pelo host) | [`planos/PLANO-MESTRE.md`](planos/PLANO-MESTRE.md) (fase 7), [`sistema/SISTEMA-AFILIADOS.md`](sistema/SISTEMA-AFILIADOS.md) | DNS, vhost, certificado e logo |
 | Integração da branch do Ricardo (`release/rico`): lotes 1–9 em produção; PR #1 comentada e fechada em 01/10/2026 | [`ESTADO-DO-PROJETO.md`](ESTADO-DO-PROJETO.md) §6 | nada pendente; ficou de fora por decisão: vídeo longo automático sem chave, filtro de palavrão que reprova, Fact Check, tópicos por assunto, Hacker Libertário, cron nativo |
+| Retenção por clip (SPEC-001, etapa 1 de 3 do ciclo de aprendizado do seletor) | [`specs/001-retencao-youtube-analytics.md`](specs/001-retencao-youtube-analytics.md), [`planos/PLANO-RETENCAO-YOUTUBE-ANALYTICS.md`](planos/PLANO-RETENCAO-YOUTUBE-ANALYTICS.md) | implementada e testada em `feature/retencao-youtube-analytics`; falta merge, deploy, você reautorizar os canais e rodar a carga retroativa |
+| Revisão de palavrão com julgamento tipado (TypeSafe/JEV), desligada por padrão | [`specs/002-revisao-de-palavrao-com-jev.md`](specs/002-revisao-de-palavrao-com-jev.md), [`planos/PLANO-INTEGRACAO-JEV-PALAVRAO.md`](planos/PLANO-INTEGRACAO-JEV-PALAVRAO.md) | spec e plano escritos; implementação delegada a outra sessão |
 | Perfil de prompt do MBL (lote 6) | [`planos/PLANO-PROMPTS-EDITAVEIS.md`](planos/PLANO-PROMPTS-EDITAVEIS.md) | escrever `prompts/channels/mbl.yaml`, compilar com `--apply`, ligar o perfil no painel |
 | Bugs abertos: 6 (painel não apaga backlog de download), 8 (Docker Desktop sob disco cheio), 10 (287 `clip_path` sem arquivo) | [`operacao/BUGS.md`](operacao/BUGS.md) | decidir se entram agora; o bug 8 pode estar superado pela VM nova; o número do bug 10 não foi reconferido na A1 |
 | Pendências da migração A1 | [`planos/MIGRACAO-A1.md`](planos/MIGRACAO-A1.md) | registro A da Cloudflare, desligar a VM Micro, reverter adaptações de 1 GB, atualizar comandos `mysql` nos docs |
@@ -62,6 +64,8 @@ PENDÊNCIA DO DONO = só você consegue fazer · OBSOLETO = superado, guardado e
 | Item | Onde está documentado | O que falta |
 |---|---|---|
 | Cadastrar a primeira oferta de afiliado e testar o caminho inteiro | [`ESTADO-DO-PROJETO.md`](ESTADO-DO-PROJETO.md) §0 | você escolher a oferta |
+| Reautorizar os 2 canais no Google com o escopo `yt-analytics.readonly` e levar os `token-{slug}.json` ao servidor | [`specs/001-retencao-youtube-analytics.md`](specs/001-retencao-youtube-analytics.md) §6 | só você tem a conta; sem isso a retenção fica vazia, mas nada quebra |
+| Creditar a conta do TypeSafe (saldo US$ 0,00) antes de ligar o JEV | [`specs/002-revisao-de-palavrao-com-jev.md`](specs/002-revisao-de-palavrao-com-jev.md) §6 | o preço não é publicado na documentação deles |
 | Criar os canais do Telegram e pôr o bot como administrador | [`ESTADO-DO-PROJETO.md`](ESTADO-DO-PROJETO.md) §6 | você criar os canais |
 | DNS da Umbrella e do `toolscut` na Cloudflare, certificado e logo | [`planos/MIGRACAO-A1.md`](planos/MIGRACAO-A1.md), [`ESTADO-DO-PROJETO.md`](ESTADO-DO-PROJETO.md) §6 | acesso ao DNS |
 | Ligar o `CI gate` na proteção da `master` no GitHub | [`operacao/DESENVOLVIMENTO.md`](operacao/DESENVOLVIMENTO.md) | configuração no GitHub |

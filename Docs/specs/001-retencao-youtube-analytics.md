@@ -1,6 +1,6 @@
 # SPEC-001 — Retenção do YouTube Analytics por clip
 
-**Status:** Rascunho
+**Status:** Entregue (implementada em 02/10/2026, ainda não publicada)
 **Data:** 02/10/2026
 **ADRs relacionados:** ADR-0004 (fallback de IA obrigatório), ADR-0005 (schema evolui por migration guardada)
 **Onde vive o código:** `clip-processor/src/` (coleta) e `painel/` (migration e leitura)
@@ -128,20 +128,21 @@ container (armadilha registrada em 01/10/2026).
 
 ## 5. Critérios de pronto
 
-- [ ] Cada regra da §3 tem teste
-- [ ] `tests/test_retention_collector.py` cobre: resposta normalizada, `columnHeaders` fora de ordem,
+- [x] Cada regra da §3 tem teste
+- [x] `tests/test_retention_collector.py` cobre: resposta normalizada, `columnHeaders` fora de ordem,
       vídeo sem dado (R14), escopo insuficiente (R6), teto de cota (R10), upsert do mesmo dia (R2)
-- [ ] `pytest` dentro da imagem `wordpress-clip-processor` passando
-- [ ] `php artisan test` do painel passando contra PostgreSQL
-- [ ] `vendor/bin/pint` limpo
-- [ ] `Docs/sistema/` atualizado (coletor novo e tabela nova) e `Docs/PROGRESSO.md` com a etapa 1
-- [ ] Esta spec em **Entregue**
+- [x] `pytest` dentro da imagem `wordpress-clip-processor` passando (523 passaram, 1 pulado)
+- [x] `vendor/bin/pest` do painel passando contra PostgreSQL
+- [x] `vendor/bin/pint` limpo
+- [x] `Docs/sistema/` atualizado (coletor novo e tabela nova) e `Docs/PROGRESSO.md` com a etapa 1
+- [x] Esta spec em **Entregue**
 
 ## 6. Riscos e perguntas em aberto
 
 | Item | Dono | Estado |
 |---|---|---|
-| Re-autorizar os 2 canais no Google com o escopo novo e levar os `token-{slug}.json` ao servidor | Dono | Pendente — o código vai a produção antes, por R6 |
+| Re-autorizar os 2 canais no Google com o escopo novo e levar os `token-{slug}.json` ao servidor | Dono | **Pendente.** O código já pode ir a produção sem isso (R6); até lá a tela mostra o aviso de retenção não coletada |
+| Rodar a carga retroativa uma vez depois da re-autorização | Dono | Pendente: `docker compose exec clip-processor python -m src.retention_backfill --dias 400` |
 | Cota da Analytics API (projeto GCP de cada canal) com o backfill de ~141 clips | Claude | A medir no backfill; R10 limita o estrago |
 | Shorts podem reportar `averageViewPercentage` de forma diferente de vídeo longo | Claude | Conferir na primeira leva real antes da etapa 2 |
 | Volume baixo (~141 clips) pode não sustentar hipótese estatística | Dono | Aceito: a etapa 2 usa LLM lendo extremos, não estatística |
