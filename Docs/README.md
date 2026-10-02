@@ -17,6 +17,7 @@ Docs/
 ├── sistema/                # COMO FUNCIONA (referência as-built, vigente)
 ├── operacao/               # COMO OPERAR (runbook, bugs, lint/testes/CI)
 ├── planos/                 # O QUE SE PLANEJOU (planos, ideias, migrações) — cada um com **Status:** no topo
+├── specs/                  # O QUE UMA FEATURE FAZ e como saber que ficou pronta (regras numeradas e testáveis)
 ├── adr/                    # POR QUE FOI DECIDIDO ASSIM (decisões de arquitetura)
 ├── estudos/                # PESQUISA (estratégia de conteúdo, planilhas de mineração de canais)
 ├── mapas/                  # diagramas (mapa.excalidraw)
