@@ -55,7 +55,7 @@ O que a extensão faz e não faz:
 ### Atualizar / recarregar a extensão
 
 1. `chrome://extensions` → no cartão da extensão, botão de recarregar (seta circular). Como o
-   manifest mudou (service worker, permissões), confira se a versão mostrada é **1.1.0** e aceite
+   manifest mudou (scripting para detectar o nome da aula/módulo), confira se a versão mostrada é **1.2.0** e aceite
    as novas permissões se o Chrome pedir.
 2. Reinicie o worker do Mac para ele entender o novo pedido:
    `launchctl kickstart -k gui/$(id -u)/com.canaldecortes.downloader`

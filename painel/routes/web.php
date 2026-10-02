@@ -107,9 +107,11 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/painel/transcricoes', [TranscriptionController::class, 'index'])->name('transcriptions.index');
     Route::post('/painel/transcricoes', [TranscriptionController::class, 'store']);
+    Route::post('/painel/transcricoes/ebook', [TranscriptionController::class, 'exportEbook'])->name('transcriptions.ebook');
     // Antes de /{job}: senão "busca" seria tratado como id de transcrição.
     Route::get('/painel/transcricoes/busca', [TranscriptionSearchController::class, 'search'])->name('transcriptions.search');
     Route::get('/painel/transcricoes/{job}', [TranscriptionController::class, 'show'])->name('transcriptions.show');
+    Route::patch('/painel/transcricoes/{job}', [TranscriptionController::class, 'update'])->name('transcriptions.update');
     Route::post('/painel/transcricoes/{job}/pausar', [TranscriptionController::class, 'pause'])->name('transcriptions.pause');
     Route::post('/painel/transcricoes/{job}/retomar', [TranscriptionController::class, 'resume'])->name('transcriptions.resume');
     Route::delete('/painel/transcricoes/{job}', [TranscriptionController::class, 'destroy'])->name('transcriptions.destroy');

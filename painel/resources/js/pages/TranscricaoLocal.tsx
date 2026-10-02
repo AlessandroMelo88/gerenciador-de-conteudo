@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { DownloadIcon, PauseIcon, PlayIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react';
+import { BookOpenIcon, DownloadIcon, PauseIcon, PencilIcon, PlayIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -17,6 +17,16 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -76,11 +86,82 @@ export function formatarDuracao(segundos: number | null): string | null {
     return h > 0 ? `${h}h${String(min).padStart(2, '0')}min` : `${min}min`;
 }
 
+function EditarTituloModal({ job }: { job: Pick<Job, 'id' | 'title' | 'source_url'> }) {
+    const [aberto, setAberto] = useState(false);
+    const [titulo, setTitulo] = useState(job.title || '');
+    const [salvando, setSalvando] = useState(false);
+
+    useEffect(() => {
+        setTitulo(job.title || '');
+    }, [job.title]);
+
+    function salvar(e: React.FormEvent) {
+        e.preventDefault();
+        if (!titulo.trim()) return;
+        setSalvando(true);
+        router.patch(
+            `/painel/transcricoes/${job.id}`,
+            { title: titulo.trim() },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setAberto(false);
+                    setSalvando(false);
+                    toast.success('Título atualizado.');
+                },
+                onError: () => setSalvando(false),
+            },
+        );
+    }
+
+    return (
+        <Dialog open={aberto} onOpenChange={setAberto}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="ghost" title="Editar título da aula" aria-label="Editar título">
+                    <PencilIcon />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <form onSubmit={salvar} className="grid gap-4">
+                    <DialogHeader>
+                        <DialogTitle>Editar título da aula</DialogTitle>
+                        <DialogDescription>
+                            Organize com o nome da aula e módulo para facilitar seus estudos e a criação do e-book.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Field>
+                        <FieldLabel htmlFor={`titulo-${job.id}`}>Nome da aula / Módulo</FieldLabel>
+                        <Input
+                            id={`titulo-${job.id}`}
+                            value={titulo}
+                            onChange={(e) => setTitulo(e.target.value)}
+                            placeholder="Ex: [Mód. 3 - Criação e Identidade] Como clonar vídeos de Canais Dark"
+                            autoFocus
+                        />
+                        <FieldDescription>
+                            Dica: você pode colocar o módulo entre colchetes para agrupar depois.
+                        </FieldDescription>
+                    </Field>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setAberto(false)}>
+                            Cancelar
+                        </Button>
+                        <Button type="submit" disabled={salvando || !titulo.trim()}>
+                            {salvando ? 'Salvando...' : 'Salvar título'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function Controles({ job }: { job: Pick<Job, 'id' | 'status' | 'title' | 'source_url'> }) {
     const acao = (caminho: string) => router.post(`/painel/transcricoes/${job.id}/${caminho}`, {}, { preserveScroll: true });
 
     return (
         <div className="flex gap-1">
+            <EditarTituloModal job={job} />
             {EM_ANDAMENTO.includes(job.status) && (
                 <Button size="sm" variant="outline" onClick={() => acao('pausar')} title="Pausar">
                     <PauseIcon /> Pausar
@@ -156,7 +237,78 @@ export default function TranscricaoLocal() {
     const { auth, flash } = props;
     const jobs = props.jobs?.data ?? [];
     const pagina = props.jobs;
-    const { data, setData, post, processing, reset, errors } = useForm({ url: '' });
+    const { data, setData, post, processing, reset, errors } = useForm({ url: '', title: '' });
+
+    const [selecionados, setSelecionados] = useState<number[]>([]);
+    const [modalEbookAberto, setModalEbookAberto] = useState(false);
+    const [tituloEbook, setTituloEbook] = useState('E-book - Transcrições de Aulas');
+    const [exportando, setExportando] = useState(false);
+
+    const concluidosDestaPagina = jobs.filter((j) => j.status === 'done');
+    const todosConcluidosSelecionados =
+        concluidosDestaPagina.length > 0 && concluidosDestaPagina.every((j) => selecionados.includes(j.id));
+
+    function alternarTodos() {
+        if (todosConcluidosSelecionados) {
+            setSelecionados([]);
+        } else {
+            setSelecionados(concluidosDestaPagina.map((j) => j.id));
+        }
+    }
+
+    function alternarSelecao(id: number) {
+        setSelecionados((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    }
+
+    async function baixarEbook(e: React.FormEvent) {
+        e.preventDefault();
+        if (selecionados.length === 0) return;
+        setExportando(true);
+        try {
+            const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+            const resp = await fetch('/painel/transcricoes/ebook', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    Accept: 'text/markdown',
+                },
+                body: JSON.stringify({
+                    ids: selecionados,
+                    titulo: tituloEbook,
+                }),
+            });
+
+            if (!resp.ok) {
+                toast.error('Erro ao gerar o e-book.');
+                return;
+            }
+
+            const blob = await resp.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const disposition = resp.headers.get('content-disposition');
+            let filename = `${tituloEbook.toLowerCase().replace(/[^a-z0-9]/gi, '-')}.md`;
+            if (disposition && disposition.indexOf('filename=') !== -1) {
+                const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                if (matches != null && matches[1]) {
+                    filename = matches[1].replace(/['"]/g, '');
+                }
+            }
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success(`E-book gerado com sucesso com ${selecionados.length} aula(s)!`);
+            setModalEbookAberto(false);
+        } catch {
+            toast.error('Não foi possível baixar o e-book.');
+        } finally {
+            setExportando(false);
+        }
+    }
 
     useEffect(() => {
         if (flash?.success) toast.success(flash.success);
@@ -172,7 +324,7 @@ export default function TranscricaoLocal() {
 
     function enviar(e: React.FormEvent) {
         e.preventDefault();
-        post('/painel/transcricoes', { preserveScroll: true, onSuccess: () => reset('url') });
+        post('/painel/transcricoes', { preserveScroll: true, onSuccess: () => reset('url', 'title') });
     }
 
     return (
@@ -200,6 +352,20 @@ export default function TranscricaoLocal() {
                                 </FieldDescription>
                                 {errors.url && <p className="text-xs text-red-600">{errors.url}</p>}
                             </Field>
+                            <Field>
+                                <FieldLabel htmlFor="title">Título ou Nome da aula (opcional)</FieldLabel>
+                                <Input
+                                    id="title"
+                                    type="text"
+                                    placeholder="Ex: [Mód. 3 - Criação e Identidade] Como clonar vídeos de Canais Dark"
+                                    value={data.title}
+                                    onChange={(e) => setData('title', e.target.value)}
+                                />
+                                <FieldDescription>
+                                    Deixe em branco para detectar automaticamente ou especifique o módulo e a aula.
+                                </FieldDescription>
+                                {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
+                            </Field>
                             <div>
                                 <Button type="submit" disabled={processing || !data.url}>
                                     Transcrever
@@ -212,6 +378,46 @@ export default function TranscricaoLocal() {
                 <Card className="max-w-3xl">
                     <CardContent className="grid grid-cols-1 gap-4 pt-6">
                         <BuscaTranscricoes>
+                        {concluidosDestaPagina.length > 0 && (
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="select-all"
+                                        checked={todosConcluidosSelecionados}
+                                        onCheckedChange={alternarTodos}
+                                    />
+                                    <label htmlFor="select-all" className="cursor-pointer select-none">
+                                        {todosConcluidosSelecionados ? 'Desmarcar todas' : 'Selecionar todas para E-book'}
+                                    </label>
+                                </div>
+                                {selecionados.length > 0 && (
+                                    <span className="font-medium text-foreground">
+                                        {selecionados.length} {selecionados.length === 1 ? 'aula selecionada' : 'aulas selecionadas'}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {selecionados.length > 0 && (
+                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <BookOpenIcon className="size-4 text-primary" />
+                                    <span className="font-medium text-foreground">
+                                        {selecionados.length} aula(s) prontas para o E-book
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button size="sm" variant="ghost" onClick={() => setSelecionados([])}>
+                                        Limpar
+                                    </Button>
+                                    <Button size="sm" onClick={() => setModalEbookAberto(true)} className="gap-1.5">
+                                        <BookOpenIcon className="size-3.5" />
+                                        Gerar E-book (.md)
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
                         {jobs.length === 0 && (
                             <p className="text-sm text-muted-foreground">
                                 Nenhuma transcrição ainda.
@@ -221,20 +427,31 @@ export default function TranscricaoLocal() {
                         {jobs.map((job) => (
                             <div key={job.id} className="grid gap-2 border-b pb-4 last:border-b-0 last:pb-0">
                                 <div className="flex items-start justify-between gap-3">
-                                    <div className="grid min-w-0 gap-1">
-                                        {job.status === 'done' ? (
-                                            <Link href={`/painel/transcricoes/${job.id}`} className="truncate font-medium hover:underline">
-                                                {job.title || job.source_url}
-                                            </Link>
-                                        ) : (
-                                            <span className="truncate font-medium" title={job.source_url}>
-                                                {job.title || job.source_url}
-                                            </span>
+                                    <div className="flex min-w-0 items-start gap-3">
+                                        {job.status === 'done' && (
+                                            <div className="pt-0.5">
+                                                <Checkbox
+                                                    checked={selecionados.includes(job.id)}
+                                                    onCheckedChange={() => alternarSelecao(job.id)}
+                                                    aria-label={`Selecionar aula ${job.title || job.id} para e-book`}
+                                                />
+                                            </div>
                                         )}
-                                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                            {job.platform && <Badge variant="secondary">{job.platform}</Badge>}
-                                            {formatarDuracao(job.duration_seconds) && <span>{formatarDuracao(job.duration_seconds)}</span>}
-                                            <span>{new Date(job.created_at).toLocaleDateString('pt-BR')}</span>
+                                        <div className="grid min-w-0 gap-1">
+                                            {job.status === 'done' ? (
+                                                <Link href={`/painel/transcricoes/${job.id}`} className="truncate font-medium hover:underline">
+                                                    {job.title || job.source_url}
+                                                </Link>
+                                            ) : (
+                                                <span className="truncate font-medium" title={job.source_url}>
+                                                    {job.title || job.source_url}
+                                                </span>
+                                            )}
+                                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                                {job.platform && <Badge variant="secondary">{job.platform}</Badge>}
+                                                {formatarDuracao(job.duration_seconds) && <span>{formatarDuracao(job.duration_seconds)}</span>}
+                                                <span>{new Date(job.created_at).toLocaleDateString('pt-BR')}</span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex shrink-0 flex-wrap justify-end gap-2">
@@ -287,6 +504,41 @@ export default function TranscricaoLocal() {
                         </BuscaTranscricoes>
                     </CardContent>
                 </Card>
+
+                {/* Modal de exportação de E-book */}
+                <Dialog open={modalEbookAberto} onOpenChange={setModalEbookAberto}>
+                    <DialogContent>
+                        <form onSubmit={baixarEbook} className="grid gap-4">
+                            <DialogHeader>
+                                <DialogTitle>Gerar E-book de Estudos</DialogTitle>
+                                <DialogDescription>
+                                    As {selecionados.length} aulas selecionadas serão organizadas em um único arquivo Markdown (.md) com sumário e capítulos completos.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <Field>
+                                <FieldLabel htmlFor="ebook-title">Título do E-book</FieldLabel>
+                                <Input
+                                    id="ebook-title"
+                                    value={tituloEbook}
+                                    onChange={(e) => setTituloEbook(e.target.value)}
+                                    placeholder="Ex: Fórmula YouTube 2026 - Módulo 3"
+                                    autoFocus
+                                />
+                                <FieldDescription>
+                                    Esse título será a capa principal do arquivo.
+                                </FieldDescription>
+                            </Field>
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setModalEbookAberto(false)}>
+                                    Cancelar
+                                </Button>
+                                <Button type="submit" disabled={exportando || !tituloEbook.trim()}>
+                                    {exportando ? 'Compilando e-book...' : 'Baixar E-book (.md)'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </AppShell>
         </>
     );
