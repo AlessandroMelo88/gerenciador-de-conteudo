@@ -1,6 +1,8 @@
 """Retenção: leitura da Analytics API, upsert, janela, cota e escopo (SPEC-001)."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
+
+import pytest
 
 from src import retention_collector as rc
 
@@ -132,3 +134,136 @@ def test_upsert_nao_usa_sintaxe_de_um_banco_so():
     sqls = ' '.join(c.args[0] for c in cur.execute.call_args_list).upper()
     assert 'ON CONFLICT' not in sqls
     assert 'ON DUPLICATE KEY' not in sqls
+
+
+@pytest.fixture(autouse=True)
+def _limpa_estado(monkeypatch):
+    rc._calls_today.clear()
+    monkeypatch.delenv('RETENTION_COLLECTOR_ENABLED', raising=False)
+    monkeypatch.delenv('RETENTION_MAX_CALLS_PER_CHANNEL_DAY', raising=False)
+
+
+def _clip(i, *, dias=2, slug='canal-a'):
+    return {
+        'id': i,
+        'youtube_video_id': f'vid{i}',
+        'published_at': NOW - timedelta(days=dias),
+        'channel_slug': slug,
+    }
+
+
+def _conn_ciclo(rows):
+    conn = MagicMock()
+    cur = conn.cursor.return_value.__enter__.return_value
+    cur.fetchall.return_value = rows
+    cur.rowcount = 0
+    return conn
+
+
+def _service(linhas=None, erro=None):
+    """Analytics falso: reports().query(...).execute() devolve columnHeaders + rows."""
+    service = MagicMock()
+    chamadas = []
+
+    def query(**kw):
+        chamadas.append(kw)
+        req = MagicMock()
+        if erro:
+            req.execute.side_effect = erro
+        else:
+            req.execute.return_value = _resposta(linhas or [])
+        return req
+
+    service.reports.return_value.query.side_effect = query
+    service.chamadas = chamadas
+    return service
+
+
+def test_ciclo_grava_a_retencao_dos_clips_publicados():
+    conn = _conn_ciclo([_clip(7)])
+    service = _service([{
+        'video': 'vid7', 'day': '2026-10-01', 'views': 120, 'estimatedMinutesWatched': 40,
+        'averageViewDuration': 31, 'averageViewPercentage': 62.5, 'likes': 9, 'comments': 2,
+        'shares': 1, 'subscribersGained': 3,
+    }])
+
+    gravadas = rc.run_retention_collection_once(conn=conn, now=NOW, service_for=lambda slug: service)
+
+    assert gravadas == 1
+    assert service.chamadas[0]['ids'] == 'channel==MINE'
+    assert 'averageViewPercentage' in service.chamadas[0]['metrics']
+    assert service.chamadas[0]['dimensions'] == 'video,day'
+    # O dia corrente ainda não fechou na Analytics: a janela termina ontem.
+    assert service.chamadas[0]['endDate'] == '2026-10-01'
+
+
+def test_desligado_por_env_nao_chama_a_api(monkeypatch):
+    monkeypatch.setenv('RETENTION_COLLECTOR_ENABLED', 'false')
+    conn = _conn_ciclo([_clip(7)])
+    service = _service()
+
+    assert rc.run_retention_collection_once(conn=conn, now=NOW, service_for=lambda s: service) == 0
+    assert service.chamadas == []
+
+
+def test_token_sem_escopo_de_analytics_nao_derruba_o_ciclo():
+    """Estado real de produção até o dono re-autorizar: a chamada falha e o pipeline segue."""
+    conn = _conn_ciclo([_clip(7)])
+    service = _service(erro=Exception(
+        'insufficientPermissions: Request had insufficient authentication scopes.'))
+
+    assert rc.run_retention_collection_once(conn=conn, now=NOW, service_for=lambda s: service) == 0
+
+
+def test_credencial_ausente_nao_derruba_o_ciclo():
+    conn = _conn_ciclo([_clip(7)])
+
+    def service_for(slug):
+        raise FileNotFoundError('Token OAuth não encontrado')
+
+    assert rc.run_retention_collection_once(conn=conn, now=NOW, service_for=service_for) == 0
+
+
+def test_dia_sem_audiencia_nao_vira_linha_zerada():
+    """A API simplesmente não devolve linha; gravar zero mentiria sobre a medição."""
+    conn = _conn_ciclo([_clip(7)])
+    service = _service([])
+
+    assert rc.run_retention_collection_once(conn=conn, now=NOW, service_for=lambda s: service) == 0
+    cur = conn.cursor.return_value.__enter__.return_value
+    sqls = ' '.join(str(c.args[0]) for c in cur.execute.call_args_list)
+    assert 'INSERT INTO clip_daily_metrics' not in sqls
+
+
+def test_teto_de_chamadas_por_canal_interrompe_o_canal(monkeypatch):
+    monkeypatch.setenv('RETENTION_MAX_CALLS_PER_CHANNEL_DAY', '1')
+    conn = _conn_ciclo([_clip(i) for i in range(1, 120)])  # mais de um lote de 50
+    service = _service([])
+
+    rc.run_retention_collection_once(conn=conn, now=NOW, service_for=lambda s: service)
+
+    assert len(service.chamadas) == 1
+
+
+def test_clip_mais_velho_que_a_janela_nao_entra():
+    conn = _conn_ciclo([])
+    service = _service([])
+
+    rc.run_retention_collection_once(conn=conn, now=NOW, service_for=lambda s: service)
+
+    cur = conn.cursor.return_value.__enter__.return_value
+    corte = cur.execute.call_args_list[0].args[1][-1]
+    assert corte == NOW - timedelta(days=rc.STOP_DAYS)
+
+
+def test_cada_canal_usa_sua_propria_credencial():
+    conn = _conn_ciclo([_clip(1, slug='canal-a'), _clip(2, slug='canal-b')])
+    pedidos = []
+
+    def service_for(slug):
+        pedidos.append(slug)
+        return _service([])
+
+    rc.run_retention_collection_once(conn=conn, now=NOW, service_for=service_for)
+
+    assert sorted(pedidos) == ['canal-a', 'canal-b']
