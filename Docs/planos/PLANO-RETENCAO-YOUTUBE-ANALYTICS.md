@@ -32,11 +32,16 @@ Laravel 12, Inertia, React 19, Pest (painel); PostgreSQL 17.
 - **Editar código do clip-processor exige rebuild:** não há bind mount para `src/`.
   `docker compose build clip-processor && docker compose up -d clip-processor`.
 - **Variável de ambiente nova precisa entrar no `environment:` do `clip-processor`** em
-  `docker-compose.yml`, senão não chega ao container (armadilha de 01/10/2026).
+  `canaldecortes/docker-compose.yml`, senão não chega ao container (armadilha de 01/10/2026).
+  **Atenção:** existem DOIS composes. O de `canaldecortes/` (Postgres 17, embedder, redis) é o que
+  vale e é o espelho da produção; o de `wordpress/` é o compartilhado com os outros projetos e tem
+  um `clip-processor` legado ainda apontando para MySQL. Mexer **só** no de `canaldecortes/`.
+  No Mac os dois disputam `container_name: postgres`, e o que roda é o compartilhado, com as bases
+  de todos os projetos: **não subir** o compose de `canaldecortes/` localmente.
 - **Gitflow:** o trabalho inteiro vive em `feature/retencao-youtube-analytics`, que já existe e já tem
   a spec commitada. Commits convencionais em português.
-- **Mexer apenas** no serviço `clip-processor` e em paths sob `canaldecortes/`: o `docker-compose.yml`
-  da raiz é compartilhado com outros projetos.
+- **Mexer apenas** no serviço `clip-processor` e em paths sob `canaldecortes/`. O `docker-compose.yml`
+  da raiz `wordpress/` é compartilhado com kelnab, feeb, placebeads, riodelux e gringo — não tocar.
 
 ## Foco de revisão
 
@@ -875,7 +880,8 @@ git commit -m "feat(retencao): ciclo diário de coleta com teto de cota e falha 
 **Arquivos:**
 - Modificar: `clip-processor/src/main.py` (import junto da linha 56; `add_job` depois do bloco do
   `metrics_collector`, que hoje termina na linha 296)
-- Modificar: `docker-compose.yml` (serviço `clip-processor`, **só** esse serviço)
+- Modificar: `canaldecortes/docker-compose.yml` (serviço `clip-processor`, **só** esse serviço)
+- Modificar: `canaldecortes/.env.example` (documentar as duas variáveis novas, sem valor)
 - Modificar: `clip-processor/tests/test_retention_collector.py`
 
 **Interfaces:**
@@ -927,7 +933,8 @@ if retention_enabled():
     )
 ```
 
-Em `docker-compose.yml`, no `environment:` do serviço **`clip-processor`** (e em nenhum outro):
+Em `canaldecortes/docker-compose.yml`, no `environment:` do serviço **`clip-processor`** (e em
+nenhum outro; o compose da raiz `wordpress/` não é tocado):
 
 ```yaml
       RETENTION_COLLECTOR_ENABLED: ${RETENTION_COLLECTOR_ENABLED:-true}
