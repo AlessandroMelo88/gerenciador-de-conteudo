@@ -69,6 +69,20 @@ painel/public/storage
 
 # graphify
 graphify-out/cost.json
+# Cache de AST: 13 MB e refeito de graça por `graphify update .` (sem custo de API).
+# O cache SEMÂNTICO (graphify-out/cache/semantic/) continua versionado de propósito:
+# refazer aquele custa chamada de API.
+graphify-out/cache/ast/
+# Snapshots datados do grafo: histórico de 5 MB por dia. O grafo atual
+# (graph.json, GRAPH_REPORT.md, manifest.json) continua versionado.
+graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+
+# Logs e estado do cron/launchd: mudam a cada execução e sujam o git status.
+scripts/*.log
+scripts/cron_status.json
+
+# Material entregue por fora, não faz parte do projeto.
+Claude outputs/
 
 # Material de curso (privado, nunca no repositório público). Mora em
 # painel/storage/app/private/conteudo-cursos — mesma árvore no Mac e na A1
