@@ -1,6 +1,6 @@
 # Estado do projeto — leia primeiro
 
-**Última atualização:** 02/10/2026
+**Última atualização:** 05/10/2026
 **Produção:** commit `59b0eb1`, no ar em https://toolscut.alessandromelo.com.br
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
@@ -31,6 +31,14 @@ nova; o esforço agora é receita por afiliados e conteúdo próprio.
 4. ~~Deploy das correções dos bugs 11, 4 e 17~~ — feito em 01/10/2026 (`99fbba4`). Em seu lugar: decidir
    os planos novos de `Docs/planos/` (revisão de palavrão, vídeo longo por canal) e responder a PR #1.
 5. Cursos e produto próprio.
+
+**05/10/2026 — virada de eixo proposta, aguardando confirmação do dono.** A receita deixa de ser
+afiliação sobre tráfego frio de cortes e passa a ser **produto próprio recorrente + lista de e-mail**,
+ancorada no Traider Quant (`/wordpress/traider`, Free → Trader Pro R$ 49,90/mês, simulador e captura de
+lead por link de e-mail já prontos). Os canais de cortes viram topo de funil, não loja. Plano com fases e
+critérios de corte: [`planos/PLANO-PRODUTO-E-CANAIS.md`](planos/PLANO-PRODUTO-E-CANAIS.md). Mapa visual:
+[`mapas/mapa.excalidraw`](mapas/mapa.excalidraw). Enquanto o dono não confirmar, os passos 1–5 acima
+seguem valendo.
 
 **Fora de escopo por enquanto:** separar as contas Google dos dois canais (decidido adiar em
 16/09/2026); reescrever o pipeline em framework Python.
@@ -123,6 +131,8 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Bug 6 — painel não apaga backlog de download | `BUGS.md` | Aberto |
 | Monitor do Better Stack por palavra-chave | Incidente 18/09 | Sugerido, não feito |
 | Senhas antigas no histórico público do git | Bug 16 | Rotacionadas; reescrita de histórico adiada |
+| Plano produto + canais (eixo novo) | 05/10 | `planos/PLANO-PRODUTO-E-CANAIS.md` em `docs/plano-produto-canais`. Fase 0 não exige código: pôr tráfego no simulador do Traider e cadastrar a primeira oferta real. 7 decisões em aberto para o dono no fim do arquivo |
+| Bot de descoberta de nicho (SPEC-003) | 05/10 | `specs/SPEC-003-BOT-DESCOBERTA-DE-NICHO.md`, não implementado. Worker local `niche-scout/`, YouTube Data API v3 (10.000 unidades/dia, `search.list` = 100) + Google Trends (`trendspyg`; `pytrends` arquivado em 04/2025). Só depois da fase 3 do plano |
 | 3 branches locais já mescladas | Gitflow | `feature/fontes-seguras-futebol`, `fix/pendencias-fontes-e-seletor`, `fix/bug17-finaliza-video-rejeitado` |
 
 ## 7. Como começar uma rodada nova
@@ -141,6 +151,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 
 | Data | Rodada | Onde parou | Próximo passo combinado |
 |---|---|---|---|
+| 05/10/2026 | Modelo de negócio revisto com validação crítica; mapa redesenhado; plano e spec do bot escritos | Validação concluiu que afiliação sobre cortes tem economia unitária fraca (~R$ 225/mês em 100k views, estimativa). Eixo muda para Traider Pro recorrente + lista. Tudo em `docs/plano-produto-canais`, sem merge | Dono responde as 7 decisões em aberto do plano (muro Free/Pro no simulador e tema do guia são as que travam a fase 0) |
 | 02/10/2026 | Retenção do YouTube Analytics (SPEC-001) implementada; spec e plano do JEV escritos; limpeza de branches | 10 tarefas feitas em `feature/retencao-youtube-analytics`, fora de produção; docs do JEV na `master` | Merge e deploy da retenção; reautorizar os canais no Google e rodar o backfill; decidir o `.gitignore` do graphify |
 | 01/10/2026 | Longo por canal, cota 10/dia, revezamento e métricas no ar; PR #1 do Ricardo fechada com comentário; launchd do Mac no venv da busca; plano de palavrão registrado | Produção em `59b0eb1`, env de cota aplicado, tudo em `auto` | Trocar o futebol para `both` no painel e acompanhar a tela Métricas; reorganização dos docs aguarda merge (`docs/organizar-documentacao`) |
 | 01/10/2026 | Reorganização de `Docs/` (`docs/organizar-documentacao`) | Docs por tipo (`sistema/`, `operacao/`, `planos/`, `historico/`, `estudos/`), `Docs/PROGRESSO.md` criado, `**Status:**` em cada plano, links conferidos por `scripts/check-doc-links.py`. Em branch, sem merge | Dono revisa e mescla; manter o PROGRESSO.md a cada rodada |
