@@ -78,3 +78,18 @@ it('exposes longFormatMode in the destination channels page props', function () 
             ->where('channels', fn ($channels) => collect($channels)
                 ->firstWhere('slug', 'longo-prop')['longFormatMode'] === 'both'));
 });
+
+it('guarda a privacidade padrão do canal e recusa valor fora do contrato', function () {
+    $user = User::factory()->createOne();
+    $channel = DestinationChannel::factory()->createOne(['default_privacy' => 'private']);
+
+    $this->actingAs($user)
+        ->put("/painel/canais-destino/{$channel->id}", ['default_privacy' => 'public'])
+        ->assertRedirect();
+    expect($channel->refresh()->default_privacy->value)->toBe('public');
+
+    $this->actingAs($user)
+        ->put("/painel/canais-destino/{$channel->id}", ['default_privacy' => 'unlisted'])
+        ->assertSessionHasErrors('default_privacy');
+    expect($channel->refresh()->default_privacy->value)->toBe('public');
+});

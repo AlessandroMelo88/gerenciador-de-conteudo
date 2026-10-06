@@ -12,6 +12,7 @@ import types
 from pathlib import Path
 
 from src.db import get_db_connection as db_connect
+from src.format_mode import normalize_privacy
 
 
 class WrongChannelError(RuntimeError):
@@ -275,6 +276,20 @@ class YouTubeUploader:
             return response
         return request.execute()
 
+    def _resolve_privacy(self, clip: dict) -> str:
+        """Privacidade do upload, em cascata: escolha do clip → padrão do canal → env.
+
+        A escolha do clip vem da aprovação no painel e vence tudo. Sem escolha (o caminho
+        comum, em que o operador confirma sem mexer em nada), vale o padrão do canal destino.
+        YOUTUBE_PRIVACY_STATUS fica como último recurso, para canal sem padrão e para o fluxo
+        legado sem canais-destino configurados.
+        """
+        for valor in (clip.get('privacy_status'), clip.get('channel_default_privacy')):
+            escolha = normalize_privacy(valor)
+            if escolha:
+                return escolha
+        return os.environ.get('YOUTUBE_PRIVACY_STATUS', 'private')
+
     def _build_video_body(self, clip: dict) -> dict:
         return {
             'snippet': {
@@ -284,7 +299,7 @@ class YouTubeUploader:
                 'categoryId': '17',
             },
             'status': {
-                'privacyStatus': os.environ.get('YOUTUBE_PRIVACY_STATUS', 'private'),
+                'privacyStatus': self._resolve_privacy(clip),
                 'selfDeclaredMadeForKids': False,
             },
         }

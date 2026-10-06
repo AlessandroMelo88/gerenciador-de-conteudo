@@ -12,6 +12,7 @@ export type ClipRow = {
     format: ClipFormat;
     destinationChannelName: string | null;
     destinationChannelSlug?: string | null;
+    destinationChannelDefaultPrivacy?: 'private' | 'public' | null;
     niche?: string | null;
     createdAt: string | null;
     updatedAt: string | null;

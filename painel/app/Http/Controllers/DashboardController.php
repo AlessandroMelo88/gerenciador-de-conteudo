@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\VideoPrivacy;
 use App\Models\DestinationChannel;
 use App\Models\GeneratedClip;
 use App\Models\SourceVideo;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -256,6 +258,7 @@ class DashboardController extends Controller
                 'format' => $clip->format ?: ($clip->sourceVideo?->format ?? 'curto'),
                 'destinationChannelName' => $clip->destinationChannel?->name,
                 'destinationChannelSlug' => $clip->destinationChannel?->slug,
+                'destinationChannelDefaultPrivacy' => $clip->destinationChannel?->default_privacy?->value,
                 'niche' => $clip->destinationChannel?->niche ?? $clip->sourceVideo?->sourceChannel?->target_niche ?? 'futebol',
                 'createdAt' => $clip->created_at?->diffForHumans(),
                 'updatedAt' => $clip->updated_at?->diffForHumans(),
@@ -290,12 +293,29 @@ class DashboardController extends Controller
         return "{$fmt($start)}–{$fmt($end)}";
     }
 
-    public function approve(GeneratedClip $clip, ClipProcessorClient $client): RedirectResponse
+    /**
+     * Privacidade escolhida na aprovação, ou null para herdar o padrão do canal destino.
+     *
+     * Não enviar o campo é o caminho comum (o operador confirma sem mexer em nada) e tem que
+     * continuar valendo o padrão do canal, não um valor fixo daqui.
+     */
+    private function validatePrivacy(Request $request): ?string
     {
+        $data = $request->validate([
+            'privacy' => ['sometimes', 'nullable', Rule::enum(VideoPrivacy::class)],
+        ]);
+
+        return $data['privacy'] ?? null;
+    }
+
+    public function approve(Request $request, GeneratedClip $clip, ClipProcessorClient $client): RedirectResponse
+    {
+        $privacy = $this->validatePrivacy($request);
+
         $affected = GeneratedClip::query()
             ->where('id', $clip->id)
             ->where('status', 'pending')
-            ->update(['status' => 'approved']);
+            ->update(['status' => 'approved', 'privacy_status' => $privacy]);
 
         if ($affected) {
             $client->publishNow();
@@ -360,11 +380,12 @@ class DashboardController extends Controller
     public function bulkApprove(Request $request, ClipProcessorClient $client): RedirectResponse
     {
         $ids = $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']])['ids'];
+        $privacy = $this->validatePrivacy($request);
 
         $affected = GeneratedClip::query()
             ->whereIn('id', $ids)
             ->where('status', 'pending')
-            ->update(['status' => 'approved']);
+            ->update(['status' => 'approved', 'privacy_status' => $privacy]);
 
         if ($affected > 0) {
             $client->publishNow();

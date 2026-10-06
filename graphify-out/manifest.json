@@ -50,8 +50,8 @@
     "semantic_hash": "a5cc7a27969c05b3e8af8cc3aa9abf01"
   },
   "clip-processor/src/publisher.py": {
-    "mtime": 1791311475.8463194,
-    "ast_hash": "513d8d80988d9c9429bd5b361fc99d3c",
+    "mtime": 1791326844.7001946,
+    "ast_hash": "947196d62c0179fb7bfc56a43d003c60",
     "semantic_hash": ""
   },
   "clip-processor/src/quota_manager.py": {
@@ -65,12 +65,12 @@
     "semantic_hash": ""
   },
   "clip-processor/src/rss_poller.py": {
-    "mtime": 1791313584.3535087,
+    "mtime": 1791315605.6598191,
     "ast_hash": "4fa28760082d2114bd0846bca142da9b",
     "semantic_hash": ""
   },
   "clip-processor/src/selector.py": {
-    "mtime": 1791313556.3457382,
+    "mtime": 1791315605.660183,
     "ast_hash": "ffe660448652448f18c859e300ab7590",
     "semantic_hash": ""
   },
@@ -90,8 +90,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/uploader.py": {
-    "mtime": 1791311475.8502936,
-    "ast_hash": "b8fc33a1ea2657356059a7560779497c",
+    "mtime": 1791326844.7013988,
+    "ast_hash": "bac3eda3bfc89fa70f9f04f3f404dc87",
     "semantic_hash": ""
   },
   "clip-processor/src/video_processor.py": {
@@ -155,8 +155,8 @@
     "semantic_hash": "2d7d23259bb80f893f06f41fa87fe8f2"
   },
   "clip-processor/tests/test_publisher.py": {
-    "mtime": 1791311475.85897,
-    "ast_hash": "d7aa38782dbab14606a7960ed41db255",
+    "mtime": 1791326844.7025173,
+    "ast_hash": "9a76f167fc83d42797d832c6d176bf38",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_quota_manager.py": {
@@ -170,12 +170,12 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_rss_poller.py": {
-    "mtime": 1791313666.1520402,
+    "mtime": 1791315605.660516,
     "ast_hash": "cd56e399750fb6889bd206b5384ae446",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_selector.py": {
-    "mtime": 1791313581.0105243,
+    "mtime": 1791315605.6608336,
     "ast_hash": "6fab52ec51de3b18cdebe4f2326fae9a",
     "semantic_hash": ""
   },
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_uploader.py": {
-    "mtime": 1791311475.869087,
-    "ast_hash": "bce16323fe64674abea03335657b034b",
+    "mtime": 1791326844.7032943,
+    "ast_hash": "208a8154788600006d40bf8df449e22a",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_uploader_expired.py": {
@@ -250,13 +250,13 @@
     "semantic_hash": "25a307335c0719bc9a91b3f7babd186d"
   },
   "painel/app/Http/Controllers/DashboardController.php": {
-    "mtime": 1791311475.9294941,
-    "ast_hash": "268c42b3591fa8e72fe813e32671b1be",
+    "mtime": 1791326844.7421355,
+    "ast_hash": "c83613ec7f17b501811c412dd3927c7f",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/DestinationChannelController.php": {
-    "mtime": 1791311475.9312975,
-    "ast_hash": "b364ecfacd2ebd53659edef311bdfda8",
+    "mtime": 1791326844.7455685,
+    "ast_hash": "c0703f8a396004cca871d41ff77c2b04",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/DocumentationController.php": {
@@ -300,13 +300,13 @@
     "semantic_hash": ""
   },
   "painel/app/Models/DestinationChannel.php": {
-    "mtime": 1791311475.9399054,
-    "ast_hash": "3ecafcb820f74b7bb31c54d662371cad",
+    "mtime": 1791326891.4165623,
+    "ast_hash": "a2eb9325ff23f097fdc7d61fb72bce5d",
     "semantic_hash": ""
   },
   "painel/app/Models/GeneratedClip.php": {
-    "mtime": 1791311475.9438133,
-    "ast_hash": "a0a1b34f2101d5fba5d69ba860bc0304",
+    "mtime": 1791326878.599147,
+    "ast_hash": "48060d6a000171cad5e07a6c3c176363",
     "semantic_hash": ""
   },
   "painel/app/Models/Niche.php": {
@@ -395,8 +395,8 @@
     "semantic_hash": "c5f0d79f0c81e558272f8e70cd8b59a9"
   },
   "painel/composer.json": {
-    "mtime": 1790782130.271407,
-    "ast_hash": "6e286136285ef72cbaa36680beaf69a3",
+    "mtime": 1791326844.9049408,
+    "ast_hash": "0a1783e18b38f08dc26aee68eb3bcf3e",
     "semantic_hash": ""
   },
   "painel/config/app.php": {
@@ -530,14 +530,14 @@
     "semantic_hash": ""
   },
   "painel/resources/js/components/clip-queue-tabs.tsx": {
-    "mtime": 1789511603.117157,
-    "ast_hash": "d092bbbf17560281223c201d1307a7ec",
+    "mtime": 1791326844.7526832,
+    "ast_hash": "bc8b67ba5448bd674667b6cafba1e1ed",
     "semantic_hash": ""
   },
   "painel/resources/js/components/confirm-button.tsx": {
-    "mtime": 1784117888.9762332,
-    "ast_hash": "d7937c530b7e10504143784c4ad8de29",
-    "semantic_hash": "d7937c530b7e10504143784c4ad8de29"
+    "mtime": 1791326844.7534463,
+    "ast_hash": "41db38cb17703435a35dc4565d9cd962",
+    "semantic_hash": ""
   },
   "painel/resources/js/components/login-form.tsx": {
     "mtime": 1789705231.7722056,
@@ -755,8 +755,8 @@
     "semantic_hash": ""
   },
   "painel/resources/js/pages/DestinationChannels.tsx": {
-    "mtime": 1791311476.000706,
-    "ast_hash": "323dfadc875cd3c993694f783b272ec5",
+    "mtime": 1791326844.7541213,
+    "ast_hash": "c0837f62dd59a630ea0cd9086e8347dd",
     "semantic_hash": ""
   },
   "painel/resources/js/pages/Documentation.tsx": {
@@ -790,8 +790,8 @@
     "semantic_hash": ""
   },
   "painel/resources/js/types/dashboard.ts": {
-    "mtime": 1789511603.128153,
-    "ast_hash": "ac9af130a1d248d681d2a106b5266c59",
+    "mtime": 1791326844.7546148,
+    "ast_hash": "c69374a87a6f4a758a72ac11f214b814",
     "semantic_hash": ""
   },
   "painel/resources/js/vite-env.d.ts": {
@@ -825,8 +825,8 @@
     "semantic_hash": "f3de41494782e2453a3faab1d768134f"
   },
   "painel/tests/Feature/ClipApprovalActionTest.php": {
-    "mtime": 1789511603.1306293,
-    "ast_hash": "70b9b9c8a8e5a0f9667e9ac8c5deb5d3",
+    "mtime": 1791326952.5306659,
+    "ast_hash": "7370c140441c6432cbaac8d2d068e88e",
     "semantic_hash": ""
   },
   "painel/tests/Feature/CreatePainelUserCommandTest.php": {
@@ -920,8 +920,8 @@
     "semantic_hash": ""
   },
   "youtube/generate_token_channel.py": {
-    "mtime": 1791311476.1061075,
-    "ast_hash": "9d3df5eac6e5edfcc05dc8418749ac92",
+    "mtime": 1791326844.7582023,
+    "ast_hash": "c54d8c9287cd4e71bd51ab034a66a10d",
     "semantic_hash": ""
   },
   ".planning/MILESTONES.md": {
@@ -1895,7 +1895,7 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-CLIP-PROCESSOR.md": {
-    "mtime": 1791315566.3877187,
+    "mtime": 1791315605.6594656,
     "ast_hash": "cc69a01077216e4944738ff3ad48b397",
     "semantic_hash": ""
   },
@@ -1915,8 +1915,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-PUBLICACAO.md": {
-    "mtime": 1791311475.830879,
-    "ast_hash": "7958103b2f0960a12e45a8fc50a38241",
+    "mtime": 1791326844.6970034,
+    "ast_hash": "08e0ac8b1c1610b2d9fc2006156e8f6b",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-REGRAS-E-GATILHOS.md": {
@@ -2715,8 +2715,8 @@
     "semantic_hash": ""
   },
   "Docs/ESTADO-DO-PROJETO.md": {
-    "mtime": 1791311475.79052,
-    "ast_hash": "34bfbb729ff1bb55fcd866e3abe06a0d",
+    "mtime": 1791315686.7233164,
+    "ast_hash": "1d0050e0119ec8bdba52aba58a4b8d38",
     "semantic_hash": ""
   },
   "Docs/adr/0001-busca-vetorial-nas-transcricoes.md": {
@@ -2845,8 +2845,8 @@
     "semantic_hash": ""
   },
   "clip-processor/src/format_mode.py": {
-    "mtime": 1791311475.838225,
-    "ast_hash": "d6a63935159d7e5ba4bae2ebe850f317",
+    "mtime": 1791326844.6985261,
+    "ast_hash": "5698516e7245a17829ca965e1c41bd38",
     "semantic_hash": ""
   },
   "clip-processor/src/metrics_collector.py": {
@@ -2900,8 +2900,8 @@
     "semantic_hash": ""
   },
   "painel/tests/Feature/DestinationChannelLongFormatModeTest.php": {
-    "mtime": 1791311476.0733204,
-    "ast_hash": "7ad44040d672caf87b8a46b3a4036da4",
+    "mtime": 1791326952.532712,
+    "ast_hash": "3a816b589ac40cb7a60a1660b14c2463",
     "semantic_hash": ""
   },
   "painel/tests/Feature/MetricsPageTest.php": {
@@ -2965,7 +2965,7 @@
     "semantic_hash": ""
   },
   "Docs/operacao/BUGS.md": {
-    "mtime": 1791313452.6913002,
+    "mtime": 1791315605.6590536,
     "ast_hash": "13978371aa830c822bd210f92a6d7ef2",
     "semantic_hash": ""
   },
@@ -3082,6 +3082,26 @@
   "Docs/specs/SPEC-003-BOT-DESCOBERTA-DE-NICHO.md": {
     "mtime": 1791311475.8355565,
     "ast_hash": "4c760b1a5f9242552ef89f8773e2e6b9",
+    "semantic_hash": ""
+  },
+  "painel/app/Enums/VideoPrivacy.php": {
+    "mtime": 1791326844.738304,
+    "ast_hash": "a0d5dc48a475d2c1090846eb757ce6e3",
+    "semantic_hash": ""
+  },
+  "painel/database/migrations/2026_10_06_200000_add_default_privacy_to_destination_channels_table.php": {
+    "mtime": 1791326844.7494276,
+    "ast_hash": "1c278e64903f23e615507c1cf0af4ff7",
+    "semantic_hash": ""
+  },
+  "painel/database/migrations/2026_10_06_200100_add_privacy_status_to_generated_clips_table.php": {
+    "mtime": 1791326844.7504125,
+    "ast_hash": "ce1a448a61d768f726a0a152bf656b27",
+    "semantic_hash": ""
+  },
+  "painel/resources/js/components/approve-button.tsx": {
+    "mtime": 1791326844.7518454,
+    "ast_hash": "e1e0a6ec6c08b7dd70305bf46c2d571c",
     "semantic_hash": ""
   }
 }

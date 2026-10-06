@@ -13,12 +13,6 @@ parameters:
 			path: app/Http/Controllers/Api/OfferApiController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$destinationChannel\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/AssistantController.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$sourceVideo\.$#'
 			identifier: property.notFound
 			count: 1
@@ -31,22 +25,10 @@ parameters:
 			path: app/Http/Controllers/AssistantController.php
 
 		-
-			message: '#^Relation ''destinationChannel'' is not found in App\\Models\\GeneratedClip model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Http/Controllers/AssistantController.php
-
-		-
 			message: '#^Relation ''sourceVideo'' is not found in App\\Models\\GeneratedClip model\.$#'
 			identifier: larastan.relationExistence
 			count: 1
 			path: app/Http/Controllers/AssistantController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$destinationChannel\.$#'
-			identifier: property.notFound
-			count: 5
-			path: app/Http/Controllers/DashboardController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\GeneratedClip\:\:\$sourceVideo\.$#'
@@ -79,12 +61,6 @@ parameters:
 			path: app/Http/Controllers/DashboardController.php
 
 		-
-			message: '#^Relation ''destinationChannel'' is not found in App\\Models\\GeneratedClip model\.$#'
-			identifier: larastan.relationExistence
-			count: 3
-			path: app/Http/Controllers/DashboardController.php
-
-		-
 			message: '#^Relation ''generatedClips'' is not found in App\\Models\\SourceVideo model\.$#'
 			identifier: larastan.relationExistence
 			count: 2
@@ -99,7 +75,7 @@ parameters:
 		-
 			message: '#^Relation ''sourceVideo'' is not found in App\\Models\\GeneratedClip model\.$#'
 			identifier: larastan.relationExistence
-			count: 5
+			count: 3
 			path: app/Http/Controllers/DashboardController.php
 
 		-
@@ -267,19 +243,25 @@ parameters:
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
 			identifier: property.notFound
-			count: 10
+			count: 15
+			path: tests/Feature/ClipApprovalActionTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$privacy_status\.$#'
+			identifier: property.notFound
+			count: 4
 			path: tests/Feature/ClipApprovalActionTest.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$status\.$#'
 			identifier: property.notFound
-			count: 8
+			count: 9
 			path: tests/Feature/ClipApprovalActionTest.php
 
 		-
 			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
 			identifier: method.notFound
-			count: 7
+			count: 11
 			path: tests/Feature/ClipApprovalActionTest.php
 
 		-
@@ -293,6 +275,30 @@ parameters:
 			identifier: method.notFound
 			count: 2
 			path: tests/Feature/CreatePainelUserCommandTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$default_privacy\.$#'
+			identifier: property.notFound
+			count: 2
+			path: tests/Feature/DestinationChannelLongFormatModeTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 5
+			path: tests/Feature/DestinationChannelLongFormatModeTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$long_format_mode\.$#'
+			identifier: property.notFound
+			count: 3
+			path: tests/Feature/DestinationChannelLongFormatModeTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 7
+			path: tests/Feature/DestinationChannelLongFormatModeTest.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
@@ -335,6 +341,54 @@ parameters:
 			identifier: method.notFound
 			count: 2
 			path: tests/Feature/MaintenanceModeTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:withoutVite\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/MediaAssetResourceTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 4
+			path: tests/Feature/MetricsPageTest.php
+
+		-
+			message: '#^Access to an undefined property Pest\\PendingCalls\\TestCall\:\:\$source\.$#'
+			identifier: property.notFound
+			count: 10
+			path: tests/Feature/MetricsPageTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/MetricsPageTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:get\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/MetricsPageTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\|Pest\\Support\\HigherOrderTapProxy\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: tests/Feature/MetricsPageTest.php
+
+		-
+			message: '#^Function publishedClip\(\) should return App\\Models\\GeneratedClip but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: tests/Feature/MetricsPageTest.php
+
+		-
+			message: '#^Parameter \#1 \$source of function publishedClip expects App\\Models\\SourceChannel, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 4
+			path: tests/Feature/MetricsPageTest.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$external_id\.$#'
@@ -541,6 +595,36 @@ parameters:
 			path: tests/Feature/ResetPainelPasswordCommandTest.php
 
 		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$freshness_days\.$#'
+			identifier: property.notFound
+			count: 3
+			path: tests/Feature/SourceChannelPriorityTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 6
+			path: tests/Feature/SourceChannelPriorityTest.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$input_priority\.$#'
+			identifier: property.notFound
+			count: 4
+			path: tests/Feature/SourceChannelPriorityTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
+			identifier: method.notFound
+			count: 8
+			path: tests/Feature/SourceChannelPriorityTest.php
+
+		-
+			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:withoutVite\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: tests/Feature/SourceChannelPriorityTest.php
+
+		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$blacklisted\.$#'
 			identifier: property.notFound
 			count: 1
@@ -585,7 +669,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
 			identifier: method.notFound
-			count: 5
+			count: 3
 			path: tests/Feature/TranscriptSearchTest.php
 
 		-
@@ -609,7 +693,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\:\:actingAs\(\)\.$#'
 			identifier: method.notFound
-			count: 18
+			count: 20
 			path: tests/Feature/TranscriptionControllerTest.php
 
 		-

@@ -590,3 +590,37 @@ class TestGuardCanalErrado:
 
         uploader.verify_channel.assert_called_once_with('UC_CERTO')
         assert publicados == 1
+
+
+class TestPrivacidadeDoCanal:
+    """O padrão do canal destino tem que chegar ao uploader junto com o clip."""
+
+    DEST = [{
+        'id': 1, 'slug': 'futebol-em-cortes', 'name': 'Futebol em Cortes', 'niche': 'futebol',
+        'youtube_channel_id': 'UC_CERTO', 'credit_template': None, 'default_privacy': 'public',
+    }]
+
+    def test_padrao_do_canal_chega_no_clip_enviado(self):
+        conn, _ = make_conn_with_clips([SAMPLE_CLIP], dest_channels=self.DEST)
+        uploader = make_mock_uploader(video_id='yt_priv')
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            MockQuota.return_value.can_upload.return_value = True
+            MockQuota.return_value.has_capacity.return_value = True
+            publish_pending_clips(conn, MagicMock(), uploader=uploader, now=dt_sp(20))
+
+        enviado = uploader.upload_clip.call_args.args[0]
+        assert enviado['channel_default_privacy'] == 'public'
+
+    def test_canal_sem_padrao_nao_inventa_valor(self):
+        dest = [{**self.DEST[0], 'default_privacy': None}]
+        conn, _ = make_conn_with_clips([SAMPLE_CLIP], dest_channels=dest)
+        uploader = make_mock_uploader(video_id='yt_priv2')
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            MockQuota.return_value.can_upload.return_value = True
+            MockQuota.return_value.has_capacity.return_value = True
+            publish_pending_clips(conn, MagicMock(), uploader=uploader, now=dt_sp(20))
+
+        enviado = uploader.upload_clip.call_args.args[0]
+        assert enviado['channel_default_privacy'] is None

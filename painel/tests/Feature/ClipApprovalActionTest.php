@@ -104,3 +104,49 @@ it('bulk rejects each clip through the sidecar and skips invalid statuses', func
     expect($published->refresh()->status)->toBe('published');
     Http::assertSentCount(2);
 });
+
+it('grava a privacidade escolhida na aprovação', function () {
+    $user = User::factory()->createOne();
+    $clip = GeneratedClip::factory()->createOne(['status' => 'pending']);
+
+    $this->actingAs($user)
+        ->post("/painel/clips/{$clip->id}/approve", ['privacy' => 'public'])
+        ->assertRedirect();
+
+    expect($clip->refresh()->privacy_status)->toBe('public');
+});
+
+it('sem escolha de privacidade deixa null para herdar o padrão do canal', function () {
+    $user = User::factory()->createOne();
+    $clip = GeneratedClip::factory()->createOne(['status' => 'pending']);
+
+    $this->actingAs($user)
+        ->post("/painel/clips/{$clip->id}/approve")
+        ->assertRedirect();
+
+    expect($clip->refresh()->privacy_status)->toBeNull();
+});
+
+it('recusa privacidade fora do contrato com o clip-processor', function () {
+    $user = User::factory()->createOne();
+    $clip = GeneratedClip::factory()->createOne(['status' => 'pending']);
+
+    $this->actingAs($user)
+        ->post("/painel/clips/{$clip->id}/approve", ['privacy' => 'unlisted'])
+        ->assertSessionHasErrors('privacy');
+
+    expect($clip->refresh()->status)->toBe('pending');
+});
+
+it('aplica a privacidade escolhida ao lote inteiro', function () {
+    $user = User::factory()->createOne();
+    $a = GeneratedClip::factory()->createOne(['status' => 'pending']);
+    $b = GeneratedClip::factory()->createOne(['status' => 'pending']);
+
+    $this->actingAs($user)
+        ->post('/painel/clips/bulk-approve', ['ids' => [$a->id, $b->id], 'privacy' => 'private'])
+        ->assertRedirect();
+
+    expect($a->refresh()->privacy_status)->toBe('private')
+        ->and($b->refresh()->privacy_status)->toBe('private');
+});

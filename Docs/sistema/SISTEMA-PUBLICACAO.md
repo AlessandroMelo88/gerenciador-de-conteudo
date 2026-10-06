@@ -240,6 +240,35 @@ ignorada, e falha do MySQL só gera log.
 
 ---
 
+## Privacidade do vídeo: quem decide
+
+Em cascata, do mais específico para o mais geral — o uploader resolve em
+`_resolve_privacy` ([`uploader.py`](../../clip-processor/src/uploader.py)):
+
+| Ordem | Fonte | Quando vale |
+|---|---|---|
+| 1 | `generated_clips.privacy_status` | o operador escolheu na hora de aprovar aquele clip |
+| 2 | `destination_channels.default_privacy` | padrão do canal, configurado em Canais Destino |
+| 3 | `YOUTUBE_PRIVACY_STATUS` (env) | canal sem padrão e fluxo legado sem canais-destino |
+
+Valores: `private` | `public` (enum `VideoPrivacy` no painel, `normalize_privacy` no sidecar — valor
+fora do contrato é ignorado e cai para o próximo nível).
+
+No painel, o diálogo de aprovação oferece **Padrão do canal / Privado / Público**. Confirmar sem
+mexer em nada grava `NULL` e herda o canal, que é o caminho comum. A escolha também vale para o
+lote, em "Aprovar todos" e "Aprovar selecionados".
+
+As duas consultas do publisher toleram a coluna ausente (`clip_privacy_sql` e `channel_privacy_sql`
+em `format_mode.py`): sem a migration, a expressão vira `NULL` e o comportamento é o de antes — útil
+entre a subida do código e o `migrate` do deploy.
+
+**Por que isso existe.** `private` significa que o vídeo não foi publicado de verdade: não aparece no
+canal, não entra em recomendação, não recebe visualização. Com a env fixa em `private` para todos os
+canais, cada upload exigia alguém abrir o YouTube Studio e publicar à mão — e o painel, enquanto
+isso, dizia `published`. Em 06/10/2026 havia 4 vídeos do Fatos & Debates parados assim.
+
+---
+
 ## Guard de corrida com a rejeição
 
 `_transition_to_publishing` ([`publisher.py:275`](../../clip-processor/src/publisher.py#L275)) faz

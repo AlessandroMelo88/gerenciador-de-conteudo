@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Enums\LongFormatMode;
+use App\Enums\VideoPrivacy;
+use Database\Factories\DestinationChannelFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DestinationChannel extends Model
 {
+    /** @use HasFactory<DestinationChannelFactory> */
     use HasFactory;
 
     protected $table = 'destination_channels';
@@ -23,16 +26,19 @@ class DestinationChannel extends Model
         'credit_template',
         'template_config',
         'long_format_mode',
+        'default_privacy',
         'active',
         'oauth_expired_flag',
     ];
 
     protected $attributes = [
         'long_format_mode' => 'auto',
+        'default_privacy' => 'private',
     ];
 
     protected $casts = [
         'long_format_mode' => LongFormatMode::class,
+        'default_privacy' => VideoPrivacy::class,
         'active' => 'bool',
         'oauth_expired_flag' => 'bool',
         'template_config' => 'array',

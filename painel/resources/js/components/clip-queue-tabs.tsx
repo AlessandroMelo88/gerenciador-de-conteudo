@@ -7,6 +7,7 @@ import { Check, Play, X, Eye, Trash2, AlertTriangle, RefreshCw } from 'lucide-re
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ApproveButton, type Privacy } from '@/components/approve-button';
 import { ConfirmButton } from '@/components/confirm-button';
 import { ClipPreviewModal } from '@/components/clip-preview-modal';
 import {
@@ -195,18 +196,18 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
 
                 <div className="flex items-center gap-2">
                     {ids.length > 0 && (
-                        <ConfirmButton
+                        <ApproveButton
                             variant="outline"
                             size="sm"
                             className="h-8 rounded-lg text-xs font-medium"
                             description={`Aprovar todos os ${ids.length} clipes visíveis?`}
-                            onConfirm={() => {
-                                post('/painel/clips/bulk-approve', { ids });
+                            onConfirm={(privacy: Privacy | null) => {
+                                post('/painel/clips/bulk-approve', { ids, privacy });
                                 clear();
                             }}
                         >
                             <Check className="w-3.5 h-3.5 mr-1 text-emerald-500" /> Aprovar todos
-                        </ConfirmButton>
+                        </ApproveButton>
                     )}
 
                     <div className="flex rounded-lg border bg-card p-0.5 overflow-hidden">
@@ -306,18 +307,18 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                     <span className="text-xs text-muted-foreground font-mono mr-2">
                         {selected.length} selecionado(s)
                     </span>
-                    <ConfirmButton
+                    <ApproveButton
                         variant="default"
                         size="sm"
                         className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-3 rounded-lg"
                         description={`Aprovar os ${selected.length} clips selecionados?`}
-                        onConfirm={() => {
-                            post('/painel/clips/bulk-approve', { ids: selected });
+                        onConfirm={(privacy: Privacy | null) => {
+                            post('/painel/clips/bulk-approve', { ids: selected, privacy });
                             clear();
                         }}
                     >
                         Aprovar selecionados ({selected.length})
-                    </ConfirmButton>
+                    </ApproveButton>
                     <ConfirmButton
                         variant="destructive"
                         size="sm"
@@ -420,15 +421,18 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                             <Eye className="w-3.5 h-3.5 text-sky-400" />
                                             <span>Preview</span>
                                         </button>
-                                        <ConfirmButton
+                                        <ApproveButton
                                             variant="outline"
                                             size="sm"
                                             className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border-emerald-500/30 font-semibold text-xs h-8 px-4 rounded-lg flex-1"
                                             description={`Aprovar clip #${clip.id} para publicação?`}
-                                            onConfirm={() => post(`/painel/clips/${clip.id}/approve`)}
+                                            channelDefault={clip.destinationChannelDefaultPrivacy}
+                                            onConfirm={(privacy: Privacy | null) =>
+                                                post(`/painel/clips/${clip.id}/approve`, { privacy })
+                                            }
                                         >
                                             Aprovar
-                                        </ConfirmButton>
+                                        </ApproveButton>
                                         <ConfirmButton
                                             variant="destructive"
                                             size="sm"
@@ -575,15 +579,18 @@ function PendingTable({ clips }: { clips: ClipRow[] }) {
                                         {/* Coluna AÇÕES */}
                                         <TableCell className="px-4 py-3 text-right pr-5 whitespace-nowrap">
                                             <div className="flex items-center justify-end gap-2">
-                                                <ConfirmButton
+                                                <ApproveButton
                                                     variant="outline"
                                                     size="sm"
                                                     className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border-emerald-500/30 font-semibold text-xs h-8 px-3 rounded-lg"
                                                     description={`Aprovar clip #${clip.id} para publicação?`}
-                                                    onConfirm={() => post(`/painel/clips/${clip.id}/approve`)}
+                                                    channelDefault={clip.destinationChannelDefaultPrivacy}
+                                                    onConfirm={(privacy: Privacy | null) =>
+                                                        post(`/painel/clips/${clip.id}/approve`, { privacy })
+                                                    }
                                                 >
                                                     Aprovar
-                                                </ConfirmButton>
+                                                </ApproveButton>
 
                                                 <ConfirmButton
                                                     variant="destructive"

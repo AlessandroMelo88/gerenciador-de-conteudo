@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\GeneratedClipFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GeneratedClip extends Model
 {
+    /** @use HasFactory<GeneratedClipFactory> */
     use HasFactory;
 
     protected $table = 'generated_clips';
@@ -26,6 +29,7 @@ class GeneratedClip extends Model
         'end_time',
         'youtube_video_id',
         'status',
+        'privacy_status',
         'reason',
         'upload_error',
         'format',
@@ -42,7 +46,8 @@ class GeneratedClip extends Model
         return $this->belongsTo(SourceVideo::class);
     }
 
-    public function destinationChannel()
+    /** @return BelongsTo<DestinationChannel, $this> */
+    public function destinationChannel(): BelongsTo
     {
         return $this->belongsTo(DestinationChannel::class);
     }
