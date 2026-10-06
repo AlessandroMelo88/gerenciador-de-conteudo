@@ -4,7 +4,7 @@ Status: **FEITO** (corrigido e verificado) · **PARCIAL** (parte corrigida, part
 **ABERTO** (confirmado, não corrigido) · **SUSPEITA** (evidência parcial, falta confirmar).
 
 Numeração é estável — não renumerar ao fechar um item, outros documentos linkam por número.
-Última atualização: **16/09/2026**; tabela de status sincronizada com os títulos das seções em
+Última atualização: **06/10/2026** (bug 18). Tabela de status sincronizada com os títulos das seções em
 **01/10/2026** (bugs 4, 11 e 17 no ar em `99fbba4`). Abertos hoje: 6, 8 e 10.
 
 | # | Status | Título |
@@ -26,6 +26,7 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 15 | FEITO | Groq recusava toda seleção com 429 — `max_tokens` acima do teto do plano |
 | 16 | FEITO | Senhas do MySQL publicadas em repositório público — rotacionadas em 16/09/2026 |
 | 17 | FEITO (por decisão) | Vaga da janela presa por clip aguardando aprovação |
+| 18 | FEITO | Token OAuth do canal errado publicou 4 dias de clips no canal pessoal |
 
 ---
 
@@ -572,3 +573,68 @@ Mudança de código: nenhuma na ocupação. Entrou `tests/test_janela_ocupacao.p
 (a consulta de ocupação conta `pending`) para ninguém "consertar" isso sem ler este item.
 **Alternativa pendente, só no painel:** mostrar na tela da janela um selo "N clips aguardando
 aprovação seguram vagas" — melhoria de visibilidade, não de lógica.
+
+
+---
+
+## 18. FEITO — Token OAuth do canal errado publicou 4 dias de clips no canal pessoal
+
+**Detectado em 06/10/2026. Corrigido no mesmo dia** (`clip-processor/src/uploader.py`,
+`clip-processor/src/publisher.py`, `youtube/generate_token_channel.py`).
+
+### Sintoma
+
+O operador aprovava clip no painel, o painel marcava `published` com `youtube_video_id`, e o YouTube
+Studio do canal **Futebol em Cortes** não recebia nada desde 1º de outubro. O dashboard mostrava
+"Publicados (7d): 43" e cota consumida. Nada no log parecia erro — só um aviso de thumbnail.
+
+### Causa raiz
+
+O `token-futebol-em-cortes.json` foi regerado em **02/10/2026 19:21** (para ganhar os escopos
+`force-ssl` e `yt-analytics`) e, na tela de consentimento do Google, foi escolhida a **conta pessoal**
+em vez da conta de marca do canal. A partir daí o token autenticava o canal
+`UCsRuBNP2Q96T2oFPjWyKzHQ` ("Alessandro Melo"), não `UCcyeBQFAkUNeDJbBM7JJqLw`.
+
+Nada no pipeline comparava a identidade do token com `destination_channels.youtube_channel_id`. O
+upload funcionava: o vídeo subia, voltava um `video_id` válido e o banco gravava `published`. Só que
+no canal errado.
+
+Os dois efeitos colaterais vinham do mesmo lugar e despistaram o diagnóstico:
+
+- **vídeos privados** — canal pessoal sem verificação tem upload forçado a `private`;
+- **`403 ... doesn't have permissions to upload and set custom video thumbnails`** — mesma razão.
+
+`fatos-e-debates` nunca foi afetado: o token dele continuou apontando para o canal certo.
+
+### Evidência
+
+```
+futebol-em-cortes  ->  UCsRuBNP2Q96T2oFPjWyKzHQ  "Alessandro Melo"     (token de 02/10)
+esperado           ->  UCcyeBQFAkUNeDJbBM7JJqLw  "Futebol em Cortes"
+
+0XR_SYmE4fI  Futebol em Cortes  public   2026-10-02T14:38Z   <- último certo
+O1VezX42Xvs  Alessandro Melo    private  2026-10-05T19:39Z
+PNW1mJ-pi5g  Alessandro Melo    private  2026-10-06T13:47Z
+```
+
+### Correção
+
+Duas travas, porque a falha era silenciosa dos dois lados:
+
+1. **Na geração do token** — `generate_token_channel.py` pede também o escopo `force-ssl`, chama
+   `channels.list(mine=true)` logo após o consentimento, compara com o ID esperado
+   (`EXPECTED_CHANNEL_IDS`) e **aborta sem salvar** quando não bate.
+
+2. **Em runtime** — `YouTubeUploader.verify_channel()` faz a mesma comparação contra
+   `destination_channels.youtube_channel_id` e levanta `WrongChannelError`. O `publish_pending_clips`
+   chama o guard **uma vez por canal-destino**, antes de qualquer upload, e pula o canal inteiro
+   quando o token não bate, notificando o erro.
+
+Token antigo, com escopo só `youtube.upload`, não consegue chamar `channels.list`: nesse caso o guard
+avisa alto e deixa passar — "não deu para verificar" não é "está errado". Por isso vale regerar os
+tokens dos dois canais pelo script novo.
+
+### Decisão sobre o estrago
+
+Os 11 clips publicados no canal errado entre 02/10 e 06/10 **não** foram recuperados nem apagados:
+decisão do dono em 06/10/2026 foi seguir em frente e garantir que não se repita.

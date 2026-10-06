@@ -206,11 +206,28 @@ Hipótese principal para a suspeita de "thumbnail não aplicada nos longos": 403
 |---|---|
 | Token por canal | `/app/youtube/token-<slug>.json` ([`uploader.py:78`](../../clip-processor/src/uploader.py#L78)) |
 | Token legado | `YOUTUBE_TOKEN_FILE` ou `/app/token.json` ([`:15`](../../clip-processor/src/uploader.py#L15)) |
-| Scope | `https://www.googleapis.com/auth/youtube.upload` ([`:16`](../../clip-processor/src/uploader.py#L16)) |
-| Geração | CLI interativo [`youtube_oauth.py`](../../clip-processor/src/youtube_oauth.py) |
+| Scope | `youtube.upload` + `youtube.force-ssl` ([`:16`](../../clip-processor/src/uploader.py#L16)) |
+| Geração | `.venv/bin/python youtube/generate_token_channel.py --channel <slug>` |
 | Client secrets | `YOUTUBE_CLIENT_SECRETS=/app/youtube/client_secret.json` (compose) |
 
-O scope é **só upload**. Nada no pipeline lê estatística ou comentário do canal.
+O `force-ssl` serve a duas coisas: a leitura de métricas e a conferência de identidade do token
+(abaixo). Nada no pipeline escreve no canal além do upload.
+
+### Guard de canal — o token tem que ser do canal que diz ser
+
+`YouTubeUploader.verify_channel(expected_channel_id)` chama `channels.list(mine=true)` e compara com
+`destination_channels.youtube_channel_id`. Se não bater, levanta `WrongChannelError`.
+`publish_pending_clips` chama o guard **uma vez por canal-destino**, antes de qualquer upload, e pula
+o canal inteiro quando o token está errado — em vez de publicar no canal errado em silêncio.
+
+Token antigo, com escopo só `youtube.upload`, não consegue chamar `channels.list`: o guard avisa no log
+e deixa passar, porque "não deu para verificar" não é "está errado".
+
+O `generate_token_channel.py` faz a mesma conferência logo depois do consentimento do Google e **aborta
+sem salvar** se o token caiu no canal errado — o erro acontece ali, na hora de escolher a conta.
+
+Motivo: [bug 18](../operacao/BUGS.md#18-feito--token-oauth-do-canal-errado-publicou-4-dias-de-clips-no-canal-pessoal) —
+quatro dias de clips subiram privados no canal pessoal sem nenhum erro no pipeline.
 
 `_load_credentials` ([`:137`](../../clip-processor/src/uploader.py#L137)) faz refresh quando o token está
 expirado. Se o refresh falhar com `RefreshError`:
