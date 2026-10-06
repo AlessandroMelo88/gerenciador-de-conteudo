@@ -26,14 +26,12 @@ class DashboardController extends Controller
                 GeneratedClip::with(['sourceVideo.sourceChannel', 'destinationChannel'])
                     ->where('status', 'pending')
                     ->latest()
-                    ->limit(10)
                     ->get()
             ),
             'queuedClips' => $this->clipPayload(
                 GeneratedClip::with(['sourceVideo.sourceChannel', 'destinationChannel'])
                     ->where('status', 'approved')
                     ->oldest('created_at')
-                    ->limit(10)
                     ->get()
             ),
             'failures' => $this->clipPayload(
