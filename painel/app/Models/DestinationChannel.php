@@ -4,12 +4,14 @@ namespace App\Models;
 
 use App\Enums\LongFormatMode;
 use App\Enums\VideoPrivacy;
+use Database\Factories\DestinationChannelFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DestinationChannel extends Model
 {
+    /** @use HasFactory<DestinationChannelFactory> */
     use HasFactory;
 
     protected $table = 'destination_channels';

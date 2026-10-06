@@ -106,8 +106,8 @@ it('bulk rejects each clip through the sidecar and skips invalid statuses', func
 });
 
 it('grava a privacidade escolhida na aprovação', function () {
-    $user = User::factory()->create();
-    $clip = GeneratedClip::factory()->create(['status' => 'pending']);
+    $user = User::factory()->createOne();
+    $clip = GeneratedClip::factory()->createOne(['status' => 'pending']);
 
     $this->actingAs($user)
         ->post("/painel/clips/{$clip->id}/approve", ['privacy' => 'public'])
@@ -117,8 +117,8 @@ it('grava a privacidade escolhida na aprovação', function () {
 });
 
 it('sem escolha de privacidade deixa null para herdar o padrão do canal', function () {
-    $user = User::factory()->create();
-    $clip = GeneratedClip::factory()->create(['status' => 'pending']);
+    $user = User::factory()->createOne();
+    $clip = GeneratedClip::factory()->createOne(['status' => 'pending']);
 
     $this->actingAs($user)
         ->post("/painel/clips/{$clip->id}/approve")
@@ -128,8 +128,8 @@ it('sem escolha de privacidade deixa null para herdar o padrão do canal', funct
 });
 
 it('recusa privacidade fora do contrato com o clip-processor', function () {
-    $user = User::factory()->create();
-    $clip = GeneratedClip::factory()->create(['status' => 'pending']);
+    $user = User::factory()->createOne();
+    $clip = GeneratedClip::factory()->createOne(['status' => 'pending']);
 
     $this->actingAs($user)
         ->post("/painel/clips/{$clip->id}/approve", ['privacy' => 'unlisted'])
@@ -139,9 +139,9 @@ it('recusa privacidade fora do contrato com o clip-processor', function () {
 });
 
 it('aplica a privacidade escolhida ao lote inteiro', function () {
-    $user = User::factory()->create();
-    $a = GeneratedClip::factory()->create(['status' => 'pending']);
-    $b = GeneratedClip::factory()->create(['status' => 'pending']);
+    $user = User::factory()->createOne();
+    $a = GeneratedClip::factory()->createOne(['status' => 'pending']);
+    $b = GeneratedClip::factory()->createOne(['status' => 'pending']);
 
     $this->actingAs($user)
         ->post('/painel/clips/bulk-approve', ['ids' => [$a->id, $b->id], 'privacy' => 'private'])
