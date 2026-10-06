@@ -17,6 +17,7 @@ Comportamento:
 """
 import os
 import re
+import subprocess
 import requests
 import feedparser
 import redis
@@ -170,6 +171,40 @@ def _plan_selection_runs(conn, source_video_id: int, fmt: str, niche: str) -> li
     return plain
 
 
+def _source_duration_seconds(local_path: str | None, transcript: dict | None) -> float | None:
+    """Duração da fonte em segundos, ou None quando não dá para saber.
+
+    O arquivo é a fonte de verdade: o fim da transcrição só mede até a última
+    fala, então vinheta, música ou silêncio no fim encurtam a medida e podem
+    rebaixar um vídeo longo de verdade para 'curto' (um caso em produção foi
+    medido em 410.2s, 10s abaixo do corte de 420s).
+
+    Sem arquivo em disco, cai no fim da transcrição — melhor que nada, e é o que
+    o guard fazia antes. Sem nenhum dos dois, devolve None e o chamador não
+    rebaixa nada: não saber a duração não é prova de que o vídeo é curto.
+    """
+    if local_path and os.path.exists(local_path):
+        try:
+            result = subprocess.run(
+                [
+                    'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                    '-of', 'default=noprint_wrappers=1:nokey=1', local_path,
+                ],
+                check=True, capture_output=True, timeout=60, text=True,
+            )
+            return float(result.stdout.strip())
+        except Exception as exc:
+            _log(f'[AI] Aviso: ffprobe falhou em {local_path} ({exc}) — usando o fim da transcrição')
+
+    segments = (transcript or {}).get('segments')
+    if segments:
+        try:
+            return float(segments[-1].get('end', 0))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None, anthropic_client=None) -> None:
     """Executa transcrição + seleção para um vídeo com status downloaded.
 
@@ -222,9 +257,9 @@ def _process_ai_pipeline(conn, video_id: str, local_path: str, groq_client=None,
         fmt = row.get('format') or 'curto'
         niche = row.get('target_niche') or 'futebol'
 
-        if fmt == 'longo' and transcript and transcript.get('segments'):
-            total_duration = float(transcript['segments'][-1].get('end', 0))
-            if total_duration < MIN_LONGFORM_SECONDS:
+        if fmt == 'longo':
+            total_duration = _source_duration_seconds(local_path, transcript)
+            if total_duration is not None and total_duration < MIN_LONGFORM_SECONDS:
                 _log(f'[AI] Vídeo {video_id} tem {total_duration:.1f}s (< {MIN_LONGFORM_SECONDS}s) — corrigindo formato de longo para curto')
                 fmt = 'curto'
                 try:

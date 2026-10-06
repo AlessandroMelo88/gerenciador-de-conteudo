@@ -4,7 +4,7 @@ Status: **FEITO** (corrigido e verificado) · **PARCIAL** (parte corrigida, part
 **ABERTO** (confirmado, não corrigido) · **SUSPEITA** (evidência parcial, falta confirmar).
 
 Numeração é estável — não renumerar ao fechar um item, outros documentos linkam por número.
-Última atualização: **06/10/2026** (bug 18). Tabela de status sincronizada com os títulos das seções em
+Última atualização: **06/10/2026** (bugs 18 e 19). Tabela de status sincronizada com os títulos das seções em
 **01/10/2026** (bugs 4, 11 e 17 no ar em `99fbba4`). Abertos hoje: 6, 8 e 10.
 
 | # | Status | Título |
@@ -27,6 +27,7 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 16 | FEITO | Senhas do MySQL publicadas em repositório público — rotacionadas em 16/09/2026 |
 | 17 | FEITO (por decisão) | Vaga da janela presa por clip aguardando aprovação |
 | 18 | FEITO | Token OAuth do canal errado publicou 4 dias de clips no canal pessoal |
+| 19 | FEITO | Guard de formato media a transcrição, não o vídeo — rebaixava longo para curto |
 
 ---
 
@@ -638,3 +639,53 @@ tokens dos dois canais pelo script novo.
 
 Os 11 clips publicados no canal errado entre 02/10 e 06/10 **não** foram recuperados nem apagados:
 decisão do dono em 06/10/2026 foi seguir em frente e garantir que não se repita.
+
+
+---
+
+## 19. FEITO — Guard de formato media a transcrição, não o vídeo
+
+**Introduzido em `874bb09` (02/10/2026, em produção desde 02/10 23:40). Corrigido em 06/10/2026**
+(`clip-processor/src/rss_poller.py`, `tests/test_long_format_mode.py`).
+
+### Causa raiz
+
+O guard que protege vídeo curto de ser fatiado como longo tirava a duração do **fim da transcrição**:
+
+```python
+total_duration = float(transcript['segments'][-1].get('end', 0))
+if total_duration < MIN_LONGFORM_SECONDS:   # 420
+    fmt = 'curto'
+    # UPDATE source_videos SET format = 'curto'
+```
+
+O fim da última fala não é a duração do vídeo. Vinheta, música, aplauso ou silêncio no final não
+viram segmento, e transcrição parcial encurta mais ainda. Um vídeo longo de verdade podia ser
+rebaixado para `curto` — e a decisão errada ficava gravada no banco.
+
+Produção pegou um caso a 10 s do corte:
+
+```
+[05/10 19:20] Vídeo BdnqLQqryHM tem 410.2s (< 420s) — corrigindo formato de longo para curto
+```
+
+### Sintoma visível
+
+7 testes de `test_long_format_mode.py` falhando desde `874bb09` (bisect: `874bb09^` passa 54/54). Os
+7 eram exatamente os que esperam `fmt='longo'`: o fixture de transcrição termina em 60 s, então o
+guard rebaixava tudo. A suíte ficou vermelha por 4 dias.
+
+### Correção
+
+`_source_duration_seconds(local_path, transcript)` mede o **arquivo** com `ffprobe`, cai no fim da
+transcrição quando não há arquivo em disco, e devolve `None` quando não dá para saber — nesse caso o
+guard não rebaixa nada, porque não saber a duração não é prova de que o vídeo é curto.
+
+Os testes do pipeline passaram a controlar a duração da fonte (`_run_pipeline(duracao_fonte=...)`),
+separada da transcrição, e `TestGuardDeFormato` cobre os três caminhos. Verificado: os testes novos
+falham contra o guard antigo e passam contra o corrigido.
+
+### Relacionado, não investigado
+
+30 dos 73 pipelines do log (**41%**) terminam em `Pipeline concluído: 0 momento(s)` → `failed`. Só 3
+passaram por este guard, então a causa é outra. Fio aberto.

@@ -179,6 +179,9 @@ class TestDetectFormat:
 
 # ---------------------------------------------------------------- pipeline
 
+# A fonte destes casos é um vídeo longo de verdade (ver _run_pipeline, que mede 900s).
+# A transcrição termina em 60s de propósito: o guard de formato não pode confiar no
+# fim da fala para decidir a duração do vídeo (bug do commit 874bb09).
 TRANSCRIPT = {'video_id': 'vid001aaaaaa', 'text': 't', 'segments': [{'start': 0.0, 'end': 60.0, 'text': 'x'}]}
 
 
@@ -186,13 +189,15 @@ def _moment(start, end, score=8):
     return {'start_time': start, 'end_time': end, 'score': score, 'reason': 'ok'}
 
 
-def _run_pipeline(mocker, db, shorts=None, longs=None):
+def _run_pipeline(mocker, db, shorts=None, longs=None, duracao_fonte=900.0):
     """Roda _process_ai_pipeline contra o FakeDb; devolve (select_mock, status_calls)."""
     from src.rss_poller import _process_ai_pipeline
 
     shorts = [_moment(10, 70)] if shorts is None else shorts
     longs = [_moment(0, 600)] if longs is None else longs
     mocker.patch('src.rss_poller.transcribe_video', return_value=TRANSCRIPT)
+    # Duração da FONTE, não da transcrição: 900s = vídeo longo de verdade.
+    mocker.patch('src.rss_poller._source_duration_seconds', return_value=duracao_fonte)
     mocker.patch('src.rss_poller.save_transcript')
     mocker.patch('src.queue_controls.is_paused', return_value=False)
     mocker.patch('src.rss_poller._cleanup_partial')
@@ -473,3 +478,60 @@ class TestFinalizacaoComDoisFormatos:
 
         src = inspect.getsource(db_mod.recover_stuck_selecting)
         assert 'NOT EXISTS' in src and 'generated_clips gc WHERE gc.source_video_id' in src
+
+
+# ------------------------------------------- duração da fonte no guard de formato
+
+class TestDuracaoDaFonte:
+    """O guard mede o arquivo, não a transcrição (regressão do commit 874bb09)."""
+
+    def test_usa_o_ffprobe_quando_o_arquivo_existe(self, mocker, tmp_path):
+        from src import rss_poller
+
+        arquivo = tmp_path / 'v.mp4'
+        arquivo.write_bytes(b'x')
+        mocker.patch('src.rss_poller.subprocess.run', return_value=MagicMock(stdout='912.5\n'))
+        assert rss_poller._source_duration_seconds(str(arquivo), TRANSCRIPT) == 912.5
+
+    def test_sem_arquivo_cai_no_fim_da_transcricao(self):
+        from src import rss_poller
+
+        assert rss_poller._source_duration_seconds('/nao/existe.mp4', TRANSCRIPT) == 60.0
+
+    def test_ffprobe_quebrado_cai_no_fim_da_transcricao(self, mocker, tmp_path):
+        from src import rss_poller
+
+        arquivo = tmp_path / 'v.mp4'
+        arquivo.write_bytes(b'x')
+        mocker.patch('src.rss_poller.subprocess.run', side_effect=OSError('ffprobe sumiu'))
+        assert rss_poller._source_duration_seconds(str(arquivo), TRANSCRIPT) == 60.0
+
+    def test_sem_arquivo_e_sem_transcricao_nao_sabe(self):
+        from src import rss_poller
+
+        assert rss_poller._source_duration_seconds(None, None) is None
+        assert rss_poller._source_duration_seconds(None, {'segments': []}) is None
+
+
+class TestGuardDeFormato:
+    def test_fonte_longa_com_transcricao_curta_continua_longa(self, mocker):
+        """O bug: 900s de vídeo com fala só até 60s não pode virar 'curto'."""
+        db = FakeDb(columns=[MODE_COL, FORMAT_COL], dest_modes=('auto',))
+        select, _ = _run_pipeline(mocker, db, duracao_fonte=900.0)
+        assert select.call_args.kwargs['fmt'] == 'longo'
+        assert db.source_format == 'longo'
+        assert not any(s.startswith('UPDATE source_videos SET format') for s in db.sqls())
+
+    def test_fonte_curta_de_verdade_e_rebaixada_e_gravada(self, mocker):
+        db = FakeDb(columns=[MODE_COL, FORMAT_COL], dest_modes=('auto',))
+        select, _ = _run_pipeline(mocker, db, duracao_fonte=300.0)
+        assert select.call_args.kwargs['fmt'] == 'curto'
+        assert db.source_format == 'curto'
+        assert any(s.startswith('UPDATE source_videos SET format') for s in db.sqls())
+
+    def test_duracao_desconhecida_nao_rebaixa(self, mocker):
+        """Não saber a duração não é prova de que o vídeo é curto."""
+        db = FakeDb(columns=[MODE_COL, FORMAT_COL], dest_modes=('auto',))
+        select, _ = _run_pipeline(mocker, db, duracao_fonte=None)
+        assert select.call_args.kwargs['fmt'] == 'longo'
+        assert not any(s.startswith('UPDATE source_videos SET format') for s in db.sqls())
