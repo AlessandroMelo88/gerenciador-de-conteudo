@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\LongFormatMode;
+use App\Enums\VideoPrivacy;
 use App\Models\DestinationChannel;
 use App\Models\Niche;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,7 @@ class DestinationChannelController extends Controller
                 'creditTemplate' => $c->credit_template,
                 'templateConfig' => $c->effective_template_config,
                 'longFormatMode' => $c->long_format_mode->value,
+                'defaultPrivacy' => $c->default_privacy->value,
                 'active' => $c->active,
                 'oauthStatus' => $c->oauth_status,
                 'hasWatermark' => Storage::disk('branding')->exists("watermark-{$c->slug}.png"),
@@ -47,6 +49,7 @@ class DestinationChannelController extends Controller
             'credit_template' => ['sometimes', 'nullable', 'string'],
             'template_config' => ['sometimes', 'nullable'],
             'long_format_mode' => ['sometimes', Rule::enum(LongFormatMode::class)],
+            'default_privacy' => ['sometimes', Rule::enum(VideoPrivacy::class)],
             'active' => ['sometimes', 'boolean'],
         ]);
 
@@ -69,6 +72,7 @@ class DestinationChannelController extends Controller
             'credit_template' => ['sometimes', 'nullable', 'string'],
             'template_config' => ['sometimes', 'nullable'],
             'long_format_mode' => ['sometimes', Rule::enum(LongFormatMode::class)],
+            'default_privacy' => ['sometimes', Rule::enum(VideoPrivacy::class)],
             'active' => ['sometimes', 'boolean'],
         ]);
 

@@ -302,3 +302,36 @@ def test_verify_channel_deixa_passar_quando_nao_da_para_conferir():
 def test_verify_channel_ignora_placeholder():
     up = _uploader_with([{'id': 'UC_QUALQUER', 'snippet': {'title': 'x'}}])
     up.verify_channel('UC_PLACEHOLDER_PODCAST')  # não levanta
+
+
+# --- privacidade do upload: escolha do clip → padrão do canal → env ---
+
+class TestResolvePrivacidade:
+    def _body(self, clip, env=None):
+        from src.uploader import YouTubeUploader
+        base = {'title': 't', 'clip_path': '/x.mp4'}
+        with patch.dict(os.environ, env or {}, clear=False):
+            if env is None:
+                os.environ.pop('YOUTUBE_PRIVACY_STATUS', None)
+            return YouTubeUploader(service=MagicMock())._build_video_body({**base, **clip})
+
+    def test_escolha_do_clip_vence_o_canal(self):
+        body = self._body({'privacy_status': 'public', 'channel_default_privacy': 'private'})
+        assert body['status']['privacyStatus'] == 'public'
+
+    def test_sem_escolha_herda_o_padrao_do_canal(self):
+        body = self._body({'privacy_status': None, 'channel_default_privacy': 'public'})
+        assert body['status']['privacyStatus'] == 'public'
+
+    def test_sem_canal_cai_na_env(self):
+        body = self._body({}, env={'YOUTUBE_PRIVACY_STATUS': 'public'})
+        assert body['status']['privacyStatus'] == 'public'
+
+    def test_sem_nada_continua_private(self):
+        """Default histórico: nada configurado em lugar nenhum."""
+        body = self._body({})
+        assert body['status']['privacyStatus'] == 'private'
+
+    def test_valor_invalido_e_ignorado_e_cai_para_o_proximo(self):
+        body = self._body({'privacy_status': 'lixo', 'channel_default_privacy': 'public'})
+        assert body['status']['privacyStatus'] == 'public'

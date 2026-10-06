@@ -116,3 +116,38 @@ def get_long_format_mode(conn, niche) -> str:
     if len(set(modes)) > 1:
         _log(f'Nicho {niche} tem canais com modos diferentes {sorted(set(modes))} — vale o mais conservador: {mode}')
     return mode
+
+
+# --------------------------------------------------------------- privacidade do upload
+
+PRIVACY_PRIVATE = 'private'
+PRIVACY_PUBLIC = 'public'
+VALID_PRIVACY = (PRIVACY_PRIVATE, PRIVACY_PUBLIC)
+
+
+def normalize_privacy(value) -> str | None:
+    """Valor desconhecido, NULL ou vazio → None (quem chama decide o que herdar)."""
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in VALID_PRIVACY:
+            return v
+    return None
+
+
+def clip_privacy_sql(conn, clip_alias: str = 'gc') -> str:
+    """Expressão SQL da privacidade escolhida na aprovação do clip.
+
+    Sem a coluna (migration não rodada), devolve NULL literal: o uploader cai no padrão do canal
+    e, não havendo, na env — exatamente o comportamento de antes da coluna existir.
+    """
+    if column_exists(conn, 'generated_clips', 'privacy_status'):
+        return f'{clip_alias}.privacy_status'
+    return 'NULL'
+
+
+def channel_privacy_sql(conn, channel_alias: str = '') -> str:
+    """Expressão SQL do padrão de privacidade do canal destino, tolerante à coluna ausente."""
+    if column_exists(conn, 'destination_channels', 'default_privacy'):
+        prefixo = f'{channel_alias}.' if channel_alias else ''
+        return f'{prefixo}default_privacy'
+    return 'NULL'

@@ -31,11 +31,13 @@ except ImportError:
     print("Executar: .venv/bin/pip install google-auth-oauthlib google-api-python-client")
     sys.exit(1)
 
-# force-ssl é necessário para channels.list(mine=True), que confere a identidade
-# do token logo após o consentimento.
+# force-ssl é necessário para channels.list(mine=True), que confere a identidade do token
+# logo após o consentimento. yt-analytics.readonly é a retenção por clip (SPEC-001): sem ele
+# a coleta falha calada e clip_daily_metrics fica vazia. Mesma lista de src/youtube_oauth.py.
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.force-ssl",
+    "https://www.googleapis.com/auth/yt-analytics.readonly",
 ]
 
 # Espelha destination_channels.youtube_channel_id em produção.

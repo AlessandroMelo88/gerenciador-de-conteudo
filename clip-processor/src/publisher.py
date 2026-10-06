@@ -10,7 +10,7 @@ Exporta:
 import os
 from datetime import datetime, timezone
 
-from src.format_mode import clip_format_sql
+from src.format_mode import channel_privacy_sql, clip_format_sql, clip_privacy_sql
 from src.metadata_generator import append_credits, resolve_credit_handle
 from src.quota_manager import QuotaManager
 from src.telegram_notifier import notify
@@ -96,8 +96,10 @@ def publish_pending_clips(
             picked = _pick_next_by_rotation(eligible, last_upload)
             clip = picked
             credit_handle = resolve_credit_handle(clip.get('channel_handle'), clip.get('channel_name'))
+            clip = dict(clip)  # não mutar original
+            # O uploader resolve a cascata: escolha do clip → padrão do canal → env.
+            clip['channel_default_privacy'] = dest.get('default_privacy')
             if dest.get('credit_template') and credit_handle:
-                clip = dict(clip)  # não mutar original
                 clip['description'] = append_credits(
                     clip.get('description') or '',
                     dest['credit_template'],
@@ -169,7 +171,8 @@ def _fetch_destination_channels(conn) -> list[dict]:
     """Retorna canais-destino ativos de destination_channels."""
     with conn.cursor() as cur:
         cur.execute(
-            'SELECT id, slug, name, niche, youtube_channel_id, credit_template '
+            'SELECT id, slug, name, niche, youtube_channel_id, credit_template, '
+            + channel_privacy_sql(conn) + ' AS default_privacy '
             'FROM destination_channels WHERE active = TRUE'
         )
         return cur.fetchall() or []
@@ -189,7 +192,7 @@ def _fetch_pending_clips_for_channel(conn, destination_channel_id: int) -> list[
     with conn.cursor() as cur:
         cur.execute(
             'SELECT gc.id, gc.source_video_id, gc.clip_path, gc.thumbnail_path, '
-            'gc.title, gc.description, gc.tags, '
+            'gc.title, gc.description, gc.tags, ' + clip_privacy_sql(conn) + ' AS privacy_status, '
             'sv.local_path AS source_local_path, ' + clip_format_sql(conn) + ' AS format, '
             'sc.id AS source_channel_id, sc.channel_handle, sc.channel_name '
             'FROM generated_clips gc '

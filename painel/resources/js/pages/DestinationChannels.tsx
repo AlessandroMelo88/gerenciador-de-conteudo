@@ -31,6 +31,13 @@ const LONG_FORMAT_OPTIONS: { value: LongFormatMode; label: string; hint: string 
     { value: 'both', label: 'Shorts + vídeo longo', hint: 'Além dos Shorts, publica um vídeo longo do mesmo original (só quando ele tem 7 minutos ou mais).' },
 ];
 
+type DefaultPrivacy = 'private' | 'public';
+
+const PRIVACY_OPTIONS: { value: DefaultPrivacy; label: string; hint: string }[] = [
+    { value: 'private', label: 'Privado', hint: 'O vídeo sobe invisível: só você vê, e precisa ser publicado à mão no YouTube Studio.' },
+    { value: 'public', label: 'Público', hint: 'O vídeo vai ao ar assim que subir. Aprovar no painel passa a significar "está publicado".' },
+];
+
 function longFormatLabel(mode: LongFormatMode | undefined) {
     return LONG_FORMAT_OPTIONS.find((o) => o.value === mode)?.label ?? 'Automático';
 }
@@ -44,6 +51,7 @@ type DestinationChannel = {
     creditTemplate: string | null;
     templateConfig?: TemplateConfig | null;
     longFormatMode?: LongFormatMode;
+    defaultPrivacy?: DefaultPrivacy;
     active: boolean;
     oauthStatus: 'authorized' | 'expired' | 'missing';
     hasWatermark: boolean;
@@ -105,6 +113,7 @@ function ChannelDialog({
         youtube_channel_id: channel?.youtubeChannelId ?? '',
         credit_template: channel?.creditTemplate ?? 'Créditos: @{channel_handle}',
         long_format_mode: (channel?.longFormatMode ?? 'auto') as LongFormatMode,
+        default_privacy: (channel?.defaultPrivacy ?? 'private') as DefaultPrivacy,
         active: channel?.active ?? true,
     });
 
@@ -215,6 +224,31 @@ function ChannelDialog({
                         </p>
                         {errors.long_format_mode && (
                             <p className="text-xs text-destructive">{errors.long_format_mode}</p>
+                        )}
+                    </Field>
+
+                    <Field>
+                        <FieldLabel>Privacidade padrão no YouTube</FieldLabel>
+                        <Select
+                            value={data.default_privacy}
+                            onValueChange={(v) => setData('default_privacy', v as DefaultPrivacy)}
+                        >
+                            <SelectTrigger className="w-full" aria-label="Privacidade padrão no YouTube">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {PRIVACY_OPTIONS.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>
+                                        {o.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            {PRIVACY_OPTIONS.find((o) => o.value === data.default_privacy)?.hint}
+                        </p>
+                        {errors.default_privacy && (
+                            <p className="text-xs text-destructive">{errors.default_privacy}</p>
                         )}
                     </Field>
 
