@@ -50,7 +50,7 @@
     "semantic_hash": "a5cc7a27969c05b3e8af8cc3aa9abf01"
   },
   "clip-processor/src/publisher.py": {
-    "mtime": 1791325608.7151225,
+    "mtime": 1791326844.7001946,
     "ast_hash": "947196d62c0179fb7bfc56a43d003c60",
     "semantic_hash": ""
   },
@@ -90,7 +90,7 @@
     "semantic_hash": ""
   },
   "clip-processor/src/uploader.py": {
-    "mtime": 1791325622.557887,
+    "mtime": 1791326844.7013988,
     "ast_hash": "bac3eda3bfc89fa70f9f04f3f404dc87",
     "semantic_hash": ""
   },
@@ -155,7 +155,7 @@
     "semantic_hash": "2d7d23259bb80f893f06f41fa87fe8f2"
   },
   "clip-processor/tests/test_publisher.py": {
-    "mtime": 1791325659.178708,
+    "mtime": 1791326844.7025173,
     "ast_hash": "9a76f167fc83d42797d832c6d176bf38",
     "semantic_hash": ""
   },
@@ -195,7 +195,7 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_uploader.py": {
-    "mtime": 1791325640.4682238,
+    "mtime": 1791326844.7032943,
     "ast_hash": "208a8154788600006d40bf8df449e22a",
     "semantic_hash": ""
   },
@@ -250,12 +250,12 @@
     "semantic_hash": "25a307335c0719bc9a91b3f7babd186d"
   },
   "painel/app/Http/Controllers/DashboardController.php": {
-    "mtime": 1791325727.746058,
+    "mtime": 1791326844.7421355,
     "ast_hash": "c83613ec7f17b501811c412dd3927c7f",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/DestinationChannelController.php": {
-    "mtime": 1791325526.1959205,
+    "mtime": 1791326844.7455685,
     "ast_hash": "c0703f8a396004cca871d41ff77c2b04",
     "semantic_hash": ""
   },
@@ -300,13 +300,13 @@
     "semantic_hash": ""
   },
   "painel/app/Models/DestinationChannel.php": {
-    "mtime": 1791325508.7376714,
-    "ast_hash": "1969bf34620a96c8a077ce89b48e5c3d",
+    "mtime": 1791326891.4165623,
+    "ast_hash": "a2eb9325ff23f097fdc7d61fb72bce5d",
     "semantic_hash": ""
   },
   "painel/app/Models/GeneratedClip.php": {
-    "mtime": 1791325558.2132387,
-    "ast_hash": "859a33ac1471f817cbae72719e66cb89",
+    "mtime": 1791326878.599147,
+    "ast_hash": "48060d6a000171cad5e07a6c3c176363",
     "semantic_hash": ""
   },
   "painel/app/Models/Niche.php": {
@@ -395,8 +395,8 @@
     "semantic_hash": "c5f0d79f0c81e558272f8e70cd8b59a9"
   },
   "painel/composer.json": {
-    "mtime": 1790782130.271407,
-    "ast_hash": "6e286136285ef72cbaa36680beaf69a3",
+    "mtime": 1791326844.9049408,
+    "ast_hash": "0a1783e18b38f08dc26aee68eb3bcf3e",
     "semantic_hash": ""
   },
   "painel/config/app.php": {
@@ -530,12 +530,12 @@
     "semantic_hash": ""
   },
   "painel/resources/js/components/clip-queue-tabs.tsx": {
-    "mtime": 1791325749.164271,
+    "mtime": 1791326844.7526832,
     "ast_hash": "bc8b67ba5448bd674667b6cafba1e1ed",
     "semantic_hash": ""
   },
   "painel/resources/js/components/confirm-button.tsx": {
-    "mtime": 1791325816.3020463,
+    "mtime": 1791326844.7534463,
     "ast_hash": "41db38cb17703435a35dc4565d9cd962",
     "semantic_hash": ""
   },
@@ -755,7 +755,7 @@
     "semantic_hash": ""
   },
   "painel/resources/js/pages/DestinationChannels.tsx": {
-    "mtime": 1791325779.805325,
+    "mtime": 1791326844.7541213,
     "ast_hash": "c0837f62dd59a630ea0cd9086e8347dd",
     "semantic_hash": ""
   },
@@ -790,7 +790,7 @@
     "semantic_hash": ""
   },
   "painel/resources/js/types/dashboard.ts": {
-    "mtime": 1791325727.7465892,
+    "mtime": 1791326844.7546148,
     "ast_hash": "c69374a87a6f4a758a72ac11f214b814",
     "semantic_hash": ""
   },
@@ -825,8 +825,8 @@
     "semantic_hash": "f3de41494782e2453a3faab1d768134f"
   },
   "painel/tests/Feature/ClipApprovalActionTest.php": {
-    "mtime": 1791325843.2599673,
-    "ast_hash": "4a2a1b539d11b1b9ddc37557006ffc57",
+    "mtime": 1791326952.5306659,
+    "ast_hash": "7370c140441c6432cbaac8d2d068e88e",
     "semantic_hash": ""
   },
   "painel/tests/Feature/CreatePainelUserCommandTest.php": {
@@ -920,7 +920,7 @@
     "semantic_hash": ""
   },
   "youtube/generate_token_channel.py": {
-    "mtime": 1791324292.1371915,
+    "mtime": 1791326844.7582023,
     "ast_hash": "c54d8c9287cd4e71bd51ab034a66a10d",
     "semantic_hash": ""
   },
@@ -1915,7 +1915,7 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-PUBLICACAO.md": {
-    "mtime": 1791326323.39905,
+    "mtime": 1791326844.6970034,
     "ast_hash": "08e0ac8b1c1610b2d9fc2006156e8f6b",
     "semantic_hash": ""
   },
@@ -2845,7 +2845,7 @@
     "semantic_hash": ""
   },
   "clip-processor/src/format_mode.py": {
-    "mtime": 1791325597.0488715,
+    "mtime": 1791326844.6985261,
     "ast_hash": "5698516e7245a17829ca965e1c41bd38",
     "semantic_hash": ""
   },
@@ -2900,8 +2900,8 @@
     "semantic_hash": ""
   },
   "painel/tests/Feature/DestinationChannelLongFormatModeTest.php": {
-    "mtime": 1791325850.265367,
-    "ast_hash": "9a117a38146a79af32ffcae509d6f862",
+    "mtime": 1791326952.532712,
+    "ast_hash": "3a816b589ac40cb7a60a1660b14c2463",
     "semantic_hash": ""
   },
   "painel/tests/Feature/MetricsPageTest.php": {
@@ -3085,22 +3085,22 @@
     "semantic_hash": ""
   },
   "painel/app/Enums/VideoPrivacy.php": {
-    "mtime": 1791325494.044997,
+    "mtime": 1791326844.738304,
     "ast_hash": "a0d5dc48a475d2c1090846eb757ce6e3",
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_10_06_200000_add_default_privacy_to_destination_channels_table.php": {
-    "mtime": 1791325466.4676137,
+    "mtime": 1791326844.7494276,
     "ast_hash": "1c278e64903f23e615507c1cf0af4ff7",
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_10_06_200100_add_privacy_status_to_generated_clips_table.php": {
-    "mtime": 1791325466.5445552,
+    "mtime": 1791326844.7504125,
     "ast_hash": "ce1a448a61d768f726a0a152bf656b27",
     "semantic_hash": ""
   },
   "painel/resources/js/components/approve-button.tsx": {
-    "mtime": 1791325700.4026322,
+    "mtime": 1791326844.7518454,
     "ast_hash": "e1e0a6ec6c08b7dd70305bf46c2d571c",
     "semantic_hash": ""
   }
