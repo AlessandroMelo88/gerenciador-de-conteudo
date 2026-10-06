@@ -1,7 +1,7 @@
 # Estado do projeto — leia primeiro
 
 **Última atualização:** 06/10/2026
-**Produção:** commit `f57ceb1`, no ar em https://toolscut.alessandromelo.com.br
+**Produção:** commit `5552185`, no ar em https://toolscut.alessandromelo.com.br
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
 Ele resume e aponta; o detalhe fica nos arquivos citados. A lista completa do que está feito, em
@@ -135,7 +135,9 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Bug 10 — 287 `clip_path` sem arquivo | `BUGS.md` | Aberto (número não reconferido após a migração) |
 | Bug 6 — painel não apaga backlog de download | `BUGS.md` | Aberto |
 | Token do `fatos-e-debates` sem escopo de conferência | 06/10 | O canal está correto hoje, mas o token só tem `youtube.upload`: o guard do bug 18 não consegue validar, só avisa. Regerar com `.venv/bin/python youtube/generate_token_channel.py --channel fatos-e-debates` (conta de marca do canal) e copiar para `/home/ubuntu/canaldecortes/youtube/` |
-| 7 testes de `test_long_format_mode.py` falhando | 06/10 | Falham na `master` desde antes de 06/10 (vistos junto do bug 18, não causados por ele). Suíte: 526 passando, 7 falhando. Não investigado |
+| ~~7 testes de `test_long_format_mode.py` falhando~~ | 06/10 | **Resolvido.** Era o bug 19 (guard de formato medindo a transcrição). Suíte hoje: **565 passando, 0 falhando** |
+| Shorts de 60–90 s ainda entram na fila | 06/10 | O limiar ficou em 60 s porque acima disso começa a perder clip bom (90 s cortaria 22 dos 31 desperdícios mas perderia 6 dos 44 que geraram clip). Sobram ~16 casos na faixa. Reavaliar com dados novos depois de uma semana com o filtro e com o log de seleção vazia no ar — a decisão agora tem instrumentação |
+| Vídeos subindo como `private` no Fatos & Debates | 06/10 | `YOUTUBE_PRIVACY_STATUS=private` no `docker-compose.yml:117` vale para todos os canais, mas os vídeos anteriores do Fatos estão públicos e o `3cG-bpTxQrU` do futebol saiu público hoje. Não fecha; não investigado |
 | Monitor do Better Stack por palavra-chave | Incidente 18/09 | Sugerido, não feito |
 | Senhas antigas no histórico público do git | Bug 16 | Rotacionadas; reescrita de histórico adiada |
 | Plano produto + canais (eixo novo) | 05/10 | `planos/PLANO-PRODUTO-E-CANAIS.md` em `docs/plano-produto-canais`. Fase 0 não exige código: pôr tráfego no simulador do Traider e cadastrar a primeira oferta real. 7 decisões em aberto para o dono no fim do arquivo |
