@@ -240,3 +240,65 @@ class TestYouTubeUploaderChannelSlug:
         """Retrocompat: token_file explícito tem precedência sobre channel_slug."""
         uploader = YouTubeUploader(token_file='/custom/path.json')
         assert uploader.token_file == '/custom/path.json'
+
+
+# --- verify_channel: guard contra token do canal errado (incidente 02/10/2026) ---
+
+class _FakeChannels:
+    def __init__(self, items, raise_exc=None):
+        self._items = items
+        self._raise = raise_exc
+
+    def list(self, **kwargs):
+        outer = self
+
+        class _Req:
+            def execute(self):
+                if outer._raise:
+                    raise outer._raise
+                return {'items': outer._items}
+
+        return _Req()
+
+
+class _FakeService:
+    def __init__(self, items, raise_exc=None):
+        self._channels = _FakeChannels(items, raise_exc)
+
+    def channels(self):
+        return self._channels
+
+
+def _uploader_with(items, raise_exc=None):
+    from src.uploader import YouTubeUploader
+    return YouTubeUploader(service=_FakeService(items, raise_exc))
+
+
+def test_verify_channel_aceita_canal_esperado():
+    up = _uploader_with([{'id': 'UC_CERTO', 'snippet': {'title': 'Futebol em Cortes'}}])
+    up.verify_channel('UC_CERTO')  # não levanta
+
+
+def test_verify_channel_bloqueia_canal_errado():
+    from src.uploader import WrongChannelError
+    up = _uploader_with([{'id': 'UC_PESSOAL', 'snippet': {'title': 'Alessandro Melo'}}])
+    with pytest.raises(WrongChannelError):
+        up.verify_channel('UC_CERTO')
+
+
+def test_verify_channel_bloqueia_token_sem_canal():
+    from src.uploader import WrongChannelError
+    up = _uploader_with([])
+    with pytest.raises(WrongChannelError):
+        up.verify_channel('UC_CERTO')
+
+
+def test_verify_channel_deixa_passar_quando_nao_da_para_conferir():
+    """Escopo insuficiente não é prova de canal errado — avisa e segue."""
+    up = _uploader_with([], raise_exc=RuntimeError('insufficient scopes'))
+    up.verify_channel('UC_CERTO')  # não levanta
+
+
+def test_verify_channel_ignora_placeholder():
+    up = _uploader_with([{'id': 'UC_QUALQUER', 'snippet': {'title': 'x'}}])
+    up.verify_channel('UC_PLACEHOLDER_PODCAST')  # não levanta

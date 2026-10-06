@@ -14,7 +14,7 @@ from src.format_mode import clip_format_sql
 from src.metadata_generator import append_credits, resolve_credit_handle
 from src.quota_manager import QuotaManager
 from src.telegram_notifier import notify
-from src.uploader import YouTubeUploader
+from src.uploader import WrongChannelError, YouTubeUploader
 
 
 NON_TERMINAL_CLIP_STATUSES = ('pending_cut', 'cutting', 'pending', 'approved', 'publishing')
@@ -63,6 +63,20 @@ def publish_pending_clips(
     for dest in dest_channels:
         ch_uploader = uploader or YouTubeUploader(channel_slug=dest['slug'])
         ch_quota = quota_manager or QuotaManager(redis_client, channel_id=dest['youtube_channel_id'])
+
+        # Guard de identidade: token errado publica no canal errado em silêncio.
+        try:
+            ch_uploader.verify_channel(dest['youtube_channel_id'])
+        except WrongChannelError as exc:
+            _log(f'Canal {dest["slug"]} pulado: {exc}')
+            notify('upload_failed', {
+                'channel_slug': dest['slug'],
+                'error': str(exc),
+            })
+            continue
+        except AttributeError:
+            pass  # uploader injetado em teste, sem o guard
+
         clips = _fetch_pending_clips_for_channel(conn, dest['id'])
         remaining = list(clips)
         last_upload = _fetch_source_channel_last_upload(conn, dest['id'])

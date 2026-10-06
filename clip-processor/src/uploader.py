@@ -3,6 +3,8 @@ uploader.py — Upload de clips para YouTube Data API v3.
 
 Exporta:
   - YouTubeUploader.upload_clip(clip) -> youtube_video_id
+  - YouTubeUploader.verify_channel(expected_channel_id)
+  - WrongChannelError
 """
 import os
 import sys
@@ -10,6 +12,10 @@ import types
 from pathlib import Path
 
 from src.db import get_db_connection as db_connect
+
+
+class WrongChannelError(RuntimeError):
+    """Token OAuth autentica um canal diferente do canal-destino esperado."""
 
 
 DEFAULT_TOKEN_FILE = '/app/youtube/token-futebol-em-cortes.json'
@@ -83,6 +89,50 @@ class YouTubeUploader:
         self._service = service
         self._service_factory = service_factory
         self._media_upload_factory = media_upload_factory or MediaFileUpload
+        self._verified_channel_id: str | None = None
+
+    def verify_channel(self, expected_channel_id: str) -> None:
+        """Confere que o token é do canal-destino esperado.
+
+        Levanta WrongChannelError quando o token autentica outro canal — em
+        02/10/2026 o token de futebol-em-cortes foi regerado na conta pessoal e
+        quatro dias de clips subiram privados no canal errado sem nenhum erro.
+
+        Quando o escopo do token não permite channels.list (token antigo, só
+        youtube.upload), não dá para conferir: avisa alto e deixa passar, porque
+        "não deu para verificar" não é "está errado".
+        """
+        if not expected_channel_id or expected_channel_id.startswith('UC_PLACEHOLDER'):
+            return
+        if self._verified_channel_id == expected_channel_id:
+            return
+
+        service = self._get_service()
+        try:
+            items = service.channels().list(part='snippet', mine=True).execute().get('items', [])
+        except Exception as exc:
+            print(
+                f'[UPLOADER] AVISO: não foi possível conferir o canal do token '
+                f'{self.token_file}: {exc}',
+                file=sys.stderr,
+            )
+            return
+
+        if not items:
+            raise WrongChannelError(
+                f'Token {self.token_file} não devolveu nenhum canal '
+                f'(esperado {expected_channel_id})'
+            )
+
+        got_id = items[0].get('id')
+        if got_id != expected_channel_id:
+            got_title = (items[0].get('snippet') or {}).get('title', '?')
+            raise WrongChannelError(
+                f'Token {self.token_file} é do canal {got_id} ({got_title}), '
+                f'esperado {expected_channel_id} — upload bloqueado'
+            )
+
+        self._verified_channel_id = got_id
 
     def upload_clip(self, clip: dict) -> str:
         clip_path = self._validate_clip(clip)

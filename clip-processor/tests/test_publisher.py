@@ -554,3 +554,39 @@ class TestRevezamento:
         conn = MagicMock()
         conn.cursor.side_effect = RuntimeError('db')
         assert _fetch_source_channel_last_upload(conn, 1) == {}
+
+
+class TestGuardCanalErrado:
+    """Token apontando para o canal errado não pode publicar (incidente 02/10/2026)."""
+
+    DEST = [{
+        'id': 1, 'slug': 'futebol-em-cortes', 'name': 'Futebol em Cortes',
+        'niche': 'futebol', 'youtube_channel_id': 'UC_CERTO', 'credit_template': None,
+    }]
+
+    def test_canal_com_token_errado_nao_publica(self):
+        from src.uploader import WrongChannelError
+
+        conn, cursor = make_conn_with_clips([SAMPLE_CLIP], dest_channels=self.DEST)
+        uploader = make_mock_uploader()
+        uploader.verify_channel.side_effect = WrongChannelError('canal errado')
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            MockQuota.return_value.can_upload.return_value = True
+            MockQuota.return_value.has_capacity.return_value = True
+            publicados = publish_pending_clips(conn, MagicMock(), uploader=uploader, now=dt_sp(20))
+
+        assert publicados == 0
+        uploader.upload_clip.assert_not_called()
+
+    def test_canal_conferido_publica_normalmente(self):
+        conn, cursor = make_conn_with_clips([SAMPLE_CLIP], dest_channels=self.DEST)
+        uploader = make_mock_uploader(video_id='yt_ok')
+
+        with patch('src.publisher.QuotaManager') as MockQuota:
+            MockQuota.return_value.can_upload.return_value = True
+            MockQuota.return_value.has_capacity.return_value = True
+            publicados = publish_pending_clips(conn, MagicMock(), uploader=uploader, now=dt_sp(20))
+
+        uploader.verify_channel.assert_called_once_with('UC_CERTO')
+        assert publicados == 1
