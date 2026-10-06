@@ -1,7 +1,7 @@
 # Estado do projeto — leia primeiro
 
-**Última atualização:** 05/10/2026
-**Produção:** commit `59b0eb1`, no ar em https://toolscut.alessandromelo.com.br
+**Última atualização:** 06/10/2026
+**Produção:** commit `f57ceb1`, no ar em https://toolscut.alessandromelo.com.br
 
 Este arquivo existe para uma conversa nova começar sabendo o que já foi feito e para onde se quer ir.
 Ele resume e aponta; o detalhe fica nos arquivos citados. A lista completa do que está feito, em
@@ -109,6 +109,11 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
   regressão de código.
 - `deploy.sh` faz `up -d --no-recreate` + `restart`: **não relê o `.env`**. Mudou variável (cota, etc.)? No servidor: `docker compose up -d --force-recreate --no-deps clip-processor php` (só com `publishing = 0`; `cutting` volta a `pending_cut` no boot) e depois `docker exec nginx nginx -s reload`, senão o painel dá 502 (IP novo do php). A variável também precisa estar no `environment:` do `docker-compose.yml`, senão não chega ao container (01/10/2026).
 - `docker system prune` já apagou o `clip-processor` inteiro junto com os logs da falha.
+- **Regerar token do YouTube: escolher a conta de marca do canal, não a pessoal.** Escolher errado faz
+  o pipeline publicar no canal errado em silêncio — upload dá certo, o painel grava `published`, e o
+  Studio do canal certo fica parado (bug 18). Desde 06/10/2026 o `generate_token_channel.py` e o
+  publisher conferem a identidade do token; token antigo, só com escopo `youtube.upload`, não dá para
+  conferir — o guard avisa e deixa passar.
 
 ## 6. Em aberto
 
@@ -129,6 +134,8 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Banco local 7 migrations atrás da produção | 02/10 | As 5 sem pgvector foram aplicadas em 02/10. Faltam as duas da busca vetorial: a imagem em uso no Mac é `postgres:17.2-alpine`, sem a extensão |
 | Bug 10 — 287 `clip_path` sem arquivo | `BUGS.md` | Aberto (número não reconferido após a migração) |
 | Bug 6 — painel não apaga backlog de download | `BUGS.md` | Aberto |
+| Token do `fatos-e-debates` sem escopo de conferência | 06/10 | O canal está correto hoje, mas o token só tem `youtube.upload`: o guard do bug 18 não consegue validar, só avisa. Regerar com `.venv/bin/python youtube/generate_token_channel.py --channel fatos-e-debates` (conta de marca do canal) e copiar para `/home/ubuntu/canaldecortes/youtube/` |
+| 7 testes de `test_long_format_mode.py` falhando | 06/10 | Falham na `master` desde antes de 06/10 (vistos junto do bug 18, não causados por ele). Suíte: 526 passando, 7 falhando. Não investigado |
 | Monitor do Better Stack por palavra-chave | Incidente 18/09 | Sugerido, não feito |
 | Senhas antigas no histórico público do git | Bug 16 | Rotacionadas; reescrita de histórico adiada |
 | Plano produto + canais (eixo novo) | 05/10 | `planos/PLANO-PRODUTO-E-CANAIS.md` em `docs/plano-produto-canais`. Fase 0 não exige código: pôr tráfego no simulador do Traider e cadastrar a primeira oferta real. 7 decisões em aberto para o dono no fim do arquivo |
