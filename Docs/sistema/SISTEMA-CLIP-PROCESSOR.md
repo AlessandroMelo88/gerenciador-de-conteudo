@@ -196,9 +196,21 @@ Todas as env vars são injetadas pelo `docker-compose.yml` da raiz `wordpress/`,
 | `YOUTUBE_CLIENT_SECRETS` | client secrets do OAuth | `/app/youtube/client_secret.json` |
 | `LARAVEL_NOTIFY_URL` / `LARAVEL_HOST_HEADER` | endpoint de eventos e Host para o roteamento nginx | `http://nginx/internal/pipeline-event` / `canaldecortes.local` |
 | `CLIP_PENDING_TTL_HOURS` / `CLIP_PENDING_WARN_HOURS` | TTL de auto-rejeição | 48 / 24 (constantes) |
+| `MIN_INGEST_SECONDS` | duração mínima da fonte para entrar na fila (Short não rende corte) | `60` (no código) |
 
 **Não declaradas no compose** (valem os defaults do código): `DOWNLOAD_WINDOW_PER_CHANNEL` (10, vagas por
-canal destino ativo), `WHISPER_CPP_BIN`, `WHISPER_MODEL_PATH` (vêm do `ENV` do Dockerfile).
+canal destino ativo), `MIN_INGEST_SECONDS` (60), `WHISPER_CPP_BIN`, `WHISPER_MODEL_PATH` (vêm do `ENV` do
+Dockerfile).
+
+**Duração da fonte, e por que ela vem da Data API.** `_video_duration_seconds` (`rss_poller.py`) lê
+`videos.list(part=contentDetails)` com o token OAuth que o uploader já carrega — 1 unidade de quota por
+vídeo novo, contra 10.000/dia. O yt-dlp ficou como fallback porque falhava em **100%** das ingestões a
+partir do servidor (`Sign in to confirm you're not a bot`, 260 de 260 entre 02/10 e 06/10), o que deixava
+toda ingestão sem duração e sem como filtrar Short. A consulta roda **depois** do `is_seen`, então só
+vídeo novo gasta quota, e o descarte não se repete: `is_seen` já grava a chave `video:<id>` no próprio ato.
+
+Regra de ouro dos dois guards de duração (ingestão e formato): **duração desconhecida não descarta e não
+rebaixa nada.** Não saber quanto o vídeo tem não é prova de que ele é curto.
 
 Armadilha de drift: o default de `MAX_UPLOADS_PER_DAY` é `:-1` no `clip-processor` e `:-2` no serviço
 `php`. Só não morde porque a var está setada no `.env` da raiz.

@@ -4,7 +4,7 @@ Status: **FEITO** (corrigido e verificado) · **PARCIAL** (parte corrigida, part
 **ABERTO** (confirmado, não corrigido) · **SUSPEITA** (evidência parcial, falta confirmar).
 
 Numeração é estável — não renumerar ao fechar um item, outros documentos linkam por número.
-Última atualização: **06/10/2026** (bugs 18 e 19). Tabela de status sincronizada com os títulos das seções em
+Última atualização: **06/10/2026** (bugs 18 a 21). Tabela de status sincronizada com os títulos das seções em
 **01/10/2026** (bugs 4, 11 e 17 no ar em `99fbba4`). Abertos hoje: 6, 8 e 10.
 
 | # | Status | Título |
@@ -28,6 +28,8 @@ Numeração é estável — não renumerar ao fechar um item, outros documentos 
 | 17 | FEITO (por decisão) | Vaga da janela presa por clip aguardando aprovação |
 | 18 | FEITO | Token OAuth do canal errado publicou 4 dias de clips no canal pessoal |
 | 19 | FEITO | Guard de formato media a transcrição, não o vídeo — rebaixava longo para curto |
+| 20 | FEITO | Shorts dos canais fonte entravam na fila e viravam `failed` — 41% do trabalho perdido |
+| 21 | FEITO | `_detect_format` falhava em 100% das ingestões — duração nunca era conhecida |
 
 ---
 
@@ -689,3 +691,87 @@ falham contra o guard antigo e passam contra o corrigido.
 
 30 dos 73 pipelines do log (**41%**) terminam em `Pipeline concluído: 0 momento(s)` → `failed`. Só 3
 passaram por este guard, então a causa é outra. Fio aberto.
+
+
+---
+
+## 20. FEITO — Shorts dos canais fonte entravam na fila e viravam `failed`
+
+**Detectado em 06/10/2026. Corrigido no mesmo dia** (`clip-processor/src/rss_poller.py`,
+`clip-processor/src/selector.py`).
+
+### Sintoma
+
+30 dos 73 vídeos processados (**41%**) terminavam em
+`Pipeline concluído: 0 momento(s) inserido(s)` → `Nenhum momento válido — marcando failed`, **sem
+nenhuma linha de log explicando o motivo**.
+
+### Causa raiz
+
+O feed RSS de um canal traz também os Shorts dele, e não havia filtro de duração mínima na ingestão.
+Um vídeo de 60 s não tem o que cortar: o modelo devolve `{"moments": []}`, o pipeline marca `failed`
+— depois de já ter gasto download, transcrição Whisper e chamada de LLM.
+
+Medição por YouTube Data API sobre os vídeos do log (02/10 a 06/10):
+
+| | n | mediana | ≤90 s | ≥420 s |
+|---|---|---|---|---|
+| 0 momentos | 31 | **60 s** | 22 | 2 |
+| geraram clip | 44 | **916 s** | 6 | 31 |
+
+Limiar escolhido (**60 s**, `MIN_INGEST_SECONDS`), pelos mesmos dados:
+
+| limiar | desperdício evitado | clips bons perdidos |
+|---|---|---|
+| **60 s** | **15 de 31** | **0 de 44** |
+| 90 s | 22 de 31 | 6 de 44 |
+| 120 s | 24 de 31 | 10 de 44 |
+| 180 s | 27 de 31 | 12 de 44 |
+
+Até 60 s o ganho não custa nada: o vídeo mais curto que já rendeu clip tem 62 s.
+
+### Por que ninguém viu antes
+
+`_parse_moments` devolvia lista vazia em silêncio. Todos os outros caminhos de descarte do
+`selector.py` logam item a item (`_filter_shortform_duration`, `_filter_strict_longform`,
+`_drop_moments_over_unseen_text`); o caminho "o modelo não devolveu nada" — o mais comum — era o
+único mudo. Por isso 41% da fila sumia sem rastro. A instrumentação entrou junto com a correção.
+
+### Correção
+
+Filtro de duração mínima na ingestão (fail-open: duração desconhecida **não** descarta), mais log
+explícito quando a seleção volta vazia. A duração confiável veio do bug 21, abaixo.
+
+---
+
+## 21. FEITO — `_detect_format` falhava em 100% das ingestões
+
+**Detectado em 06/10/2026. Corrigido no mesmo dia** (`clip-processor/src/rss_poller.py`).
+
+### Causa raiz
+
+`_detect_format` descobria a duração do vídeo com yt-dlp, a partir do servidor. O YouTube bloqueia o
+IP da VM — é o motivo de os downloads já rodarem num worker no Mac — e devolve
+`Sign in to confirm you're not a bot` mesmo com o `cookies.txt` montado. O `except` engolia e
+devolvia `'curto'`.
+
+No log de 02/10 a 06/10: **260 falhas em 260 ingestões**. Cem por cento.
+
+```
+[AI] AVISO: falha ao obter duração de 76j8AU9euVg para detecção de formato: ERROR: [youtube] ...
+     Sign in to confirm you're not a bot.
+```
+
+### Consequências
+
+- A duração **nunca** era conhecida na ingestão — então não havia como filtrar Short (bug 20).
+- Todo vídeo entrava como `curto`. O formato real só era corrigido depois, no download, pelo worker
+  local, que mede o arquivo com ffprobe (`scripts/local_download_worker.py:510`). Por isso o formato
+  final estava certo e o defeito passou despercebido.
+
+### Correção
+
+A duração passa a vir da **YouTube Data API v3** (`videos.list(part=contentDetails)`), com o token
+OAuth que o projeto já usa para publicar — escopo `youtube.force-ssl`, 1 unidade de quota por chamada
+contra 10.000/dia. yt-dlp vira fallback; falhando os dois, a duração fica desconhecida e nada é
+descartado por isso.

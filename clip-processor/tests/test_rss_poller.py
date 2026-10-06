@@ -7,7 +7,11 @@ Exports esperados: poll_all_channels(db_conn, redis_client)
 
 RED state: imports falham pois src/rss_poller.py ainda não existe.
 """
-from src.rss_poller import poll_all_channels, _detect_format
+import pytest
+
+from src.rss_poller import (
+    poll_all_channels, _detect_format, _video_duration_seconds, _parse_iso8601_duration,
+)
 
 
 class TestDetectFormat:
@@ -57,6 +61,7 @@ class TestPollAllChannels:
         mocker.patch('src.rss_poller.is_seen', return_value=False)
 
         # Mock: detecção de formato sem chamada de rede real
+        mocker.patch('src.rss_poller._video_duration_seconds', return_value=300)
         mocker.patch('src.rss_poller._detect_format', return_value='curto')
 
         # Mock: insert_video não levanta exceção
@@ -337,9 +342,144 @@ class TestBlacklistGuard:
             text=sample_rss_xml,
         ))
         mocker.patch('src.rss_poller.is_seen', return_value=False)
+        mocker.patch('src.rss_poller._video_duration_seconds', return_value=300)
         mocker.patch('src.rss_poller._detect_format', return_value='curto')
         mock_insert = mocker.patch('src.rss_poller.insert_video')
 
         poll_all_channels(mock_db_conn, mock_redis)
 
         assert mock_insert.call_count >= 1
+
+
+# ---------------------------------------------------------------------------
+# Duração na ingestão: Data API primeiro, yt-dlp como fallback, e o filtro de
+# duração mínima (Shorts das fontes entravam na fila e voltavam sem clip).
+# ---------------------------------------------------------------------------
+
+def _fake_service(duration_iso, items=None):
+    """Service fake do googleapiclient para videos.list(part='contentDetails')."""
+    from unittest.mock import MagicMock
+
+    service = MagicMock()
+    if items is None:
+        items = [{'contentDetails': {'duration': duration_iso}}]
+    service.videos.return_value.list.return_value.execute.return_value = {'items': items}
+    return service
+
+
+class TestParseIso8601Duration:
+
+    @pytest.mark.parametrize('valor,esperado', [
+        ('PT7M1S', 421),
+        ('PT59S', 59),
+        ('PT1M', 60),
+        ('PT1H2M3S', 3723),
+        ('P1DT1S', 86401),
+        ('', None),
+        (None, None),
+        ('banana', None),
+    ])
+    def test_converte_iso_para_segundos(self, valor, esperado):
+        assert _parse_iso8601_duration(valor) == esperado
+
+
+class TestVideoDurationSeconds:
+
+    def test_duracao_vem_da_data_api(self, mocker):
+        mock_api = mocker.patch('src.rss_poller._duration_via_api', return_value=421)
+        mock_ytdlp = mocker.patch('src.rss_poller._duration_via_ytdlp')
+
+        assert _video_duration_seconds('abc12345678') == 421
+        mock_api.assert_called_once_with('abc12345678')
+        mock_ytdlp.assert_not_called()
+
+    def test_cai_no_ytdlp_quando_a_api_falha(self, mocker):
+        mocker.patch('src.rss_poller._duration_via_api', side_effect=Exception('sem token'))
+        mocker.patch('src.rss_poller._duration_via_ytdlp', return_value=900)
+
+        assert _video_duration_seconds('abc12345678') == 900
+
+    def test_desconhecida_quando_os_dois_falham(self, mocker):
+        mocker.patch('src.rss_poller._duration_via_api', side_effect=Exception('sem token'))
+        mocker.patch('src.rss_poller._duration_via_ytdlp', side_effect=Exception('bot check'))
+
+        assert _video_duration_seconds('abc12345678') is None
+
+    def test_duration_via_api_le_content_details(self):
+        from src.rss_poller import _duration_via_api
+
+        service = _fake_service('PT7M1S')
+        assert _duration_via_api('abc12345678', service=service) == 421
+        service.videos.return_value.list.assert_called_once_with(
+            part='contentDetails', id='abc12345678'
+        )
+
+    def test_duration_via_api_sem_resultado_devolve_none(self):
+        from src.rss_poller import _duration_via_api
+
+        assert _duration_via_api('abc12345678', service=_fake_service(None, items=[])) is None
+
+    def test_duration_via_api_reaproveita_o_token_do_uploader(self, mocker):
+        from src.rss_poller import _duration_via_api
+
+        service = _fake_service('PT1M30S')
+        uploader = mocker.MagicMock()
+        uploader._get_service.return_value = service
+        mocker.patch('src.uploader.YouTubeUploader', return_value=uploader)
+
+        assert _duration_via_api('abc12345678') == 90
+
+class TestDetectFormatComDuracaoDesconhecida:
+
+    def test_duracao_desconhecida_vira_curto(self, mocker):
+        mocker.patch('src.rss_poller._video_duration_seconds', return_value=None)
+
+        assert _detect_format('abc12345678') == 'curto'
+
+    def test_duracao_recebida_nao_consulta_de_novo(self, mocker):
+        mock_lookup = mocker.patch('src.rss_poller._video_duration_seconds')
+
+        assert _detect_format('abc12345678', duration=900) == 'longo'
+        mock_lookup.assert_not_called()
+
+
+class TestFiltroDuracaoMinimaNaIngestao:
+
+    CHANNEL = {
+        'id': 1,
+        'youtube_channel_id': 'UCxxx',
+        'channel_name': 'Canal Ativo',
+        'rss_url': 'https://www.youtube.com/feeds/videos.xml?channel_id=UCxxx',
+        'blacklisted': False,
+        'target_niche': 'futebol',
+    }
+
+    def _poll(self, mock_db_conn, mock_redis, sample_rss_xml, mocker, duration):
+        mock_cursor = mock_db_conn.cursor.return_value.__enter__.return_value
+        mock_cursor.fetchall.return_value = [self.CHANNEL]
+        mocker.patch('src.rss_poller.requests.get', return_value=mocker.MagicMock(
+            status_code=200, text=sample_rss_xml,
+        ))
+        mocker.patch('src.rss_poller.is_seen', return_value=False)
+        mocker.patch('src.rss_poller._video_duration_seconds', return_value=duration)
+        mock_insert = mocker.patch('src.rss_poller.insert_video')
+
+        poll_all_channels(mock_db_conn, mock_redis)
+        return mock_insert
+
+    def test_video_mais_curto_que_o_limiar_nao_entra(self, mock_db_conn, mock_redis, sample_rss_xml, mocker):
+        assert self._poll(mock_db_conn, mock_redis, sample_rss_xml, mocker, 59).call_count == 0
+
+    def test_video_no_limiar_entra(self, mock_db_conn, mock_redis, sample_rss_xml, mocker):
+        assert self._poll(mock_db_conn, mock_redis, sample_rss_xml, mocker, 60).call_count >= 1
+
+    def test_duracao_desconhecida_entra_fail_open(self, mock_db_conn, mock_redis, sample_rss_xml, mocker):
+        assert self._poll(mock_db_conn, mock_redis, sample_rss_xml, mocker, None).call_count >= 1
+
+    def test_limiar_respeita_a_variavel_de_ambiente(self, mock_db_conn, mock_redis, sample_rss_xml, mocker, monkeypatch):
+        monkeypatch.setenv('MIN_INGEST_SECONDS', '300')
+        assert self._poll(mock_db_conn, mock_redis, sample_rss_xml, mocker, 120).call_count == 0
+
+    def test_limiar_invalido_cai_no_padrao(self, mock_db_conn, mock_redis, sample_rss_xml, mocker, monkeypatch):
+        monkeypatch.setenv('MIN_INGEST_SECONDS', 'banana')
+        assert self._poll(mock_db_conn, mock_redis, sample_rss_xml, mocker, 90).call_count >= 1

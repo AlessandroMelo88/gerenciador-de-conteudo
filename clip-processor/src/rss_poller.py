@@ -51,49 +51,120 @@ from src.queue_controls import _cleanup_partial
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 
+# Fonte curta demais pra render um corte: Shorts dos canais fonte (mediana 60s) viravam
+# download + Whisper + chamada de LLM e voltavam com lista vazia (30 de 73 vídeos medidos
+# em 06/10/2026 terminaram 'failed' assim).
+DEFAULT_MIN_INGEST_SECONDS = 60
+
+_DURACAO_NAO_MEDIDA = object()
+
+_ISO8601_DURACAO = re.compile(
+    r'^P(?:(?P<dias>\d+)D)?(?:T(?:(?P<horas>\d+)H)?(?:(?P<minutos>\d+)M)?(?:(?P<segundos>\d+)S)?)?$'
+)
+
 
 def _log(msg: str) -> None:
     """Loga mensagem com timestamp para stdout."""
     print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] [ACQU] {msg}')
 
 
-def _detect_format(video_id: str, mode_resolver=None) -> str:
+def _min_ingest_seconds() -> int:
+    """Limiar de duração mínima pra ingestão, lido do ambiente a cada chamada."""
+    try:
+        return int(os.environ.get('MIN_INGEST_SECONDS', DEFAULT_MIN_INGEST_SECONDS))
+    except (TypeError, ValueError):
+        return DEFAULT_MIN_INGEST_SECONDS
+
+
+def _parse_iso8601_duration(value: str | None) -> int | None:
+    """Converte a duração ISO-8601 da Data API ("PT7M1S") em segundos."""
+    if not value:
+        return None
+    match = _ISO8601_DURACAO.match(value.strip())
+    if not match:
+        return None
+    partes = {k: int(v) for k, v in match.groupdict(default='0').items()}
+    return partes['dias'] * 86400 + partes['horas'] * 3600 + partes['minutos'] * 60 + partes['segundos']
+
+
+def _duration_via_api(video_id: str, service=None) -> int | None:
+    """Duração em segundos pela YouTube Data API v3 (`videos.list`, 1 unidade de quota)."""
+    if service is None:
+        from src.uploader import YouTubeUploader
+        service = YouTubeUploader()._get_service()
+    items = service.videos().list(part='contentDetails', id=video_id).execute().get('items', [])
+    if not items:
+        return None
+    return _parse_iso8601_duration((items[0].get('contentDetails') or {}).get('duration'))
+
+
+def _duration_via_ytdlp(video_id: str) -> int | None:
+    """Duração em segundos pelo yt-dlp (fallback)."""
+    ydl_opts = {
+        'quiet': True,
+        'no_color': True,
+        'skip_download': True,
+        'remote_components': ['ejs:github'],
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['mweb', 'tv', 'ios', 'android']
+            }
+        },
+    }
+    cookie_file = '/app/youtube/cookies.txt'
+    if os.path.exists(cookie_file):
+        ydl_opts['cookiefile'] = cookie_file
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
+    duration = info.get('duration') if info else None
+    return int(duration) if duration else None
+
+
+def _video_duration_seconds(video_id: str) -> int | None:
+    """Duração do vídeo fonte em segundos, ou None quando não dá para saber.
+
+    A Data API vem primeiro porque o yt-dlp falhou em 260 de 260 ingestões em
+    produção (06/10/2026), sempre com "Sign in to confirm you're not a bot",
+    mesmo com o cookies.txt montado — e a leitura custa 1 unidade das 10.000
+    diárias, contra um token OAuth que o uploader já carrega. O yt-dlp fica como
+    fallback para quando não há token.
+    """
+    try:
+        duration = _duration_via_api(video_id)
+        if duration:
+            return duration
+    except Exception as exc:
+        _log(f'AVISO: Data API não devolveu a duração de {video_id}: {exc} — tentando yt-dlp')
+
+    try:
+        return _duration_via_ytdlp(video_id)
+    except Exception as exc:
+        _log(f'AVISO: falha ao obter duração de {video_id}: {exc}')
+        return None
+
+
+def _detect_format(video_id: str, mode_resolver=None, duration=_DURACAO_NAO_MEDIDA) -> str:
     """Decide 'curto' ou 'longo' com base na duração real do vídeo fonte.
 
     mode_resolver: callable opcional que devolve o `long_format_mode` do canal destino do nicho
     (`auto` | `short_only` | `both`). É consultado só quando a fonte é longa; `short_only` rebaixa
     a fonte para 'curto' (gera Shorts, nunca longo). Sem resolver = comportamento histórico (`auto`).
 
+    duration: duração já medida pelo chamador (em segundos, ou None quando desconhecida), para não
+    gastar uma segunda consulta por vídeo. Omitida, a duração é buscada aqui.
+
     Vídeos com MIN_LONGFORM_SECONDS ou mais (entrevistas, podcasts, análises longas)
     têm material suficiente pra um corte longo horizontal; o resto continua shorts.
-    Falha ao consultar metadados (rede, vídeo indisponível) → assume 'curto' (comportamento
-    anterior), sem abortar a ingestão do vídeo por isso.
+    Duração desconhecida → assume 'curto' (comportamento anterior), sem abortar a ingestão
+    do vídeo por isso.
     """
-    try:
-        ydl_opts = {
-            'quiet': True,
-            'no_color': True,
-            'skip_download': True,
-            'remote_components': ['ejs:github'],
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['mweb', 'tv', 'ios', 'android']
-                }
-            },
-        }
-        cookie_file = '/app/youtube/cookies.txt'
-        if os.path.exists(cookie_file):
-            ydl_opts['cookiefile'] = cookie_file
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
-        duration = info.get('duration') if info else None
-        if duration and duration >= MIN_LONGFORM_SECONDS:
-            if mode_resolver is not None and mode_resolver() == MODE_SHORT_ONLY:
-                return 'curto'
-            return 'longo'
-    except Exception as exc:
-        _log(f'AVISO: falha ao obter duração de {video_id} para detecção de formato: {exc}')
+    if duration is _DURACAO_NAO_MEDIDA:
+        duration = _video_duration_seconds(video_id)
+    if duration and duration >= MIN_LONGFORM_SECONDS:
+        if mode_resolver is not None and mode_resolver() == MODE_SHORT_ONLY:
+            return 'curto'
+        return 'longo'
     return 'curto'
 
 
@@ -409,9 +480,18 @@ def poll_all_channels(db_conn=None, redis_client=None) -> None:
                         _log(f'Título bloqueado (keyword): {video_id} — {title}')
                         continue
 
+                    duration = _video_duration_seconds(video_id)
+                    limiar = _min_ingest_seconds()
+                    # Fail-open: só descarta com duração medida. Não saber a duração não é
+                    # prova de que o vídeo é curto (mesmo princípio do guard de formato).
+                    if duration is not None and duration < limiar:
+                        _log(f'Vídeo curto demais ({duration}s < {limiar}s): {video_id} — {title}')
+                        continue
+
                     fmt = _detect_format(
                         video_id,
                         mode_resolver=lambda: get_long_format_mode(db_conn, channel.get('target_niche')),
+                        duration=duration,
                     )
                     insert_video(db_conn, video_id, channel_id, title, published_at, format=fmt)
                     _log(f'Novo vídeo detectado ({fmt}): {video_id} — {title}')

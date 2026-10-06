@@ -380,3 +380,59 @@ class TestFallbackGroq:
             out = select_moments(SAMPLE_TRANSCRIPT, fmt='curto')
         groq.assert_called_once()
         assert out and out[0]['start_time'] == 100.0
+
+
+class TestLogDeSelecaoVazia:
+    """06/10/2026: 30 de 73 vídeos (41%) viraram failed com "0 momento(s)" e nenhuma linha de log.
+
+    Eram Shorts de ~60s e o modelo devolvia {"moments": []} — o único caminho mudo do módulo.
+    """
+
+    def test_lista_vazia_do_modelo_e_registrada(self, capsys):
+        resultado = _parse_moments(json.dumps({'moments': []}), transcript_chars=812)
+
+        assert resultado == []
+        log = capsys.readouterr().out
+        assert '[SELECTOR] Nenhum momento aproveitável: 0 na resposta crua' in log
+        assert '0 após a limpeza' in log
+        assert 'transcrição de 812 chars' in log
+        assert 'lista vazia' in log
+
+    def test_momentos_todos_invalidos_sao_registrados_com_a_contagem_crua(self, capsys):
+        bruto = json.dumps({'moments': [
+            {'start_time': 100, 'end_time': 100, 'score': 9, 'reason': 'colapsado'},
+            {'start_time': 200, 'end_time': 150, 'score': 8, 'reason': 'invertido'},
+        ]})
+
+        resultado = _parse_moments(bruto, transcript_chars=4096)
+
+        assert resultado == []
+        log = capsys.readouterr().out
+        assert '[SELECTOR] Nenhum momento aproveitável: 2 na resposta crua' in log
+        assert 'transcrição de 4096 chars' in log
+        assert 'end <= start' in log
+        assert 'lista vazia' not in log
+
+    def test_caminho_feliz_nao_polui_o_log(self, capsys):
+        bruto = json.dumps({'moments': [
+            {'start_time': 10, 'end_time': 70, 'score': 9, 'reason': 'ok'},
+        ]})
+
+        resultado = _parse_moments(bruto, transcript_chars=4096)
+
+        assert len(resultado) == 1
+        assert 'Nenhum momento aproveitável' not in capsys.readouterr().out
+
+    def test_select_moments_vazio_apos_filtros_registra_linha_final(self, capsys, monkeypatch):
+        """Distingue "a IA não achou nada" de "os filtros descartaram tudo" — o rss_poller não distingue."""
+        monkeypatch.delenv('ANTHROPIC_API_KEY', raising=False)
+        # 10s: abaixo do piso de esticamento do formato curto, descartado pelos filtros
+        with patch.object(sel, '_select_via_groq', return_value=[
+            {'start_time': 100.0, 'end_time': 110.0, 'score': 9, 'reason': 'curto demais'}
+        ]):
+            resultado = select_moments(SAMPLE_TRANSCRIPT, fmt='curto')
+
+        assert resultado == []
+        log = capsys.readouterr().out
+        assert '[SELECTOR] Nenhum momento sobrou após os filtros' in log
+        assert '1 momento(s) vieram do modelo' in log

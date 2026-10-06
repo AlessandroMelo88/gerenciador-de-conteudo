@@ -65,13 +65,13 @@
     "semantic_hash": ""
   },
   "clip-processor/src/rss_poller.py": {
-    "mtime": 1791311916.0740051,
-    "ast_hash": "4d175f8ccbea74badba46cee8a14a3ea",
+    "mtime": 1791313584.3535087,
+    "ast_hash": "4fa28760082d2114bd0846bca142da9b",
     "semantic_hash": ""
   },
   "clip-processor/src/selector.py": {
-    "mtime": 1791311475.8498435,
-    "ast_hash": "3553aaf23cd4fb98dabab806e0450a97",
+    "mtime": 1791313556.3457382,
+    "ast_hash": "ffe660448652448f18c859e300ab7590",
     "semantic_hash": ""
   },
   "clip-processor/src/telegram_notifier.py": {
@@ -170,13 +170,13 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_rss_poller.py": {
-    "mtime": 1789518075.032792,
-    "ast_hash": "b5b41963fe57873c43564e84175a93ad",
+    "mtime": 1791313666.1520402,
+    "ast_hash": "cd56e399750fb6889bd206b5384ae446",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_selector.py": {
-    "mtime": 1790782130.2457483,
-    "ast_hash": "b0028db8bf19ebba256b9860bf2e0d17",
+    "mtime": 1791313581.0105243,
+    "ast_hash": "6fab52ec51de3b18cdebe4f2326fae9a",
     "semantic_hash": ""
   },
   "clip-processor/tests/test_telegram_notifier.py": {
@@ -1895,8 +1895,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-CLIP-PROCESSOR.md": {
-    "mtime": 1791311475.822397,
-    "ast_hash": "0e2d02f90db572ac7cc57bc14d3d9505",
+    "mtime": 1791315566.3877187,
+    "ast_hash": "cc69a01077216e4944738ff3ad48b397",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-DOWNLOAD.md": {
@@ -2855,7 +2855,7 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_long_format_mode.py": {
-    "mtime": 1791311899.8013976,
+    "mtime": 1791312240.913271,
     "ast_hash": "44e26520cb792d8aa5151a4441a9898b",
     "semantic_hash": ""
   },
@@ -2965,8 +2965,8 @@
     "semantic_hash": ""
   },
   "Docs/operacao/BUGS.md": {
-    "mtime": 1791312201.50809,
-    "ast_hash": "135901914e93bb2bea85d1a32283cd68",
+    "mtime": 1791313452.6913002,
+    "ast_hash": "13978371aa830c822bd210f92a6d7ef2",
     "semantic_hash": ""
   },
   "Docs/operacao/DESENVOLVIMENTO.md": {

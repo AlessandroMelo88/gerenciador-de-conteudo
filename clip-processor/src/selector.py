@@ -187,8 +187,14 @@ def _clean_reason(raw) -> str:
     return texto
 
 
-def _parse_moments(raw_text: str) -> list[dict]:
-    """Parse JSON text → lista de dicts de momentos com normalização de timestamps."""
+def _parse_moments(raw_text: str, transcript_chars: int | None = None) -> list[dict]:
+    """Parse JSON text → lista de dicts de momentos com normalização de timestamps.
+
+    transcript_chars é só para o log: em 06/10/2026, 30 de 73 vídeos (41%) terminaram em
+    "0 momento(s)" e viraram failed sem uma linha de log explicando — eram Shorts de ~60s e o
+    modelo devolvia {"moments": []}. Sem o tamanho da transcrição não dá para distinguir
+    "vídeo curto demais" de "resposta malformada" sem reproduzir o caso.
+    """
     data = json.loads(raw_text)
     raw_moments = data.get('moments', [])
     cleaned = []
@@ -204,6 +210,15 @@ def _parse_moments(raw_text: str) -> list[dict]:
             # sempre presente: insert_selected_moments lê moment['reason'] direto
             m_clean['reason'] = _clean_reason(m.get('reason'))
             cleaned.append(m_clean)
+
+    if not cleaned:
+        brutos = len(raw_moments) if isinstance(raw_moments, list) else 0
+        tamanho = f'{transcript_chars} chars' if transcript_chars is not None else 'tamanho não informado'
+        causa = ('lista vazia — o modelo não achou momento' if brutos == 0
+                 else 'todos descartados por end <= start — resposta malformada')
+        _log(f'[SELECTOR] Nenhum momento aproveitável: {brutos} na resposta crua, '
+             f'0 após a limpeza, transcrição de {tamanho} ({causa})')
+
     return _normalize_scores(cleaned)
 
 
@@ -215,7 +230,7 @@ def _select_via_anthropic_client(client, transcript_text: str, system_prompt: st
         system=system_prompt,
         messages=[{'role': 'user', 'content': transcript_text}],
     )
-    return _parse_moments(response.content[0].text)
+    return _parse_moments(response.content[0].text, len(transcript_text))
 
 
 GROQ_MODEL = os.environ.get('GROQ_MODEL', 'qwen/qwen3.8-27b')
@@ -244,7 +259,7 @@ def _select_via_groq(transcript_text: str, system_prompt: str = SYSTEM_PROMPT) -
         temperature=0.2,
         max_tokens=GROQ_MAX_OUTPUT_TOKENS,
     )
-    return _parse_moments(response.choices[0].message.content)
+    return _parse_moments(response.choices[0].message.content, len(transcript_text))
 
 
 def _remove_overlaps(moments: list[dict], max_count: int = 3) -> list[dict]:
@@ -533,6 +548,7 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', 
         return []
 
     def _finalize(moments: list[dict]) -> list[dict]:
+        recebidos = len(moments)
         moments = _clamp_moment_bounds(moments, transcript_duration)
         # Aplica ajuste de fronteiras de frase para não cortar fala no meio
         moments = _snap_to_sentence_boundaries(moments, segments)
@@ -545,6 +561,11 @@ def select_moments(transcript: dict, anthropic_client=None, fmt: str = 'curto', 
             result = _enforce_longform_duration(result, transcript_duration)
         else:
             result = _filter_shortform_duration(result, transcript_duration)
+        if not result:
+            # o chamador (rss_poller) só diz "0 momento(s) inserido(s)", que não distingue
+            # "a IA não achou nada" de "os filtros descartaram tudo"
+            _log(f'[SELECTOR] Nenhum momento sobrou após os filtros (fmt={fmt}, nicho={niche}): '
+                 f'{recebidos} momento(s) vieram do modelo')
         return result
 
     # Caminho de testes: cliente injetado diretamente
