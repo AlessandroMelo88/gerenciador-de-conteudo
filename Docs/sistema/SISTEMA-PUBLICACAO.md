@@ -207,7 +207,7 @@ Hipótese principal para a suspeita de "thumbnail não aplicada nos longos": 403
 | Token por canal | `/app/youtube/token-<slug>.json` ([`uploader.py:78`](../../clip-processor/src/uploader.py#L78)) |
 | Token legado | `YOUTUBE_TOKEN_FILE` ou `/app/token.json` ([`:15`](../../clip-processor/src/uploader.py#L15)) |
 | Scope | `youtube.upload` + `youtube.force-ssl` ([`:16`](../../clip-processor/src/uploader.py#L16)) |
-| Geração | `.venv/bin/python youtube/generate_token_channel.py --channel <slug>` |
+| Geração | `make token-youtube CANAL=<slug>` (na raiz do repo) |
 | Client secrets | `YOUTUBE_CLIENT_SECRETS=/app/youtube/client_secret.json` (compose) |
 
 O `force-ssl` serve a duas coisas: a leitura de métricas e a conferência de identidade do token

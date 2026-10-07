@@ -24,7 +24,7 @@ TEST_DB_PORT ?= 5433
         lint lint-python lint-php lint-js lint-shell lint-yaml lint-docker \
         format-python format-php \
         test test-python test-php types-python types-js \
-        changelog-preview changelog-release ci
+        changelog-preview changelog-release ci token-youtube
 
 help: ## Lista os alvos disponíveis
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | \
@@ -99,6 +99,15 @@ test-php: ## Pest do painel no host contra o Postgres avulso (scripts/dev-pgvect
 	cd $(PANEL_DIR) && DB_HOST=$(TEST_DB_HOST) DB_PORT=$(TEST_DB_PORT) \
 		CLIP_PROCESSOR_INTERNAL_TOKEN=test-internal-token TELEGRAM_BOT_TOKEN=test-telegram-token \
 		php artisan test
+
+# ----------------------------------------------------------------- youtube
+# Gera o token OAuth de um canal destino. Interativo: abre o browser, e na tela do
+# Google escolha a CONTA DE MARCA do canal, nunca a conta pessoal — foi assim que, em
+# 02/10/2026, quatro dias de clips subiram no canal errado. O script confere o canal
+# depois do consentimento e recusa salvar se não bater.
+token-youtube: ## Token OAuth de um canal destino (uso: make token-youtube CANAL=fatos-e-debates)
+	@test -n "$(CANAL)" || { echo "uso: make token-youtube CANAL=<slug>  (ex.: futebol-em-cortes)"; exit 2; }
+	$(VENV)/bin/python youtube/generate_token_channel.py --channel $(CANAL)
 
 # -------------------------------------------------------------- changelog
 # Dependem de scripts/changelog.py e de CHANGELOG.d/ (lote de documentação).
