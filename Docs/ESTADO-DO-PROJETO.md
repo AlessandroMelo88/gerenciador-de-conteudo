@@ -144,6 +144,7 @@ A VM antiga (E2.1.Micro, 1 GB) virou rollback.
 | Senhas antigas no histórico público do git | Bug 16 | Rotacionadas; reescrita de histórico adiada |
 | Plano produto + canais (eixo novo) | 05/10 | `planos/PLANO-PRODUTO-E-CANAIS.md` em `docs/plano-produto-canais`. Fase 0 não exige código: pôr tráfego no simulador do Traider e cadastrar a primeira oferta real. 7 decisões em aberto para o dono no fim do arquivo |
 | Bot de descoberta de nicho (SPEC-003) | 05/10 | `specs/SPEC-003-BOT-DESCOBERTA-DE-NICHO.md`, não implementado. Worker local `niche-scout/`, YouTube Data API v3 (10.000 unidades/dia, `search.list` = 100) + Google Trends (`trendspyg`; `pytrends` arquivado em 04/2025). Só depois da fase 3 do plano |
+| Canal de podcast **Mic Solto** | 08/10 | Nome escolhido; identidade (roxo `#8B5CF6` + coral `#F43F5E`) gerada em `branding/`: `logo-`, `watermark-`, `background-mic-solto.png` + avatar 1024, banner 2560×1440 e preview 9:16 (os 3 últimos não vão ao git). Branch `feature/canal-mic-solto`, sem merge. **Falta (dono):** criar o canal no YouTube como conta de marca, `make token-youtube CANAL=mic-solto`, cadastrar no painel (nicho `podcast`) e apagar o `podcast-cortes` placeholder lá. Seeder já troca o placeholder |
 | 3 branches locais já mescladas | Gitflow | `feature/fontes-seguras-futebol`, `fix/pendencias-fontes-e-seletor`, `fix/bug17-finaliza-video-rejeitado` |
 
 ## 7. Como começar uma rodada nova
