@@ -13,7 +13,7 @@ No projeto, os canais de destino são isolados por token e podem estar em contas
 | **Futebol em Cortes** | `futebol-em-cortes` | `futebol` | `UCcyeBQFAkUNeDJbBM7JJqLw` | Money Intel | Ativo / Produção |
 | **Fatos & Debates** | `fatos-e-debates` | `politica` | `UCCx9rlpbNdfLBTLqGah78cA` | Money Intel | Ativo / Produção |
 | **Novo Canal** | *(definido na criação)* | `futebol` / `politica` / `podcast` | `UC...` | `alessandrobm1988@gmail.com` | Novo |
-| *Papo Estourado* | `papo-estourado` | `podcast` | `UC_PLACEHOLDER_PAPO_ESTOURADO` | A definir | Identidade pronta em `branding/`; falta criar o canal no YouTube |
+| **Ponto de Vista Cortes** | `pontodevista-cortes` | `podcast` | `UCXTo4hgJ3pLlpXO0qjyVh8A` | `@pontodevistacortes-wd` | Canal criado; falta token OAuth |
 
 > ℹ️ **Nota sobre o "Podcast Cortes":** Foi inserido originalmente via `BaselineSeeder.php` como dado base de exemplo para a estrutura do banco de dados (com ID `UC_PLACEHOLDER_PODCAST`). Ele não existe no YouTube e pode ser excluído no painel sem afetar outros canais.
 

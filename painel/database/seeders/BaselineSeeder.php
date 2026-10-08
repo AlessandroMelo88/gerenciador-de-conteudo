@@ -48,10 +48,10 @@ class BaselineSeeder extends Seeder
             'active' => true,
         ],
         [
-            'slug' => 'papo-estourado',
-            'name' => 'Papo Estourado',
+            'slug' => 'pontodevista-cortes',
+            'name' => 'Ponto de Vista Cortes',
             'niche' => 'podcast',
-            'youtube_channel_id' => 'UC_PLACEHOLDER_PAPO_ESTOURADO',
+            'youtube_channel_id' => 'UCXTo4hgJ3pLlpXO0qjyVh8A',
             'credit_template' => 'Créditos: @{channel_handle}',
             'active' => false,
         ],
