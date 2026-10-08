@@ -23,6 +23,7 @@ class DestinationChannel extends Model
         'name',
         'niche',
         'youtube_channel_id',
+        'account_email',
         'credit_template',
         'template_config',
         'long_format_mode',

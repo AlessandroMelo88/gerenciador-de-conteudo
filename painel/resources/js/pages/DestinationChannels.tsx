@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
-import { Landmark, Trophy, Mic, PlusCircle, Trash2, Edit2, Search, Sparkles } from 'lucide-react';
+import { Landmark, Trophy, Mic, PlusCircle, Trash2, Edit2, Search, Sparkles, Mail } from 'lucide-react';
 
 import { ConfirmButton } from '@/components/confirm-button';
 import { NicheCombobox, type Niche } from '@/components/niche-combobox';
@@ -48,6 +48,7 @@ type DestinationChannel = {
     name: string;
     niche: string;
     youtubeChannelId: string;
+    accountEmail?: string | null;
     creditTemplate: string | null;
     templateConfig?: TemplateConfig | null;
     longFormatMode?: LongFormatMode;
@@ -111,6 +112,7 @@ function ChannelDialog({
         name: channel?.name ?? '',
         niche: channel?.niche ?? '',
         youtube_channel_id: channel?.youtubeChannelId ?? '',
+        account_email: channel?.accountEmail ?? '',
         credit_template: channel?.creditTemplate ?? 'Créditos: @{channel_handle}',
         long_format_mode: (channel?.longFormatMode ?? 'auto') as LongFormatMode,
         default_privacy: (channel?.defaultPrivacy ?? 'private') as DefaultPrivacy,
@@ -189,6 +191,26 @@ function ChannelDialog({
                         />
                         {errors.youtube_channel_id && (
                             <p className="text-xs text-destructive">{errors.youtube_channel_id}</p>
+                        )}
+                    </Field>
+
+                    <Field>
+                        <FieldLabel>Conta Google / E-mail do Canal</FieldLabel>
+                        <div className="relative">
+                            <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                type="email"
+                                value={data.account_email}
+                                onChange={(e) => setData('account_email', e.target.value)}
+                                placeholder="Ex: moneyintel@gmail.com ou alessandrobm1988@gmail.com"
+                                className="pl-9 text-xs"
+                            />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Conta Google associada ao canal no YouTube e usada para autorização OAuth.
+                        </p>
+                        {errors.account_email && (
+                            <p className="text-xs text-destructive">{errors.account_email}</p>
                         )}
                     </Field>
 
@@ -315,7 +337,8 @@ export default function DestinationChannels() {
             search === '' ||
             c.name.toLowerCase().includes(search.toLowerCase()) ||
             c.slug.toLowerCase().includes(search.toLowerCase()) ||
-            c.youtubeChannelId.toLowerCase().includes(search.toLowerCase());
+            c.youtubeChannelId.toLowerCase().includes(search.toLowerCase()) ||
+            (c.accountEmail ?? '').toLowerCase().includes(search.toLowerCase());
 
         return matchesTab && matchesSearch;
     });
@@ -476,20 +499,33 @@ export default function DestinationChannels() {
                                             <NicheBadge niche={channel.niche} />
                                         </div>
 
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className={`flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border ${
-                                                    isAuth
-                                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                                                        : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
-                                                }`}
-                                            >
-                                                <span className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                                                {isAuth ? 'OAuth autorizado' : 'Sem autorização'}
-                                            </span>
-                                            <span className="font-mono text-[10.5px] text-muted-foreground truncate" title={channel.youtubeChannelId}>
-                                                {channel.youtubeChannelId}
-                                            </span>
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className={`flex items-center gap-1.5 text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border shrink-0 ${
+                                                        isAuth
+                                                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                                            : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                                                    }`}
+                                                >
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${isAuth ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                                    {isAuth ? 'OAuth autorizado' : 'Sem autorização'}
+                                                </span>
+                                                <span className="font-mono text-[10.5px] text-muted-foreground truncate" title={channel.youtubeChannelId}>
+                                                    {channel.youtubeChannelId}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/60 bg-muted/30 text-xs">
+                                                <Mail className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                                                <span className="text-[11.5px] text-muted-foreground truncate" title={channel.accountEmail || 'E-mail não informado'}>
+                                                    {channel.accountEmail ? (
+                                                        <span className="font-medium text-foreground">{channel.accountEmail}</span>
+                                                    ) : (
+                                                        <span className="italic text-muted-foreground/60">Sem e-mail vinculado</span>
+                                                    )}
+                                                </span>
+                                            </div>
                                         </div>
 
                                         <div className="rounded-xl border border-border bg-muted/40 p-3">
@@ -564,6 +600,7 @@ export default function DestinationChannels() {
                                 <TableHeader>
                                     <TableRow className="hover:bg-transparent">
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Canal</TableHead>
+                                        <TableHead className="px-5 py-3.5 text-xs font-semibold">Conta Google</TableHead>
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Nicho</TableHead>
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Formato</TableHead>
                                         <TableHead className="px-5 py-3.5 text-xs font-semibold">Status OAuth</TableHead>
@@ -596,6 +633,18 @@ export default function DestinationChannels() {
                                                             <div className="font-semibold text-foreground">{channel.name}</div>
                                                             <div className="font-mono text-[11px] text-muted-foreground">{channel.slug}</div>
                                                         </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="px-5 py-3">
+                                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                        <Mail className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" />
+                                                        <span className="text-[11.5px] truncate max-w-[190px]" title={channel.accountEmail || 'Não informado'}>
+                                                            {channel.accountEmail ? (
+                                                                <span className="font-medium text-foreground">{channel.accountEmail}</span>
+                                                            ) : (
+                                                                <span className="text-muted-foreground/50 italic text-[11px]">Não informado</span>
+                                                            )}
+                                                        </span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="px-5 py-3">

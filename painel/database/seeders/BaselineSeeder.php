@@ -48,10 +48,10 @@ class BaselineSeeder extends Seeder
             'active' => true,
         ],
         [
-            'slug' => 'podcast-cortes',
-            'name' => 'Podcast Cortes',
+            'slug' => 'papo-estourado',
+            'name' => 'Papo Estourado',
             'niche' => 'podcast',
-            'youtube_channel_id' => 'UC_PLACEHOLDER_PODCAST',
+            'youtube_channel_id' => 'UC_PLACEHOLDER_PAPO_ESTOURADO',
             'credit_template' => 'Créditos: @{channel_handle}',
             'active' => false,
         ],
@@ -71,6 +71,7 @@ class BaselineSeeder extends Seeder
                     'slug' => $destino['slug'],
                     'name' => $destino['name'],
                     'niche' => $destino['niche'],
+                    'account_email' => $destino['account_email'] ?? null,
                     'credit_template' => $destino['credit_template'],
                     'active' => $destino['active'],
                 ]

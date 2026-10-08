@@ -82,3 +82,31 @@ it('automatically assigns smart default template_config when creating a channel'
     expect($channel->template_config['accentColor'])->toBe('#10B981');
     expect($channel->template_config['bgStyle'])->toBe('blur_dark');
 });
+
+it('creates and updates a destination channel with account_email', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user)
+        ->post('/painel/canais-destino', [
+            'slug' => 'email-canal-teste',
+            'name' => 'Canal com Email',
+            'niche' => 'futebol',
+            'youtube_channel_id' => 'UC_EMAIL_TEST',
+            'account_email' => 'moneyintel@gmail.com',
+            'active' => true,
+        ])
+        ->assertRedirect();
+
+    $channel = DestinationChannel::query()->where('slug', 'email-canal-teste')->first();
+    expect($channel)->not->toBeNull();
+    expect($channel->account_email)->toBe('moneyintel@gmail.com');
+
+    $this->actingAs($user)
+        ->put("/painel/canais-destino/{$channel->id}", [
+            'account_email' => 'alessandrobm1988@gmail.com',
+        ])
+        ->assertRedirect();
+
+    $channel->refresh();
+    expect($channel->account_email)->toBe('alessandrobm1988@gmail.com');
+});
+
