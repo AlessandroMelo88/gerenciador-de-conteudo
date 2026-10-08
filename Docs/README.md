@@ -62,6 +62,7 @@ destrutivas e armadilhas), [`../CHANGELOG.md`](../CHANGELOG.md).
 
 | Documento | Estado | Em uma linha |
 |---|---|---|
+| [`operacao/GUIA-CRIACAO-CANAL-YOUTUBE.md`](operacao/GUIA-CRIACAO-CANAL-YOUTUBE.md) | VIGENTE | Passo a passo completo: YouTube Studio, OAuth, GCP, token e automação |
 | [`operacao/RUNBOOK.md`](operacao/RUNBOOK.md) | VIGENTE | Comandos do dia a dia, destrave de estado preso, reinício seguro |
 | [`operacao/BUGS.md`](operacao/BUGS.md) | VIGENTE | Backlog de bugs com status e evidência (abertos: 6, 8, 10) |
 | [`operacao/DESENVOLVIMENTO.md`](operacao/DESENVOLVIMENTO.md) | VIGENTE | Lint, testes e CI (`make help`) |

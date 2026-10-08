@@ -50,7 +50,7 @@
     "semantic_hash": "a5cc7a27969c05b3e8af8cc3aa9abf01"
   },
   "clip-processor/src/publisher.py": {
-    "mtime": 1791326844.7001946,
+    "mtime": 1791327515.9250414,
     "ast_hash": "947196d62c0179fb7bfc56a43d003c60",
     "semantic_hash": ""
   },
@@ -90,7 +90,7 @@
     "semantic_hash": ""
   },
   "clip-processor/src/uploader.py": {
-    "mtime": 1791326844.7013988,
+    "mtime": 1791327515.9258127,
     "ast_hash": "bac3eda3bfc89fa70f9f04f3f404dc87",
     "semantic_hash": ""
   },
@@ -155,7 +155,7 @@
     "semantic_hash": "2d7d23259bb80f893f06f41fa87fe8f2"
   },
   "clip-processor/tests/test_publisher.py": {
-    "mtime": 1791326844.7025173,
+    "mtime": 1791327515.9290283,
     "ast_hash": "9a76f167fc83d42797d832c6d176bf38",
     "semantic_hash": ""
   },
@@ -195,7 +195,7 @@
     "semantic_hash": ""
   },
   "clip-processor/tests/test_uploader.py": {
-    "mtime": 1791326844.7032943,
+    "mtime": 1791327515.930017,
     "ast_hash": "208a8154788600006d40bf8df449e22a",
     "semantic_hash": ""
   },
@@ -250,13 +250,13 @@
     "semantic_hash": "25a307335c0719bc9a91b3f7babd186d"
   },
   "painel/app/Http/Controllers/DashboardController.php": {
-    "mtime": 1791326844.7421355,
+    "mtime": 1791327515.9826412,
     "ast_hash": "c83613ec7f17b501811c412dd3927c7f",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/DestinationChannelController.php": {
-    "mtime": 1791326844.7455685,
-    "ast_hash": "c0703f8a396004cca871d41ff77c2b04",
+    "mtime": 1791490244.2654896,
+    "ast_hash": "ac0c58009ec3e9c5e319d351bd1ef2a7",
     "semantic_hash": ""
   },
   "painel/app/Http/Controllers/DocumentationController.php": {
@@ -300,12 +300,12 @@
     "semantic_hash": ""
   },
   "painel/app/Models/DestinationChannel.php": {
-    "mtime": 1791326891.4165623,
-    "ast_hash": "a2eb9325ff23f097fdc7d61fb72bce5d",
+    "mtime": 1791490187.6388218,
+    "ast_hash": "fc127203f6d84358a264f382b54068a4",
     "semantic_hash": ""
   },
   "painel/app/Models/GeneratedClip.php": {
-    "mtime": 1791326878.599147,
+    "mtime": 1791327515.9845243,
     "ast_hash": "48060d6a000171cad5e07a6c3c176363",
     "semantic_hash": ""
   },
@@ -395,7 +395,7 @@
     "semantic_hash": "c5f0d79f0c81e558272f8e70cd8b59a9"
   },
   "painel/composer.json": {
-    "mtime": 1791326844.9049408,
+    "mtime": 1791327515.9855938,
     "ast_hash": "0a1783e18b38f08dc26aee68eb3bcf3e",
     "semantic_hash": ""
   },
@@ -530,12 +530,12 @@
     "semantic_hash": ""
   },
   "painel/resources/js/components/clip-queue-tabs.tsx": {
-    "mtime": 1791326844.7526832,
+    "mtime": 1791327515.9911108,
     "ast_hash": "bc8b67ba5448bd674667b6cafba1e1ed",
     "semantic_hash": ""
   },
   "painel/resources/js/components/confirm-button.tsx": {
-    "mtime": 1791326844.7534463,
+    "mtime": 1791327515.992098,
     "ast_hash": "41db38cb17703435a35dc4565d9cd962",
     "semantic_hash": ""
   },
@@ -755,13 +755,13 @@
     "semantic_hash": ""
   },
   "painel/resources/js/pages/DestinationChannels.tsx": {
-    "mtime": 1791326844.7541213,
-    "ast_hash": "c0837f62dd59a630ea0cd9086e8347dd",
+    "mtime": 1791490611.461007,
+    "ast_hash": "d77aa8fa00bc054b839c765bb4145af1",
     "semantic_hash": ""
   },
   "painel/resources/js/pages/Documentation.tsx": {
-    "mtime": 1789693059.6027572,
-    "ast_hash": "8f2b66999be84d7a5437d3a3c1ae5f63",
+    "mtime": 1791490979.4200065,
+    "ast_hash": "9fe9a18e5a940d9f348ce35a62e8daee",
     "semantic_hash": ""
   },
   "painel/resources/js/pages/Login.tsx": {
@@ -790,7 +790,7 @@
     "semantic_hash": ""
   },
   "painel/resources/js/types/dashboard.ts": {
-    "mtime": 1791326844.7546148,
+    "mtime": 1791327515.993795,
     "ast_hash": "c69374a87a6f4a758a72ac11f214b814",
     "semantic_hash": ""
   },
@@ -825,7 +825,7 @@
     "semantic_hash": "f3de41494782e2453a3faab1d768134f"
   },
   "painel/tests/Feature/ClipApprovalActionTest.php": {
-    "mtime": 1791326952.5306659,
+    "mtime": 1791327515.9947095,
     "ast_hash": "7370c140441c6432cbaac8d2d068e88e",
     "semantic_hash": ""
   },
@@ -835,8 +835,8 @@
     "semantic_hash": "ed8701a7489afa944077279c2973e7fe"
   },
   "painel/tests/Feature/DestinationChannelResourceTest.php": {
-    "mtime": 1789511603.1309714,
-    "ast_hash": "49a639056a021fd806e9807395a32353",
+    "mtime": 1791490657.7135615,
+    "ast_hash": "0ac726c7d3ecbd36c14c9cb9e7dfc02f",
     "semantic_hash": ""
   },
   "painel/tests/Feature/ExampleTest.php": {
@@ -920,7 +920,7 @@
     "semantic_hash": ""
   },
   "youtube/generate_token_channel.py": {
-    "mtime": 1791326844.7582023,
+    "mtime": 1791327515.9966643,
     "ast_hash": "c54d8c9287cd4e71bd51ab034a66a10d",
     "semantic_hash": ""
   },
@@ -1710,8 +1710,8 @@
     "semantic_hash": ""
   },
   "Docs/README.md": {
-    "mtime": 1791311475.7929096,
-    "ast_hash": "a19266f3372d1f82a39b2bfab6075e69",
+    "mtime": 1791491076.6333482,
+    "ast_hash": "434b36132730de4196c920167a95f920",
     "semantic_hash": ""
   },
   "Dockerfile.php": {
@@ -1915,8 +1915,8 @@
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-PUBLICACAO.md": {
-    "mtime": 1791326844.6970034,
-    "ast_hash": "08e0ac8b1c1610b2d9fc2006156e8f6b",
+    "mtime": 1791336128.9385073,
+    "ast_hash": "6e0f266075adb737093705c91e8b9078",
     "semantic_hash": ""
   },
   "Docs/sistema/SISTEMA-REGRAS-E-GATILHOS.md": {
@@ -2065,8 +2065,8 @@
     "semantic_hash": ""
   },
   "painel/database/seeders/BaselineSeeder.php": {
-    "mtime": 1789521671.5474439,
-    "ast_hash": "85edd31732f5f1a0ed6e6b8ffca5c149",
+    "mtime": 1791502902.4125826,
+    "ast_hash": "4e6bbe9ef86d08ff959ad5a53725f0ee",
     "semantic_hash": ""
   },
   "painel/database/seeders/SourceChannelsSeeder.php": {
@@ -2715,8 +2715,8 @@
     "semantic_hash": ""
   },
   "Docs/ESTADO-DO-PROJETO.md": {
-    "mtime": 1791315686.7233164,
-    "ast_hash": "1d0050e0119ec8bdba52aba58a4b8d38",
+    "mtime": 1791502902.4166512,
+    "ast_hash": "0c19e482c8895f017e65644ee485528e",
     "semantic_hash": ""
   },
   "Docs/adr/0001-busca-vetorial-nas-transcricoes.md": {
@@ -2845,7 +2845,7 @@
     "semantic_hash": ""
   },
   "clip-processor/src/format_mode.py": {
-    "mtime": 1791326844.6985261,
+    "mtime": 1791327515.9246256,
     "ast_hash": "5698516e7245a17829ca965e1c41bd38",
     "semantic_hash": ""
   },
@@ -2900,7 +2900,7 @@
     "semantic_hash": ""
   },
   "painel/tests/Feature/DestinationChannelLongFormatModeTest.php": {
-    "mtime": 1791326952.532712,
+    "mtime": 1791327515.9953573,
     "ast_hash": "3a816b589ac40cb7a60a1660b14c2463",
     "semantic_hash": ""
   },
@@ -3085,23 +3085,33 @@
     "semantic_hash": ""
   },
   "painel/app/Enums/VideoPrivacy.php": {
-    "mtime": 1791326844.738304,
+    "mtime": 1791327515.9819992,
     "ast_hash": "a0d5dc48a475d2c1090846eb757ce6e3",
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_10_06_200000_add_default_privacy_to_destination_channels_table.php": {
-    "mtime": 1791326844.7494276,
+    "mtime": 1791327515.9885952,
     "ast_hash": "1c278e64903f23e615507c1cf0af4ff7",
     "semantic_hash": ""
   },
   "painel/database/migrations/2026_10_06_200100_add_privacy_status_to_generated_clips_table.php": {
-    "mtime": 1791326844.7504125,
+    "mtime": 1791327515.9890137,
     "ast_hash": "ce1a448a61d768f726a0a152bf656b27",
     "semantic_hash": ""
   },
   "painel/resources/js/components/approve-button.tsx": {
-    "mtime": 1791326844.7518454,
+    "mtime": 1791327515.9901931,
     "ast_hash": "e1e0a6ec6c08b7dd70305bf46c2d571c",
+    "semantic_hash": ""
+  },
+  "painel/database/migrations/2026_10_08_180000_add_account_email_to_destination_channels_table.php": {
+    "mtime": 1791490162.5133739,
+    "ast_hash": "21bb69f148ea1d8b693099f80f132fc9",
+    "semantic_hash": ""
+  },
+  "Docs/operacao/GUIA-CRIACAO-CANAL-YOUTUBE.md": {
+    "mtime": 1791502902.4147983,
+    "ast_hash": "fcbc4efbfae83cd2eaaad811866ac8d0",
     "semantic_hash": ""
   }
 }
